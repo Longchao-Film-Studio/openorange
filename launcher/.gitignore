@@ -1,0 +1,5 @@
+/target
+**/*.pdb
+**/*.exp
+**/*.lib
+work/

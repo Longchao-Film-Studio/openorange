@@ -1,0 +1,18 @@
+[package]
+name = "oo_hosttest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "OO_Internal.dll injection-chain test host (does not touch the game)"
+
+[[bin]]
+name = "oo_hosttest"
+path = "src/main.rs"
+
+[dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+] }

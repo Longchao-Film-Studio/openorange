@@ -1,0 +1,995 @@
+--[[============================================================
+  oo_bootstrap.lua  --  OpenOrange 客户端引导脚本
+  ------------------------------------------------------------
+  本脚本由 OO_Internal.dll 在游戏进程内通过 lua_load 的 trampoline 注入执行。
+  作用：把 FPX 官方登录链路整个接管，改为由本机启动器提供身份，
+        使玩家在原版登录面板上点击一次即可进入我们自己的服务器。
+
+  设计来源：对某闭源私服 InternalPC.dll 注入脚本的行为等价重实现。
+  与其的差异：
+    * 服务器地址不硬编码，全部来自启动器读取的 OpenOrange.ini
+    * 保留了官服客户端的方法存在性校验，不匹配时明确报错
+
+  ★ 阶段二新增：只读探测（probe）
+    目的：一次性把选服/网络层的运行期真相打到日志里，
+         避免反复启动游戏。所有探测都用 pcall 包裹，
+         任何一项失败都不会影响正常登录流程。
+  ============================================================]]
+
+local original_require = require
+
+-- 全局状态：允许被重复注入时复用
+local pc = rawget(_G, 'OO_Internal_State') or {
+  initialized = false,   -- 由 FPXSDKReceiver.SetInitGame 反馈
+  entered     = false,   -- 是否已经触发过 EnterGame
+  pending     = false,   -- 是否正在等待异步登录结果
+  api         = false,   -- FPXSDKAPI 适配器是否已安装
+  receiver    = false,   -- FPXSDKReceiver 钩子是否已安装
+  selector    = false,   -- 选服面板重定向是否已安装
+  ghook       = false,   -- G.init 钩子
+  rpchook     = false,   -- RPC 层钩子
+  gchook      = false,   -- GateClient 钩子
+  slchook     = false,   -- ServerListComp 钩子
+  lmhook      = false,   -- LoginManager 钩子
+  phdumped    = false,   -- phonestcore 成员是否已枚举
+  rpcdumped   = false,   -- RPC 索引 API 是否已探测
+  regwrapped  = false,   -- registerRpc 包装是否已安装
+  probe_tags  = {},      -- 已执行过的探测标签
+}
+_G.OO_Internal_State = pc
+
+local function LOG(s)
+  pcall(OO_Internal_Log, s)
+end
+
+-- ============================================================
+-- registerRpc 探针（在脚本加载时立刻安装，抢在一切初始化之前）
+-- ------------------------------------------------------------
+-- 目的：协议 RPC 的类型号是运行时注册时分配的。
+-- 如果注册发生在 Lua 侧（EntityFactory:registerRpc 就是走 Lua 调
+-- phonestcore.registerRpc），那么包一层就能看到完整注册序列与返回值。
+-- 若一条都不打印，说明注册在 C# 里，这条路也封。
+-- ============================================================
+-- 实测：脚本加载时 phonestcore 还不可用（module not found），
+-- 因此改为在 require 钩子里、以及 probe_rpc_api 里安装包装。
+local function install_regrpc_wrapper(ph, where)
+  if pc.regwrapped then return end
+  if type(ph) ~= 'table' then return end
+  if type(ph.registerRpc) ~= 'function' then
+    LOG('registerRpc 包装失败(' .. where .. '): registerRpc 不是函数')
+    return
+  end
+  pc.regwrapped = true
+  local origReg = ph.registerRpc
+  local cnt = 0
+  ph.registerRpc = function(name, ...)
+    local r = origReg(name, ...)
+    cnt = cnt + 1
+    if cnt <= 500 then
+      LOG('registerRpc[' .. cnt .. ']: ' .. tostring(name) .. ' -> ' .. tostring(r))
+    elseif cnt == 501 then
+      LOG('registerRpc: 超过 500 条，后续不再打印')
+    end
+    return r
+  end
+  LOG('registerRpc wrapper 已安装（' .. where .. '）')
+end
+
+-- ============================================================
+-- 只读探测
+-- ============================================================
+local function safe(fn)
+  local ok, v = pcall(fn)
+  if ok then return v end
+  return '<err:' .. tostring(v) .. '>'
+end
+
+local function dump_map(t, maxn, fmt)
+  if type(t) ~= 'table' then return tostring(t) end
+  local out, n = {}, 0
+  for k, v in pairs(t) do
+    n = n + 1
+    if n > maxn then out[#out + 1] = '...'; break end
+    local ok, s = pcall(fmt, k, v)
+    out[#out + 1] = ok and s or '?'
+  end
+  if n == 0 then return '(empty)' end
+  return table.concat(out, ' | ')
+end
+
+local function argstr(...)
+  local n = select('#', ...)
+  local out = {}
+  for i = 1, math.min(n, 5) do
+    local v = select(i, ...)
+    local t = type(v)
+    if t == 'string' then
+      out[#out + 1] = 's[' .. #v .. ']:' .. (v:sub(1, 48):gsub('%c', '.'))
+    elseif t == 'number' then
+      out[#out + 1] = 'n:' .. tostring(v)
+    elseif t == 'boolean' then
+      out[#out + 1] = 'b:' .. tostring(v)
+    else
+      out[#out + 1] = t
+    end
+  end
+  return table.concat(out, ', ')
+end
+
+local function probe_dump(tag)
+  if pc.probe_tags[tag] then return end
+  pc.probe_tags[tag] = true
+
+  LOG('===== PROBE [' .. tag .. '] BEGIN =====')
+
+  local GC = rawget(_G, 'GlobalConst')
+  if type(GC) == 'table' then
+    LOG('probe: SERVER_AREA=' .. tostring(GC.SERVER_AREA))
+    LOG('probe: IsNativePkg=' .. tostring(safe(function() return GC.IsNativePkg() end)))
+    LOG('probe: IsReleasePkg=' .. tostring(safe(function() return GC.IsReleasePkg() end)))
+  else
+    LOG('probe: GlobalConst 不存在')
+  end
+
+  local Switch = safe(function() return original_require('Switch') end)
+  if type(Switch) == 'table' then
+    local h = Switch.server_list_host
+    if type(h) == 'table' then
+      LOG('probe: Switch.server_list_host=' .. table.concat(h, ' , '))
+    else
+      LOG('probe: Switch.server_list_host=' .. tostring(h))
+    end
+    LOG('probe: Switch.use_dns=' .. tostring(Switch.use_dns)
+      .. ' enable_telnet=' .. tostring(Switch.enable_telnet)
+      .. ' ms_key=' .. tostring(Switch.ms_key))
+  end
+
+  local ok_ls, ls = pcall(original_require, 'Net.local_server_list')
+  LOG('probe: require("Net.local_server_list") ok=' .. tostring(ok_ls)
+    .. ' type=' .. type(ls))
+  if ok_ls and type(ls) == 'table' then
+    LOG('probe: local_server_list servers='
+      .. tostring(type(ls.servers) == 'table' and #ls.servers or '?')
+      .. ' regions=' .. tostring(type(ls.regions) == 'table' and #ls.regions or '?'))
+  end
+
+  local G = safe(function() return original_require('G') end)
+  if type(G) == 'table' and type(G.servermgr) == 'table' then
+    local sm = G.servermgr
+    LOG('probe: servermgr.servers=' .. dump_map(sm.servers, 8, function(k, v)
+      return tostring(k) .. '=' .. tostring(v and v.name)
+        .. '@' .. tostring(v and v.ms_gate)
+        .. '#rid' .. tostring(v and v.rid)
+    end))
+    LOG('probe: servermgr.regions=' .. dump_map(sm.regions, 8, function(k, v)
+      return tostring(k) .. '=' .. tostring(v and v.name)
+        .. '@' .. tostring(v and v.ms_gate)
+    end))
+  else
+    LOG('probe: G.servermgr 尚未就绪')
+  end
+
+  if type(G) == 'table' and type(G.loginmgr) == 'table' then
+    local lm = G.loginmgr
+    LOG('probe: loginmgr.choose_hostnum=' .. tostring(lm.choose_hostnum)
+      .. ' IsLogin=' .. tostring(safe(function() return lm:IsLogin() end))
+      .. ' ticket_len=' .. tostring(lm.ticket and #tostring(lm.ticket) or 0)
+      .. ' username=' .. tostring(lm.username))
+  end
+
+  local CR = safe(function() return original_require('Core.Client.ClientRepo') end)
+  if type(CR) == 'table' then
+    LOG('probe: ClientRepo networkEventCallback=' .. type(CR.networkEventCallback)
+      .. ' netHandler=' .. type(CR.netHandler)
+      .. ' protoCodec=' .. type(CR.protoCodec)
+      .. ' msProxy=' .. type(CR.msProxy))
+  end
+
+  LOG('===== PROBE [' .. tag .. '] END =====')
+end
+
+-- ============================================================
+-- 服务器列表注入
+-- ------------------------------------------------------------
+-- 实测：SERVER_AREA=official, IsNativePkg=false
+--   => ServerListManager:onDone 里的 mergeLocal() 分支不会执行
+--   => 官方服务器列表地址（Switch.server_list_host 里那两个）又不可达
+--   => G.servermgr 始终为空 => loginProd() 里 GetOneServer() 返回 nil
+--      => 点"开始游戏"只会弹 Toast 179，永远连不到任何服务器
+--
+-- 所以必须由我们直接把列表灌进去。走 ParseFromLoadService 是为了
+-- 复用游戏自己的 parseContent 解析（字段校验、Server/Region 对象构造、
+-- ms_gate 三级回退、rid→region 关联，全部由官方代码完成）。
+-- ============================================================
+local SERVER_LIST_JSON = '{"clientGate":"127.0.0.1:33100",'
+  .. '"regions":[{"rid":10,"name":"OpenOrange","clientGate":"127.0.0.1:33100"}],'
+  .. '"servers":[{"hostnum":2000,"name":"OpenOrange","status":1,"openTime":0,"rid":10,'
+  .. '"clientGate":"127.0.0.1:33100",'
+  .. '"clusters":[{"clusterId":20000,"status":1,"addrs":["127.0.0.1:33101"]}]}]}'
+
+-- ------------------------------------------------------------
+-- 关闭网络层加密（开发期）
+-- ------------------------------------------------------------
+-- 依据 gateclient.lua L29-30 / L77-81：
+--   self.enable_encrypt = self.config.enableEncrypt
+--   if self.enable_encrypt then handshake(pubKey) else OnSessionKeyOk() end
+-- config 是 NetHandler.config 这个普通 Lua 表（NetHandler:ctor 里 self.config = config or {}），
+-- 因此直接改字段即可让客户端跳过 RSA 握手，直接发明文 msgpack 的 sendConnectServer。
+-- 这样我们不必实现 RSA 交换就能先看清上层 RPC 结构。
+-- 注意：只在本地开发服使用；对官方网关无效（对端仍会走加密协议）。
+local function disable_net_encryption()
+  if pc.noenc then return end
+  pc.noenc = true
+
+  pcall(function()
+    local CR = original_require('Core.Client.ClientRepo')
+    local nh = CR and CR.netHandler
+    if nh and type(nh.config) == 'table' then
+      nh.config.enableEncrypt = false
+      nh.config.enableMsEncrypt = false
+      LOG('noenc: netHandler.config.enableEncrypt=false')
+    else
+      LOG('noenc: netHandler.config 不可用')
+    end
+  end)
+
+  for _, mod in ipairs({ 'Net.NetConf', 'Net.net_conf', 'Core.Net.NetConf' }) do
+    local ok, c = pcall(original_require, mod)
+    if ok and type(c) == 'table' then
+      c.enableEncrypt = false
+      c.enableMsEncrypt = false
+      LOG('noenc: ' .. mod .. '.enableEncrypt=false')
+    end
+  end
+end
+
+-- ------------------------------------------------------------
+-- 实例级追踪
+-- ------------------------------------------------------------
+-- 为什么必须在实例上包：
+--   LoginManager 通过 class.AddComponents(LoginManager, index) 把
+--   ServerListComp 的方法**拷贝**进了自己的类，所以对模块表
+--   (Manager.Login.ServerListComp) 上的函数做 wrapper 对实例无效 ——
+--   实测 "slc: LoginGameServer" 从未打印就是证据。
+--   直接给实例赋同名函数可以覆盖元表查找，才拦得住。
+-- ------------------------------------------------------------
+local function wrap_method(obj, name, tag)
+  local f = obj[name]
+  if type(f) ~= 'function' then
+    LOG('trace: ' .. tag .. '.' .. name .. ' 不存在')
+    return
+  end
+  obj[name] = function(self2, ...)
+    LOG('trace: ' .. tag .. '.' .. name .. '(' .. argstr(...) .. ')')
+    local r = f(self2, ...)
+    local extra = ''
+    if name == 'GetServer' and type(r) == 'table' then
+      extra = ' [name=' .. tostring(r.name)
+        .. ' ms_gate=' .. tostring(r.ms_gate)
+        .. ' rid=' .. tostring(r.rid) .. ']'
+    end
+    LOG('trace: ' .. tag .. '.' .. name .. ' -> ' .. tostring(r) .. extra)
+    return r
+  end
+end
+
+local function install_instance_tracers(G)
+  if pc.insthook then return end
+  pc.insthook = true
+  if type(G) ~= 'table' then return end
+
+  if type(G.loginmgr) == 'table' then
+    wrap_method(G.loginmgr, 'GetChooseServer', 'loginmgr')
+    wrap_method(G.loginmgr, 'SetChooseServer', 'loginmgr')
+    wrap_method(G.loginmgr, 'GetDefaultServer', 'loginmgr')
+
+    -- ★ 关键拦截点：LoginGameServer 是"开始游戏"真正发起连接的地方。
+    --
+    -- 为什么必须在这里强制重灌：
+    --   官方服务器列表地址仍然存活，
+    --   QueryServerList 会把我们的列表整个清掉（QueryUrl 里 self.servers = {}），
+    --   然后 GetDefaultServer() 推荐官方服「九龙街区」
+    --   （网关地址由官方 serverlist 下发），
+    --   客户端于是拿着我们伪造的 ticket 去连官方网关，必然被拒，
+    --   服务端回 OnTicketFailed → 弹「登录认证失败, 请重新登录。」
+    --   实测证据：GetServer(2000) -> nil / GetServer(10) -> 九龙街区。
+    local orig_login_game = G.loginmgr.LoginGameServer
+    if type(orig_login_game) == 'function' then
+      G.loginmgr.LoginGameServer = function(self2, ...)
+        pcall(disable_net_encryption)
+        pcall(function() G.servermgr:ParseFromLoadService(SERVER_LIST_JSON) end)
+        pcall(function() self2.choose_hostnum = 2000 end)
+        pcall(function() G.hostnum = 2000 end)
+        LOG('trace: LoginGameServer 强制注入并选中 2000，当前 GetOneServer='
+          .. tostring(G.servermgr and G.servermgr:GetOneServer())
+          .. ' choose=' .. tostring(self2.choose_hostnum))
+
+        -- 直接走网关连接，跳过 C# 的 QueryLoadService。
+        -- 原因：QueryLoadService 是 C# 实现，会先向 ms_gate 发一条微服务查询
+        -- （实测 6 字节：02 00 00 00 01 00），我们不实现它就走不下去。
+        -- 而下一跳 debugLoginPointedGameServer 是纯 Lua（serverlistcomp.lua L66-76），
+        -- 只要求 pointedServer 有 clusterId 和 gates，可以直接构造并调用，
+        -- 从而把链路推进到真正的网关 TCP 连接。
+        -- 不再绕过 QueryLoadService：让它走官方路径，
+        -- 以便抓取明文（已关闭加密）的微服务 callService 请求。
+        -- 依据 manager/login/loadcomp.lua：
+        --   QueryLoadService → msNetworkEventCallback:start({ms_gate})
+        --     → QueueService:Query → msProxy:callService("GameLoadService","query",{Hostnum,Username})
+        --     → onGetServerGates → ParseFromLoadService(response.ServerList)
+        --     → networkEventCallback:start(cluster_id, cluster.gates, ticket, cb)
+        LOG('trace: 调用原始 LoginGameServer（走官方 ms 路径）')
+        local okc, errc = pcall(orig_login_game, self2, ...)
+        LOG('trace: 原始 LoginGameServer 返回 ok=' .. tostring(okc)
+          .. ' err=' .. tostring(errc))
+        return true
+      end
+    end
+  end
+  if type(G.servermgr) == 'table' then
+    wrap_method(G.servermgr, 'GetServer', 'servermgr')
+    wrap_method(G.servermgr, 'GetOneServer', 'servermgr')
+
+    -- ★★ 关键修复：在官方列表拉取**结束的那一刻**就把我们的列表盖回去。
+    --
+    -- 时序问题（loginpanel.lua L257-263 / L267-286）：
+    --   updateServerInfo() → QueryServerList → 官方列表成功
+    --     → ServerListManager:QueryUrl 里 self.servers = {}  ← 我们的被清空
+    --     → onDone() → callback(0) → Panel:onQueryServerList(0)
+    --     → setServerText() → GetDefaultServer() → 显示官方服「九龙街区」
+    -- 而 LoginGameServer 里的注入发生在"点开始游戏"之后 —— 太晚了，
+    -- 登录面板上显示的名字早就被改成官方的了。
+    --
+    -- onDone 正好在 QueryServerList 的回调链最前端，在这里盖回去，
+    -- 后面的 setServerText() 拿到的就是我们的服务器。
+    local orig_on_done = G.servermgr.onDone
+    if type(orig_on_done) == 'function' then
+      G.servermgr.onDone = function(self2, err)
+        -- 先让官方流程走完（它会清空 servers/regions）
+        local r = orig_on_done(self2, err)
+        -- 再无条件盖回我们的列表
+        pcall(function()
+          self2:ParseFromLoadService(SERVER_LIST_JSON)
+          self2.merged_by_oo = true
+        end)
+        pcall(function() G.loginmgr.choose_hostnum = 2000 end)
+        pcall(function() G.hostnum = 2000 end)
+        pcall(function() G.loginmgr:SetChooseServer(2000) end)
+        LOG('serverlist: onDone 后强制盖回 —— servers 数='
+          .. tostring(self2.servers and (function()
+               local n = 0; for _ in pairs(self2.servers) do n = n + 1 end; return n
+             end)() or '?')
+          .. ' GetOneServer=' .. tostring(self2:GetOneServer())
+          .. ' 名字=' .. tostring((self2:GetServer(2000) or {}).name))
+        return r
+      end
+      LOG('lua: servermgr.onDone 已包裹（列表保护）')
+    else
+      LOG('lua: servermgr.onDone 不存在，跳过包裹')
+    end
+  end
+  LOG('lua: 实例级追踪已安装')
+end
+
+-- ------------------------------------------------------------
+-- 自动重连实验
+-- ------------------------------------------------------------
+-- 目的：服务端会轮换不同的 connectResponse 应答变体，
+-- 客户端每 8 秒自动重连一次，于是一次游戏运行就能把候选类型号试完，
+-- 不用人工反复点击。
+-- 用游戏自带的 TimerManager（loginpanel.lua L425 同款），
+-- 不去劫持 GameTick，避免影响主循环。
+local function start_auto_retry(G)
+  if pc.autoretry then return end
+  pc.autoretry = true
+  pc.auto_tries = 0
+
+  local ok = pcall(function()
+    TimerManager.addRepeatTimer(4, function()
+      if pc.auto_tries >= 6 then return end   -- 只试 6 次，避免触发 C# 解析器崩溃
+      pc.auto_tries = pc.auto_tries + 1
+      LOG('auto: 第 ' .. pc.auto_tries .. ' 次重连尝试')
+      pcall(function() G.loginmgr:LoginGameServer() end)
+    end)
+  end)
+  LOG('lua: 自动重连实验启动 ok=' .. tostring(ok))
+end
+
+-- ------------------------------------------------------------
+-- 结果投递：把服务端返回的 JSON 喂给游戏自身的账号层
+-- ------------------------------------------------------------
+-- ------------------------------------------------------------
+-- 枚举 phonestcore 原生模块的全部成员
+-- ------------------------------------------------------------
+-- 目的：phonestcore 是编译进 xlua.dll 的 phonest RPC 框架（客户端+服务端两套 API）。
+-- 我们需要知道：
+--   1) 有没有 HandlerType* 系列常量（决定能否在进程内起服务端）
+--   2) 有没有消息类型常量（可能直接给出 connectResponse 的类型号）
+--   3) 有哪些 ConType* / 配置项
+-- 纯读取，不创建任何对象，风险极低。
+local function dump_phonestcore()
+  if pc.phdumped then return end
+  pc.phdumped = true
+
+  local ok, ph = pcall(original_require, 'phonestcore')
+  if not ok then
+    LOG('phonestcore: require 抛错: ' .. tostring(ph))
+    return
+  end
+  LOG('phonestcore: type=' .. type(ph))
+  if type(ph) ~= 'table' then return end
+
+  local items = {}
+  local okIter, errIter = pcall(function()
+    for k, v in pairs(ph) do
+      local tv = type(v)
+      local s = tostring(k) .. ' :: ' .. tv
+      if tv == 'number' then
+        s = s .. ' = ' .. tostring(v)
+      elseif tv == 'string' then
+        s = s .. ' = "' .. v .. '"'
+      elseif tv == 'boolean' then
+        s = s .. ' = ' .. tostring(v)
+      end
+      items[#items + 1] = s
+    end
+  end)
+  if not okIter then
+    LOG('phonestcore: pairs() 失败: ' .. tostring(errIter))
+  end
+
+  table.sort(items)
+  LOG('===== phonestcore 成员 ' .. #items .. ' 个 =====')
+  for _, s in ipairs(items) do
+    LOG('  ph| ' .. s)
+  end
+  LOG('===== phonestcore END =====')
+
+  -- 元表（可能藏着 __index 指向的常量表）
+  local okMt, mt = pcall(function() return getmetatable(ph) end)
+  if okMt and type(mt) == 'table' then
+    LOG('phonestcore: 有元表')
+    pcall(function()
+      for k, v in pairs(mt) do
+        LOG('  phmt| ' .. tostring(k) .. ' :: ' .. type(v))
+      end
+    end)
+  end
+end
+
+-- ------------------------------------------------------------
+-- 探测 phonestcore 的 RPC 索引 API
+-- ------------------------------------------------------------
+-- 成员表里有 genRpcIndex / getRpcName / getSendRpcName / registerRpc，
+-- 如果 genRpcIndex("connectResponse") 能返回那个 u16 消息类型号，
+-- 我们就能直接构造正确的应答包，不必盲扫（盲扫已导致游戏崩溃）。
+-- 每个调用都单独 pcall，任何一项失败不影响其它项。
+local function probe_rpc_api()
+  if pc.rpcdumped then return end
+  pc.rpcdumped = true
+
+  local ok, ph = pcall(original_require, 'phonestcore')
+  if not ok or type(ph) ~= 'table' then
+    LOG('rpcapi: phonestcore 不可用')
+    return
+  end
+  pcall(install_regrpc_wrapper, ph, 'probe_rpc_api')
+
+  local names = {
+    'connectResponse', 'sendConnectServer', 'sendRequestEncryptToken',
+    'confirmEncryptKeyAck', 'sendHeartbeat', 'recvHeartbeat', 'heartbeat',
+    'bindAccount', 'bindAvatar', 'bindSoul', 'unbindSoul',
+    'disconnectClient', 'entityMessage', 'entityMessageResponse',
+    'frameMessage', 'channelMessage', 'gateMessage', 'gateFrameMessage',
+    'onSyncProperty', 'onStrategySyncProperty', 'OnTicketFailed',
+    'OnTicketExpired', 'sendConnect', 'connect', 'login',
+  }
+
+  LOG('===== genRpcIndex 探测 =====')
+  for _, n in ipairs(names) do
+    local ok2, v = pcall(ph.genRpcIndex, n)
+    LOG('  rpcIdx| ' .. n .. ' -> ok=' .. tostring(ok2) .. ' val=' .. tostring(v))
+  end
+
+  -- getRpcName 传小整数返回空串；改试传"哈希值"，
+  -- 因为 genRpcIndex 返回的就是 32 位哈希，getRpcName 很可能是它的反函数。
+  LOG('===== getRpcName 反查（传哈希值）=====')
+  local hashes = {
+    { 'connectResponse', 2119322371 },
+    { 'sendConnectServer', 2087431183 },
+    { 'sendRequestEncryptToken', 1378977164 },
+    { 'confirmEncryptKeyAck', 543775382 },
+    { 'bindAccount', 889905872 },
+  }
+  for _, h in ipairs(hashes) do
+    local ok3, v = pcall(ph.getRpcName, h[2])
+    LOG('  rpcNameByHash| ' .. h[1] .. '(' .. h[2] .. ') -> ok=' .. tostring(ok3)
+      .. ' val=' .. tostring(v))
+  end
+
+  -- 也试试十六进制字符串形式
+  for _, h in ipairs(hashes) do
+    local hexs = string.format('%08X', h[2])
+    local ok4, v = pcall(ph.getRpcName, hexs)
+    LOG('  rpcNameByHex| ' .. hexs .. ' -> ok=' .. tostring(ok4) .. ' val=' .. tostring(v))
+  end
+
+  -- 试无参调用
+  local ok5, v5 = pcall(ph.getRpcName)
+  LOG('  rpcNameNoArg| ok=' .. tostring(ok5) .. ' val=' .. tostring(v5))
+
+  -- 宽范围扫描：如果线包里的 u16 是"注册序号"，
+  -- 那么 getRpcName(序号) / getSendRpcName(序号) 应该能查到名字。
+  LOG('===== 扫描注册表 0..2000 =====')
+  local hitName, hitSend = 0, 0
+  for i = 0, 2000 do
+    local okA, va = pcall(ph.getRpcName, i)
+    if okA and type(va) == 'string' and va ~= '' then
+      hitName = hitName + 1
+      LOG('  reg| getRpcName(' .. i .. ') = ' .. va)
+    end
+    local okB, vb = pcall(ph.getSendRpcName, i)
+    if okB and type(vb) == 'string' and vb ~= '' then
+      hitSend = hitSend + 1
+      LOG('  reg| getSendRpcName(' .. i .. ') = ' .. vb)
+    end
+  end
+  LOG('  reg| 命中 getRpcName=' .. hitName .. ' getSendRpcName=' .. hitSend)
+
+  -- 试 registerRpc 的签名（只观察报错信息，不实际改变行为）
+  local okR, vR = pcall(ph.registerRpc)
+  LOG('  reg| registerRpc() -> ok=' .. tostring(okR) .. ' val=' .. tostring(vR))
+  local okR2, vR2 = pcall(ph.registerRpc, 'OoProbeRpc')
+  LOG('  reg| registerRpc("OoProbeRpc") -> ok=' .. tostring(okR2) .. ' val=' .. tostring(vR2))
+
+  -- 注册后立刻反查：如果 getRpcName(哈希) 能返回名字，
+  -- 说明哈希就是标识，只是之前没注册过。
+  if okR2 and type(vR2) == 'number' then
+    local okN, vN = pcall(ph.getRpcName, vR2)
+    LOG('  reg| getRpcName(' .. vR2 .. ') = ' .. tostring(vN))
+    local okS, vS = pcall(ph.getSendRpcName, vR2)
+    LOG('  reg| getSendRpcName(' .. vR2 .. ') = ' .. tostring(vS))
+  end
+
+  -- 用哈希去查 getSendRpcName（之前只试过整数序号和字符串）
+  LOG('===== getSendRpcName 传哈希 =====')
+  for _, h in ipairs(hashes) do
+    local okS2, vS2 = pcall(ph.getSendRpcName, h[2])
+    LOG('  sendNameByHash| ' .. h[1] .. ' -> ok=' .. tostring(okS2) .. ' val=' .. tostring(vS2))
+  end
+
+  LOG('===== getSendRpcName 探测 =====')
+  for _, n in ipairs({ 'connectResponse', 'sendConnectServer' }) do
+    local ok4, v = pcall(ph.getSendRpcName, n)
+    LOG('  sendRpcName| ' .. n .. ' -> ok=' .. tostring(ok4) .. ' val=' .. tostring(v))
+  end
+
+  local okv, ver = pcall(ph.version)
+  LOG('  version() -> ' .. tostring(ver))
+
+  -- 找 C# 侧的 dispatchRpc 对象。
+  -- 思路：RpcHandler:dispatchRpc 的实现是 self.cObj:dispatchRpc(rpcName, ...)，
+  -- cObj 由 setCobj() 注入。如果我们能拿到任一 cObj，
+  -- 就能让客户端"自己编码并发送"一个 connectResponse 包，
+  -- 从而直接看到它的线格式 —— 不必再猜。
+  -- 枚举 C# 暴露对象的方法：这是最有可能藏 dispatchRpc 的地方。
+  -- 如果能调 networkEventCallback:dispatchRpc("connectResponse", 1)，
+  -- 客户端就会自己把这个包编码并发出去，我们抓包即可看到精确线格式。
+  LOG('===== 枚举 ClientRepo 各 C# 对象的方法 =====')
+  pcall(function()
+    local CR = original_require('Core.Client.ClientRepo')
+    for _, key in ipairs({ 'networkEventCallback', 'msNetworkEventCallback',
+                           'msProxy', 'protoCodec', 'httpdns', 'netHandler' }) do
+      local obj = CR[key]
+      LOG('  obj| --- ClientRepo.' .. key .. ' (' .. type(obj) .. ') ---')
+      if type(obj) == 'table' then
+        local names = {}
+        pcall(function()
+          for k, v in pairs(obj) do
+            names[#names + 1] = tostring(k) .. ':' .. type(v)
+          end
+        end)
+        local mt = getmetatable(obj)
+        if type(mt) == 'table' and type(mt.__index) == 'table' then
+          pcall(function()
+            for k, v in pairs(mt.__index) do
+              names[#names + 1] = '(idx)' .. tostring(k) .. ':' .. type(v)
+            end
+          end)
+        end
+        table.sort(names)
+        for i = 1, math.min(#names, 60) do
+          LOG('    obj| ' .. names[i])
+        end
+        LOG('    obj| 共 ' .. #names .. ' 项')
+      end
+    end
+  end)
+
+  LOG('===== 探查 ClientRepo / NetHandler 内部对象 =====')
+  pcall(function()
+    local CR = original_require('Core.Client.ClientRepo')
+    for _, k in ipairs({ 'netHandler', 'networkEventCallback', 'msNetworkEventCallback',
+                         'protoCodec', 'msProxy', 'httpdns' }) do
+      local v = CR[k]
+      LOG('  cr| ClientRepo.' .. k .. ' = ' .. type(v))
+    end
+    local nh = CR.netHandler
+    if type(nh) == 'table' then
+      for _, k in ipairs({ 'gateClient', 'gateClientSoul', 'config', 'deviceid',
+                           'ip', 'port', 'clusterId', 'connectToken' }) do
+        local v = nh[k]
+        LOG('  nh| netHandler.' .. k .. ' = ' .. type(v)
+          .. (type(v) == 'string' and (' "' .. v:sub(1, 32) .. '"') or '')
+          .. (type(v) == 'number' and (' ' .. tostring(v)) or ''))
+      end
+      if type(nh.gateClient) == 'table' then
+        local gc = nh.gateClient
+        for _, k in ipairs({ 'handler', 'cObj', 'channel', 'status', 'ip', 'port' }) do
+          LOG('  gc| gateClient.' .. k .. ' = ' .. type(gc[k]))
+        end
+        if type(gc.handler) == 'table' then
+          LOG('  gc| handler.cObj = ' .. type(gc.handler.cObj))
+        end
+      end
+    end
+  end)
+end
+
+-- ------------------------------------------------------------
+-- 让客户端自己编码一个 onMicroResponse
+-- ------------------------------------------------------------
+-- 依据 msgateclientrpchandler.lua：
+--   dispatchRpc 是双向的 —— 客户端调 dispatchRpc("sendMicroRequest", ...) 发出请求，
+--   服务端则调 dispatchRpc("onMicroResponse", ...) 发回应答。
+-- 我们在客户端进程里直接调 handler:dispatchRpc("onMicroResponse", rid, params, svc)，
+-- 原生层就会按它自己的规则把这个包编码并发出去 ——
+-- 抓包即可得到 onMicroResponse 的**确切类型号与字段布局**，不必再猜。
+local function probe_ms_encoding()
+  if pc.msprobe then return end
+  local ok0, CR = pcall(original_require, 'Core.Client.ClientRepo')
+  if not ok0 or type(CR) ~= 'table' then return end
+  local proxy = CR.msProxy
+  if type(proxy) ~= 'table' then return end
+  local client = proxy.msclient
+  if type(client) ~= 'table' then return end
+  local h = client.handler
+  if type(h) ~= 'table' then return end
+  if type(h.dispatchRpc) ~= 'function' then
+    LOG('msprobe: handler 没有 dispatchRpc')
+    pc.msprobe = true
+    return
+  end
+
+  pc.msprobe = true
+  LOG('msprobe: 找到 ms handler，开始试编码 onMicroResponse')
+
+  -- 分别试几种参数形态，观察原生层如何编码
+  local trials = {
+    { 'onMicroResponse', 12345, '', 'ProbeSvc' },
+    { 'onMicroResponse', 12345, 'AB', '' },
+    { 'sendMicroRequest', 'ProbeSvc', 777, 'probeMethod', 'xx', '', '' },
+  }
+  for i, t in ipairs(trials) do
+    local ok, err = pcall(function() h:dispatchRpc(t[1], t[2], t[3], t[4]) end)
+    LOG('msprobe: 第 ' .. i .. ' 次 dispatchRpc("' .. t[1] .. '") ok='
+      .. tostring(ok) .. ' err=' .. tostring(err))
+  end
+end
+
+local function install_server_list()
+  if pc.serverlist_done then return end
+  local ok, G = pcall(original_require, 'G')
+  if not ok or type(G) ~= 'table' or type(G.servermgr) ~= 'table' then
+    LOG('serverlist: G.servermgr 不可用，跳过')
+    return
+  end
+
+  local ok2, err2 = pcall(function()
+    G.servermgr:ParseFromLoadService(SERVER_LIST_JSON)
+  end)
+  if not ok2 then
+    LOG('serverlist: ParseFromLoadService failed: ' .. tostring(err2))
+    return
+  end
+  pc.serverlist_done = true
+
+  local one = G.servermgr:GetOneServer()
+  LOG('serverlist: installed, GetOneServer=' .. tostring(one))
+
+  local ok3, err3 = pcall(function() G.loginmgr:SetChooseServer(one) end)
+  LOG('serverlist: SetChooseServer ok=' .. tostring(ok3)
+    .. ' err=' .. tostring(err3)
+    .. ' choose=' .. tostring(G.loginmgr.choose_hostnum))
+
+  local okI, errI = pcall(install_instance_tracers, G)
+  if not okI then LOG('instance tracers failed: ' .. tostring(errI)) end
+  local okA, errA = pcall(start_auto_retry, G)
+  if not okA then LOG('auto retry failed: ' .. tostring(errA)) end
+
+  -- 每 2 秒探一次，等 ms 连接建立后立即做编码探针
+  pcall(function()
+    TimerManager.addRepeatTimer(2, function()
+      pcall(probe_ms_encoding)
+    end)
+  end)
+end
+
+local function deliver(raw)
+  if type(raw) ~= 'string' or raw == '' then return end
+
+  local ok, result = pcall(function()
+    return original_require('Modules.SDK.FPXJSON').decode(raw)
+  end)
+  if not ok or type(result) ~= 'table' then
+    LOG('deliver: decode failed: ' .. tostring(result))
+    return
+  end
+
+  -- 与官服 fpxsdkreceiver.lua 第 17 行同样的判据
+  if result.code ~= 1 then
+    LOG('deliver: server returned code=' .. tostring(result.code)
+      .. ' msg=' .. tostring(result.msg))
+    return
+  end
+
+  -- 交给游戏自己的账号处理：fpxaccount.lua M.onSdkLogin(bInitGame, result)
+  local ok2, err = pcall(function()
+    FPXAccount.onSdkLogin(pc.initialized, result)
+  end)
+  if not ok2 then
+    LOG('deliver: onSdkLogin failed: ' .. tostring(err))
+    return
+  end
+
+  LOG('account: sdk login delivered account_id='
+    .. tostring(result.data and result.data.account_id))
+
+  -- 与官服 fpxsdkreceiver.lua 第 17-20 行同样的进入判据
+  if not pc.initialized and not pc.entered then
+    pc.entered = true
+    EnterGame()
+    LOG('account: EnterGame invoked')
+  end
+end
+
+-- ------------------------------------------------------------
+-- 登录入口：被 platform/login 拦截后走到这里
+-- ------------------------------------------------------------
+local function login()
+  if pc.pending then
+    LOG('login: already pending, ignored')
+    return
+  end
+
+  pcall(probe_dump, 'at-login')
+
+  local status = OO_Internal_RequestLogin()
+
+  if status ~= 'floating' then
+    return deliver(OO_Internal_Result())
+  end
+
+  pc.pending = true
+  local tick = GameTick
+
+  rawset(_G, 'GameTick', function(...)
+    local raw = OO_Internal_Result()
+    if raw ~= '' then
+      pc.pending = false
+      rawset(_G, 'GameTick', tick)
+      CS.LuaHelper.BindGameTickFunc()
+      deliver(raw)
+      return
+    end
+    if tick then return tick(...) end
+  end)
+
+  CS.LuaHelper.BindGameTickFunc()
+  LOG('login: floating, waiting for result on GameTick')
+end
+
+-- ------------------------------------------------------------
+-- 接管 require
+-- ------------------------------------------------------------
+function require(name)
+  local m = original_require(name)
+  local key = string.lower(string.gsub(name, '/', '.'))
+
+  -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice
+  if key == 'modules.sdk.fpxsdkapi' and not pc.api then
+    pc.api = true
+    local a = FPXSDKAPI
+    local call, callstring = a.Call, a.CallString
+
+    a.Call = function(module, fn, payload)
+      if module == 'platform' and fn == 'login' then
+        return login()
+      end
+      if module == 'platform' and (fn == 'logout' or fn == 'unbindPlayer') then
+        CS.UnityEngine.Application.Quit()
+        return
+      end
+      if module == 'tracking' or module == 'notice' then return end
+      return call(module, fn, payload)
+    end
+
+    a.CallString = function(module, fn, payload)
+      if fn == 'getTrackingInfo' then
+        return OO_Internal_TrackingInfo()
+      end
+      return callstring(module, fn, payload)
+    end
+
+    LOG('lua: account API adapter installed')
+
+  -- (2) FPXSDKReceiver：记录 init 状态
+  elseif key == 'modules.sdk.fpxsdkreceiver' and not pc.receiver then
+    pc.receiver = true
+    local receiver = type(m) == 'table' and m or FPXSDKReceiver
+    local set = receiver.SetInitGame
+    receiver.SetInitGame = function(value)
+      pc.initialized = value
+      return set(value)
+    end
+    LOG('lua: receiver hook installed')
+
+  -- (3) 登录面板：把"刷新服务器列表"重定向到内部选服面板
+  elseif key == 'ui.panel.loginpanel.loginpanel' and not pc.selector then
+    local methods = rawget(m, '__objMetatable').__index
+    if type(methods.onRefreshServerList) ~= 'function'
+      or type(methods.openServerSelectPanel) ~= 'function' then
+      error('OO_Internal server selector version mismatch: '
+        .. 'loginpanel.lua is missing onRefreshServerList/openServerSelectPanel')
+    end
+    local orig_refresh = methods.onRefreshServerList
+    methods.onRefreshServerList = function(self)
+      pcall(probe_dump, 'at-refresh-serverlist')
+      pcall(install_server_list)
+      return orig_refresh(self)
+    end
+
+    -- ★ 兜住 setServerText：它是真正把服务器名写到界面上的地方
+    --   （loginpanel.lua L276-286：self._txt_server.text = last_server.name）
+    if type(methods.setServerText) == 'function' then
+      local orig_sst = methods.setServerText
+      methods.setServerText = function(self2, ...)
+        pcall(function()
+          G.servermgr:ParseFromLoadService(SERVER_LIST_JSON)
+          G.loginmgr.choose_hostnum = 2000
+          G.hostnum = 2000
+        end)
+        LOG('panel: setServerText 前已强制盖回列表')
+        return orig_sst(self2, ...)
+      end
+      LOG('lua: loginpanel.setServerText 已包裹')
+    end
+
+    -- 追踪"开始游戏"按钮的完整路径
+    for _, n in ipairs({ 'onLoginServer', 'loginProd', 'loginDev', 'onSelectServer' }) do
+      local f = methods[n]
+      if type(f) == 'function' then
+        methods[n] = function(self2, ...)
+          LOG('panel: ' .. n .. ' (' .. argstr(...) .. ')')
+          local r = f(self2, ...)
+          LOG('panel: ' .. n .. ' -> ' .. tostring(r))
+          return r
+        end
+      else
+        LOG('panel: ' .. n .. ' 不存在')
+      end
+    end
+
+    pc.selector = true
+    LOG('lua: internal server selector installed')
+
+  -- (3b) phonestcore：一被 require 就立刻包住 registerRpc
+  elseif key == 'phonestcore' then
+    pcall(install_regrpc_wrapper, m, 'require 钩子')
+
+  -- (4) G：初始化完成后立刻探测
+  elseif key == 'g' and not pc.ghook then
+    pc.ghook = true
+    if type(m) == 'table' and type(m.init) == 'function' then
+      local init = m.init
+      m.init = function(self, ...)
+        local ok, err = pcall(init, self, ...)
+        if not ok then LOG('probe: G.init error: ' .. tostring(err)) end
+        pcall(probe_dump, 'after-G.init')
+        pcall(dump_phonestcore)
+        pcall(probe_rpc_api)
+        pcall(install_server_list)
+      end
+      LOG('lua: G.init hook installed')
+    end
+
+  -- (5) RPC 层：记录客户端发出的每个 RPC 与服务端回调
+  elseif key == 'core.client.gateclientrpchandler' and not pc.rpchook then
+    pc.rpchook = true
+    if type(m) == 'table' then
+      local dr = m.dispatchRpc
+      if type(dr) == 'function' then
+        m.dispatchRpc = function(self, rpcName, ...)
+          LOG('rpc TX: ' .. tostring(rpcName) .. ' (' .. argstr(...) .. ')')
+          return dr(self, rpcName, ...)
+        end
+      end
+      for _, n in ipairs({ 'connectResponse', 'confirmEncryptKeyAck',
+                           'bindAccount', 'bindAvatar', 'bindSoul',
+                           'unbindSoul', 'disconnectClient' }) do
+        local f = m[n]
+        if type(f) == 'function' then
+          m[n] = function(self, ...)
+            LOG('rpc RX: ' .. n .. ' (' .. argstr(...) .. ')')
+            return f(self, ...)
+          end
+        end
+      end
+      LOG('lua: RPC tracer installed')
+    end
+
+  -- (5b) ServerListComp：记录 LoginGameServer / QueryLoadService
+  elseif key == 'manager.login.serverlistcomp' and not pc.slchook then
+    pc.slchook = true
+    if type(m) == 'table' then
+      for _, n in ipairs({ 'LoginGameServer', 'QueryLoadService', 'queryServerList',
+                           'RefreshServerList', 'QueryServerList' }) do
+        local f = m[n]
+        if type(f) == 'function' then
+          m[n] = function(self2, ...)
+            LOG('slc: ' .. n .. ' (' .. argstr(...) .. ')')
+            local r = f(self2, ...)
+            LOG('slc: ' .. n .. ' -> ' .. tostring(r))
+            return r
+          end
+        else
+          LOG('slc: ' .. n .. ' 不存在(可能是C#实现)')
+        end
+      end
+      LOG('lua: ServerListComp tracer installed')
+    end
+
+  -- (5c) LoginManager：记录失败原因
+  elseif key == 'manager.loginmanager' and not pc.lmhook then
+    pc.lmhook = true
+    if type(m) == 'table' then
+      local lf = m.LoginFailed
+      if type(lf) == 'function' then
+        m.LoginFailed = function(self2, tid, text)
+          LOG('loginmgr: LoginFailed tid=' .. tostring(tid) .. ' text=' .. tostring(text))
+          return lf(self2, tid, text)
+        end
+      end
+      LOG('lua: LoginManager tracer installed')
+    end
+
+  -- (6) GateClient：记录连接生命周期
+  elseif key == 'core.client.gateclient' and not pc.gchook then
+    pc.gchook = true
+    if type(m) == 'table' then
+      for _, n in ipairs({ 'connect', 'OnChannelConnect', 'OnChannelConnectFail',
+                           'OnSessionKeyOk', 'handleConnectResponse',
+                           'OnChannelDisconnected' }) do
+        local f = m[n]
+        if type(f) == 'function' then
+          m[n] = function(self, ...)
+            LOG('gate: ' .. n
+              .. ' target=' .. tostring(self.ip) .. ':' .. tostring(self.port)
+              .. ' kcp=' .. tostring(self.useKcp)
+              .. ' enc=' .. tostring(self.enable_encrypt)
+              .. ' act=' .. tostring(self.connectAction))
+            return f(self, ...)
+          end
+        end
+      end
+      LOG('lua: GateClient tracer installed')
+    end
+  end
+
+  return m
+end
+
+-- ------------------------------------------------------------
+-- 暴露给原生的入口
+-- ------------------------------------------------------------
+OO_Internal_Ready   = true
+OO_Internal_Require = require

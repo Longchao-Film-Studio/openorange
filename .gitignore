@@ -1,0 +1,66 @@
+# ============================================================
+#  OpenOrange .gitignore
+#  原则：只提交源码、文档、配置、以及不可再生的证据；
+#        编译产物、运行期 dump、数据库、私钥一律排除。
+# ============================================================
+
+# ---------- Rust 编译产物 ----------
+launcher/target/
+
+# ---------- 启动器 dist（只保留配置，产物全部排除）----------
+launcher/dist/OO_Launcher.exe
+launcher/dist/OO_Internal.dll
+launcher/dist/*.pdb
+launcher/dist/*.exp
+launcher/dist/*.lib
+
+# 脱壳/内存 dump（几十 MB，可用 crates/oo_internal 的 memdump 重新生成）
+launcher/dist/dump_*.bin
+launcher/dist/*_unpacked.bin
+
+# 运行期日志与工作目录
+launcher/dist/work/
+launcher/dist/*.log
+launcher/dist/*.png
+
+# ---------- 运行期数据 ----------
+shared/data.db
+shared/data.db-shm
+shared/data.db-wal
+
+# 抓包（由我们自己的服务端生成，可重新采集）
+work/captures/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---------- 证书私钥（绝不入库）----------
+tools/cert/*.key
+tools/cert/*.key.bak
+
+# ---------- 编辑器 / 系统 ----------
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+
+# ============================================================
+#  以下内容**保留**（有意提交）：
+#    launcher/crates/**/*.rs        全部 Rust 源码
+#    launcher/lua/oo_bootstrap.lua  注入的引导脚本
+#    launcher/Cargo.*, rust-toolchain.toml
+#    launcher/dist/OpenOrange.ini   配置文件
+#    launcher/OpenOrange.ini        配置文件（模板）
+#    game_server/*.py               游戏服
+#    web/, shared/*.py, auth_server/, serverlist_server/, tools/*.py
+#    docs/**                        全部文档
+#    work/logs/wire/*.jsonl         官方服务器时代的抓包记录（不可再生）
+#    work/data/*.json               官方登录响应样本（不可再生）
+#    work/scripts/*.py              分析脚本
+#    README.md, start_server.py, start_server.ps1
+# ============================================================

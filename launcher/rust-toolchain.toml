@@ -1,0 +1,7 @@
+[toolchain]
+# 本机只安装了 nightly-x86_64-pc-windows-msvc（rustup toolchain list 实测）。
+# 原先写的是 "stable-x86_64-pc-windows-msvc" —— rustup 不接受带 target 元组的 channel 名，
+# 会直接报 "target tuple in channel name"，导致任何 cargo 命令都失败。
+channel = "nightly"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-pc-windows-msvc"]

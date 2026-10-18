@@ -1,0 +1,22 @@
+[package]
+name = "oo_injector"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "命令行注入器：对指定 PID 注入 OO_Internal.dll 并投递登录 JSON"
+
+[[bin]]
+name = "oo_injector"
+path = "src/main.rs"
+
+[dependencies]
+oo_shared = { workspace = true }
+serde_json = { workspace = true }
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Memory",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_Debug",
+] }

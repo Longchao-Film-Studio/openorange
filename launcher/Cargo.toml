@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/oo_shared",
+    "crates/oo_launcher",
+    "crates/oo_internal",
+    "crates/oo_selfcheck",
+    "crates/oo_hosttest",
+    "crates/oo_injector",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[workspace.dependencies]
+oo_shared = { path = "crates/oo_shared" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows = { version = "0.62", features = [] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
