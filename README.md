@@ -1,4 +1,6 @@
-# OpenOrange · 归龙潮私服
+# OpenOrange · 归橙
+
+> 归龙潮（GuiLongchao）私服工程
 
 用**原版游戏客户端**跑自建服务器的完整实现：一个 Rust 启动器 + 一套 Python 服务端。
 
