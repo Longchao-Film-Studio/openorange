@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from shared import commands as cmds  # noqa: E402
 from shared import db, models  # noqa: E402
 
 HOST = "0.0.0.0"
@@ -629,6 +630,329 @@ def render_index():
     return _page(BODY)
 
 
+
+
+# ---------------------------------------------------------------- 管理控制台
+ADMIN_CSS = r"""
+:root{
+  --bg:#08090c; --text:#f4f5f7; --muted:#8b909c;
+  --line:rgba(255,255,255,.08);
+  --accent:#ff9f43; --accent2:#ff6a00;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(900px 600px at 82% -12%,rgba(255,106,0,.08),transparent 62%);
+}
+.shell{position:relative;display:flex;flex-direction:column;height:100vh}
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  height:58px;padding:0 20px;border-bottom:1px solid var(--line);flex:none;
+}
+.brand{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:600}
+.mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#1a0f05;font-size:11px;font-weight:800;letter-spacing:.5px}
+.top-right{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
+.top-right b{color:var(--text)}
+.badge{padding:3px 9px;border-radius:20px;font-size:11.5px;border:1px solid var(--line)}
+.badge.gm{color:#ffd08a;border-color:rgba(255,159,67,.4);background:rgba(255,159,67,.1)}
+.badge.admin{color:#8ce0a8;border-color:rgba(70,196,122,.4);background:rgba(70,196,122,.1)}
+.badge.player{color:var(--muted)}
+a.ghost{
+  padding:6px 13px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:#c9ced8;text-decoration:none;font-size:13px;
+}
+a.ghost:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.body{flex:1;display:flex;min-height:0}
+.console{flex:1;display:flex;flex-direction:column;min-width:0}
+.out{
+  flex:1;overflow-y:auto;padding:16px 20px 8px;
+  font-family:Consolas,ui-monospace,"Courier New",monospace;
+  font-size:13.5px;line-height:1.75;
+}
+.block{margin-bottom:14px}
+.cmdline{color:var(--accent);white-space:pre-wrap;word-break:break-all}
+.cmdline .ts{color:#5f6672;margin-right:8px}
+.res{color:#d3d8e0;white-space:pre-wrap;word-break:break-all;margin-top:2px}
+.res.err{color:#ff8f8f}
+.res .empty{color:#5f6672}
+.input-row{
+  display:flex;align-items:center;gap:10px;padding:14px 20px 18px;flex:none;
+  border-top:1px solid var(--line);background:rgba(255,255,255,.015);
+}
+.prompt{color:var(--accent);font-family:Consolas,monospace;font-size:15px;font-weight:700}
+#cmd{
+  flex:1;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.035);color:var(--text);
+  font-family:Consolas,ui-monospace,monospace;font-size:14px;
+  transition:border-color .18s,box-shadow .18s;
+}
+#cmd:focus{outline:none;border-color:rgba(255,159,67,.6);
+           box-shadow:0 0 0 4px rgba(255,106,0,.12)}
+#cmd::placeholder{color:#4d535e}
+#send{
+  padding:0 20px;height:44px;border:0;border-radius:11px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#1a0f05;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  transition:transform .16s,opacity .16s;
+}
+#send:hover{transform:translateY(-1px)}
+#send[disabled]{opacity:.5;cursor:default;transform:none}
+.quick{
+  width:230px;flex:none;border-left:1px solid var(--line);
+  overflow-y:auto;padding:14px 12px;background:rgba(255,255,255,.012);
+}
+.quick h4{margin:0 0 8px;font-size:11.5px;font-weight:600;color:#6c7280;
+          letter-spacing:.6px;text-transform:uppercase}
+.qbtn{
+  display:block;width:100%;text-align:left;margin-bottom:6px;padding:8px 10px;
+  border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+  color:#c2c8d2;font-family:Consolas,monospace;font-size:12.5px;cursor:pointer;
+  transition:.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.qbtn:hover{background:rgba(255,255,255,.07);color:var(--text);border-color:rgba(255,159,67,.35)}
+.qbtn small{display:block;color:#6c7280;font-family:inherit;font-size:11px;margin-top:2px}
+.denied{
+  flex:1;display:grid;place-items:center;text-align:center;padding:40px;
+}
+.denied h2{margin:0 0 10px;font-size:20px}
+.denied p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.8}
+@media (max-width:820px){ .quick{display:none} }
+"""
+
+ADMIN_BODY = r"""
+<div class="shell">
+  <div class="top">
+    <div class="brand"><span class="mark">OO</span><span>管理控制台</span></div>
+    <div class="top-right">
+      <span>已登录 <b id="who">-</b></span>
+      <span class="badge player" id="perm">-</span>
+      <a class="ghost" href="/">返回门户</a>
+    </div>
+  </div>
+
+  <div class="body" id="body">
+    <div class="console">
+      <div class="out" id="out"></div>
+      <div class="input-row">
+        <span class="prompt">&gt;</span>
+        <input id="cmd" autocomplete="off" spellcheck="false" placeholder="输入 /help 开始">
+        <button id="send" onclick="submitCmd()">执行</button>
+      </div>
+    </div>
+    <aside class="quick" id="quick"></aside>
+  </div>
+
+  <div class="denied" id="denied" hidden>
+    <div>
+      <h2>没有访问权限</h2>
+      <p>这个页面需要 GM 及以上权限。<br>请让管理员执行 <code>/account 你的账号 perm 1</code>。</p>
+    </div>
+  </div>
+</div>
+"""
+
+ADMIN_SCRIPT = r"""
+var TOKEN = localStorage.getItem("oo_token") || "";
+var PERM = 0;
+var HIST = [];
+var HIDX = -1;
+var COMMANDS = window.__OO_COMMANDS__ || [];
+
+function $(id){ return document.getElementById(id); }
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function nowTs(){
+  var d = new Date();
+  function z(n){ return n < 10 ? "0" + n : "" + n; }
+  return z(d.getHours()) + ":" + z(d.getMinutes()) + ":" + z(d.getSeconds());
+}
+
+function append(cmdText, lines, ok){
+  var box = document.createElement("div");
+  box.className = "block";
+  var head = document.createElement("div");
+  head.className = "cmdline";
+  head.innerHTML = '<span class="ts">[' + nowTs() + ']</span>' + esc(cmdText);
+  box.appendChild(head);
+  var body = document.createElement("div");
+  body.className = "res" + (ok ? "" : " err");
+  if (lines && lines.length){
+    body.textContent = lines.join("\n");
+  } else {
+    body.innerHTML = '<span class="empty">(无输出)</span>';
+  }
+  box.appendChild(body);
+  var out = $("out");
+  out.appendChild(box);
+  out.scrollTop = out.scrollHeight;
+}
+
+function post(path, data, cb){
+  var x = new XMLHttpRequest();
+  x.open("POST", path, true);
+  x.setRequestHeader("Content-Type", "application/json");
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    var r = null;
+    try { r = JSON.parse(x.responseText); } catch(e){ r = null; }
+    cb(r || {ok:false, msg:"服务器返回异常"});
+  };
+  x.send(JSON.stringify(data || {}));
+}
+
+function submitCmd(){
+  var el = $("cmd");
+  var text = el.value.trim();
+  if(!text) return;
+  el.value = "";
+  HIST.push(text);
+  if(HIST.length > 200) HIST.shift();
+  HIDX = -1;
+
+  append(text, ["…"], true);
+  var box = $("out").lastChild;
+  post("/api/admin/command", {token:TOKEN, text:text}, function(r){
+    box.parentNode.removeChild(box);
+    if(r && r.data && r.data.clear){
+      $("out").innerHTML = "";
+      return;
+    }
+    append(text, r.lines || [r.msg || "无输出"], r.ok);
+  });
+}
+
+function renderQuick(){
+  var box = $("quick");
+  var html = "<h4>快捷命令</h4>";
+  var presets = ["/help", "/who", "/server", "/search 长命锁", "/account @"];
+  for(var i=0;i<presets.length;i++){
+    html += '<button class="qbtn" onclick="fill(this)">' + esc(presets[i]) + "</button>";
+  }
+  html += "<h4 style='margin-top:16px'>全部命令</h4>";
+  for(var j=0;j<COMMANDS.length;j++){
+    var c = COMMANDS[j];
+    var tip = c.implemented ? "" : "<small>未实现</small>";
+    html += '<button class="qbtn" onclick="fill(this)" data-cmd="/' + esc(c.name) + '">/' + esc(c.name) + tip + "</button>";
+  }
+  box.innerHTML = html;
+}
+
+function fill(btn){
+  var el = $("cmd");
+  el.value = btn.getAttribute("data-cmd") || btn.textContent;
+  el.focus();
+}
+
+function complete(){
+  var el = $("cmd");
+  var v = el.value;
+  if(v.charAt(0) !== "/") return;
+  var word = v.slice(1).split(/\s+/)[0];
+  if(!word) return;
+  var hits = [];
+  for(var i=0;i<COMMANDS.length;i++){
+    if(COMMANDS[i].name.indexOf(word) === 0) hits.push(COMMANDS[i].name);
+  }
+  if(hits.length === 1){
+    el.value = "/" + hits[0] + " ";
+  } else if(hits.length > 1){
+    append("/" + word, ["候选：" + hits.join("  /")], true);
+  }
+}
+
+document.addEventListener("keydown", function(e){
+  var el = $("cmd");
+  if(e.target !== el) return;
+  if(e.key === "Enter"){ submitCmd(); return; }
+  if(e.key === "Tab"){ e.preventDefault(); complete(); return; }
+  if(e.key === "ArrowUp"){
+    e.preventDefault();
+    if(!HIST.length) return;
+    if(HIDX < 0) HIDX = HIST.length - 1; else if(HIDX > 0) HIDX--;
+    el.value = HIST[HIDX] || "";
+    return;
+  }
+  if(e.key === "ArrowDown"){
+    e.preventDefault();
+    if(HIDX < 0) return;
+    HIDX++;
+    if(HIDX >= HIST.length){ HIDX = -1; el.value = ""; return; }
+    el.value = HIST[HIDX] || "";
+  }
+});
+
+function boot(){
+  if(!TOKEN){
+    $("denied").hidden = false;
+    $("body").hidden = true;
+    return;
+  }
+  post("/api/me", {token:TOKEN}, function(r){
+    if(!r || !r.ok){
+      $("denied").hidden = false;
+      $("body").hidden = true;
+      return;
+    }
+    var a = r.account || {};
+    PERM = a.perm_level || 0;
+    if(PERM < 1){
+      $("denied").hidden = false;
+      $("body").hidden = true;
+      return;
+    }
+    $("who").textContent = a.username || "";
+    var badge = $("perm");
+    badge.className = "badge " + (PERM >= 2 ? "admin" : "gm");
+    badge.textContent = PERM >= 2 ? "管理员" : "GM";
+    renderQuick();
+    append("/help", [], true);
+    post("/api/admin/command", {token:TOKEN, text:"/help"}, function(r2){
+      $("out").innerHTML = "";
+      append("/help", r2.lines || [], r2.ok);
+    });
+    $("cmd").focus();
+  });
+}
+
+boot();
+"""
+
+
+def render_admin():
+    """管理控制台页面。命令清单内嵌进页面，省一次请求。"""
+    info = []
+    for c in cmds.COMMANDS.values():
+        info.append({
+            "name": c.name,
+            "args": c.args,
+            "desc": c.desc,
+            "implemented": c.implemented,
+            "group": c.group,
+        })
+    info.sort(key=lambda x: (x["group"], x["name"]))
+    boot = "window.__OO_COMMANDS__ = " + json.dumps(info, ensure_ascii=False) + ";\n"
+    return (
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="dark">'
+        '<title>归橙 · 管理控制台</title><style>' + ADMIN_CSS + "</style></head><body>"
+        + ADMIN_BODY
+        + "<script>" + boot + ADMIN_SCRIPT + "</script></body></html>"
+    )
+
+
 class WebHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -664,6 +988,12 @@ class WebHandler(BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html"):
             self._send(render_index())
+            return
+
+        if path in ("/admin/command", "/admin"):
+            # 管理控制台页面本身不含数据，权限在前端拿到 /api/me 后再判断；
+            # 真正的命令执行走 /api/admin/command，服务端会再校验一次权限。
+            self._send(render_admin())
             return
 
         if path == "/api/stats":
@@ -733,6 +1063,48 @@ class WebHandler(BaseHTTPRequestHandler):
             self._json({"ok": True, "account": prof})
             return
 
+        if path == "/api/chat/command":
+            # 游戏内聊天框指令入口。
+            # 认证用启动器签发、客户端手里已有的 ticket（存在 tickets 表里，带过期时间），
+            # 不需要额外的会话 token。
+            t = models.check_ticket(str(req.get("ticket") or ""))
+            if not t:
+                self._json({"ok": False, "chat": "✗ 登录票据无效", "lines": ["登录票据无效"]}, 401)
+                return
+            username = t["username"]
+            perm = db.get_perm_level(username)
+            ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
+            text = str(req.get("text") or "")
+            res = cmds.execute(text, ctx)
+            print("[chatcmd] %s(perm=%d) > %s -> %s" % (username, perm, text, res.ok), flush=True)
+            self._json({
+                "ok": res.ok,
+                "chat": res.chat,
+                "lines": res.lines,
+                "data": res.data,
+            })
+            return
+
+        if path == "/api/admin/command":
+            acc = models.whoami(req.get("token") or "")
+            if not acc:
+                self._json({"ok": False, "msg": "登录已失效，请重新登录", "lines": ["登录已失效，请重新登录"]}, 401)
+                return
+            perm = int(acc.get("perm_level") or 0)
+            ctx = cmds.Context(acc["username"], perm, source="web", server_name=_server_name())
+            text = str(req.get("text") or "")
+            res = cmds.execute(text, ctx)
+            print("[admin] %s(perm=%d) > %s -> %s" % (acc["username"], perm, text, res.ok), flush=True)
+            self._json({
+                "ok": res.ok,
+                "lines": res.lines,
+                "chat": res.chat,
+                "data": res.data,
+                "actor": ctx.actor,
+                "perm": perm,
+            })
+            return
+
         if path == "/api/launcher/login":
             # 启动器专用登录接口。
             # 返回与官方 login 响应同构的 {code, msg, data} —— 客户端脚本
@@ -762,6 +1134,10 @@ class WebHandler(BaseHTTPRequestHandler):
                 return
 
             _note_login_ok(username)
+            # 游戏内指令通道要回连本服务，把地址一并下发。
+            host = self.headers.get("Host") or ""
+            if host:
+                ret["web_base"] = "http://" + host
             print("[launcher] login OK username=%s account_id=%s fp_uid=%s"
                   % (username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
             self._json({"code": 1, "msg": "Success", "data": ret})

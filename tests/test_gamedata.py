@@ -52,11 +52,26 @@ def run():
     check("龙玉 唯一命中", e is not None and cands == [], (e, cands))
     check("龙玉 ID 是 101", e and e["id"] == 101, e)
 
-    print("\n[4] 物品重名返回候选")
+    print("\n[4] 同名条目按「可用性」优先")
+    # 「长命锁」有 3 条：1001 是给角色的物品（tier0），71118/75118 是头像/形象（tier2）
     e, cands = gd.resolve_item("长命锁")
-    check("长命锁 不直接命中", e is None, e)
-    check("长命锁 返回 3 个候选", len(cands) == 3, [c["id"] for c in cands])
+    check("长命锁 命中可用的 1001", e is not None and e["id"] == 1001, (e, cands))
+    check("长命锁 不返回候选", cands == [], cands)
+    check("命中的是角色物品", gd.tier_name(e) == "角色物品", gd.tier_name(e))
+
+    print("\n[4b] --allow-unavailables 取消优先规则")
+    e, cands = gd.resolve_item("长命锁", allow_unavailables=True)
+    check("开启后不再自动命中", e is None, e)
+    check("开启后返回 3 个候选", len(cands) == 3, [c["id"] for c in cands])
     check("候选 ID 正确", sorted(c["id"] for c in cands) == [1001, 71118, 75118],
+          [c["id"] for c in cands])
+
+    print("\n[4c] 同档重名仍然报歧义")
+    # 「随机龙咒」4 条同为 tier2，没有可优先的，必须如实返回候选
+    e, cands = gd.resolve_item("随机龙咒")
+    check("随机龙咒 不直接命中", e is None, e)
+    check("随机龙咒 返回 4 个候选", len(cands) == 4, [c["id"] for c in cands])
+    check("候选 ID 正确", sorted(c["id"] for c in cands) == [5004, 5005, 5006, 5007],
           [c["id"] for c in cands])
 
     print("\n[5] 找不到")
@@ -82,6 +97,12 @@ def run():
     check("瞳 返回 2 个候选", len(cands) == 2, [c["id"] for c in cands])
     check("瞳 候选是 9001/9002", sorted(c["id"] for c in cands) == [9001, 9002],
           [c["id"] for c in cands])
+
+    print("\n[7b] 角色 --allow-unavailables")
+    e, cands = gd.resolve_char("长命锁", allow_unavailables=True)
+    check("开启后长命锁不再自动命中", e is None, e)
+    check("开启后返回 3 个候选", len(cands) == 3, [c["id"] for c in cands])
+    check("候选含皮肤变体", 100101 in [c["id"] for c in cands], [c["id"] for c in cands])
 
     print("\n[8] 强制 ID 绕过名字")
     e, cands = gd.resolve_char("#101301")

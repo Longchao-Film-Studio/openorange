@@ -122,6 +122,32 @@ def get_bool(body, field):
     return None
 
 
+# ---------------------------------------------------------------- 可用性分级
+#
+# 同名条目可能对应「能用的」和「非正常能用的」两种东西，解析时优先取能用的。
+# tier 越小越优先；同 tier 视为真歧义，返回候选让调用方决定。
+#
+# 角色: isShow=true 是可玩角色；6 位 ID（>=100000）是皮肤/形态变体。
+# 物品: 客户端没有显式的可用标记，用 useType / itemType 推断：
+#       useType="char" 是「给角色」的物品（最正规），itemType=1 是常规物品，
+#       其余是头像 / 形象 / 装饰等附属物。
+
+def char_tier(char_id, show):
+    if show is True:
+        return 0
+    if int(char_id or 0) < 100000:
+        return 1
+    return 2
+
+
+def item_tier(item_type, use_type):
+    if use_type == "char":
+        return 0
+    if item_type == 1:
+        return 1
+    return 2
+
+
 def extract_items(lua_dir):
     path = os.path.join(lua_dir, "tabledata", "commondata", "itemdata.lua")
     rows = []
@@ -130,11 +156,15 @@ def extract_items(lua_dir):
         name = get_str(body, "name")
         if item_id is None or not name:
             continue
+        item_type = get_int(body, "itemType")
+        use_type = get_str(body, "useType")
         rows.append({
             "id": item_id,
             "name": name,
-            "type": get_int(body, "itemType"),
+            "type": item_type,
             "quality": get_int(body, "quality"),
+            "use_type": use_type,
+            "tier": item_tier(item_type, use_type),
         })
     rows.sort(key=lambda r: r["id"])
     return {
@@ -153,6 +183,7 @@ def extract_chars(lua_dir):
         name = get_str(body, "charName")
         if char_id is None or not name:
             continue
+        show = get_bool(body, "isShow")
         rows.append({
             "id": char_id,
             "name": name,
@@ -161,7 +192,8 @@ def extract_chars(lua_dir):
             "grade": get_int(body, "charGrade"),
             "area": get_str(body, "charArea"),
             "cv": get_str(body, "charCV"),
-            "show": get_bool(body, "isShow"),
+            "show": show,
+            "tier": char_tier(char_id, show),
         })
     rows.sort(key=lambda r: r["id"])
     return {

@@ -245,6 +245,7 @@ def account_profile(acc):
         "created": int(acc["created_ts"]),
         "last_login": int(acc["last_login_ts"] or acc["created_ts"]),
         "login_count": int(acc["login_count"] or 0),
+        "perm_level": int(acc.get("perm_level") or 0),
     }
 
 

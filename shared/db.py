@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     channel_uid       TEXT,
     is_formal         INTEGER NOT NULL DEFAULT 1,
     is_new            INTEGER NOT NULL DEFAULT 1,
+    perm_level        INTEGER NOT NULL DEFAULT 0,  -- 0=玩家 1=GM 2=管理员
     created_ts        INTEGER NOT NULL,
     last_login_ts     INTEGER,
     login_count       INTEGER NOT NULL DEFAULT 0
@@ -90,6 +91,8 @@ def init():
         c.execute("ALTER TABLE accounts ADD COLUMN pass_salt TEXT")
     if "pass_hash" not in cols:
         c.execute("ALTER TABLE accounts ADD COLUMN pass_hash TEXT")
+    if "perm_level" not in cols:
+        c.execute("ALTER TABLE accounts ADD COLUMN perm_level INTEGER NOT NULL DEFAULT 0")
     # 旧库列改名：账号名不再限定手机号，mobile -> username。
     for table in ("accounts", "sessions", "tickets"):
         tcols = {r["name"] for r in c.execute("PRAGMA table_info(%s)" % table).fetchall()}
@@ -235,6 +238,38 @@ def issue_ticket(ticket, username, account_id, ttl=86400):
 def get_ticket(ticket):
     r = _conn().execute("SELECT * FROM tickets WHERE ticket=?", (ticket,)).fetchone()
     return dict(r) if r else None
+
+
+# ---------------- 权限 / 在线 ----------------
+
+def get_perm_level(username):
+    """取账号权限等级：0=玩家 1=GM 2=管理员。账号不存在返回 -1。"""
+    r = _conn().execute("SELECT perm_level FROM accounts WHERE username=?", (username,)).fetchone()
+    if not r:
+        return -1
+    return int(r["perm_level"] or 0)
+
+
+def set_perm_level(username, level):
+    c = _conn()
+    cur = c.execute("UPDATE accounts SET perm_level=? WHERE username=?", (int(level), username))
+    c.commit()
+    return cur.rowcount > 0
+
+
+def online_accounts(limit=200):
+    """在线账号：网页会话未过期。
+
+    注意：启动器登录不建网页会话（见 models.verify_credentials），
+    所以这里只统计网页端在线。游戏内在线要等实体层实现后再统计。
+    """
+    now = int(time.time())
+    rows = _conn().execute(
+        "SELECT s.username, s.issued_ts, s.expire_ts, a.account_id, a.perm_level, a.last_login_ts "
+        "FROM sessions s LEFT JOIN accounts a ON a.username = s.username "
+        "WHERE s.expire_ts > ? ORDER BY s.issued_ts DESC LIMIT ?",
+        (now, limit)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def list_accounts(limit=100):

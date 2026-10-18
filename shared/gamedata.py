@@ -61,11 +61,16 @@ def stats():
     }
 
 
-def _resolve(token, by_id, by_name, rank=None):
+def _resolve(token, by_id, by_name, allow_unavailables=False):
     """通用解析。返回 (entry, candidates)。
 
-    rank: 重名时按该函数排序取最优（用于角色表区分真角色与皮肤变体）。
-          返回可比较的元组，越小越优先；若前两名同分则视为真歧义，返回全部候选。
+    重名时的默认规则：只保留 tier 最小的那一档（tier 见 tools/extract_tables.py）。
+      tier 0 = 正常能用的（可玩角色 / 给角色的物品）
+      tier 1 = 次一级（基础形态 / 常规物品）
+      tier 2 = 其它形态（皮肤变体、娃娃、头像、形象、装饰…）
+
+    若最优档仍有多条，视为真歧义，返回全部候选，不瞎猜。
+    allow_unavailables=True 时取消分级，所有同名条目平等参与（都变成候选）。
     """
     _ensure_loaded()
     token = str(token or "").strip()
@@ -85,12 +90,9 @@ def _resolve(token, by_id, by_name, rank=None):
 
     # 按名字
     hits = by_name.get(token) or []
-    if len(hits) > 1 and rank is not None:
-        ranked = sorted(hits, key=rank)
-        if rank(ranked[0]) < rank(ranked[1]):
-            return ranked[0], []
-        best = rank(ranked[0])
-        hits = [h for h in ranked if rank(h) == best]
+    if len(hits) > 1 and not allow_unavailables:
+        best = min(_tier(h) for h in hits)
+        hits = [h for h in hits if _tier(h) == best]
     if len(hits) == 1:
         return hits[0], []
     if len(hits) > 1:
@@ -98,26 +100,31 @@ def _resolve(token, by_id, by_name, rank=None):
     return None, []
 
 
-def resolve_item(token):
+def _tier(entry):
+    t = entry.get("tier")
+    return int(t) if t is not None else 2
+
+
+def tier_name(entry):
+    """给搜索结果标注：可玩 / 变体 / 娃娃 / 角色物品 / 常规物品 / 附属物。"""
+    t = _tier(entry)
+    if "grade" in entry or "name_en" in entry:      # 角色
+        return ("可玩", "基础", "变体")[min(t, 2)]
+    return ("角色物品", "常规物品", "附属物")[min(t, 2)]
+
+
+def resolve_item(token, allow_unavailables=False):
     """解析物品。返回 (entry, candidates)。"""
-    return _resolve(token, _item_by_id, _item_by_name)
+    return _resolve(token, _item_by_id, _item_by_name, allow_unavailables)
 
 
-def _char_rank(ch):
-    """角色重名时的优先级。
+def resolve_char(token, allow_unavailables=False):
+    """解析角色。返回 (entry, candidates)。
 
-    角色表 105 条里只有 20 条是真·可玩角色，其余是娃娃形态（2001+）与皮肤变体（100101+）。
-    排序键: 先看客户端自己的 isShow 标记，再看 ID 是否为基础角色（6 位 ID 是变体）。
-    这样「长命锁」命中 1001，「拂云」命中 1013，而「瞳」因为 9001/9002 同为真角色
-    会如实返回两个候选。
+    默认优先可玩角色：例如「长命锁」命中 1001，而不是 100101 皮肤变体；
+    「瞳」因为 9001/9002 同为可玩角色，会如实返回两个候选。
     """
-    return (0 if ch.get("show") is True else 1,
-            0 if int(ch.get("id") or 0) < 100000 else 1)
-
-
-def resolve_char(token):
-    """解析角色。返回 (entry, candidates)。"""
-    return _resolve(token, _char_by_id, _char_by_name, rank=_char_rank)
+    return _resolve(token, _char_by_id, _char_by_name, allow_unavailables)
 
 
 def _search(rows, keyword):
@@ -135,7 +142,10 @@ def _search(rows, keyword):
             prefix.append(r)
         elif keyword in name or (name_en and low in name_en):
             contain.append(r)
-    return exact + prefix + contain
+    def by_tier(rows):
+        return sorted(rows, key=lambda r: (_tier(r), int(r.get("id") or 0)))
+
+    return by_tier(exact) + by_tier(prefix) + by_tier(contain)
 
 
 def search_items(keyword):
