@@ -3,6 +3,6 @@
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=../../OpenOrange.ini");
+    println!("cargo:rerun-if-changed=../../dist/OpenOrange.ini");
     println!("cargo:rerun-if-changed=../../lua/oo_bootstrap.lua");
 }

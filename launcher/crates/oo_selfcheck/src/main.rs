@@ -42,9 +42,18 @@ fn main() {
 
 fn check_ini() -> i32 {
     println!("\n[1] OpenOrange.ini 解析");
-    let mut p = std::path::PathBuf::from("OpenOrange.ini");
-    if !p.exists() {
-        p = std::path::PathBuf::from("../../OpenOrange.ini");
+    // 依次尝试：当前目录（在 dist 里运行）、launcher/dist、crate 相对路径
+    let mut p = std::path::PathBuf::new();
+    for cand in [
+        "OpenOrange.ini",
+        "dist/OpenOrange.ini",
+        "../../dist/OpenOrange.ini",
+    ] {
+        let c = std::path::PathBuf::from(cand);
+        if c.exists() {
+            p = c;
+            break;
+        }
     }
     if !p.exists() {
         println!("    FAIL: 找不到 OpenOrange.ini");

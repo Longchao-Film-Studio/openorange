@@ -109,7 +109,7 @@ def main():
     print()
     print("接下来启动游戏（再开一个窗口）:")
     print("    cd %s\\launcher\\dist" % ROOT.replace("/", "\\"))
-    print("    .\\OO_Launcher.exe --cli 15900159000 oologin123")
+    print("    .\\OO_Launcher.exe --cli <账号> <密码>")
     print()
     print("注意: 启动器那个窗口不要关，关掉会连带关掉游戏。")
     return 0

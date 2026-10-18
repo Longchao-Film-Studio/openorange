@@ -1,15 +1,50 @@
-# OpenOrange —— 归龙潮私服复活工程
+# OpenOrange · 归龙潮私服
 
-> **从这里开始：[`docs/项目总览.md`](docs/项目总览.md)** —— 项目全貌、组件状态、协议进度、工具链、踩坑清单。
+用**原版游戏客户端**跑自建服务器的完整实现：一个 Rust 启动器 + 一套 Python 服务端。
+
+> **游戏本体一个字节都不改。** 启动器负责取票据、挂起启动、注入运行时模块；
+> 运行时模块在游戏进程内部接住 SDK 登录回调，把客户端导向我们自己的服务器。
 
 ---
 
-## 一句话现状
+## 功能状态
 
-**原版客户端 + 启程式注入 + 自研服务器**：登录、选服、网关握手、账号绑定、角色绑定**全部打通**，
-目前卡在「角色绑定之后如何进入游戏世界」这一步。
+| 模块 | 状态 | 说明 |
+| --- | --- | --- |
+| 账号注册 / 登录 | ✅ | 网页注册，启动器登录 |
+| 启动器 GUI / CLI | ✅ | Win32 原生界面，无 WebView |
+| 运行时注入 | ✅ | 挂起启动 → 注入 → 放行 |
+| 服务器列表接管 | ✅ | 游戏内显示自建服务器，不再连官方 |
+| 网关握手 / 会话 | ✅ | 连接、会话号、内容类型协商 |
+| 账号绑定 / 角色绑定 | ✅ | 两步绑定均通过 |
+| 进入游戏世界 | 🚧 | 场景与实体同步开发中 |
 
-游戏本体**一个字节都没改**。
+---
+
+## 它由什么组成
+
+```
+┌──────────────────┐   ① 登录 (HTTP)     ┌────────────────────┐
+│  OO_Launcher.exe │ ─────────────────► │  web 后端  :8399   │
+│   Win32 原生 UI  │ ◄───────────────── │  账号 / 票据 / 门户 │
+└────────┬─────────┘   account_id       └────────────────────┘
+         │             + ticket
+         │ ② 挂起启动 → 注入 OO_Internal.dll → 放行
+         ▼
+┌───────────────────────────────────────────────┐
+│  GuiLongchao.exe   原版客户端，未做任何改动       │
+│                                               │
+│   └─ OO_Internal.dll                          │
+│        ③ 接住 SDK 登录回调，把启动器给的身份喂进去 │
+│        ④ 接管服务器列表                          │
+│        ⑤ 把网关地址指向自建游戏服                 │
+└────────┬──────────────────────────────────────┘
+         │ ⑥ 连接自建网关
+         ▼
+┌────────────────────┐
+│  game_server       │  网关 :33101 + 微服务 :33100
+└────────────────────┘
+```
 
 ---
 
@@ -17,281 +52,241 @@
 
 ```
 OpenOrange/
-├── docs/                  ★ 所有文档
-│   ├── 逆向过程记录.md    ★ 协议是怎么挖出来的（含 15 条踩坑）
-│   ├── 配置说明.md        ★ OpenOrange.ini 教程与示例
-│   ├── 项目总览.md        项目全貌与组件状态
-│   ├── 协议/              协议逆向成果（权威：完整协议恢复.md）
-│   ├── 规划/              早期规划
-│   └── 运维/              实机测试指南
-│   （部署说明就在本文件下面：「拿到源码之后怎么部署」）
-│
-├── launcher/              ★ Rust 启动器 + 注入 DLL
+├── launcher/                Rust：启动器 + 运行时注入模块
 │   ├── crates/
-│   │   ├── oo_launcher/   启动器（Win32 原生 UI + --cli 模式）
-│   │   ├── oo_internal/   注入 DLL（挂钩 lua_load + 脱壳 + dump）
-│   │   ├── oo_shared/     共享内存协议 + 磁盘兜底
-│   │   ├── oo_selfcheck/  自检（7+1 段）
-│   │   ├── oo_injector/   独立注入器（含 --probe 探针）
-│   │   └── oo_hosttest/   宿主测试器（不启动游戏验证脚本）
-│   ├── lua/oo_bootstrap.lua   注入的引导脚本
-│   └── dist/              运行目录（从 target/release 拷产物进来）
+│   │   ├── oo_launcher/     启动器（GUI + --cli）
+│   │   ├── oo_internal/     注入模块（DLL）
+│   │   ├── oo_shared/       启动器与 DLL 之间的共享内存协议
+│   │   ├── oo_selfcheck/    自检工具
+│   │   ├── oo_injector/     独立注入器
+│   │   └── oo_hosttest/     宿主测试器（不开游戏验证脚本）
+│   ├── lua/oo_bootstrap.lua 注入到游戏里的引导脚本
+│   └── dist/                运行目录（编译产物 + OpenOrange.ini）
 │
-├── game_server/           ★ 游戏服（进行中）
-│   ├── ms.py              协议实现（protobuf + msgpack + 各消息构造）
-│   └── server.py          多模式服务器（--ms-ok / --gate-ok / --proxy / ...）
+├── web/                     后端：账号、票据、门户页面       :8399
+├── game_server/             游戏服：网关 + 微服务            :33100 / :33101
+├── shared/                  SQLite 数据层
+├── docs/
+│   └── 配置说明.md          OpenOrange.ini 完整教程与示例
 │
-├── my_scripts/            可复用的分析脚本（协议逆向用）
-├── archivescript/         一次性过程脚本（已归档，保留作证据）
-│
-├── web/app.py             后端登录 + 门户        HTTP 8399
-├── shared/                SQLite 数据层（账号/验证码/票据/会话）
-├── auth_server/           假 fp-passport         HTTPS 8443（备用路线）
-├── serverlist_server/     服务器列表            HTTPS 8080（已被 ms 路线取代）
-├── tools/                 代理、证书、安装脚本
-├── work/                  抓包记录、Ghidra 脚本（可再生的产物已 gitignore）
-└── start_server.py        一键起后端 + 游戏服
+├── start_server.py          一键启动服务端
+└── start_server.ps1         同上（PowerShell 包装）
 ```
+
+---
+
+## 环境要求
+
+| 项 | 版本 | 说明 |
+| --- | --- | --- |
+| Windows | 10 / 11 x64 | 启动器是 Win32 原生程序 |
+| Rust | nightly | `rust-toolchain.toml` 已固定，rustup 会自动装 |
+| Python | 3.10+ | 服务端**只用标准库**，无需 `pip install` |
+| 游戏客户端 | 归龙潮 PC 版 | 需自行准备，本仓库不包含 |
 
 ---
 
 ## 快速开始
 
-### 1. 起后端
-```powershell
-cd F:/haowancheng/OpenOrange
-python -u -m web.app                       # 登录/门户  8399
-python -u -m game_server.server --ms-ok    # 游戏服     33100(ms) + 33101(网关)
-```
-
-### 2. 起启动器
-```powershell
-cd F:/haowancheng/OpenOrange/launcher/dist
-.\OO_Launcher.exe                                   # GUI
-.\OO_Launcher.exe --cli 15900159000 oologin123      # CLI（能看进度）
-```
-
-**⇒ 游戏会在约 40 秒后加载完 xlua.dll，然后自动完成登录并进入主界面。**
-
-### 3. 看日志
-```
-launcher/dist/work/logs/launcher.log    启动器日志
-launcher/dist/oo_internal.log           注入脚本日志（所有探测输出都在这）
-```
-
----
-
-## 测试账号
-
-| 手机号 | 密码 | account_id |
-|---|---|---|
-| 15900159000 | oologin123 | oo_08bed76013b06783 |
-| 15900159001 | oologin456 | oo_e1019fb0be3debf3 |
-
----
-
-## 关键约束（改代码前必读）
-
-1. **不要改游戏本体** —— 不改 `GuiLongchao.exe` / `GameAssembly.dll` / 任何 `.lua` / `.bytes`
-2. **服务器地址只从 `launcher/dist/OpenOrange.ini` 读**，不要编译进程序
-3. **所有结论必须有证据** —— 源码行号 / RVA / 抓包字节 / 日志行
-
----
-
-## 相关外部路径
-
-| 路径 | 内容 |
-|---|---|
-| `F:/haowancheng/GuiLongchao/game/` | 游戏本体 |
-| `F:/haowancheng/archive/game_data/LuaAll_Decompiled2/` | 11,618 个反编译 Lua |
-| `F:/haowancheng/work/qicheng/` | 闭源私服参考件 |
-| `F:/haowancheng/work/decompiled/Assembly-CSharp/` | 2,172 个反编译 .cs |
-| `F:/ghidra/ghidra_12.1.4_PUBLIC/` | Ghidra |
-| `F:/java/temurin_21/` | JDK 21（Ghidra 用） |
----
-
-# 拿到源码之后怎么部署
-
-> **仓库里只有源码。** 游戏本体、编译产物、脱壳镜像、dump 出来的程序集都不在仓库里
-> （前两者体积大，后者涉及版权，且都能重新生成）。
-
-## 前置要求
-
-| 项 | 版本 | 必需? | 说明 |
-|---|---|---|---|
-| **Rust** | nightly | ✅ 必需 | `rust-toolchain.toml` 指定了 nightly |
-| **Python** | 3.10+ | ✅ 必需 | 后端 + 游戏服 |
-| **原版游戏客户端** | - | ✅ 必需 | 仓库不含，需自行获取 |
-| Ghidra | 12.1.4 | 可选 | 只在要重新分析原生代码时用 |
-| JDK | 21 | 可选 | Ghidra 依赖 |
-| ilspycmd | 最新 | 可选 | 只在要反编译 C# 时用：`dotnet tool install --global ilspycmd` |
-
----
-
-## 第 1 步：编译（这一步会自动完成）
+### 1. 编译启动器
 
 ```powershell
-cd <仓库路径>/launcher
+cd launcher
 cargo build --release
 ```
 
-**⇒ 会产出两个文件：**
+产物在 `launcher/target/release/`：
+
 ```
-target/release/OO_Launcher.exe      约 345 KB
-target/release/OO_Internal.dll      约 260 KB
+OO_Launcher.exe
+OO_Internal.dll
 ```
 
-**⇒ ✅ 实测：从空目录 clone 下来能直接编译成功。**
+### 2. 组装运行目录
 
-## 第 2 步：把产物拷进 dist
-
-**⇒ dist 目录是运行目录，但仓库里只保留了 `OpenOrange.ini`（产物已被 gitignore）。**
+把产物拷进 `launcher/dist/`（该目录已有配置模板）：
 
 ```powershell
-cd <仓库路径>/launcher
 Copy-Item target/release/OO_Launcher.exe dist/
 Copy-Item target/release/OO_Internal.dll dist/
 ```
 
-**⇒ 拷完后 `launcher/dist/` 应该是：**
+拷完 `launcher/dist/` 应该是：
+
 ```
-OO_Launcher.exe      启动器
-OO_Internal.dll      注入模块
-OpenOrange.ini       配置
-work/                日志目录（首次运行自动创建）
+OO_Launcher.exe
+OO_Internal.dll
+OpenOrange.ini
 ```
 
-## 第 3 步：准备游戏本体
+> `OO_Internal.dll` 必须和 `OO_Launcher.exe` 放在同一目录，启动器按文件名注入。
 
-**⇒ 把原版客户端放到某处，然后让 `OpenOrange.ini` 指向它。**
+### 3. 指向游戏客户端
 
-**⇒ 两种方式，任选：**
+编辑 `launcher/dist/OpenOrange.ini` 里的 `game_exe`：
 
-**方式 A：改 ini 里的 `game_exe`**
 ```ini
 [Game]
 game_exe = D:\Games\GuiLongchao\game\GuiLongchao.exe
 ```
-**⇒ 支持绝对路径，也支持相对**启动器所在目录**的相对路径。**
 
-**方式 B：把启动器文件挪到游戏旁边**
-**⇒ 把 `OO_Launcher.exe` / `OO_Internal.dll` / `OpenOrange.ini` 三个文件拷到游戏
-⇒ `GuiLongchao.exe` 同级的目录，然后把 ini 里的 `game_exe` 留空。**
+两种写法都支持：
 
-**⇒ ⚠️ 注意：`game_exe` 写死了不存在的路径会**直接报错**，不会偷偷去别处找 —— 这是刻意的，
-⇒ 为的是让你能判断到底启动了哪个程序。报错信息里会打印实际解析出的路径。**
+- **绝对路径** —— 如上。
+- **相对路径** —— 相对启动器所在目录。
+- **留空** —— 自动找启动器同目录及上级目录里的 `GuiLongchao.exe`，
+  适合把三个文件直接拷到游戏目录旁边。
 
-## 第 4 步：起服务
+> `game_exe` 写了不存在的路径会直接报错并打印实际解析结果，不会悄悄去别处找。
+
+### 4. 启动服务端
 
 ```powershell
-cd <仓库路径>
 python start_server.py
 ```
 
-**⇒ 会开两个独立窗口：**
-```
-OO-Backend:8399        后端（登录 + 服务器名）
-OO-GameServer          游戏服 33100(微服务) + 33101(游戏网关)
-```
+会开两个独立窗口并自动检查端口：
 
-**⇒ 然后自动检查端口，应该看到三个 `监听中`。**
-
-**⇒ 也可以分开起：**
-```powershell
-python start_server.py --backend    # 只起后端
-python start_server.py --game       # 只起游戏服
+```
+OO-Backend:8399      后端（账号 / 票据 / 门户）
+OO-GameServer        游戏服  33100(微服务) + 33101(网关)
 ```
 
-**⇒ 或者手动起（不想用脚本时）：**
-```powershell
-python -u -m web.app --port 8399
-python -u -m game_server.server --ms-ok
-```
-
-## 第 5 步：启动游戏
-
-**⇒ 再开一个窗口：**
+也可以只起一半，或者手动起：
 
 ```powershell
-cd <仓库路径>/launcher/dist
-.\OO_Launcher.exe --cli 15900159000 oologin123
+python start_server.py --backend       # 只起后端
+python start_server.py --game          # 只起游戏服
+
+python -u -m web.app --port 8399       # 手动起后端
+python -u -m game_server.server --ms-ok  # 手动起游戏服
 ```
 
-**⇒ 成功的话会看到：**
+### 5. 注册账号
+
+浏览器打开 <http://127.0.0.1:8399/>，在「注册 / 登录」里注册一个账号。
+
+手机号当 UID 用，不校验真实性；密码自己定。注册完直接在同一页面登录即可，
+**不需要在任何文件里预先写账号**。
+
+### 6. 启动游戏
+
+```powershell
+cd launcher/dist
+.\OO_Launcher.exe
 ```
-[1/6] 注入模块 = ...\OO_Internal.dll
+
+在界面里填上刚才注册的账号密码，点登录。
+
+> **这个启动器窗口不要关** —— 关掉会连带关掉游戏。
+
+游戏要加载运行时模块，实测需要 **36 ~ 42 秒**，之后会自动完成登录并进入主界面，
+服务器列表里显示的就是你自己的服务器。
+
+---
+
+## 配置
+
+所有服务器地址都从 `launcher/dist/OpenOrange.ini` 读，**不编译进程序**。
+改完 ini 重启启动器即可生效。
+
+最小可用配置：
+
+```ini
+[Server]
+login_url  = http://127.0.0.1:8399/api/launcher/login
+game_host  = 127.0.0.1
+game_port  = 33100
+
+[Game]
+game_exe   = D:\Games\GuiLongchao\game\GuiLongchao.exe
+```
+
+完整配置项、每种场景的写法、以及排错对照表见 **[配置说明.md](docs/配置说明.md)**。
+
+---
+
+## 命令行模式
+
+不想开界面（或要自动化 / 排查问题）时用 `--cli`，步骤与 GUI 完全一致，但能看到进度：
+
+```powershell
+.\OO_Launcher.exe --cli <账号> <密码>
+```
+
+```
+[1/6] 注入模块   = ...\OO_Internal.dll
 [2/6] 游戏客户端 = ...\GuiLongchao.exe
-[3/6] 请求登录 = http://127.0.0.1:8399/api/launcher/login
-[4/6] 登录成功 account_id=oo_08bed76013b06783 ticket_len=492
-[5/6] 游戏已挂起启动 pid=xxxxx
-     已注入 ...\OO_Internal.dll
+[3/6] 请求登录   = http://127.0.0.1:8399/api/launcher/login
+[4/6] 登录成功   account_id=... ticket_len=...
+[5/6] 游戏已挂起启动 pid=...
+      已注入 ...\OO_Internal.dll
 [6/6] 游戏已放行
 ```
 
-**⇒ ⚠️ 这个窗口不要关 —— 关掉会连带关掉游戏。**
-
-**⇒ 然后等 40~60 秒（游戏要加载 `xlua.dll`，实测需 36~42 秒），游戏会自动完成登录进主界面。**
-
 ---
 
-## 部署后的自检
+## 日志与排障
 
-### 看注入日志
+| 文件 | 内容 |
+| --- | --- |
+| `launcher/dist/work/logs/launcher.log` | 启动器日志 |
+| `launcher/dist/oo_internal.log` | 注入模块日志（最详细，看这里） |
+| 游戏服窗口 | 服务端收到的每条请求 |
+
+看注入模块日志：
+
 ```powershell
-Get-Content <仓库路径>/launcher/dist/oo_internal.log -Tail 30
+Get-Content launcher/dist/oo_internal.log -Tail 30
 ```
 
-**⇒ 成功的标志（顺序固定）：**
+**登录成功的标志**（顺序固定）：
+
 ```
-hook installed: body=0x...
+hook installed
 inject: verify -> true|function|function
-lua: account: sdk login delivered account_id=...
+lua: account: sdk login delivered
 lua: account: EnterGame invoked
-lua: serverlist: installed, GetOneServer=2000
-lua: servermgr.onDone 已包裹（列表保护）
-serverlist: onDone 后强制盖回 —— 名字=OpenOrange
+lua: serverlist: installed
 ```
-
-### 看服务端有没有收到流量
-**⇒ 切到 `OO-GameServer` 窗口，点游戏里的「开始游戏」，应该看到：**
-```
-[ms] RX ... service=ClientGate method=syncMetadata
-[ms] TX MsResponse ...
-[ms] RX ... service=GameLoadService method=query
-[ms] TX MsResponse ...
-[GATE] * 收到网关连接
-[GATE] proto.reqType=0  -> TX ConnectServerResp + bindAccount
-[GATE] proto.reqType=4  -> TX ConnectServerResp + bindAvatar
-[GATE] proto.reqType=3  -> TX ConnectServerResp
-```
-
-**⇒ 走到 `reqType=3` 就说明**账号绑定 + 角色绑定都成功了**。**
 
 ---
 
-## 常见部署问题
+## 常见问题
 
 | 现象 | 原因 | 解决 |
-|---|---|---|
+| --- | --- | --- |
 | `cargo build` 报 toolchain 错 | 没装 nightly | `rustup toolchain install nightly` |
-| 启动器报「找不到注入模块」 | 产物没拷进 dist | 执行第 2 步 |
-| 启动器报「找不到游戏客户端」 | `game_exe` 错 | 按报错里给的路径核对；或改用方式 B |
+| 启动器提示找不到注入模块 | 产物没拷进 dist | 回到「快速开始」第 2 步 |
+| 启动器提示找不到游戏客户端 | `game_exe` 写错 | 按报错里打印的路径核对 |
 | 端口被占用 | 有旧的 python 进程 | `Get-NetTCPConnection -LocalPort 8399,33100,33101 -State Listen` 查 PID，按 PID 精确关掉 |
-| 注入日志里有 `xlua.dll not loaded` | 游戏启动慢或没起来 | 等 5 分钟；确认游戏进程真的在跑 |
-| 游戏内服务器名还是官方名 | 引导脚本没生效 | 看日志里有没有 `serverlist:` 相关行 |
-| 点开始游戏没反应 | 游戏服没起 | 看游戏服窗口是否收到 `syncMetadata` |
+| 等了很久游戏没进主界面 | 客户端加载慢 | 注入日志里等到 `EnterGame invoked` 为止，最长等 5 分钟 |
+| 游戏内还是官方服务器名 | 引导脚本没生效 | 检查注入日志里有没有 `serverlist:` 开头的行 |
+| 点「开始游戏」没反应 | 游戏服没起 | 看游戏服窗口是否收到 `syncMetadata` |
+| 登录报「账号或密码错误」 | 账号没注册 | 到 <http://127.0.0.1:8399/> 注册 |
 
 ---
 
-## 想重新生成逆向产物
+## 开发
 
-**⇒ 仓库不含这些（体积大 / 可再生），需要时自己跑一遍：**
+```powershell
+cd launcher
+cargo build --release     # 编译
+cargo test                # 单元测试
+cargo run -p oo_selfcheck # 自检（配置 / 注入模块 / 共享内存 / 引导脚本）
+```
 
-| 产物 | 怎么生成 |
-|---|---|
-| `xlua.dll_unpacked.bin`（24 MB 脱壳镜像） | 注入 DLL 时自动生成，落在 `dist/` |
-| `dump_*_net.bin`（16 个解密程序集） | 同上，注入后自动扫描内存 dump |
-| 反编译的 `.cs` 文件 | `ilspycmd dump_024_*.bin -o out -p` |
-| 反编译的 Lua（11,618 个） | 需自行用 xLuaDumper 类工具处理游戏资源 |
+服务端没有任何第三方依赖，改完直接重启进程即可。
 
-**⇒ 前两项只要跑一次游戏就会自动生成。**
+---
+
+## 免责声明
+
+本项目仅供**学习、研究与私人保存**使用，与游戏开发商、发行商无任何关系。
+
+- 不包含、也不分发任何游戏本体文件、美术资源或商业素材；
+- 使用者需自行合法持有游戏客户端；
+- 请勿用于任何商业用途或公开运营；
+- 因使用本项目产生的一切后果由使用者自行承担。
+
+如果相关权利方有异议，请联系删除。

@@ -15,7 +15,6 @@ mod capi;
 mod inject;
 mod insn;
 mod log;
-mod memdump;
 mod native;
 mod script;
 mod xlua;
@@ -123,23 +122,12 @@ extern "system" fn bootstrap_thread(_param: *mut c_void) -> u32 {
             return 3;
         }
     }
-    // ★ 挂钩就绪 = xlua.dll 已完全加载并展开 —— 立刻把它的内存镜像脱壳落盘。
-    //   磁盘上的 xlua.dll 有 8 个节 RawSize=0（内容压在 .201 里），
-    //   静态反汇编看不到代码，必须先 dump 内存镜像。
-    {
-        let dir = log::path()
-            .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
-        let _ = memdump::dump_module_image("xlua.dll", &dir);
-    }
-
     // 挂钩就绪后，等待 Lua 侧真正开始工作。
     log::write("waiting for xlua to load lua chunks...");
     let mut waited = 0u32;
     while waited < 600_000 {
         if INJECTED.load(std::sync::atomic::Ordering::SeqCst) {
             log::write("bootstrap script injected, detour going transparent");
-            spawn_memdump();
             return 0;
         }
         unsafe { Sleep(50) };
@@ -147,30 +135,6 @@ extern "system" fn bootstrap_thread(_param: *mut c_void) -> u32 {
     }
     log::write("WARN: no lua chunk seen in 10 minutes");
     0
-}
-
-/// 引导脚本注入成功后再延迟启动内存扫描。
-///
-/// 为什么延迟：HybridCLR 是**按需**解密程序集的 —— 引导脚本刚注入时，
-/// Assembly-CSharp 可能还没被加载。等到游戏真正跑起来（登录、进主界面）
-/// 之后，需要的程序集才在内存里。
-///
-/// 分三轮、每轮间隔 25 秒，覆盖不同的启动阶段，且每轮都会去重。
-fn spawn_memdump() {
-    let dir = log::path()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-
-    std::thread::spawn(move || {
-        log::write(&format!("memdump: 计划在 {} 分三轮扫描", dir.display()));
-        for round in 1..=3u32 {
-            unsafe { Sleep(25_000) };
-            log::write(&format!("memdump: 第 {round}/3 轮扫描开始"));
-            let n = memdump::scan_and_dump(&dir);
-            log::write(&format!("memdump: 第 {round}/3 轮结束，本轮新增 {n} 个候选"));
-        }
-        log::write("memdump: 全部完成");
-    });
 }
 
 /// 探测一组关键模块是否已加载，用于等待期间诊断游戏进展。
@@ -269,4 +233,3 @@ unsafe extern "C" fn hook_detour(
     let real: LuaLoadBuffer = std::mem::transmute(tramp);
     real(l, buff, size, name)
 }
-

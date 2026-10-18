@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn loads_real_ini_if_present() {
-        let p = Path::new("../../OpenOrange.ini");
+        let p = Path::new("../../dist/OpenOrange.ini");
         if p.exists() {
             let (cfg, ok) = Config::load(p);
             assert!(ok);
