@@ -22,6 +22,8 @@ launcher/dist/launcher_state.ini
 shared/data.db
 shared/data.db-shm
 shared/data.db-wal
+# 游戏服抓包目录（每次启动自动创建）
+work/
 
 # ---------- Python ----------
 __pycache__/
