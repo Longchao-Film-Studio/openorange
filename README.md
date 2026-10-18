@@ -7,6 +7,8 @@
 > **游戏本体一个字节都不改。** 启动器负责取票据、挂起启动、注入运行时模块；
 > 运行时模块在游戏进程内部接住 SDK 登录回调，把客户端导向我们自己的服务器。
 
+> 📋 开发计划、待办清单与实现方案见 **[ROADMAP.md](ROADMAP.md)**。
+
 ---
 
 ## 功能状态
@@ -73,6 +75,7 @@ OpenOrange/
 │   └── 配置说明.md          OpenOrange.ini 完整教程与示例
 │
 ├── tests/                   端到端测试
+├── ROADMAP.md               开发路线图（待办 + 实现方案）
 ├── start_server.py          一键启动服务端
 └── start_server.ps1         同上（PowerShell 包装）
 ```
