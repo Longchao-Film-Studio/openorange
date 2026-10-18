@@ -70,7 +70,11 @@ OpenOrange/
 │
 ├── web/                     账号门户 + 接口                   :8399
 ├── game_server/             游戏服：网关 + 微服务            :33100 / :33101
-├── shared/                  SQLite 数据层
+├── shared/                  数据层（SQLite + 游戏配置索引）
+│   ├── db.py                账号 / 票据 / 会话
+│   ├── gamedata.py          物品 / 角色索引查询
+│   └── data/                从客户端抽取的配置索引（JSON）
+├── tools/                   开发工具（配置表抽取等）
 ├── docs/
 │   └── 配置说明.md          OpenOrange.ini 完整教程与示例
 │
