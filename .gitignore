@@ -42,6 +42,16 @@ venv/
 tools/cert/*.key
 tools/cert/*.key.bak
 
+# ---------- 过程脚本（一次性，已归档）----------
+# archivescript/  已完成使命的一次性脚本，保留作证据但不纳入版本控制
+# my_scripts/     仍在用的分析脚本，个人工具性质，同样不入库
+archivescript/
+my_scripts/
+
+# 分析工具的临时产物
+*.unpacked
+*.pcapng
+
 # ---------- 编辑器 / 系统 ----------
 .vscode/
 .idea/
