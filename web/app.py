@@ -129,13 +129,6 @@ body::before{
 .mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;
       background:linear-gradient(135deg,var(--accent),var(--accent2));
       color:#1a0f05;font-size:12px;font-weight:800;letter-spacing:.6px}
-.brand-copy{position:relative;margin:auto 0;padding:28px 0}
-.brand-copy h1{
-  margin:0 0 18px;font-size:46px;line-height:1.08;letter-spacing:-1.4px;font-weight:800;
-  background:linear-gradient(180deg,#ffffff,#b6bcc7);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-.brand-copy p{margin:0;font-size:15px;line-height:1.75;color:var(--muted)}
 .brand-foot{position:relative;display:flex;align-items:center;gap:9px;
             font-size:13px;color:var(--muted)}
 .pulse{width:8px;height:8px;border-radius:50%;background:#46c47a;flex:none;
@@ -296,10 +289,6 @@ BRAND = """
   <div class="orb orb-a"></div>
   <div class="orb orb-b"></div>
   <div class="brand-top"><span class="mark">OO</span><span id="srvName">OpenOrange</span></div>
-  <div class="brand-copy">
-    <h1>归龙潮<br>私服</h1>
-    <p>原版客户端，自建服务器。<br>一个账号，网页与启动器通用。</p>
-  </div>
   <div class="brand-foot"><span class="pulse"></span><span>服务运行中</span></div>
 </aside>
 """
