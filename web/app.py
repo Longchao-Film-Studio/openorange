@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""web.app —— 玩家门户页
+"""web.app —— OpenOrange 账号门户
 
 独立启动:  python -m web.app
-监听:      0.0.0.0:8322
+监听:      0.0.0.0:8399
 
-功能:
-  1. 注册  (手机号 + 密码; 手机号当 UID, 不验证真实性)
-  2. 登录  (登录后才会下发验证码)
-  3. 验证码展示 (只读, 5 秒自动刷新)
-  4. 账号管理 (改密码 / 删除账号)
-
-流程: 玩家先在网页注册 -> 网页登录 -> 再进游戏点"获取验证码"
+一个账号，网页与启动器共用：
+  1. 注册      手机号 + 密码（手机号当账号名，不校验真实性）
+  2. 登录      换取网页会话 token
+  3. 账号中心  账号信息 / 修改密码 / 删除账号
+  4. 启动器     POST /api/launcher/login -> 官方同构的 {code,msg,data}
 """
-import html
 import json
 import os
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,17 +24,15 @@ if __package__ in (None, ""):
 from shared import db, models  # noqa: E402
 
 HOST = "0.0.0.0"
-PORT = 8322
+PORT = 8399
 
 # ---------------------------------------------------------------- 服务器名
-# 服务器显示名：客户端（启动器）启动时向本服务查询，用于窗口标题与状态栏。
-# 优先级：环境变量 OO_SERVER_NAME > 文件 server_name.txt > 默认值。
-# 改名字不需要重启启动器，重启 web 服务即可（或改环境变量后重启）。
+# 启动器启动时会向本服务查询，用于窗口标题与状态栏。
+# 优先级：环境变量 OO_SERVER_NAME > server_name.txt > 默认值。
 DEFAULT_SERVER_NAME = "OpenOrange"
 
 
 def _server_name():
-    """读取服务器显示名。"""
     env = (os.environ.get("OO_SERVER_NAME") or "").strip()
     if env:
         return env
@@ -58,107 +53,174 @@ def _server_name():
 
 def _fmt_ts(ts):
     try:
-        return time.strftime("%m-%d %H:%M:%S", time.localtime(int(ts)))
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(int(ts)))
     except Exception:
         return "-"
 
 
+# ---------------------------------------------------------------- 登录限速
+# 同一账号 10 分钟内失败 5 次即暂时拒绝，防止在线爆破。
+# 只放内存，进程重启即清零 —— 私服场景够用，不必落库。
+LOGIN_WINDOW = 600
+LOGIN_MAX_FAIL = 5
+_login_fail_lock = threading.Lock()
+_login_fails = {}
+
+
+def _login_blocked(mobile):
+    now = time.time()
+    with _login_fail_lock:
+        arr = [t for t in _login_fails.get(mobile, []) if now - t < LOGIN_WINDOW]
+        _login_fails[mobile] = arr
+        return len(arr) >= LOGIN_MAX_FAIL
+
+
+def _note_login_fail(mobile):
+    with _login_fail_lock:
+        _login_fails.setdefault(mobile, []).append(time.time())
+
+
+def _note_login_ok(mobile):
+    with _login_fail_lock:
+        _login_fails.pop(mobile, None)
+
+
+# ---------------------------------------------------------------- 页面
 CSS = """
-*{box-sizing:border-box}
-body{background:#14161a;color:#e6e6e6;font-family:"Microsoft YaHei",system-ui,sans-serif;margin:0;padding:24px}
-.wrap{max-width:980px;margin:0 auto}
-h1{font-size:22px;color:#ffb84d;margin:0 0 4px}
-.sub{color:#8a8f98;font-size:13px;margin-bottom:20px}
-.card{background:#1b1e24;border:1px solid #2a2e36;border-radius:10px;padding:20px;margin-bottom:18px}
-.card h2{font-size:15px;color:#9aa0a8;font-weight:normal;margin:0 0 14px}
-label{display:block;font-size:13px;color:#9aa0a8;margin:10px 0 5px}
-input{width:100%;max-width:320px;padding:9px 12px;background:#101216;border:1px solid #333844;
-      border-radius:6px;color:#e6e6e6;font-size:14px;font-family:inherit}
-input:focus{outline:none;border-color:#ffb84d}
-button{margin-top:14px;padding:9px 22px;background:#ffb84d;border:0;border-radius:6px;
-       color:#14161a;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit}
-button:hover{background:#ffc76b}
-button.ghost{background:#2a2e36;color:#c9ced6;font-weight:normal}
-button.ghost:hover{background:#343946}
-.msg{margin-top:12px;padding:9px 12px;border-radius:6px;font-size:13px}
-.ok{background:#16351f;color:#4dd47f;border:1px solid #245c33}
-.err{background:#3a1b1b;color:#ff7b7b;border:1px solid #632a2a}
-table{border-collapse:collapse;width:100%;background:#101216;border-radius:8px;overflow:hidden}
-th,td{padding:11px 14px;text-align:left;border-bottom:1px solid #23272f;font-size:14px}
-th{background:#22262e;color:#9aa0a8;font-weight:normal;font-size:13px}
-td.code{font-size:24px;font-weight:bold;color:#4dd47f;letter-spacing:4px;font-family:Consolas,monospace}
-.used{color:#555;text-decoration:line-through}
-.empty{padding:28px;color:#8a8f98;text-align:center;font-size:14px}
-.stat{margin-top:14px;color:#6f757e;font-size:12px;text-align:center}
-.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.who{font-size:13px;color:#8a8f98}
-.who b{color:#4dd47f}
-"""
-
-
-def _page(body, script=""):
-    return ("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            "<title>OpenOrange 私服</title><style>" + CSS + "</style></head><body>"
-            "<div class=\"wrap\">" + body + "</div>"
-            "<script>" + script + "</script></body></html>")
-
-
-def render_index():
-    body = """
-<h1>OpenOrange 私服门户</h1>
-<div class="sub">先注册账号，再登录，然后才能在游戏内获取验证码</div>
-
-<div class="card">
-  <div id="topbar" class="bar" style="display:none">
-    <div class="who">已登录: <b id="whoMob"></b></div>
-    <button class="ghost" onclick="logout()">退出登录</button>
-  </div>
-  <div id="authBox">
-    <h2>注册 / 登录</h2>
-    <label>手机号（当作账号 UID，不验证真实性）</label>
-    <input id="mobile" placeholder="例如 13800138000" maxlength="11" autocomplete="off">
-    <label>密码（至少 6 位）</label>
-    <input id="password" type="password" placeholder="请输入密码" autocomplete="off">
-    <div>
-      <button onclick="doRegister()">注册</button>
-      <button class="ghost" onclick="doLogin()" style="margin-left:8px">登录</button>
-    </div>
-    <div id="msg"></div>
-  </div>
-</div>
-
-<div class="card">
-  <h2>验证码（登录后出现；在游戏内点"获取验证码"才会生成）</h2>
-  <div id="codeArea"><div class="empty">请先注册并登录</div></div>
-</div>
-
-<div class="card">
-  <h2>账号管理</h2>
-  <label>新密码</label>
-  <input id="newpass" type="password" placeholder="改密码（至少 6 位）">
-  <button class="ghost" onclick="changePass()">修改密码</button>
-  <button class="ghost" onclick="delAccount()" style="color:#ff7b7b">删除账号</button>
-  <div id="msg2"></div>
-</div>
-
-<div class="stat" id="stat"></div>
-"""
-    script = """
-var TOKEN = localStorage.getItem("oo_token") || "";
-var MOB   = localStorage.getItem("oo_mobile") || "";
-
-function say(t, ok){
-  var el = document.getElementById("msg");
-  el.className = "msg " + (ok ? "ok" : "err");
-  el.textContent = t;
-  setTimeout(function(){ el.className=""; el.textContent=""; }, 4000);
+:root{
+  --bg:#0f1115; --card:#171a20; --line:#262b34; --text:#e7e9ee;
+  --muted:#8b929e; --accent:#f0a23c; --ok:#46c47a; --err:#f16b6b;
 }
-function say2(t, ok){
-  var el = document.getElementById("msg2");
-  el.className = "msg " + (ok ? "ok" : "err");
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0;min-height:100vh;color:var(--text);
+  background:radial-gradient(1200px 620px at 50% -12%,#1e242f 0%,var(--bg) 58%);
+  font-family:"Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;align-items:center;padding:30px 16px 70px;
+}
+header{width:100%;max-width:720px;display:flex;justify-content:space-between;
+       align-items:center;margin-bottom:26px;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);
+     box-shadow:0 0 10px var(--ok);flex:none}
+.nav{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
+.nav b{color:var(--text);font-weight:600}
+main{width:100%;max-width:720px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+      padding:22px 22px 24px;margin-bottom:16px}
+.card h2{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin:0 0 16px}
+.tabs{display:flex;gap:6px;background:#101318;border:1px solid var(--line);
+      border-radius:10px;padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:9px 0;border:0;border-radius:7px;background:transparent;
+     color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
+.tab.active{background:#242a34;color:var(--text)}
+label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+input{width:100%;padding:11px 13px;background:#0d1014;border:1px solid #2c323d;
+      border-radius:9px;color:var(--text);font-size:14px;font-family:inherit;transition:.15s}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,162,60,.12)}
+button{font-family:inherit;cursor:pointer}
+.primary{width:100%;margin-top:22px;padding:12px;border:0;border-radius:9px;
+         background:var(--accent);color:#12151a;font-size:15px;font-weight:600}
+.primary:hover{background:#ffb554}
+.ghost{padding:7px 14px;background:#222831;border:1px solid var(--line);
+       border-radius:8px;color:#c6ccd6;font-size:13px}
+.ghost:hover{background:#2b323d}
+.hint{margin:16px 0 0;font-size:12.5px;color:var(--muted);line-height:1.75}
+.hint b{color:#b9c2d0;font-weight:600}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:16px 22px;margin:0}
+.kv dt{font-size:12px;color:var(--muted);margin-bottom:5px}
+.kv dd{margin:0;font-size:14px;word-break:break-all}
+.mono{font-family:Consolas,ui-monospace,monospace;font-size:13px;color:#a9b4c4}
+.danger{border-color:#3a2426}
+.danger h2{color:#f08585}
+.dangerBtn{width:100%;margin-top:20px;padding:11px;border:1px solid #5a2a2c;
+           border-radius:9px;background:#2a1719;color:#f08585;font-size:14px}
+.dangerBtn:hover{background:#381d20}
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(16px);
+       padding:11px 20px;border-radius:10px;font-size:13.5px;opacity:0;
+       pointer-events:none;transition:.22s;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:#17321f;color:#63d98c;border:1px solid #245c33}
+#toast.err{background:#331a1c;color:#ff8b8b;border:1px solid #5c2a2c}
+"""
+
+BODY = """
+<section id="authView">
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="login" onclick="switchTab('login')">登录</button>
+      <button class="tab" data-tab="reg" onclick="switchTab('reg')">注册</button>
+    </div>
+
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <label>账号</label>
+      <input id="loginMobile" placeholder="11 位手机号" maxlength="11" autocomplete="username">
+      <label>密码</label>
+      <input id="loginPass" type="password" placeholder="请输入密码" autocomplete="current-password">
+      <button class="primary" type="submit">登录</button>
+    </form>
+
+    <form id="regForm" hidden onsubmit="return doRegister(event)">
+      <label>账号（11 位手机号，只当账号名用，不会真的发短信）</label>
+      <input id="regMobile" placeholder="例如 13800138000" maxlength="11" autocomplete="username">
+      <label>密码（至少 6 位）</label>
+      <input id="regPass" type="password" placeholder="设置密码" autocomplete="new-password">
+      <label>确认密码</label>
+      <input id="regPass2" type="password" placeholder="再输入一次" autocomplete="new-password">
+      <button class="primary" type="submit">注册并登录</button>
+    </form>
+
+    <p class="hint">同一个账号，<b>网页</b>和<b>启动器</b>都能登录。注册完直接去启动器登录即可。</p>
+  </div>
+</section>
+
+<section id="acctView" hidden>
+  <div class="card">
+    <h2>账号信息</h2>
+    <dl class="kv">
+      <div><dt>账号</dt><dd id="iMobile"></dd></div>
+      <div><dt>账号 ID</dt><dd id="iAccount" class="mono"></dd></div>
+      <div><dt>玩家 UID</dt><dd id="iUid" class="mono"></dd></div>
+      <div><dt>注册时间</dt><dd id="iCreated"></dd></div>
+      <div><dt>最后登录</dt><dd id="iLast"></dd></div>
+      <div><dt>登录次数</dt><dd id="iCount"></dd></div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>修改密码</h2>
+    <label>当前密码</label>
+    <input id="pwOld" type="password" autocomplete="current-password">
+    <label>新密码（至少 6 位）</label>
+    <input id="pwNew" type="password" autocomplete="new-password">
+    <label>确认新密码</label>
+    <input id="pwNew2" type="password" autocomplete="new-password">
+    <button class="primary" onclick="doChangePass()">保存新密码</button>
+  </div>
+
+  <div class="card danger">
+    <h2>删除账号</h2>
+    <p class="hint">删除后账号、登录票据与网页会话会一并清除，<b>无法恢复</b>。</p>
+    <label>输入密码确认</label>
+    <input id="delPass" type="password" autocomplete="current-password">
+    <button class="dangerBtn" onclick="doDelete()">删除账号</button>
+  </div>
+</section>
+"""
+
+SCRIPT = """
+var TOKEN = localStorage.getItem("oo_token") || "";
+
+function $(id){ return document.getElementById(id); }
+
+function toast(t, ok){
+  var el = $("toast");
   el.textContent = t;
-  setTimeout(function(){ el.className=""; el.textContent=""; }, 4000);
+  el.className = "show " + (ok ? "ok" : "err");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.className = ""; }, 2600);
 }
 
 function post(path, data, cb){
@@ -166,103 +228,159 @@ function post(path, data, cb){
   x.open("POST", path, true);
   x.setRequestHeader("Content-Type", "application/json");
   x.onreadystatechange = function(){
-    if(x.readyState === 4){
-      try { cb(JSON.parse(x.responseText)); }
-      catch(e){ cb({ok:false, msg:"服务器错误"}); }
-    }
+    if(x.readyState !== 4) return;
+    var r;
+    try { r = JSON.parse(x.responseText); } catch(e){ r = null; }
+    cb(r || {ok:false, msg:"服务器返回异常"});
   };
-  x.send(JSON.stringify(data));
+  x.send(JSON.stringify(data || {}));
 }
 
-function doRegister(){
-  post("/api/register", {mobile:v("mobile"), password:v("password")}, function(r){
-    say(r.msg, r.ok);
-    if(r.ok){ setTimeout(doLogin, 600); }
-  });
-}
-function doLogin(){
-  post("/api/login", {mobile:v("mobile"), password:v("password")}, function(r){
-    say(r.msg, r.ok);
-    if(r.ok){
-      TOKEN = r.token; MOB = r.mobile;
-      localStorage.setItem("oo_token", TOKEN);
-      localStorage.setItem("oo_mobile", MOB);
-      refreshUI();
-    }
-  });
-}
-function logout(){
-  post("/api/logout", {token:TOKEN}, function(){
-    TOKEN=""; MOB="";
-    localStorage.removeItem("oo_token");
-    localStorage.removeItem("oo_mobile");
-    refreshUI();
-  });
-}
-function changePass(){
-  post("/api/change_password", {token:TOKEN, password:v("newpass")}, function(r){
-    say2(r.msg, r.ok);
-  });
-}
-function delAccount(){
-  if(!confirm("确定删除该账号？此操作不可恢复")) return;
-  post("/api/delete_account", {token:TOKEN}, function(r){
-    say2(r.msg, r.ok);
-    if(r.ok) logout();
-  });
-}
-function v(id){ return document.getElementById(id).value.trim(); }
-
-function refreshUI(){
-  var authBox = document.getElementById("authBox");
-  var topbar  = document.getElementById("topbar");
-  if(TOKEN && MOB){
-    authBox.style.display = "none";
-    topbar.style.display  = "flex";
-    document.getElementById("whoMob").textContent = MOB;
-    loadCodes();
-  } else {
-    authBox.style.display = "block";
-    topbar.style.display  = "none";
-    document.getElementById("codeArea").innerHTML =
-      '<div class="empty">请先注册并登录</div>';
-    document.getElementById("stat").textContent = "";
-  }
-}
-
-function loadCodes(){
-  if(!TOKEN) return;
+function get(path, cb){
   var x = new XMLHttpRequest();
-  x.open("GET", "/api/codes?token=" + encodeURIComponent(TOKEN), true);
+  x.open("GET", path, true);
   x.onreadystatechange = function(){
     if(x.readyState !== 4) return;
     var r;
-    try { r = JSON.parse(x.responseText); } catch(e){ return; }
-    var area = document.getElementById("codeArea");
-    if(!r.codes || !r.codes.length){
-      area.innerHTML = '<div class="empty">暂无验证码，请到游戏内点"获取验证码"</div>';
-      return;
-    }
-    var h = '<table><tr><th>手机号</th><th>验证码</th><th>状态</th><th>签发</th><th>过期</th></tr>';
-    for(var i=0;i<r.codes.length;i++){
-      var c = r.codes[i];
-      h += "<tr" + (c.used ? ' class="used"' : "") + ">"
-         + "<td>" + c.mobile + "</td>"
-         + '<td class="code">' + c.code + "</td>"
-         + "<td>" + (c.used ? "已使用" : "待使用") + "</td>"
-         + "<td>" + c.issued + "</td><td>" + c.expire + "</td></tr>";
-    }
-    h += "</table>";
-    area.innerHTML = h;
-    if(r.stat) document.getElementById("stat").textContent = r.stat;
+    try { r = JSON.parse(x.responseText); } catch(e){ r = null; }
+    cb(r);
   };
   x.send();
 }
 
-refreshUI();
-setInterval(loadCodes, 5000);
+function switchTab(which){
+  $("loginForm").hidden = which !== "login";
+  $("regForm").hidden   = which !== "reg";
+  var tabs = document.querySelectorAll(".tab");
+  for(var i = 0; i < tabs.length; i++){
+    var on = tabs[i].getAttribute("data-tab") === which;
+    tabs[i].className = "tab" + (on ? " active" : "");
+  }
+}
+
+function doLogin(e){
+  if(e) e.preventDefault();
+  var m = $("loginMobile").value.trim();
+  if(!m){ toast("请输入账号", false); return false; }
+  post("/api/login", {mobile:m, password:$("loginPass").value}, function(r){
+    if(!r.ok){ toast(r.msg, false); return; }
+    TOKEN = r.token;
+    localStorage.setItem("oo_token", TOKEN);
+    toast("登录成功", true);
+    refresh();
+  });
+  return false;
+}
+
+function doRegister(e){
+  if(e) e.preventDefault();
+  var m = $("regMobile").value.trim();
+  var p = $("regPass").value;
+  if(p !== $("regPass2").value){ toast("两次输入的密码不一致", false); return false; }
+  post("/api/register", {mobile:m, password:p, password2:$("regPass2").value}, function(r){
+    if(!r.ok){ toast(r.msg, false); return; }
+    post("/api/login", {mobile:m, password:p}, function(r2){
+      if(!r2.ok){ toast("注册成功，请手动登录", true); switchTab("login"); return; }
+      TOKEN = r2.token;
+      localStorage.setItem("oo_token", TOKEN);
+      toast("注册成功，已自动登录", true);
+      refresh();
+    });
+  });
+  return false;
+}
+
+function doLogout(){
+  post("/api/logout", {token:TOKEN}, function(){
+    TOKEN = "";
+    localStorage.removeItem("oo_token");
+    refresh();
+    toast("已退出登录", true);
+  });
+}
+
+function doChangePass(){
+  post("/api/change_password", {
+    token: TOKEN,
+    old_password: $("pwOld").value,
+    password: $("pwNew").value,
+    password2: $("pwNew2").value
+  }, function(r){
+    toast(r.msg, r.ok);
+    if(r.ok){ $("pwOld").value = ""; $("pwNew").value = ""; $("pwNew2").value = ""; }
+  });
+}
+
+function doDelete(){
+  if(!confirm("确定删除该账号？此操作不可恢复。")) return;
+  post("/api/delete_account", {token:TOKEN, password:$("delPass").value}, function(r){
+    toast(r.msg, r.ok);
+    if(r.ok){
+      TOKEN = "";
+      localStorage.removeItem("oo_token");
+      refresh();
+    }
+  });
+}
+
+function showAuth(){
+  $("authView").hidden = false;
+  $("acctView").hidden = true;
+  $("nav").hidden = true;
+}
+
+function showAcct(a){
+  $("authView").hidden = true;
+  $("acctView").hidden = false;
+  $("nav").hidden = false;
+  $("whoMob").textContent = a.mobile;
+  $("iMobile").textContent = a.mobile;
+  $("iAccount").textContent = a.account_id;
+  $("iUid").textContent = a.uid;
+  $("iCreated").textContent = a.created_text;
+  $("iLast").textContent = a.last_login_text;
+  $("iCount").textContent = a.login_count;
+}
+
+function refresh(){
+  if(!TOKEN){ showAuth(); return; }
+  post("/api/me", {token:TOKEN}, function(r){
+    if(!r || !r.ok){
+      TOKEN = "";
+      localStorage.removeItem("oo_token");
+      showAuth();
+      return;
+    }
+    showAcct(r.account);
+  });
+}
+
+get("/api/server/info", function(r){
+  if(r && r.data && r.data.server_name){ $("srvName").textContent = r.data.server_name; }
+});
+
+refresh();
 """
-    return _page(body, script)
+
+
+def _page(body, script):
+    return (
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>OpenOrange 账号中心</title><style>' + CSS + "</style></head><body>"
+        "<header>"
+        '<div class="brand"><span class="dot"></span><span id="srvName">OpenOrange</span></div>'
+        '<div class="nav" id="nav" hidden><span>已登录 <b id="whoMob"></b></span>'
+        '<button class="ghost" onclick="doLogout()">退出</button></div>'
+        "</header>"
+        "<main>" + body + "</main>"
+        '<div id="toast"></div>'
+        "<script>" + script + "</script></body></html>"
+    )
+
+
+def render_index():
+    return _page(BODY, SCRIPT)
 
 
 class WebHandler(BaseHTTPRequestHandler):
@@ -296,49 +414,27 @@ class WebHandler(BaseHTTPRequestHandler):
     # ---------------- GET ----------------
 
     def do_GET(self):
-        path, _, qs = self.path.partition("?")
-        q = parse_qs(qs)
+        path = self.path.split("?")[0]
 
         if path in ("/", "/index.html"):
             self._send(render_index())
             return
 
-        if path == "/api/codes":
-            token = (q.get("token") or [""])[0]
-            acc = models.whoami(token)
-            if not acc:
-                self._json({"ok": False, "msg": "not logged in", "codes": []}, 401)
-                return
-            codes = [c for c in db.list_codes(50) if c["mobile"] == acc["mobile"]][:20]
-            st = db.stats()
-            self._json({
-                "ok": True,
-                "codes": [{
-                    "mobile": c["mobile"],
-                    "code": c["code"],
-                    "used": bool(c["used"]),
-                    "issued": _fmt_ts(c["issued_ts"]),
-                    "expire": _fmt_ts(c["expire_ts"]),
-                } for c in codes],
-                "stat": "账号 %d | 验证码 %d | 票据 %d | 在线会话 %d" % (
-                    st["accounts"], st["codes"], st["tickets"], st["sessions"]),
-            })
-            return
-
         if path == "/api/stats":
-            self._json(db.stats())
+            st = db.stats()
+            st.pop("db_path", None)
+            self._json(st)
             return
 
         if path == "/api/server/info":
             # 启动器启动时调用：拉取服务器显示名等公开信息。
-            # 故意不鉴权 —— 这里只暴露展示用的名字，不含任何账号数据。
-            name = _server_name()
+            # 故意不鉴权 —— 只暴露展示用的名字，不含任何账号数据。
             st = db.stats()
             self._json({
                 "code": 1,
                 "msg": "Success",
                 "data": {
-                    "server_name": name,
+                    "server_name": _server_name(),
                     "channel_id": "internal_pc",
                     "platform": "windows",
                     "accounts": st.get("accounts", 0),
@@ -355,15 +451,40 @@ class WebHandler(BaseHTTPRequestHandler):
         req = self._body()
 
         if path == "/api/register":
-            ok, msg, acc = models.register(req.get("mobile"), req.get("password"))
-            print("[web] register %s mobile=%s -> %s" % (msg, req.get("mobile"), ok), flush=True)
+            mobile = str(req.get("mobile") or "").strip()
+            pw = str(req.get("password") or "")
+            pw2 = req.get("password2")
+            if pw2 is not None and pw != str(pw2):
+                self._json({"ok": False, "msg": "两次输入的密码不一致"})
+                return
+            ok, msg, acc = models.register(mobile, pw)
+            print("[web] register %s mobile=%s -> %s" % (msg, mobile, ok), flush=True)
             self._json({"ok": ok, "msg": msg})
             return
 
         if path == "/api/login":
-            ok, msg, token = models.web_login(req.get("mobile"), req.get("password"))
-            print("[web] login %s mobile=%s -> %s" % (msg, req.get("mobile"), ok), flush=True)
-            self._json({"ok": ok, "msg": msg, "token": token or "", "mobile": req.get("mobile") or ""})
+            mobile = str(req.get("mobile") or "").strip()
+            if _login_blocked(mobile):
+                self._json({"ok": False, "msg": "失败次数过多，请 10 分钟后再试"})
+                return
+            ok, msg, token = models.web_login(mobile, req.get("password"))
+            if ok:
+                _note_login_ok(mobile)
+            else:
+                _note_login_fail(mobile)
+            print("[web] login %s mobile=%s -> %s" % (msg, mobile, ok), flush=True)
+            self._json({"ok": ok, "msg": msg, "token": token or "", "mobile": mobile})
+            return
+
+        if path == "/api/me":
+            acc = models.whoami(req.get("token") or "")
+            if not acc:
+                self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+                return
+            prof = models.account_profile(acc)
+            prof["created_text"] = _fmt_ts(prof["created"])
+            prof["last_login_text"] = _fmt_ts(prof["last_login"])
+            self._json({"ok": True, "account": prof})
             return
 
         if path == "/api/launcher/login":
@@ -373,18 +494,28 @@ class WebHandler(BaseHTTPRequestHandler):
             # （见 modules/sdk/fpxaccount.lua 第 12-13 行）。
             mobile = str(req.get("mobile") or "").strip()
             password = str(req.get("password") or "")
-            ok, msg, token = models.web_login(mobile, password)
+            if _login_blocked(mobile):
+                print("[launcher] login BLOCKED mobile=%s" % mobile, flush=True)
+                self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
+                return
+
+            # 只校验密码，不建网页会话 —— 启动器不需要会话，
+            # 建了反而会把网页端正在登录的那一端挤掉。
+            ok, msg, acc = models.verify_credentials(mobile, password)
             if not ok:
+                _note_login_fail(mobile)
                 print("[launcher] login REJECTED mobile=%s: %s" % (mobile, msg), flush=True)
                 self._json({"code": 0, "msg": msg, "data": {}})
                 return
 
             ret, err = models.login(mobile)
             if err:
+                _note_login_fail(mobile)
                 print("[launcher] login FAILED mobile=%s: %s" % (mobile, err), flush=True)
                 self._json({"code": 0, "msg": err, "data": {}})
                 return
 
+            _note_login_ok(mobile)
             print("[launcher] login OK mobile=%s account_id=%s fp_uid=%s"
                   % (mobile, ret.get("account_id"), ret.get("fp_uid")), flush=True)
             self._json({"code": 1, "msg": "Success", "data": ret})
@@ -400,13 +531,15 @@ class WebHandler(BaseHTTPRequestHandler):
             if not acc:
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
-            pw = str(req.get("password") or "")
-            if len(pw) < 6:
-                self._json({"ok": False, "msg": "密码至少 6 位"})
-                return
-            db.set_password(acc["mobile"], pw)
-            print("[web] change_password mobile=%s" % acc["mobile"], flush=True)
-            self._json({"ok": True, "msg": "密码已修改"})
+            ok, msg = models.change_password(
+                acc["mobile"],
+                req.get("old_password"),
+                req.get("password"),
+                req.get("password2"),
+                keep_token=req.get("token") or "",
+            )
+            print("[web] change_password mobile=%s -> %s" % (acc["mobile"], ok), flush=True)
+            self._json({"ok": ok, "msg": msg})
             return
 
         if path == "/api/delete_account":
@@ -414,9 +547,9 @@ class WebHandler(BaseHTTPRequestHandler):
             if not acc:
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
-            db.delete_account(acc["mobile"])
-            print("[web] delete_account mobile=%s" % acc["mobile"], flush=True)
-            self._json({"ok": True, "msg": "账号已删除"})
+            ok, msg = models.remove_account(acc["mobile"], req.get("password"))
+            print("[web] delete_account mobile=%s -> %s" % (acc["mobile"], ok), flush=True)
+            self._json({"ok": ok, "msg": msg})
             return
 
         self._json({"ok": False, "msg": "not found"}, 404)
@@ -436,8 +569,8 @@ def main():
     """命令行启动。
 
     用法:
-        python -m web.app                     # 默认 0.0.0.0:8322
-        python -m web.app --port 8399         # 指定端口（启动器 ini 默认指向 8399）
+        python -m web.app                       # 默认 0.0.0.0:8399
+        python -m web.app --port 9000           # 指定端口
         python -m web.app --port 8399 --host 127.0.0.1
     """
     argv = sys.argv[1:]

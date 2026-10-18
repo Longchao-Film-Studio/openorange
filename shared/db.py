@@ -6,15 +6,14 @@ web / game_server 都 import 本模块, 直接读写同一个 SQLite 文件。
 使用 WAL 模式以支持多进程并发。
 
 表结构:
-  accounts  玩家账号(**必须在网页注册**, 游戏内不再自动建号)
-  codes     验证码(send_code 签发, web 页只读展示)
+  accounts  玩家账号(**必须在网页注册**)
   tickets   登录票据(login 签发 -> 供游戏服校验)
-  sessions  网页登录会话(登录后才能获取验证码)
+  sessions  网页登录会话
 
 账号策略:
-  - 手机号 = UID, 不验证真实性, 只校验格式
+  - 手机号 = 账号名(UID), 不验证真实性, 只校验格式
   - 密码用 PBKDF2-SHA256 加盐哈希存储
-  - 游戏端 send_code 前必须已存在账号且网页会话有效
+  - 一个账号同时用于网页登录与启动器登录
 """
 import hashlib
 import hmac
@@ -25,7 +24,8 @@ import threading
 import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "data.db")
+# 默认用 shared/data.db；设 OO_DB_PATH 可换库（测试、多开都用得上）。
+DB_PATH = os.environ.get("OO_DB_PATH") or os.path.join(BASE_DIR, "data.db")
 
 PBKDF2_ROUNDS = 120000
 
@@ -62,15 +62,6 @@ CREATE TABLE IF NOT EXISTS accounts (
     login_count       INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS codes (
-    mobile      TEXT PRIMARY KEY,
-    code        TEXT NOT NULL,
-    issued_ts   INTEGER NOT NULL,
-    expire_ts   INTEGER NOT NULL,
-    used        INTEGER NOT NULL DEFAULT 0,
-    bound_type  INTEGER
-);
-
 CREATE TABLE IF NOT EXISTS tickets (
     ticket      TEXT PRIMARY KEY,
     mobile      TEXT NOT NULL,
@@ -99,6 +90,8 @@ def init():
         c.execute("ALTER TABLE accounts ADD COLUMN pass_salt TEXT")
     if "pass_hash" not in cols:
         c.execute("ALTER TABLE accounts ADD COLUMN pass_hash TEXT")
+    # 早期版本的「游戏内取验证码」流程已废弃，旧库里的 codes 表一并清掉。
+    c.execute("DROP TABLE IF EXISTS codes")
     c.commit()
     return DB_PATH
 
@@ -180,7 +173,6 @@ def mark_not_new(mobile):
 def delete_account(mobile):
     c = _conn()
     c.execute("DELETE FROM sessions WHERE mobile=?", (mobile,))
-    c.execute("DELETE FROM codes WHERE mobile=?", (mobile,))
     c.execute("DELETE FROM tickets WHERE mobile=?", (mobile,))
     c.execute("DELETE FROM accounts WHERE mobile=?", (mobile,))
     c.commit()
@@ -188,21 +180,22 @@ def delete_account(mobile):
 
 # ---------------- 网页会话 ----------------
 
-def create_session(mobile, ttl=86400 * 7, single=True):
-    """网页登录成功 -> 生成 token(登录后才能取验证码)。
-
-    single=True: 先清掉该手机号的旧会话, 保证同一账号只有一处在线
-                 (避免"登出了却还能取码"的困惑)。
-    """
+def create_session(mobile, ttl=86400 * 7):
+    """网页登录成功 -> 生成会话 token（允许多端同时在线）。"""
     token = secrets.token_urlsafe(32)
     now = int(time.time())
     c = _conn()
-    if single:
-        c.execute("DELETE FROM sessions WHERE mobile=?", (mobile,))
     c.execute("INSERT INTO sessions(token,mobile,issued_ts,expire_ts) VALUES(?,?,?,?)",
               (token, mobile, now, now + ttl))
     c.commit()
     return token
+
+
+def drop_other_sessions(mobile, keep_token):
+    """改密后踢掉其它端，只保留当前会话。"""
+    c = _conn()
+    c.execute("DELETE FROM sessions WHERE mobile=? AND token<>?", (mobile, keep_token or ""))
+    c.commit()
 
 
 def get_session(token):
@@ -214,14 +207,6 @@ def get_session(token):
     return dict(r)
 
 
-def has_active_session(mobile):
-    """该手机号是否存在未过期的网页会话。"""
-    now = int(time.time())
-    r = _conn().execute(
-        "SELECT COUNT(*) n FROM sessions WHERE mobile=? AND expire_ts>?", (mobile, now)).fetchone()
-    return r["n"] > 0
-
-
 def drop_session(token):
     c = _conn()
     c.execute("DELETE FROM sessions WHERE token=?", (token,))
@@ -231,47 +216,6 @@ def drop_session(token):
 def list_sessions(limit=50):
     return [dict(x) for x in _conn().execute(
         "SELECT * FROM sessions ORDER BY issued_ts DESC LIMIT ?", (limit,)).fetchall()]
-
-
-# ---------------- codes ----------------
-
-def issue_code(mobile, code, ttl=300, bound_type=None):
-    """签发验证码。ttl 秒后过期。"""
-    now = int(time.time())
-    c = _conn()
-    c.execute(
-        "INSERT INTO codes(mobile,code,issued_ts,expire_ts,used,bound_type) VALUES(?,?,?,?,0,?) "
-        "ON CONFLICT(mobile) DO UPDATE SET code=excluded.code, issued_ts=excluded.issued_ts, "
-        "expire_ts=excluded.expire_ts, used=0",
-        (mobile, code, now, now + ttl, bound_type),
-    )
-    c.commit()
-
-
-def verify_code(mobile, code):
-    """校验验证码。返回 (ok: bool, reason: str)。成功后标记已用。"""
-    r = _conn().execute("SELECT * FROM codes WHERE mobile=?", (mobile,)).fetchone()
-    if not r:
-        return False, "no code issued"
-    if r["used"]:
-        return False, "code already used"
-    if int(time.time()) > r["expire_ts"]:
-        return False, "code expired"
-    if str(r["code"]) != str(code):
-        return False, "code mismatch"
-    _conn().execute("UPDATE codes SET used=1 WHERE mobile=?", (mobile,))
-    _conn().commit()
-    return True, "ok"
-
-
-def list_codes(limit=50, include_used=True):
-    """web 展示用: 列出最近验证码。"""
-    sql = "SELECT * FROM codes"
-    if not include_used:
-        sql += " WHERE used=0"
-    sql += " ORDER BY issued_ts DESC LIMIT ?"
-    return [dict(x) for x in _conn().execute(sql, (limit,)).fetchall()]
-
 
 # ---------------- tickets ----------------
 
@@ -298,7 +242,6 @@ def stats():
     now = int(time.time())
     return {
         "accounts": c.execute("SELECT COUNT(*) n FROM accounts").fetchone()["n"],
-        "codes": c.execute("SELECT COUNT(*) n FROM codes").fetchone()["n"],
         "tickets": c.execute("SELECT COUNT(*) n FROM tickets").fetchone()["n"],
         "sessions": c.execute("SELECT COUNT(*) n FROM sessions WHERE expire_ts>?", (now,)).fetchone()["n"],
         "db_path": DB_PATH,

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""shared.models —— 账号/票据的业务逻辑(认证服与游戏服共用)
+"""shared.models —— 账号/票据的业务逻辑(网页与启动器共用)
 
-账号策略(已改为网页注册制):
+账号策略:
   - **游戏内不再自动建号**。账号只能通过网页端注册(手机号 + 密码)。
-  - 手机号 = UID(不验证真实性, 只校验格式)
-  - 游戏内 send_code 前必须: ①账号已注册 ②网页会话有效
+  - 手机号 = 账号名(不验证真实性, 只校验格式)
+  - 网页与启动器共用同一套账号与密码
   - login 只对已注册账号签发 ticket
 """
 import hashlib
@@ -191,19 +191,29 @@ def register(mobile, password):
     return True, "注册成功", acc
 
 
-def web_login(mobile, password):
-    """网页登录。返回 (ok, msg, token|None)。"""
-    mobile = str(mobile or "").strip()
-    password = str(password or "")
+def verify_credentials(mobile, password):
+    """只校验账号密码，不建会话。返回 (ok, msg, account|None)。
 
+    启动器登录用这个 —— 它只要账号身份和票据，不需要网页会话，
+    否则每次开游戏都会把网页端的登录挤掉。
+    """
+    mobile = str(mobile or "").strip()
     acc = db.get_account_by_mobile(mobile)
     if not acc or not acc.get("pass_hash"):
         return False, "账号不存在或未设置密码, 请先注册", None
-    if not db.verify_password(password, acc.get("pass_salt"), acc.get("pass_hash")):
+    if not db.verify_password(str(password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
         return False, "密码错误", None
+    return True, "ok", acc
 
-    token = db.create_session(mobile)
-    db.touch_login(mobile)
+
+def web_login(mobile, password):
+    """网页登录。返回 (ok, msg, token|None)。"""
+    ok, msg, acc = verify_credentials(mobile, password)
+    if not ok:
+        return False, msg, None
+
+    token = db.create_session(acc["mobile"])
+    db.touch_login(acc["mobile"])
     return True, "登录成功", token
 
 
@@ -219,20 +229,54 @@ def whoami(token):
     return db.get_account_by_mobile(s["mobile"])
 
 
-def can_request_code(mobile):
-    """游戏内能否取验证码: 账号已注册 且 网页会话有效。
-
-    返回 (ok: bool, reason: str)。
-    """
-    mobile = str(mobile or "").strip()
-    if not mobile:
-        return False, "mobile required"
-    acc = db.get_account_by_mobile(mobile)
+def account_profile(acc):
+    """账号中心展示用的安全视图（不含密码哈希与票据）。"""
     if not acc:
-        return False, "account not registered (please register on web first)"
-    if not db.has_active_session(mobile):
-        return False, "no web session (please login on web first)"
-    return True, "ok"
+        return None
+    return {
+        "mobile": acc["mobile"],
+        "account_id": acc["account_id"],
+        "uid": _to_uid_number(acc),
+        "created": int(acc["created_ts"]),
+        "last_login": int(acc["last_login_ts"] or acc["created_ts"]),
+        "login_count": int(acc["login_count"] or 0),
+    }
+
+
+def change_password(mobile, old_password, new_password, new_password2=None, keep_token=None):
+    """修改密码：必须验证当前密码。返回 (ok, msg)。"""
+    acc = db.get_account_by_mobile(mobile)
+    if not acc or not acc.get("pass_hash"):
+        return False, "账号不存在"
+    if not db.verify_password(str(old_password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
+        return False, "当前密码不正确"
+
+    new_password = str(new_password or "")
+    if len(new_password) < 6:
+        return False, "新密码至少 6 位"
+    if len(new_password) > 64:
+        return False, "新密码过长"
+    if new_password2 is not None and new_password != str(new_password2):
+        return False, "两次输入的新密码不一致"
+    if new_password == str(old_password or ""):
+        return False, "新密码不能与当前密码相同"
+
+    db.set_password(mobile, new_password)
+    if keep_token is not None:
+        # 改密后其它端应重新登录，当前这一端保留。
+        db.drop_other_sessions(mobile, keep_token)
+    return True, "密码已修改"
+
+
+def remove_account(mobile, password):
+    """删除账号：必须验证密码。返回 (ok, msg)。"""
+    acc = db.get_account_by_mobile(mobile)
+    if not acc or not acc.get("pass_hash"):
+        return False, "账号不存在"
+    if not db.verify_password(str(password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
+        return False, "密码不正确"
+    db.delete_account(mobile)
+    return True, "账号已删除"
 
 
 # --------------------------------------------------------------------------
