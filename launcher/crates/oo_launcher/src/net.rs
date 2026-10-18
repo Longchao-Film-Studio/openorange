@@ -1,6 +1,6 @@
 //! 登录请求。走 WinINet（Windows 系统原生网络栈，不引入任何 web 技术）。
 //!
-//! 协议：POST <login_url>  body = {"mobile":"...","password":"...", ...}
+//! 协议：POST <login_url>  body = {"username":"...","password":"...", ...}
 //! 期望响应：{"code":1,"msg":"Success","data":{account_id,ticket,...}}
 
 use oo_shared::LoginEnvelope;

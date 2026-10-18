@@ -6,7 +6,7 @@
 监听:      0.0.0.0:8399
 
 一个账号，网页与启动器共用：
-  1. 注册      手机号 + 密码（手机号当账号名，不校验真实性）
+  1. 注册      账号名 + 密码（账号名 4~20 位字母/数字/下划线）
   2. 登录      换取网页会话 token
   3. 账号中心  账号信息 / 修改密码 / 删除账号
   4. 启动器     POST /api/launcher/login -> 官方同构的 {code,msg,data}
@@ -67,147 +67,355 @@ _login_fail_lock = threading.Lock()
 _login_fails = {}
 
 
-def _login_blocked(mobile):
+def _login_blocked(username):
     now = time.time()
     with _login_fail_lock:
-        arr = [t for t in _login_fails.get(mobile, []) if now - t < LOGIN_WINDOW]
-        _login_fails[mobile] = arr
+        arr = [t for t in _login_fails.get(username, []) if now - t < LOGIN_WINDOW]
+        _login_fails[username] = arr
         return len(arr) >= LOGIN_MAX_FAIL
 
 
-def _note_login_fail(mobile):
+def _note_login_fail(username):
     with _login_fail_lock:
-        _login_fails.setdefault(mobile, []).append(time.time())
+        _login_fails.setdefault(username, []).append(time.time())
 
 
-def _note_login_ok(mobile):
+def _note_login_ok(username):
     with _login_fail_lock:
-        _login_fails.pop(mobile, None)
+        _login_fails.pop(username, None)
 
 
-# ---------------------------------------------------------------- 页面
+# ---------------------------------------------------------------- 样式
 CSS = """
 :root{
-  --bg:#0f1115; --card:#171a20; --line:#262b34; --text:#e7e9ee;
-  --muted:#8b929e; --accent:#f0a23c; --ok:#46c47a; --err:#f16b6b;
+  --bg:#08090c; --text:#f4f5f7; --muted:#8b909c;
+  --line:rgba(255,255,255,.08);
+  --accent:#ff9f43; --accent2:#ff6a00;
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
+html,body{height:100%}
 body{
-  margin:0;min-height:100vh;color:var(--text);
-  background:radial-gradient(1200px 620px at 50% -12%,#1e242f 0%,var(--bg) 58%);
-  font-family:"Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
-  display:flex;flex-direction:column;align-items:center;padding:30px 16px 70px;
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
-header{width:100%;max-width:720px;display:flex;justify-content:space-between;
-       align-items:center;margin-bottom:26px;gap:16px}
-.brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);
-     box-shadow:0 0 10px var(--ok);flex:none}
-.nav{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
-.nav b{color:var(--text);font-weight:600}
-main{width:100%;max-width:720px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-      padding:22px 22px 24px;margin-bottom:16px}
-.card h2{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin:0 0 16px}
-.tabs{display:flex;gap:6px;background:#101318;border:1px solid var(--line);
-      border-radius:10px;padding:4px;margin-bottom:20px}
-.tab{flex:1;padding:9px 0;border:0;border-radius:7px;background:transparent;
-     color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
-.tab.active{background:#242a34;color:var(--text)}
-label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
-input{width:100%;padding:11px 13px;background:#0d1014;border:1px solid #2c323d;
-      border-radius:9px;color:var(--text);font-size:14px;font-family:inherit;transition:.15s}
-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,162,60,.12)}
-button{font-family:inherit;cursor:pointer}
-.primary{width:100%;margin-top:22px;padding:12px;border:0;border-radius:9px;
-         background:var(--accent);color:#12151a;font-size:15px;font-weight:600}
-.primary:hover{background:#ffb554}
-.ghost{padding:7px 14px;background:#222831;border:1px solid var(--line);
-       border-radius:8px;color:#c6ccd6;font-size:13px}
-.ghost:hover{background:#2b323d}
-.hint{margin:16px 0 0;font-size:12.5px;color:var(--muted);line-height:1.75}
-.hint b{color:#b9c2d0;font-weight:600}
-.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-    gap:16px 22px;margin:0}
-.kv dt{font-size:12px;color:var(--muted);margin-bottom:5px}
-.kv dd{margin:0;font-size:14px;word-break:break-all}
-.mono{font-family:Consolas,ui-monospace,monospace;font-size:13px;color:#a9b4c4}
-.danger{border-color:#3a2426}
-.danger h2{color:#f08585}
-.dangerBtn{width:100%;margin-top:20px;padding:11px;border:1px solid #5a2a2c;
-           border-radius:9px;background:#2a1719;color:#f08585;font-size:14px}
-.dangerBtn:hover{background:#381d20}
-#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(16px);
-       padding:11px 20px;border-radius:10px;font-size:13.5px;opacity:0;
-       pointer-events:none;transition:.22s;max-width:88vw;text-align:center}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.ok{background:#17321f;color:#63d98c;border:1px solid #245c33}
-#toast.err{background:#331a1c;color:#ff8b8b;border:1px solid #5c2a2c}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(900px 600px at 80% -12%,rgba(255,106,0,.10),transparent 62%),
+    radial-gradient(760px 520px at 6% 112%,rgba(59,130,246,.09),transparent 62%);
+}
+.shell{position:relative;display:flex;min-height:100vh}
+
+/* ---------- 左侧品牌区 ---------- */
+.brand-side{
+  position:relative;flex:0 0 44%;max-width:600px;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:44px 52px;border-right:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.022),transparent 42%);
+}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
+.orb-a{width:460px;height:460px;top:-170px;left:-150px;background:rgba(255,106,0,.50);
+       animation:drift 16s ease-in-out infinite}
+.orb-b{width:380px;height:380px;bottom:-160px;right:-140px;background:rgba(59,130,246,.32);
+       animation:drift 21s ease-in-out infinite reverse}
+@keyframes drift{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  50%{transform:translate3d(26px,32px,0) scale(1.06)}
+}
+.brand-top{position:relative;display:flex;align-items:center;gap:12px;
+           font-size:15px;font-weight:600;letter-spacing:.2px}
+.mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#1a0f05;font-size:12px;font-weight:800;letter-spacing:.6px}
+.brand-copy{position:relative;margin:auto 0;padding:28px 0}
+.brand-copy h1{
+  margin:0 0 18px;font-size:46px;line-height:1.08;letter-spacing:-1.4px;font-weight:800;
+  background:linear-gradient(180deg,#ffffff,#b6bcc7);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.brand-copy p{margin:0;font-size:15px;line-height:1.75;color:var(--muted)}
+.brand-foot{position:relative;display:flex;align-items:center;gap:9px;
+            font-size:13px;color:var(--muted)}
+.pulse{width:8px;height:8px;border-radius:50%;background:#46c47a;flex:none;
+       animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(70,196,122,.55)}
+  70%{box-shadow:0 0 0 9px rgba(70,196,122,0)}
+  100%{box-shadow:0 0 0 0 rgba(70,196,122,0)}
+}
+
+/* ---------- 右侧内容区 ---------- */
+.content{position:relative;flex:1;display:flex;align-items:center;
+         justify-content:center;padding:48px 24px}
+
+/* ---------- 登录 / 注册 ---------- */
+.auth-card{
+  width:100%;max-width:392px;padding:30px 28px 26px;border-radius:22px;
+  background:rgba(255,255,255,.025);border:1px solid var(--line);
+  backdrop-filter:blur(14px);box-shadow:0 26px 70px -32px rgba(0,0,0,.95);
+}
+.seg{position:relative;display:flex;padding:5px;margin-bottom:26px;border-radius:13px;
+     background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.seg-pill{position:absolute;top:5px;left:5px;width:calc(50% - 5px);height:calc(100% - 10px);
+          border-radius:9px;background:rgba(255,255,255,.10);
+          box-shadow:0 2px 10px rgba(0,0,0,.3);
+          transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.seg-pill.right{transform:translateX(100%)}
+.seg-btn{position:relative;z-index:1;flex:1;height:36px;border:0;background:none;
+         color:var(--muted);font:inherit;font-size:14px;cursor:pointer;transition:color .2s}
+.seg-btn.active{color:var(--text);font-weight:600}
+
+.field{position:relative;margin-bottom:14px}
+.field input{
+  width:100%;height:56px;padding:22px 15px 8px;border-radius:12px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);
+  color:var(--text);font:inherit;font-size:14.5px;
+  transition:border-color .18s,background .18s,box-shadow .18s;
+}
+.field input:hover{border-color:rgba(255,255,255,.16)}
+.field input:focus{
+  outline:none;border-color:rgba(255,159,67,.62);background:rgba(255,255,255,.055);
+  box-shadow:0 0 0 4px rgba(255,106,0,.12);
+}
+.field label{
+  position:absolute;left:15px;top:18px;font-size:14.5px;color:var(--muted);
+  pointer-events:none;transform-origin:left top;
+  transition:transform .16s cubic-bezier(.4,0,.2,1),color .16s;
+}
+.field input:focus + label,
+.field input:not(:placeholder-shown) + label{
+  transform:translateY(-10px) scale(.76);color:var(--accent);
+}
+.field input:not(:focus):not(:placeholder-shown) + label{color:var(--muted)}
+
+.btn-primary{
+  position:relative;width:100%;height:50px;margin-top:10px;border:0;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#1a0f05;font:inherit;font-size:15px;font-weight:700;letter-spacing:.3px;
+  cursor:pointer;transition:transform .16s,box-shadow .16s,opacity .16s;
+  box-shadow:0 10px 26px -12px rgba(255,106,0,.8);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 14px 32px -12px rgba(255,106,0,.9)}
+.btn-primary:active{transform:translateY(0) scale(.995)}
+.btn-primary[disabled]{opacity:.6;cursor:default;transform:none;box-shadow:none}
+
+.btn-ghost{
+  height:36px;padding:0 16px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:#c9ced8;font:inherit;font-size:13px;
+  cursor:pointer;transition:.16s;flex:none;
+}
+.btn-ghost:hover{background:rgba(255,255,255,.08);color:var(--text)}
+
+.btn-danger{
+  height:44px;padding:0 20px;border-radius:11px;
+  border:1px solid rgba(241,107,107,.35);background:rgba(241,107,107,.12);
+  color:#ff9090;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.16s;
+}
+.btn-danger:hover{background:rgba(241,107,107,.2)}
+.btn-danger[disabled]{opacity:.6;cursor:default}
+
+.foot-hint{margin:18px 0 0;text-align:center;font-size:12px;color:#6c7280;line-height:1.6}
+
+/* ---------- 账号中心 ---------- */
+.acct{width:100%;max-width:600px}
+.acct-head{display:flex;align-items:center;gap:15px;margin-bottom:26px}
+.avatar{
+  width:54px;height:54px;border-radius:17px;display:grid;place-items:center;flex:none;
+  font-size:22px;font-weight:800;color:#fff;text-transform:uppercase;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 14px 30px -14px rgba(255,106,0,.95);
+}
+.acct-id{flex:1;min-width:0}
+.acct-name{font-size:19px;font-weight:700;letter-spacing:-.2px;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.stat{display:flex;flex-direction:column;gap:7px;padding:16px 17px;border-radius:14px;
+      background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.stat-k{font-size:12px;color:var(--muted)}
+.stat-v{font-size:15px;font-weight:600;word-break:break-all}
+.mono{font-family:Consolas,ui-monospace,monospace;font-size:13.5px;
+      color:#b9c2d2;letter-spacing:.2px}
+
+.rows{border-radius:16px;overflow:hidden;background:rgba(255,255,255,.03);
+      border:1px solid var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;
+     padding:17px 19px;border:0;border-bottom:1px solid var(--line);background:none;
+     color:var(--text);font:inherit;text-align:left;cursor:pointer;transition:background .16s}
+.row:last-child{border-bottom:0}
+.row:hover{background:rgba(255,255,255,.045)}
+.row-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.row-t{font-size:14.5px;font-weight:600}
+.row-t.danger{color:#ff9090}
+.row-d{font-size:12.5px;color:var(--muted)}
+.chev{color:#5a6069;font-size:20px;line-height:1;flex:none}
+
+/* ---------- 弹窗 ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:22px;
+  background:rgba(4,5,8,.72);backdrop-filter:blur(8px);animation:fade .18s ease;
+}
+.modal{
+  width:100%;max-width:380px;padding:24px;border-radius:20px;background:#12151b;
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 30px 80px -22px rgba(0,0,0,.95);
+  animation:pop .22s cubic-bezier(.2,.9,.3,1.15);
+}
+.modal h3{margin:0 0 6px;font-size:17px;font-weight:700;letter-spacing:-.2px}
+.modal-desc{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.65}
+.modal .field{margin-bottom:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{
+  from{opacity:0;transform:translateY(10px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+
+/* ---------- 提示 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:30px;z-index:80;transform:translate(-50%,14px);
+  padding:11px 20px;border-radius:12px;font-size:13.5px;opacity:0;
+  pointer-events:none;transition:.24s;max-width:88vw;text-align:center;
+  backdrop-filter:blur(10px);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.ok{background:rgba(23,50,31,.95);color:#6ddc95;border:1px solid rgba(36,92,51,.9)}
+#toast.err{background:rgba(51,26,28,.95);color:#ff9090;border:1px solid rgba(92,42,44,.9)}
+
+@media (max-width:880px){
+  .brand-side{display:none}
+  .content{padding:34px 18px}
+}
+"""
+
+BRAND = """
+<aside class="brand-side">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="brand-top"><span class="mark">OO</span><span id="srvName">OpenOrange</span></div>
+  <div class="brand-copy">
+    <h1>归龙潮<br>私服</h1>
+    <p>原版客户端，自建服务器。<br>一个账号，网页与启动器通用。</p>
+  </div>
+  <div class="brand-foot"><span class="pulse"></span><span>服务运行中</span></div>
+</aside>
 """
 
 BODY = """
-<section id="authView">
-  <div class="card">
-    <div class="tabs">
-      <button class="tab active" data-tab="login" onclick="switchTab('login')">登录</button>
-      <button class="tab" data-tab="reg" onclick="switchTab('reg')">注册</button>
+<section id="authView" class="auth-card">
+  <div class="seg">
+    <div class="seg-pill" id="segPill"></div>
+    <button class="seg-btn active" data-tab="login" onclick="switchTab('login')">登录</button>
+    <button class="seg-btn" data-tab="reg" onclick="switchTab('reg')">注册</button>
+  </div>
+
+  <form id="loginForm" onsubmit="return doLogin(event)">
+    <div class="field">
+      <input id="loginUser" placeholder=" " autocomplete="username" spellcheck="false">
+      <label for="loginUser">账号</label>
     </div>
+    <div class="field">
+      <input id="loginPass" type="password" placeholder=" " autocomplete="current-password">
+      <label for="loginPass">密码</label>
+    </div>
+    <button class="btn-primary" id="loginBtn" type="submit">登录</button>
+  </form>
 
-    <form id="loginForm" onsubmit="return doLogin(event)">
-      <label>账号</label>
-      <input id="loginMobile" placeholder="11 位手机号" maxlength="11" autocomplete="username">
-      <label>密码</label>
-      <input id="loginPass" type="password" placeholder="请输入密码" autocomplete="current-password">
-      <button class="primary" type="submit">登录</button>
-    </form>
+  <form id="regForm" hidden onsubmit="return doRegister(event)">
+    <div class="field">
+      <input id="regUser" placeholder=" " autocomplete="username" spellcheck="false" maxlength="20">
+      <label for="regUser">账号名</label>
+    </div>
+    <div class="field">
+      <input id="regPass" type="password" placeholder=" " autocomplete="new-password">
+      <label for="regPass">密码</label>
+    </div>
+    <div class="field">
+      <input id="regPass2" type="password" placeholder=" " autocomplete="new-password">
+      <label for="regPass2">确认密码</label>
+    </div>
+    <button class="btn-primary" id="regBtn" type="submit">创建账号</button>
+  </form>
 
-    <form id="regForm" hidden onsubmit="return doRegister(event)">
-      <label>账号（11 位手机号，只当账号名用，不会真的发短信）</label>
-      <input id="regMobile" placeholder="例如 13800138000" maxlength="11" autocomplete="username">
-      <label>密码（至少 6 位）</label>
-      <input id="regPass" type="password" placeholder="设置密码" autocomplete="new-password">
-      <label>确认密码</label>
-      <input id="regPass2" type="password" placeholder="再输入一次" autocomplete="new-password">
-      <button class="primary" type="submit">注册并登录</button>
-    </form>
-
-    <p class="hint">同一个账号，<b>网页</b>和<b>启动器</b>都能登录。注册完直接去启动器登录即可。</p>
-  </div>
+  <p class="foot-hint" id="hintLogin">账号名 4~20 位，字母 / 数字 / 下划线</p>
+  <p class="foot-hint" id="hintReg" hidden>密码至少 6 位 · 注册后自动登录</p>
 </section>
 
-<section id="acctView" hidden>
-  <div class="card">
-    <h2>账号信息</h2>
-    <dl class="kv">
-      <div><dt>账号</dt><dd id="iMobile"></dd></div>
-      <div><dt>账号 ID</dt><dd id="iAccount" class="mono"></dd></div>
-      <div><dt>玩家 UID</dt><dd id="iUid" class="mono"></dd></div>
-      <div><dt>注册时间</dt><dd id="iCreated"></dd></div>
-      <div><dt>最后登录</dt><dd id="iLast"></dd></div>
-      <div><dt>登录次数</dt><dd id="iCount"></dd></div>
-    </dl>
+<section id="acctView" class="acct" hidden>
+  <div class="acct-head">
+    <div class="avatar" id="avatar">O</div>
+    <div class="acct-id">
+      <div class="acct-name" id="acctName"></div>
+      <div class="acct-sub">已登录</div>
+    </div>
+    <button class="btn-ghost" onclick="doLogout()">退出</button>
   </div>
 
-  <div class="card">
-    <h2>修改密码</h2>
-    <label>当前密码</label>
-    <input id="pwOld" type="password" autocomplete="current-password">
-    <label>新密码（至少 6 位）</label>
-    <input id="pwNew" type="password" autocomplete="new-password">
-    <label>确认新密码</label>
-    <input id="pwNew2" type="password" autocomplete="new-password">
-    <button class="primary" onclick="doChangePass()">保存新密码</button>
+  <div class="stats">
+    <div class="stat"><span class="stat-k">账号 ID</span><span class="stat-v mono" id="iAccount"></span></div>
+    <div class="stat"><span class="stat-k">玩家 UID</span><span class="stat-v mono" id="iUid"></span></div>
+    <div class="stat"><span class="stat-k">注册时间</span><span class="stat-v" id="iCreated"></span></div>
+    <div class="stat"><span class="stat-k">登录次数</span><span class="stat-v" id="iCount"></span></div>
   </div>
 
-  <div class="card danger">
-    <h2>删除账号</h2>
-    <p class="hint">删除后账号、登录票据与网页会话会一并清除，<b>无法恢复</b>。</p>
-    <label>输入密码确认</label>
-    <input id="delPass" type="password" autocomplete="current-password">
-    <button class="dangerBtn" onclick="doDelete()">删除账号</button>
+  <div class="rows">
+    <button class="row" onclick="openModal('pw')">
+      <span class="row-main">
+        <span class="row-t">修改密码</span>
+        <span class="row-d">定期更换密码，账号更安全</span>
+      </span>
+      <span class="chev">&#8250;</span>
+    </button>
+    <button class="row" onclick="openModal('del')">
+      <span class="row-main">
+        <span class="row-t danger">删除账号</span>
+        <span class="row-d">账号与登录票据一并清除，不可恢复</span>
+      </span>
+      <span class="chev">&#8250;</span>
+    </button>
   </div>
 </section>
+"""
+
+OVERLAY = """
+<div class="overlay" id="overlay" hidden onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalPw" hidden>
+    <h3>修改密码</h3>
+    <p class="modal-desc">需要先验证当前密码。改完后其它设备上的登录会被踢下线。</p>
+    <div class="field">
+      <input id="pwOld" type="password" placeholder=" " autocomplete="current-password">
+      <label for="pwOld">当前密码</label>
+    </div>
+    <div class="field">
+      <input id="pwNew" type="password" placeholder=" " autocomplete="new-password">
+      <label for="pwNew">新密码</label>
+    </div>
+    <div class="field">
+      <input id="pwNew2" type="password" placeholder=" " autocomplete="new-password">
+      <label for="pwNew2">确认新密码</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn-primary" id="pwBtn" style="width:auto;margin-top:0;padding:0 22px;height:36px;font-size:13.5px" onclick="doChangePass()">保存</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modalDel" hidden>
+    <h3>删除账号</h3>
+    <p class="modal-desc">账号、登录票据与网页会话会一并清除，<b>无法恢复</b>。</p>
+    <div class="field">
+      <input id="delPass" type="password" placeholder=" " autocomplete="current-password">
+      <label for="delPass">输入密码确认</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn-danger" id="delBtn" onclick="doDelete()">删除账号</button>
+    </div>
+  </div>
+</div>
 """
 
 SCRIPT = """
@@ -215,12 +423,12 @@ var TOKEN = localStorage.getItem("oo_token") || "";
 
 function $(id){ return document.getElementById(id); }
 
-function toast(t, ok){
+function toast(msg, ok){
   var el = $("toast");
-  el.textContent = t;
+  el.textContent = msg;
   el.className = "show " + (ok ? "ok" : "err");
   clearTimeout(toast._t);
-  toast._t = setTimeout(function(){ el.className = ""; }, 2600);
+  toast._t = setTimeout(function(){ el.className = ""; }, 2800);
 }
 
 function post(path, data, cb){
@@ -229,7 +437,7 @@ function post(path, data, cb){
   x.setRequestHeader("Content-Type", "application/json");
   x.onreadystatechange = function(){
     if(x.readyState !== 4) return;
-    var r;
+    var r = null;
     try { r = JSON.parse(x.responseText); } catch(e){ r = null; }
     cb(r || {ok:false, msg:"服务器返回异常"});
   };
@@ -241,28 +449,49 @@ function get(path, cb){
   x.open("GET", path, true);
   x.onreadystatechange = function(){
     if(x.readyState !== 4) return;
-    var r;
+    var r = null;
     try { r = JSON.parse(x.responseText); } catch(e){ r = null; }
     cb(r);
   };
   x.send();
 }
 
+function busy(btn, on, text){
+  if(!btn) return;
+  if(on){
+    if(btn.dataset.label === undefined) btn.dataset.label = btn.textContent;
+    btn.textContent = text || "处理中…";
+    btn.disabled = true;
+  } else {
+    if(btn.dataset.label !== undefined) btn.textContent = btn.dataset.label;
+    btn.disabled = false;
+  }
+}
+
 function switchTab(which){
-  $("loginForm").hidden = which !== "login";
-  $("regForm").hidden   = which !== "reg";
-  var tabs = document.querySelectorAll(".tab");
-  for(var i = 0; i < tabs.length; i++){
-    var on = tabs[i].getAttribute("data-tab") === which;
-    tabs[i].className = "tab" + (on ? " active" : "");
+  var isLogin = which === "login";
+  $("loginForm").hidden = !isLogin;
+  $("regForm").hidden = isLogin;
+  $("hintLogin").hidden = !isLogin;
+  $("hintReg").hidden = isLogin;
+  $("segPill").className = "seg-pill" + (isLogin ? "" : " right");
+  var btns = document.querySelectorAll(".seg-btn");
+  for(var i = 0; i < btns.length; i++){
+    var on = btns[i].getAttribute("data-tab") === which;
+    btns[i].className = "seg-btn" + (on ? " active" : "");
   }
 }
 
 function doLogin(e){
   if(e) e.preventDefault();
-  var m = $("loginMobile").value.trim();
-  if(!m){ toast("请输入账号", false); return false; }
-  post("/api/login", {mobile:m, password:$("loginPass").value}, function(r){
+  var u = $("loginUser").value.trim();
+  var p = $("loginPass").value;
+  if(!u){ toast("请输入账号", false); return false; }
+  if(!p){ toast("请输入密码", false); return false; }
+  var btn = $("loginBtn");
+  busy(btn, true, "登录中…");
+  post("/api/login", {username:u, password:p}, function(r){
+    busy(btn, false);
     if(!r.ok){ toast(r.msg, false); return; }
     TOKEN = r.token;
     localStorage.setItem("oo_token", TOKEN);
@@ -274,12 +503,18 @@ function doLogin(e){
 
 function doRegister(e){
   if(e) e.preventDefault();
-  var m = $("regMobile").value.trim();
+  var u = $("regUser").value.trim();
   var p = $("regPass").value;
-  if(p !== $("regPass2").value){ toast("两次输入的密码不一致", false); return false; }
-  post("/api/register", {mobile:m, password:p, password2:$("regPass2").value}, function(r){
-    if(!r.ok){ toast(r.msg, false); return; }
-    post("/api/login", {mobile:m, password:p}, function(r2){
+  var p2 = $("regPass2").value;
+  if(!/^[A-Za-z0-9_]{4,20}$/.test(u)){ toast("账号名需 4~20 位字母、数字或下划线", false); return false; }
+  if(p.length < 6){ toast("密码至少 6 位", false); return false; }
+  if(p !== p2){ toast("两次输入的密码不一致", false); return false; }
+  var btn = $("regBtn");
+  busy(btn, true, "创建中…");
+  post("/api/register", {username:u, password:p, password2:p2}, function(r){
+    if(!r.ok){ busy(btn, false); toast(r.msg, false); return; }
+    post("/api/login", {username:u, password:p}, function(r2){
+      busy(btn, false);
       if(!r2.ok){ toast("注册成功，请手动登录", true); switchTab("login"); return; }
       TOKEN = r2.token;
       localStorage.setItem("oo_token", TOKEN);
@@ -299,25 +534,48 @@ function doLogout(){
   });
 }
 
+function openModal(which){
+  $("overlay").hidden = false;
+  $("modalPw").hidden = which !== "pw";
+  $("modalDel").hidden = which !== "del";
+  var first = which === "pw" ? $("pwOld") : $("delPass");
+  setTimeout(function(){ first.focus(); }, 40);
+}
+
+function closeModal(){
+  $("overlay").hidden = true;
+  $("modalPw").hidden = true;
+  $("modalDel").hidden = true;
+}
+
 function doChangePass(){
+  var btn = $("pwBtn");
+  busy(btn, true, "保存中…");
   post("/api/change_password", {
     token: TOKEN,
     old_password: $("pwOld").value,
     password: $("pwNew").value,
     password2: $("pwNew2").value
   }, function(r){
+    busy(btn, false);
     toast(r.msg, r.ok);
-    if(r.ok){ $("pwOld").value = ""; $("pwNew").value = ""; $("pwNew2").value = ""; }
+    if(r.ok){
+      $("pwOld").value = ""; $("pwNew").value = ""; $("pwNew2").value = "";
+      closeModal();
+    }
   });
 }
 
 function doDelete(){
-  if(!confirm("确定删除该账号？此操作不可恢复。")) return;
+  var btn = $("delBtn");
+  busy(btn, true, "删除中…");
   post("/api/delete_account", {token:TOKEN, password:$("delPass").value}, function(r){
+    busy(btn, false);
     toast(r.msg, r.ok);
     if(r.ok){
       TOKEN = "";
       localStorage.removeItem("oo_token");
+      closeModal();
       refresh();
     }
   });
@@ -326,19 +584,17 @@ function doDelete(){
 function showAuth(){
   $("authView").hidden = false;
   $("acctView").hidden = true;
-  $("nav").hidden = true;
 }
 
 function showAcct(a){
   $("authView").hidden = true;
   $("acctView").hidden = false;
-  $("nav").hidden = false;
-  $("whoMob").textContent = a.mobile;
-  $("iMobile").textContent = a.mobile;
+  var name = a.username || "";
+  $("acctName").textContent = name;
+  $("avatar").textContent = name.charAt(0) || "?";
   $("iAccount").textContent = a.account_id;
   $("iUid").textContent = a.uid;
   $("iCreated").textContent = a.created_text;
-  $("iLast").textContent = a.last_login_text;
   $("iCount").textContent = a.login_count;
 }
 
@@ -355,6 +611,10 @@ function refresh(){
   });
 }
 
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape") closeModal();
+});
+
 get("/api/server/info", function(r){
   if(r && r.data && r.data.server_name){ $("srvName").textContent = r.data.server_name; }
 });
@@ -363,24 +623,21 @@ refresh();
 """
 
 
-def _page(body, script):
+def _page(body):
     return (
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="dark">'
         '<title>OpenOrange 账号中心</title><style>' + CSS + "</style></head><body>"
-        "<header>"
-        '<div class="brand"><span class="dot"></span><span id="srvName">OpenOrange</span></div>'
-        '<div class="nav" id="nav" hidden><span>已登录 <b id="whoMob"></b></span>'
-        '<button class="ghost" onclick="doLogout()">退出</button></div>'
-        "</header>"
-        "<main>" + body + "</main>"
-        '<div id="toast"></div>'
-        "<script>" + script + "</script></body></html>"
+        '<div class="shell">' + BRAND + "<main class=\"content\">" + body + "</main></div>"
+        + OVERLAY
+        + '<div id="toast"></div>'
+        "<script>" + SCRIPT + "</script></body></html>"
     )
 
 
 def render_index():
-    return _page(BODY, SCRIPT)
+    return _page(BODY)
 
 
 class WebHandler(BaseHTTPRequestHandler):
@@ -451,29 +708,29 @@ class WebHandler(BaseHTTPRequestHandler):
         req = self._body()
 
         if path == "/api/register":
-            mobile = str(req.get("mobile") or "").strip()
+            username = str(req.get("username") or "").strip()
             pw = str(req.get("password") or "")
             pw2 = req.get("password2")
             if pw2 is not None and pw != str(pw2):
                 self._json({"ok": False, "msg": "两次输入的密码不一致"})
                 return
-            ok, msg, acc = models.register(mobile, pw)
-            print("[web] register %s mobile=%s -> %s" % (msg, mobile, ok), flush=True)
+            ok, msg, acc = models.register(username, pw)
+            print("[web] register %s username=%s -> %s" % (msg, username, ok), flush=True)
             self._json({"ok": ok, "msg": msg})
             return
 
         if path == "/api/login":
-            mobile = str(req.get("mobile") or "").strip()
-            if _login_blocked(mobile):
+            username = str(req.get("username") or "").strip()
+            if _login_blocked(username):
                 self._json({"ok": False, "msg": "失败次数过多，请 10 分钟后再试"})
                 return
-            ok, msg, token = models.web_login(mobile, req.get("password"))
+            ok, msg, token = models.web_login(username, req.get("password"))
             if ok:
-                _note_login_ok(mobile)
+                _note_login_ok(username)
             else:
-                _note_login_fail(mobile)
-            print("[web] login %s mobile=%s -> %s" % (msg, mobile, ok), flush=True)
-            self._json({"ok": ok, "msg": msg, "token": token or "", "mobile": mobile})
+                _note_login_fail(username)
+            print("[web] login %s username=%s -> %s" % (msg, username, ok), flush=True)
+            self._json({"ok": ok, "msg": msg, "token": token or "", "username": username})
             return
 
         if path == "/api/me":
@@ -492,32 +749,32 @@ class WebHandler(BaseHTTPRequestHandler):
             # 返回与官方 login 响应同构的 {code, msg, data} —— 客户端脚本
             # deliver() 只认 result.code == 1，随后取 result.data.account_id / ticket
             # （见 modules/sdk/fpxaccount.lua 第 12-13 行）。
-            mobile = str(req.get("mobile") or "").strip()
+            username = str(req.get("username") or "").strip()
             password = str(req.get("password") or "")
-            if _login_blocked(mobile):
-                print("[launcher] login BLOCKED mobile=%s" % mobile, flush=True)
+            if _login_blocked(username):
+                print("[launcher] login BLOCKED username=%s" % username, flush=True)
                 self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
                 return
 
             # 只校验密码，不建网页会话 —— 启动器不需要会话，
             # 建了反而会把网页端正在登录的那一端挤掉。
-            ok, msg, acc = models.verify_credentials(mobile, password)
+            ok, msg, acc = models.verify_credentials(username, password)
             if not ok:
-                _note_login_fail(mobile)
-                print("[launcher] login REJECTED mobile=%s: %s" % (mobile, msg), flush=True)
+                _note_login_fail(username)
+                print("[launcher] login REJECTED username=%s: %s" % (username, msg), flush=True)
                 self._json({"code": 0, "msg": msg, "data": {}})
                 return
 
-            ret, err = models.login(mobile)
+            ret, err = models.login(username)
             if err:
-                _note_login_fail(mobile)
-                print("[launcher] login FAILED mobile=%s: %s" % (mobile, err), flush=True)
+                _note_login_fail(username)
+                print("[launcher] login FAILED username=%s: %s" % (username, err), flush=True)
                 self._json({"code": 0, "msg": err, "data": {}})
                 return
 
-            _note_login_ok(mobile)
-            print("[launcher] login OK mobile=%s account_id=%s fp_uid=%s"
-                  % (mobile, ret.get("account_id"), ret.get("fp_uid")), flush=True)
+            _note_login_ok(username)
+            print("[launcher] login OK username=%s account_id=%s fp_uid=%s"
+                  % (username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
             self._json({"code": 1, "msg": "Success", "data": ret})
             return
 
@@ -532,13 +789,13 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
             ok, msg = models.change_password(
-                acc["mobile"],
+                acc["username"],
                 req.get("old_password"),
                 req.get("password"),
                 req.get("password2"),
                 keep_token=req.get("token") or "",
             )
-            print("[web] change_password mobile=%s -> %s" % (acc["mobile"], ok), flush=True)
+            print("[web] change_password username=%s -> %s" % (acc["username"], ok), flush=True)
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -547,8 +804,8 @@ class WebHandler(BaseHTTPRequestHandler):
             if not acc:
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
-            ok, msg = models.remove_account(acc["mobile"], req.get("password"))
-            print("[web] delete_account mobile=%s -> %s" % (acc["mobile"], ok), flush=True)
+            ok, msg = models.remove_account(acc["username"], req.get("password"))
+            print("[web] delete_account username=%s -> %s" % (acc["username"], ok), flush=True)
             self._json({"ok": ok, "msg": msg})
             return
 

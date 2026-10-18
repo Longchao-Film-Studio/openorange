@@ -3,8 +3,8 @@
 """shared.models —— 账号/票据的业务逻辑(网页与启动器共用)
 
 账号策略:
-  - **游戏内不再自动建号**。账号只能通过网页端注册(手机号 + 密码)。
-  - 手机号 = 账号名(不验证真实性, 只校验格式)
+  - **游戏内不再自动建号**。账号只能通过网页端注册(账号名 + 密码)。
+  - 账号名 = 登录标识: 4~20 位字母 / 数字 / 下划线, 不验证真实性
   - 网页与启动器共用同一套账号与密码
   - login 只对已注册账号签发 ticket
 """
@@ -15,8 +15,9 @@ import time
 
 from . import db
 
-# 手机号只校验"像不像手机号", 不验证真实性
-MOBILE_RE = re.compile(r"^1[3-9]\d{9}$")
+# 账号名规则：4~20 位字母 / 数字 / 下划线。
+# 纯数字的老账号（当年按手机号注册的）同样满足，不用迁移。
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{4,20}$")
 
 # 默认国家码(FPX.dll loginret.hpp 的 csc 字段)
 DEFAULT_CSC = "86"
@@ -30,17 +31,21 @@ SUB_CHANNEL    = "official"
 PACKAGE_ID     = "fp_account_cn_pc.official.Amukpj"
 
 
-def is_valid_mobile(mobile):
-    """格式校验: 中国大陆手机号样式(1[3-9] 开头 11 位)。"""
-    return bool(MOBILE_RE.match(str(mobile or "")))
+def is_valid_username(username):
+    """账号名格式校验: 4~20 位字母 / 数字 / 下划线。"""
+    return bool(USERNAME_RE.match(str(username or "")))
 
 
-def _mask_mobile(mobile):
-    """手机号打码, 与官方一致: 18***70 -> 前2位 + *** + 后2位。"""
-    s = str(mobile or "")
-    if len(s) < 5:
-        return s
-    return s[:2] + "***" + s[-2:]
+def _display_name(username):
+    """客户端里显示的账号名。
+
+    纯数字的 11 位账号（老式手机号账号）按官方习惯打码: 13800138000 -> 13***00;
+    自由用户名直接原样显示。
+    """
+    s = str(username or "")
+    if len(s) == 11 and s.isdigit():
+        return s[:2] + "***" + s[-2:]
+    return s
 
 
 def _to_uid_number(acc):
@@ -49,7 +54,7 @@ def _to_uid_number(acc):
     官方 fp_uid = 35931389584 (int)。
     我们的账号表存的是字符串, 这里用稳定哈希映射到数字区间, 保证同一账号恒定。
     """
-    raw = acc.get("fp_uid") or acc.get("account_id") or acc.get("mobile") or ""
+    raw = acc.get("fp_uid") or acc.get("account_id") or acc.get("username") or ""
     raw = str(raw)
     if raw.isdigit():
         return int(raw)
@@ -59,19 +64,19 @@ def _to_uid_number(acc):
 
 
 def _stable_hex(seed, n=32):
-    """由种子生成稳定的十六进制串(同一手机号永远得到同一账号)。"""
+    """由种子生成稳定的十六进制串(同一账号永远得到同一账号)。"""
     h = hashlib.sha256(seed.encode("utf-8")).hexdigest()
     while len(h) < n:
         h += hashlib.sha256(h.encode()).hexdigest()
     return h[:n]
 
 
-def account_id_for(mobile):
-    return "oo_" + _stable_hex("acct:" + mobile, 16)
+def account_id_for(username):
+    return "oo_" + _stable_hex("acct:" + username, 16)
 
 
-def fp_uid_for(mobile):
-    return "fp_" + _stable_hex("uid:" + mobile, 16)
+def fp_uid_for(username):
+    return "fp_" + _stable_hex("uid:" + username, 16)
 
 
 def _b64e(raw):
@@ -115,10 +120,10 @@ def _hex(n):
     return os.urandom(n // 2).hex()
 
 
-def session_key_for(mobile, account_id=None, device_id=None):
+def session_key_for(username, account_id=None, device_id=None):
     """按官方结构生成 session_key(7 段, '|' 分隔, 整体 base64)。"""
-    acc = db.get_account_by_mobile(mobile) or {}
-    account_id = account_id or acc.get("account_id") or account_id_for(mobile)
+    acc = db.get_account_by_username(username) or {}
+    account_id = account_id or acc.get("account_id") or account_id_for(username)
     device_id = device_id or "a399f2983a893cbdca576606b89fe892"
     now = int(time.time())
     plain = "|".join([
@@ -133,9 +138,9 @@ def session_key_for(mobile, account_id=None, device_id=None):
     return _b64e(plain.encode("utf-8"))
 
 
-def ticket_for(mobile, account_id, channel_uid=None):
+def ticket_for(username, account_id, channel_uid=None):
     """按官方结构生成 ticket(64hex 前缀 + JSON 元数据, 整体 base64)。"""
-    acc = db.get_account_by_mobile(mobile) or {}
+    acc = db.get_account_by_username(username) or {}
     uid = str(channel_uid or acc.get("channel_uid") or _to_uid_number(acc))
     meta = {
         "app_id": APP_ID,
@@ -161,44 +166,44 @@ def ticket_for(mobile, account_id, channel_uid=None):
 # 网页端: 注册 / 登录 / 登出
 # --------------------------------------------------------------------------
 
-def register(mobile, password):
+def register(username, password):
     """网页注册。
 
     返回 (ok, msg, account_dict|None)。
     """
-    mobile = str(mobile or "").strip()
+    username = str(username or "").strip()
     password = str(password or "")
 
-    if not mobile:
-        return False, "请输入手机号", None
-    if not is_valid_mobile(mobile):
-        return False, "手机号格式不正确(需 11 位, 1 开头)", None
+    if not username:
+        return False, "请输入账号", None
+    if not is_valid_username(username):
+        return False, "账号名需 4~20 位，只能包含字母、数字、下划线", None
     if len(password) < 6:
         return False, "密码至少 6 位", None
     if len(password) > 64:
         return False, "密码过长", None
 
     acc = db.register_account(
-        mobile=mobile,
+        username=username,
         password=password,
-        account_id=account_id_for(mobile),
-        fp_uid=fp_uid_for(mobile),
-        session_key=session_key_for(mobile),
-        channel_uid=mobile,
+        account_id=account_id_for(username),
+        fp_uid=fp_uid_for(username),
+        session_key=session_key_for(username),
+        channel_uid=username,
     )
     if acc is None:
-        return False, "该手机号已注册", None
+        return False, "该账号已注册", None
     return True, "注册成功", acc
 
 
-def verify_credentials(mobile, password):
+def verify_credentials(username, password):
     """只校验账号密码，不建会话。返回 (ok, msg, account|None)。
 
     启动器登录用这个 —— 它只要账号身份和票据，不需要网页会话，
     否则每次开游戏都会把网页端的登录挤掉。
     """
-    mobile = str(mobile or "").strip()
-    acc = db.get_account_by_mobile(mobile)
+    username = str(username or "").strip()
+    acc = db.get_account_by_username(username)
     if not acc or not acc.get("pass_hash"):
         return False, "账号不存在或未设置密码, 请先注册", None
     if not db.verify_password(str(password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
@@ -206,14 +211,14 @@ def verify_credentials(mobile, password):
     return True, "ok", acc
 
 
-def web_login(mobile, password):
+def web_login(username, password):
     """网页登录。返回 (ok, msg, token|None)。"""
-    ok, msg, acc = verify_credentials(mobile, password)
+    ok, msg, acc = verify_credentials(username, password)
     if not ok:
         return False, msg, None
 
-    token = db.create_session(acc["mobile"])
-    db.touch_login(acc["mobile"])
+    token = db.create_session(acc["username"])
+    db.touch_login(acc["username"])
     return True, "登录成功", token
 
 
@@ -226,7 +231,7 @@ def whoami(token):
     s = db.get_session(token)
     if not s:
         return None
-    return db.get_account_by_mobile(s["mobile"])
+    return db.get_account_by_username(s["username"])
 
 
 def account_profile(acc):
@@ -234,7 +239,7 @@ def account_profile(acc):
     if not acc:
         return None
     return {
-        "mobile": acc["mobile"],
+        "username": acc["username"],
         "account_id": acc["account_id"],
         "uid": _to_uid_number(acc),
         "created": int(acc["created_ts"]),
@@ -243,9 +248,9 @@ def account_profile(acc):
     }
 
 
-def change_password(mobile, old_password, new_password, new_password2=None, keep_token=None):
+def change_password(username, old_password, new_password, new_password2=None, keep_token=None):
     """修改密码：必须验证当前密码。返回 (ok, msg)。"""
-    acc = db.get_account_by_mobile(mobile)
+    acc = db.get_account_by_username(username)
     if not acc or not acc.get("pass_hash"):
         return False, "账号不存在"
     if not db.verify_password(str(old_password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
@@ -261,21 +266,21 @@ def change_password(mobile, old_password, new_password, new_password2=None, keep
     if new_password == str(old_password or ""):
         return False, "新密码不能与当前密码相同"
 
-    db.set_password(mobile, new_password)
+    db.set_password(username, new_password)
     if keep_token is not None:
         # 改密后其它端应重新登录，当前这一端保留。
-        db.drop_other_sessions(mobile, keep_token)
+        db.drop_other_sessions(username, keep_token)
     return True, "密码已修改"
 
 
-def remove_account(mobile, password):
+def remove_account(username, password):
     """删除账号：必须验证密码。返回 (ok, msg)。"""
-    acc = db.get_account_by_mobile(mobile)
+    acc = db.get_account_by_username(username)
     if not acc or not acc.get("pass_hash"):
         return False, "账号不存在"
     if not db.verify_password(str(password or ""), acc.get("pass_salt"), acc.get("pass_hash")):
         return False, "密码不正确"
-    db.delete_account(mobile)
+    db.delete_account(username)
     return True, "账号已删除"
 
 
@@ -283,26 +288,26 @@ def remove_account(mobile, password):
 # 游戏端: 登录(只对已注册账号)
 # --------------------------------------------------------------------------
 
-def login(mobile, channel_uid=None):
+def login(username, channel_uid=None):
     """游戏端登录: 账号必须已注册 -> 刷新登录态 + 签发票据。
 
     返回 (ret_dict, err_msg)。err_msg 非空表示失败。
     """
-    mobile = str(mobile or "").strip()
-    acc = db.get_account_by_mobile(mobile)
+    username = str(username or "").strip()
+    acc = db.get_account_by_username(username)
     if not acc:
         return None, "account not registered"
 
     fp_uid_num = _to_uid_number(acc)
-    session_key = session_key_for(mobile, account_id=acc["account_id"])
-    db.touch_login(mobile, session_key=session_key)
+    session_key = session_key_for(username, account_id=acc["account_id"])
+    db.touch_login(username, session_key=session_key)
 
-    ticket = ticket_for(mobile, acc["account_id"], channel_uid=fp_uid_num)
-    db.issue_ticket(ticket, mobile, acc["account_id"])
+    ticket = ticket_for(username, acc["account_id"], channel_uid=fp_uid_num)
+    db.issue_ticket(ticket, username, acc["account_id"])
 
     is_new = bool(acc["is_new"])
     if is_new:
-        db.mark_not_new(mobile)
+        db.mark_not_new(username)
 
     # ---- 字段依据(FPX.dll 反射表, 两部分结构叠加) ----
     # loginret.hpp        : csc(*) / fp_uid(*) / qr_code_str / rail_order_id
@@ -351,9 +356,9 @@ def login(mobile, channel_uid=None):
     bind_infos_obj = [
         {
             "bind_type": 101,
-            "bind_display_name": _mask_mobile(mobile),
+            "bind_display_name": _display_name(username),
             "bind_info": {
-                "id": _mask_mobile(mobile),
+                "id": _display_name(username),
                 "name": DEFAULT_CSC,
                 "email": "",
             },

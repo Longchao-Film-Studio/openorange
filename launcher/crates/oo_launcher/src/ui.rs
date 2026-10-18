@@ -19,7 +19,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_OVERLAPPED, WS_SYSMENU,
 };
 
-const ID_MOBILE: i32 = 1001;
+const ID_USER: i32 = 1001;
 const ID_PASSWORD: i32 = 1002;
 const ID_LOGIN: i32 = 1003;
 const ID_STATUS: i32 = 1004;
@@ -37,7 +37,7 @@ struct AppState {
     cfg: Config,
     ini_found: bool,
     controls: Controls,
-    h_mobile: HWND,
+    h_user: HWND,
     h_password: HWND,
     h_login: HWND,
     h_status: HWND,
@@ -93,7 +93,7 @@ fn init_shared(to_console: bool) {
             cfg,
             ini_found,
             controls: Controls::new(),
-            h_mobile: HWND::default(),
+            h_user: HWND::default(),
             h_password: HWND::default(),
             h_login: HWND::default(),
             h_status: HWND::default(),
@@ -191,8 +191,8 @@ fn on_create(hwnd: HWND) {
     let st = state();
     let c = &st.controls;
 
-    c.label(hwnd, "账号（手机号）", 0, 20, 14, 200, 18).unwrap();
-    st.h_mobile = c.edit(hwnd, "", ID_MOBILE, 20, 34, 406, 24, false).unwrap();
+    c.label(hwnd, "账号", 0, 20, 14, 200, 18).unwrap();
+    st.h_user = c.edit(hwnd, "", ID_USER, 20, 34, 406, 24, false).unwrap();
 
     c.label(hwnd, "密码", 0, 20, 66, 200, 18).unwrap();
     st.h_password = c.edit(hwnd, "", ID_PASSWORD, 20, 86, 406, 24, true).unwrap();
@@ -328,10 +328,10 @@ fn on_login_clicked(hwnd: HWND) {
         return;
     }
 
-    let mobile = win32::get_text(st.h_mobile).trim().to_string();
+    let username = win32::get_text(st.h_user).trim().to_string();
     let password = win32::get_text(st.h_password);
 
-    if mobile.is_empty() || password.is_empty() {
+    if username.is_empty() || password.is_empty() {
         msgbox(hwnd, "请填写账号与密码", "提示", MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -359,7 +359,7 @@ fn on_login_clicked(hwnd: HWND) {
     set_status("正在向服务器请求登录……");
 
     let body = serde_json::json!({
-        "mobile": mobile,
+        "username": username,
         "password": password,
         "channel_id": st.cfg.channel.channel_id,
         "platform": st.cfg.channel.platform,
@@ -498,10 +498,10 @@ fn on_login_clicked(hwnd: HWND) {
 // 用途：在无法操作 GUI 的环境下跑通完整流程（登录 -> 拉起 -> 注入 -> 放行）。
 // 每个失败点都会明确打印，绝不静默。
 // ============================================================================
-pub fn run_cli(mobile: &str, password: &str) -> i32 {
+pub fn run_cli(username: &str, password: &str) -> i32 {
     init_shared(true);
     let st = state();
-    log_info!("=== 命令行模式：{mobile} ===");
+    log_info!("=== 命令行模式：{username} ===");
 
     let dll = st.cfg.resolve_inject_dll();
     if !dll.is_file() {
@@ -521,7 +521,7 @@ pub fn run_cli(mobile: &str, password: &str) -> i32 {
 
     // ---- 登录 ----
     let body = serde_json::json!({
-        "mobile": mobile,
+        "username": username,
         "password": password,
         "channel_id": st.cfg.channel.channel_id,
         "platform": st.cfg.channel.platform,

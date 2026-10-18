@@ -24,8 +24,10 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-M1 = "19900000001"
-M2 = "19900000002"
+# 自由用户名；另有一个纯数字账号用来验证「老式手机号账号」仍然兼容
+U1 = "test_user_01"
+U2 = "testuser02"
+U_LEGACY = "19900000001"
 P1 = "testpass1"
 P2 = "testpass2"
 
@@ -73,15 +75,15 @@ def jreq(method, path, data=None):
         return status, {"_raw": raw[:300]}
 
 
-def reg(mobile, password, password2=None):
+def reg(username, password, password2=None):
     if password2 is None:
         password2 = password
     return jreq("POST", "/api/register",
-                {"mobile": mobile, "password": password, "password2": password2})[1]
+                {"username": username, "password": password, "password2": password2})[1]
 
 
-def login(mobile, password):
-    return jreq("POST", "/api/login", {"mobile": mobile, "password": password})[1]
+def login(username, password):
+    return jreq("POST", "/api/login", {"username": username, "password": password})[1]
 
 
 def me(token):
@@ -111,27 +113,41 @@ def run():
           'data-tab="login"' in page and 'data-tab="reg"' in page)
     check("不含已下线的验证码界面", "验证码" not in page)
     check("含账号中心字段", "账号 ID" in page and "玩家 UID" in page)
+    check("输入框用浮动标签（无裸 label 堆叠）",
+          'class="field"' in page and 'placeholder=" "' in page)
+    check("改密 / 删号走弹窗", 'id="overlay"' in page and 'id="modalPw"' in page)
+    check("含左侧品牌区", 'class="brand-side"' in page)
 
-    print("\n[2] 注册校验")
-    r = reg(M1, P1, "mismatch")
+    print("\n[2] 账号名校验（自由用户名）")
+    r = reg("ab", P1)
+    check("太短被拒（2 位）", r.get("ok") is False, r)
+    r = reg("a" * 21, P1)
+    check("太长被拒（21 位）", r.get("ok") is False, r)
+    r = reg("has space", P1)
+    check("含空格被拒", r.get("ok") is False, r)
+    r = reg("中文账号", P1)
+    check("非 ASCII 被拒", r.get("ok") is False, r)
+    r = reg("dash-name", P1)
+    check("含短横线被拒", r.get("ok") is False, r)
+    r = reg(U1, P1, "mismatch")
     check("两次密码不一致被拒", r.get("ok") is False, r)
-    r = reg("12345", P1)
-    check("非法账号被拒", r.get("ok") is False, r)
-    r = reg(M1, "123")
+    r = reg(U1, "123")
     check("密码过短被拒", r.get("ok") is False, r)
-    r = reg(M1, P1)
-    check("正常注册成功", r.get("ok") is True, r)
-    r = reg(M1, P1)
+    r = reg(U1, P1)
+    check("自由用户名注册成功", r.get("ok") is True, r)
+    r = reg(U1, P1)
     check("重复注册被拒", r.get("ok") is False, r)
+    r = reg(U_LEGACY, P1)
+    check("老式纯数字账号仍可注册（兼容）", r.get("ok") is True, r)
 
     print("\n[3] 登录与会话")
-    r = login(M1, "wrongpass")
+    r = login(U1, "wrongpass")
     check("错误密码被拒", r.get("ok") is False, r)
-    r = login(M1, P1)
+    r = login(U1, P1)
     check("正确密码登录成功", r.get("ok") is True, r)
     token = r.get("token") or ""
     check("拿到会话 token", len(token) > 20, len(token))
-    token2 = login(M1, P1).get("token") or ""
+    token2 = login(U1, P1).get("token") or ""
     check("支持多端同时登录", bool(token2) and token2 != token)
     check("旧会话未被新登录挤掉", me(token)[1].get("ok") is True)
 
@@ -139,6 +155,7 @@ def run():
     status, r = me(token)
     acc = r.get("account") or {}
     check("/api/me 成功", r.get("ok") is True, r)
+    check("回显用户名", acc.get("username") == U1, acc.get("username"))
     check("含 account_id", str(acc.get("account_id", "")).startswith("oo_"), acc.get("account_id"))
     check("含玩家 UID", isinstance(acc.get("uid"), int) and acc["uid"] > 0, acc.get("uid"))
     check("含注册时间", bool(acc.get("created_text")), acc.get("created_text"))
@@ -159,13 +176,13 @@ def run():
     check("正常改密成功", r.get("ok") is True, r)
     check("当前会话改密后仍有效", me(token)[1].get("ok") is True)
     check("其它端会话被踢掉", me(token2)[1].get("ok") is not True)
-    check("旧密码已失效", login(M1, P1).get("ok") is False)
-    check("新密码可登录", login(M1, P2).get("ok") is True)
+    check("旧密码已失效", login(U1, P1).get("ok") is False)
+    check("新密码可登录", login(U1, P2).get("ok") is True)
 
     print("\n[6] 启动器登录契约")
-    r = jreq("POST", "/api/launcher/login", {"mobile": M1, "password": "wrongpass"})[1]
+    r = jreq("POST", "/api/launcher/login", {"username": U1, "password": "wrongpass"})[1]
     check("错误密码 -> code=0", r.get("code") == 0, r)
-    r = jreq("POST", "/api/launcher/login", {"mobile": M1, "password": P2})[1]
+    r = jreq("POST", "/api/launcher/login", {"username": U1, "password": P2})[1]
     check("登录成功 -> code=1", r.get("code") == 1, r)
     data = r.get("data") or {}
     check("含 account_id", bool(data.get("account_id")), data.get("account_id"))
@@ -176,6 +193,8 @@ def run():
                 "is_new", "session_key", "ticket"])
     check("官方 14 字段齐全", need.issubset(set(data.keys())), sorted(data.keys()))
     check("启动器登录不挤掉网页会话", me(token)[1].get("ok") is True)
+    r = jreq("POST", "/api/launcher/login", {"username": U_LEGACY, "password": P1})[1]
+    check("老式纯数字账号也能启动器登录", r.get("code") == 1, r)
 
     print("\n[7] 公开接口")
     r = jreq("GET", "/api/server/info")[1]
@@ -193,14 +212,14 @@ def run():
     check("正确密码 -> 删除成功", r.get("ok") is True, r)
     status, _ = me(token)
     check("删除后会话失效", status == 401, status)
-    check("删除后无法登录", login(M1, P2).get("ok") is False)
+    check("删除后无法登录", login(U1, P2).get("ok") is False)
 
     print("\n[9] 登录限速")
-    reg(M2, P1)
-    tok = login(M2, P1).get("token") or ""
+    reg(U2, P1)
+    tok = login(U2, P1).get("token") or ""
     for i in range(5):
-        login(M2, "nope%d" % i)
-    r = login(M2, P1)
+        login(U2, "nope%d" % i)
+    r = login(U2, P1)
     check("连续失败后正确密码也被暂时拒绝", r.get("ok") is False, r)
     check("提示限速文案", "过多" in str(r.get("msg", "")), r.get("msg"))
     r = jreq("POST", "/api/delete_account", {"token": tok, "password": P1})[1]

@@ -35,14 +35,14 @@ fn main() {
 
     if let Some(i) = args.iter().position(|a| a == "--cli") {
         attach_parent_console();
-        let mobile = args.get(i + 1).cloned().unwrap_or_default();
+        let username = args.get(i + 1).cloned().unwrap_or_default();
         let password = args.get(i + 2).cloned().unwrap_or_default();
-        if mobile.is_empty() || password.is_empty() {
+        if username.is_empty() || password.is_empty() {
             eprintln!("用法: OO_Launcher.exe --cli <账号> <密码>");
             std::process::exit(2);
         }
         // 日志与配置初始化在 ui::run_cli -> init_shared 内完成
-        let code = ui::run_cli(&mobile, &password);
+        let code = ui::run_cli(&username, &password);
         std::process::exit(code);
     }
 

@@ -11,7 +11,7 @@ web / game_server 都 import 本模块, 直接读写同一个 SQLite 文件。
   sessions  网页登录会话
 
 账号策略:
-  - 手机号 = 账号名(UID), 不验证真实性, 只校验格式
+  - 账号名 = 登录标识(UID): 4~20 位字母 / 数字 / 下划线, 不验证真实性
   - 密码用 PBKDF2-SHA256 加盐哈希存储
   - 一个账号同时用于网页登录与启动器登录
 """
@@ -48,7 +48,7 @@ def _conn():
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    mobile            TEXT    NOT NULL UNIQUE,   -- 手机号(登录标识/UID)
+    username          TEXT    NOT NULL UNIQUE,   -- 账号名(登录标识/UID)
     pass_salt         TEXT,                      -- 密码盐(旧库可能为空)
     pass_hash         TEXT,                      -- PBKDF2 哈希
     account_id        TEXT    NOT NULL UNIQUE,   -- fp-passport account_id
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 CREATE TABLE IF NOT EXISTS tickets (
     ticket      TEXT PRIMARY KEY,
-    mobile      TEXT NOT NULL,
+    username    TEXT NOT NULL,
     account_id  TEXT NOT NULL,
     issued_ts   INTEGER NOT NULL,
     expire_ts   INTEGER NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 
 CREATE TABLE IF NOT EXISTS sessions (
     token       TEXT PRIMARY KEY,
-    mobile      TEXT NOT NULL,
+    username    TEXT NOT NULL,
     issued_ts   INTEGER NOT NULL,
     expire_ts   INTEGER NOT NULL
 );
@@ -90,6 +90,11 @@ def init():
         c.execute("ALTER TABLE accounts ADD COLUMN pass_salt TEXT")
     if "pass_hash" not in cols:
         c.execute("ALTER TABLE accounts ADD COLUMN pass_hash TEXT")
+    # 旧库列改名：账号名不再限定手机号，mobile -> username。
+    for table in ("accounts", "sessions", "tickets"):
+        tcols = {r["name"] for r in c.execute("PRAGMA table_info(%s)" % table).fetchall()}
+        if "mobile" in tcols and "username" not in tcols:
+            c.execute("ALTER TABLE %s RENAME COLUMN mobile TO username" % table)
     # 早期版本的「游戏内取验证码」流程已废弃，旧库里的 codes 表一并清掉。
     c.execute("DROP TABLE IF EXISTS codes")
     c.commit()
@@ -119,82 +124,82 @@ def verify_password(password, salt_hex, hash_hex):
 
 # ---------------- accounts ----------------
 
-def get_account_by_mobile(mobile):
-    r = _conn().execute("SELECT * FROM accounts WHERE mobile=?", (mobile,)).fetchone()
+def get_account_by_username(username):
+    r = _conn().execute("SELECT * FROM accounts WHERE username=?", (username,)).fetchone()
     return dict(r) if r else None
 
 
-def register_account(mobile, password, account_id, fp_uid, session_key, channel_uid=None, is_formal=1):
+def register_account(username, password, account_id, fp_uid, session_key, channel_uid=None, is_formal=1):
     """网页注册。已存在则返回 None(由调用方判断)。"""
-    if get_account_by_mobile(mobile):
+    if get_account_by_username(username):
         return None
     salt, phash = hash_password(password)
     now = int(time.time())
     c = _conn()
     try:
         c.execute(
-            "INSERT INTO accounts(mobile,pass_salt,pass_hash,account_id,fp_uid,session_key,"
+            "INSERT INTO accounts(username,pass_salt,pass_hash,account_id,fp_uid,session_key,"
             "channel_uid,is_formal,is_new,created_ts,last_login_ts,login_count) "
             "VALUES(?,?,?,?,?,?,?,?,1,?,?,0)",
-            (mobile, salt, phash, account_id, fp_uid, session_key,
-             channel_uid or mobile, is_formal, now, now),
+            (username, salt, phash, account_id, fp_uid, session_key,
+             channel_uid or username, is_formal, now, now),
         )
         c.commit()
     except sqlite3.IntegrityError:
         return None
-    return get_account_by_mobile(mobile)
+    return get_account_by_username(username)
 
 
-def set_password(mobile, password):
+def set_password(username, password):
     salt, phash = hash_password(password)
     c = _conn()
-    c.execute("UPDATE accounts SET pass_salt=?, pass_hash=? WHERE mobile=?", (salt, phash, mobile))
+    c.execute("UPDATE accounts SET pass_salt=?, pass_hash=? WHERE username=?", (salt, phash, username))
     c.commit()
 
 
-def touch_login(mobile, session_key=None):
+def touch_login(username, session_key=None):
     """更新最后登录时间/次数(可选刷新 session_key)。"""
     now = int(time.time())
     c = _conn()
     if session_key:
-        c.execute("UPDATE accounts SET last_login_ts=?, login_count=login_count+1, session_key=? WHERE mobile=?",
-                  (now, session_key, mobile))
+        c.execute("UPDATE accounts SET last_login_ts=?, login_count=login_count+1, session_key=? WHERE username=?",
+                  (now, session_key, username))
     else:
-        c.execute("UPDATE accounts SET last_login_ts=?, login_count=login_count+1 WHERE mobile=?",
-                  (now, mobile))
+        c.execute("UPDATE accounts SET last_login_ts=?, login_count=login_count+1 WHERE username=?",
+                  (now, username))
     c.commit()
 
 
-def mark_not_new(mobile):
-    _conn().execute("UPDATE accounts SET is_new=0 WHERE mobile=?", (mobile,))
+def mark_not_new(username):
+    _conn().execute("UPDATE accounts SET is_new=0 WHERE username=?", (username,))
     _conn().commit()
 
 
-def delete_account(mobile):
+def delete_account(username):
     c = _conn()
-    c.execute("DELETE FROM sessions WHERE mobile=?", (mobile,))
-    c.execute("DELETE FROM tickets WHERE mobile=?", (mobile,))
-    c.execute("DELETE FROM accounts WHERE mobile=?", (mobile,))
+    c.execute("DELETE FROM sessions WHERE username=?", (username,))
+    c.execute("DELETE FROM tickets WHERE username=?", (username,))
+    c.execute("DELETE FROM accounts WHERE username=?", (username,))
     c.commit()
 
 
 # ---------------- 网页会话 ----------------
 
-def create_session(mobile, ttl=86400 * 7):
+def create_session(username, ttl=86400 * 7):
     """网页登录成功 -> 生成会话 token（允许多端同时在线）。"""
     token = secrets.token_urlsafe(32)
     now = int(time.time())
     c = _conn()
-    c.execute("INSERT INTO sessions(token,mobile,issued_ts,expire_ts) VALUES(?,?,?,?)",
-              (token, mobile, now, now + ttl))
+    c.execute("INSERT INTO sessions(token,username,issued_ts,expire_ts) VALUES(?,?,?,?)",
+              (token, username, now, now + ttl))
     c.commit()
     return token
 
 
-def drop_other_sessions(mobile, keep_token):
+def drop_other_sessions(username, keep_token):
     """改密后踢掉其它端，只保留当前会话。"""
     c = _conn()
-    c.execute("DELETE FROM sessions WHERE mobile=? AND token<>?", (mobile, keep_token or ""))
+    c.execute("DELETE FROM sessions WHERE username=? AND token<>?", (username, keep_token or ""))
     c.commit()
 
 
@@ -219,11 +224,11 @@ def list_sessions(limit=50):
 
 # ---------------- tickets ----------------
 
-def issue_ticket(ticket, mobile, account_id, ttl=86400):
+def issue_ticket(ticket, username, account_id, ttl=86400):
     now = int(time.time())
     c = _conn()
-    c.execute("INSERT OR REPLACE INTO tickets(ticket,mobile,account_id,issued_ts,expire_ts,consumed) "
-              "VALUES(?,?,?,?,?,0)", (ticket, mobile, account_id, now, now + ttl))
+    c.execute("INSERT OR REPLACE INTO tickets(ticket,username,account_id,issued_ts,expire_ts,consumed) "
+              "VALUES(?,?,?,?,?,0)", (ticket, username, account_id, now, now + ttl))
     c.commit()
 
 
