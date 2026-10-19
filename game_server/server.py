@@ -458,6 +458,16 @@ def _handle_gate_probe(conn, addr, cid):
                         if (len(rpkt) >= 6
                                 and rpkt[4] == (msmod.ENTITY_RESPONSE_FRAME_TYPE & 0xFF)
                                 and rpkt[5] == (msmod.ENTITY_RESPONSE_FRAME_TYPE >> 8)):
+                            # 应答格式穷举（实测 5 组全不认，默认关；见 ROADMAP 第 24 节）
+                            if msmod.ENTITY_RESPONSE_TRY_CANDIDATES:
+                                try:
+                                    _combo = int(rid) % 5
+                                    _cpkt = msmod.build_entity_response_candidate(rid, _combo)
+                                    conn.sendall(_cpkt)
+                                    print("[GATE] #%03d TX 应答候选 combo=%d rid=%d (%d B)"
+                                          % (cid, _combo, rid, len(_cpkt)), flush=True)
+                                except Exception as _e:
+                                    print("[GATE] #%03d 候选发送失败: %s" % (cid, _e), flush=True)
                             # 候选 2：type=2 entityMessage + field5=rid（实测不认，默认关）
                             if msmod.ENTITY_RESPONSE_TRY_MESSAGE:
                                 try:

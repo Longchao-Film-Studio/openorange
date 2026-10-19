@@ -574,7 +574,46 @@ ENTITY_RESPONSE_FRAME_TYPE = 5
 ENTITY_RESPONSE_PROBE_TYPES = ()
 # 候选 2（type=2 entityMessage + field5=rid）也试过，不认（客户端报 got empty methodName）。
 ENTITY_RESPONSE_TRY_MESSAGE = False
+# 5 组 (帧类型, 字段布局) 组合也全不认（实测 5 个 _SC 回调全部 rpc timeout），默认关。
+ENTITY_RESPONSE_TRY_CANDIDATES = False
 
+
+
+# ---------------------------------------------------------------------------
+# 应答帧格式穷举（临时实验，见 ROADMAP 第 24 节）
+# ---------------------------------------------------------------------------
+# entityMessageResponse(rid, parameters) 的确切帧类型和字段编号未知。
+# 已知 s->c: 1=connectResponse 2=entityMessage 3=channelMessage 4=createChannelEntity。
+# 设计：客户端一次并发发 5 条不同的 setter RPC，rid 连续；
+#       服务端按 rid % 5 选不同的 (帧类型, 字段布局) 组合回，
+#       哪个回调拿到 status=true 就说明那组是对的。
+def _cand_payload(ret, resp):
+    if ret is None:
+        ret = {"status": True, "errmsg": ""}
+    if resp is None:
+        resp = {}
+    return mp_arr([ret, resp])
+
+
+def build_entity_response_candidate(rid, combo):
+    """combo 0..4 对应 5 种候选（帧类型, 字段布局）。"""
+    payload = _cand_payload(None, None)
+    r = int(rid)
+    if combo == 0:      # type 5, 4=params 5=rid（镜像 sendEntityMessage）
+        body = pb_bytes_field(4, payload) + pb_varint_field(5, r)
+        return frame(5, body)
+    if combo == 1:      # type 5, 1=rid 2=params
+        body = pb_varint_field(1, r) + pb_bytes_field(2, payload)
+        return frame(5, body)
+    if combo == 2:      # type 6, 4=params 5=rid
+        body = pb_bytes_field(4, payload) + pb_varint_field(5, r)
+        return frame(6, body)
+    if combo == 3:      # type 6, 1=rid 2=params
+        body = pb_varint_field(1, r) + pb_bytes_field(2, payload)
+        return frame(6, body)
+    # combo == 4: type 7, 4=params 5=rid
+    body = pb_bytes_field(4, payload) + pb_varint_field(5, r)
+    return frame(7, body)
 
 def build_entity_response_via_message(rid, ret=None, resp=None):
     """候选方案 2：把应答塞进 type=2 的 entityMessage，用 field 5 = rid。

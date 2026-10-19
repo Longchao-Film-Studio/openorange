@@ -1045,12 +1045,19 @@ local function probe_p1_setrpc()
         LOG('setrpc| ' .. tag .. ' 回调 status=' .. st)
       end
     end
-    local ok1, e1 = pcall(function() A:SetSignature_CS('OpenOrange', cb('SetSignature')) end)
-    LOG('setrpc| SetSignature_CS 发出 ok=' .. tostring(ok1) .. ' err=' .. tostring(e1))
-    local ok2, e2 = pcall(function() A:SetIsCharListShown_CS(1, cb('SetIsCharListShown')) end)
-    LOG('setrpc| SetIsCharListShown_CS 发出 ok=' .. tostring(ok2) .. ' err=' .. tostring(e2))
-    local ok3, e3 = pcall(function() A:SetPortrait_CS(0, cb('SetPortrait')) end)
-    LOG('setrpc| SetPortrait_CS 发出 ok=' .. tostring(ok3) .. ' err=' .. tostring(e3))
+    -- 一次发 5 条，rid 连续；服务端按 rid % 5 回不同的 (帧类型, 布局) 组合。
+    -- 哪个回调拿到 status=true，就说明那组格式是对的。
+    local calls = {
+      { 'SetSignature',              function(c) A:SetSignature_CS('OpenOrange', c) end },
+      { 'SetIsCharListShown',        function(c) A:SetIsCharListShown_CS(1, c) end },
+      { 'SetPortrait',               function(c) A:SetPortrait_CS(0, c) end },
+      { 'SetIsHonorWallShown',       function(c) A:SetIsHonorWallShown_CS(1, c) end },
+      { 'SetIsAccountCreateTimeHidden', function(c) A:SetIsAccountCreateTimeHidden_CS(0, c) end },
+    }
+    for _, item in ipairs(calls) do
+      local ok, e = pcall(function() item[2](cb(item[1])) end)
+      LOG('setrpc| ' .. item[1] .. '_CS 发出 ok=' .. tostring(ok) .. ' err=' .. tostring(e))
+    end
   end)
 end
 local function probe_p1_accept()
