@@ -94,6 +94,27 @@ def run():
     check("解码后 story_finished 有整数键 1", 1 in back["story_finished"])
     check("解码后 characterBag 有整数键 9001", 9001 in back["characterBag"])
 
+    print("\n[8] 阶段 1 三个组件的属性覆盖（config.lua PropertyCallbacks 反查）")
+    # 这三个列表由 work/oo_analysis/check_p1_coverage.py 从
+    # generated/config.lua 的 PropertyCallbacks 里抽出来：
+    # 回调的 keyPath 去掉 .xxx 之后就是属性根名。客户端在对应 _SC 回调里
+    # 会直接 index 这些属性，缺一个就是 nil 崩，所以阶段 1 的验收标准是
+    # 「一个都不能少」。
+    p1_roots = {
+        "AvatarCharacterComp": ["characterBag"],
+        "AvatarBagComp": ["item_bag"],
+        "AvatarUserDataComp": [
+            "background_bag", "background_id", "canScore", "chat_bubble_bag",
+            "gender", "hasScore", "is_account_create_time_hidden",
+            "player_card_bag", "player_title_bag", "portrait_bag",
+            "portrait_frame_bag", "portrait_frame_id", "portrait_id",
+            "shown_titles", "signature",
+        ],
+    }
+    for comp, roots in p1_roots.items():
+        for r in roots:
+            check(comp + " 需要 " + r, r in props, "initDict 里没有")
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
