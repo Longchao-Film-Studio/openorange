@@ -464,6 +464,12 @@ def mp_decode(b, i=0):
     if 0xA0 <= c <= 0xBF:                      # fixstr
         n = c & 0x1F
         return b[i:i + n].decode("utf-8", "replace"), i + n
+    if c == 0xCA:                              # float32
+        return struct.unpack_from(">f", b, i)[0], i + 4
+    if c == 0xCB:                              # float64
+        # initDict 里 expireTime / getTime 是 double，编码就是 0xCB。
+        # 以前没处理这个分支，会退回 (None, i+1) 导致整条流错位。
+        return struct.unpack_from(">d", b, i)[0], i + 8
     if c == 0xCC:
         return b[i], i + 1
     if c == 0xCD:
@@ -486,6 +492,9 @@ def mp_decode(b, i=0):
     if c == 0xDA:
         n = int.from_bytes(b[i:i + 2], "big"); i += 2
         return b[i:i + n].decode("utf-8", "replace"), i + n
+    if c == 0xDB:                              # str32
+        n = int.from_bytes(b[i:i + 4], "big"); i += 4
+        return b[i:i + n].decode("utf-8", "replace"), i + n
     if c == 0xDC:
         n = int.from_bytes(b[i:i + 2], "big"); i += 2
         arr = []
@@ -493,8 +502,23 @@ def mp_decode(b, i=0):
             v, i = mp_decode(b, i)
             arr.append(v)
         return arr, i
+    if c == 0xDD:                              # array32
+        n = int.from_bytes(b[i:i + 4], "big"); i += 4
+        arr = []
+        for _ in range(n):
+            v, i = mp_decode(b, i)
+            arr.append(v)
+        return arr, i
     if c == 0xDE:
         n = int.from_bytes(b[i:i + 2], "big"); i += 2
+        d = {}
+        for _ in range(n):
+            k, i = mp_decode(b, i)
+            v, i = mp_decode(b, i)
+            d[k] = v
+        return d, i
+    if c == 0xDF:                              # map32
+        n = int.from_bytes(b[i:i + 4], "big"); i += 4
         d = {}
         for _ in range(n):
             k, i = mp_decode(b, i)

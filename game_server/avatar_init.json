@@ -1489,7 +1489,29 @@
   },
   "item_bag": {
    "__tp__": "ItemBag",
-   "__id__": 1324
+   "__id__": 1324,
+   "1": {
+    "__id__": 1353,
+    "id": "1",
+    "itemId": 101,
+    "num": 1000,
+    "expireTime": 0.0,
+    "getTime": 0.0,
+    "ext": {
+     "__id__": 1354
+    }
+   },
+   "2": {
+    "__id__": 1355,
+    "id": "2",
+    "itemId": 103,
+    "num": 100000,
+    "expireTime": 0.0,
+    "getTime": 0.0,
+    "ext": {
+     "__id__": 1356
+    }
+   }
   },
   "task_bag": {
    "__tp__": "TaskBag",

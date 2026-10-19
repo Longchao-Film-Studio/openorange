@@ -181,6 +181,24 @@ STARTER_CHARS = {
     "characterBag": {9001: {"useSkinId": 900101}},
 }
 
+# 初始货币（1-2 背包与货币）。
+#
+# 证据：
+#   TableData.CommonData.CurrencyData：crystal -> item_id 101
+#   items.json：101 = 龙玉，103 = 九方币
+#   CommonConstData 里金币消耗几乎都写成 [103, N]（SigilSynthesisGold、
+#   FashionEquipmentSynthesisGold、BattlePassBuyLevelPrice ...），所以 103 是金币。
+#
+# ItemBag 的 __IntTypeKey__ = false，键是字符串（就是 ItemInfo.id），
+# 值类型 ItemInfo 的字段见 config.lua:4357-4396：
+#   id(string) / itemId(int) / num(int) / expireTime(double) / getTime(double) / ext(ItemAttrs)
+STARTER_ITEMS = {
+    "item_bag": [
+        {"id": "1", "itemId": 101, "num": 1000},     # 龙玉
+        {"id": "2", "itemId": 103, "num": 100000},   # 九方币
+    ],
+}
+
 _uid = [1000]
 
 
@@ -335,6 +353,16 @@ def main():
             info = gen_nested(types, "CharacterInfo")
             info.update(overrides)
             node["#%d" % char_id] = info
+
+    # 初始货币（见 STARTER_ITEMS 注释）
+    for prop, entries in STARTER_ITEMS.items():
+        node = props.get(prop)
+        if not isinstance(node, dict):
+            raise SystemExit("STARTER_ITEMS 目标属性不存在: %s" % prop)
+        for ent in entries:
+            info = gen_nested(types, "ItemInfo")
+            info.update(ent)
+            node[ent["id"]] = info
 
     # 关键简单值
     props["uid"] = "OO00000001"

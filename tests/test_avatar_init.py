@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""initDict（createChannelEntity 的属性表）不变量测试。
+
+用法:
+    python tests/test_avatar_init.py
+
+这些断言就是阶段 1 数据模型的"合同"：客户端哪个组件按什么形状读属性，
+都记在这里，改生成器时先看这里会不会红。
+"""
+import json
+import os
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from game_server import ms as msmod  # noqa: E402
+
+INIT_PATH = os.path.join(ROOT, "game_server", "avatar_init.json")
+
+passed = []
+failed = []
+
+
+def check(name, cond, detail=""):
+    if cond:
+        passed.append(name)
+        print("  PASS  " + name)
+    else:
+        failed.append(name)
+        print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
+
+
+def run():
+    data = json.load(open(INIT_PATH, encoding="utf-8"))
+    props = data["__Properties__"]
+
+    print("\n[1] 整体规模")
+    check("属性数 211", len(props) == 211, len(props))
+    check("每个值都是 dict 或简单类型",
+          all(isinstance(v, dict) or isinstance(v, (int, float, str, bool))
+              for v in props.values()))
+
+    print("\n[2] 每个自定义类型都带 __tp__ + __id__")
+    custom = {k: v for k, v in props.items() if isinstance(v, dict)}
+    check("自定义属性都是 dict", len(custom) > 100, len(custom))
+    bad = [k for k, v in custom.items()
+           if not isinstance(v.get("__tp__"), str) or not isinstance(v.get("__id__"), int)]
+    check("__tp__ / __id__ 齐全", not bad, bad[:5])
+    ids = [v["__id__"] for v in custom.values()]
+    check("__id__ 不重复", len(set(ids)) == len(ids))
+
+    print("\n[3] 1-1 角色数据模型")
+    cb = props["characterBag"]
+    check("characterBag 是 CharacterPersistentDict",
+          cb["__tp__"] == "CharacterPersistentDict", cb["__tp__"])
+    check("预置男主角色 9001", "#9001" in cb, [k for k in cb if not k.startswith("__")])
+    check("9001 useSkinId = 900101", cb["#9001"]["useSkinId"] == 900101,
+          cb["#9001"].get("useSkinId"))
+    check("9001 有 CharacterInfo 的字段（skins）", "skins" in cb["#9001"])
+
+    print("\n[4] 1-2 背包与货币")
+    ib = props["item_bag"]
+    check("item_bag 是 ItemBag", ib["__tp__"] == "ItemBag", ib["__tp__"])
+    entries = {k: v for k, v in ib.items() if not k.startswith("__")}
+    check("有 2 个条目", len(entries) == 2, len(entries))
+    by_item = {v["itemId"]: v for v in entries.values()}
+    check("龙玉(item 101) 1000", by_item.get(101, {}).get("num") == 1000)
+    check("九方币(item 103) 100000", by_item.get(103, {}).get("num") == 100000)
+    check("每个条目都有 id/num", all("id" in v and "num" in v for v in entries.values()))
+
+    print("\n[5] 1-3 玩家数据")
+    check("player_name 非空", isinstance(props.get("player_name"), str)
+          and props["player_name"] != "", props.get("player_name"))
+    check("gender = 1（男）", props.get("gender") == 1, props.get("gender"))
+    check("story_finished[1] 为真", props["story_finished"].get("#1") is True)
+
+    print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
+    conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
+    check("#1 -> 1", 1 in conv["a"])
+    check("#12 -> 12", 12 in conv["a"])
+    check("嵌套也转换", 7 in conv["a"]["b"])
+    check("普通键保留", "b" in conv["a"])
+
+    print("\n[7] 整体 msgpack 编码可解码且能还原 story_finished[1]")
+    raw = msmod.mp_map(msmod._conv_int_keys(props))
+    check("编码非空", len(raw) > 10000, len(raw))
+    back, used = msmod.mp_decode(raw)
+    check("解码消耗完整个缓冲区", used == len(raw), (used, len(raw)))
+    check("解码后 story_finished 有整数键 1", 1 in back["story_finished"])
+    check("解码后 characterBag 有整数键 9001", 9001 in back["characterBag"])
+
+    print("\n" + "=" * 56)
+    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    return 0 if not failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())
