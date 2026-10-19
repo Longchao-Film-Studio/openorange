@@ -1074,6 +1074,9 @@ local function probe_phonestcore_keys()
     LOG('phkeys| ' .. keys[i])
   end
 end
+-- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
+OO_PROBE_RPC = OO_PROBE_RPC or false
+
 local function probe_p1_setrpc()
   if pc.setrpc then return end
   pcall(function()
@@ -1092,7 +1095,6 @@ local function probe_p1_setrpc()
       end
       return
     end
-    pc.setrpc = true
     LOG('setrpc| === 1-3 端到端 RPC 验证（server 已就绪）===')
     local function cb(tag)
       return function(ret)
@@ -1111,17 +1113,33 @@ local function probe_p1_setrpc()
       { 'SetIsAccountCreateTimeHidden', function(c) A:SetIsAccountCreateTimeHidden_CS(0, c) end },
     }
     -- 5 个 setter 各调 4 次 = 20 次，rid 连续 20 个 -> rid %% 20 覆盖全部 20 组组合
-    local n = 0
-    for round = 1, 4 do
-      for _, item in ipairs(calls) do
-        n = n + 1
-        local ok, e = pcall(function() item[2](cb(item[1] .. '#' .. n)) end)
-        if not ok then
-          LOG('setrpc| ' .. item[1] .. ' 发出失败: ' .. tostring(e))
-        end
-      end
+    -- ★ 实验：改成「每次调用只发一条」，间隔一个 tick（约 0.5 秒），
+    --   区分是「突发被原生层丢」还是「发到第 N 条就停」。
+    local CR = original_require('Core.Client.ClientRepo')
+    pc.setrpcSent = pc.setrpcSent or 0
+    pc.setrpcIdx = pc.setrpcIdx or 1
+    local i = pc.setrpcIdx
+    local item = calls[i]
+    pc.setrpcIdx = (i % #calls) + 1
+    pc.setrpcSent = pc.setrpcSent + 1
+    local n = pc.setrpcSent
+    local srv = A.server
+    local stub = srv and srv.stub
+    local cobj = stub and stub.cObj
+    local nr = 'nil'
+    pcall(function() nr = tostring(CR.responseManager.nextRid) end)
+    LOG('setrpc| #' .. n .. ' ' .. item[1] .. ' 前: cObj=' .. type(cobj) .. ' nextRid=' .. nr)
+    local ok, e = pcall(function() item[2](cb(item[1] .. '#' .. n)) end)
+    if not ok then
+      LOG('setrpc| ' .. item[1] .. ' 发出失败: ' .. tostring(e))
     end
-    LOG('setrpc| 共发出 ' .. n .. ' 条，等待回调（每组超时 10 秒）')
+    local nr2 = 'nil'
+    pcall(function() nr2 = tostring(CR.responseManager.nextRid) end)
+    LOG('setrpc| #' .. n .. ' 后: nextRid=' .. nr2)
+    if n >= 20 then
+      pc.setrpc = true
+      LOG('setrpc| 20 条已发完（每条间隔一个 tick）')
+    end
   end)
 end
 local function probe_p1_accept()
@@ -1442,7 +1460,8 @@ local function install_cb_wrappers()
           if pc.frames == 60 then pcall(probe_phonestcore_keys) end
           if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
           if (pc.frames % 30) == 15 then pcall(probe_p1_accept) end
-          if (pc.frames % 30) == 20 then pcall(probe_p1_setrpc) end
+          -- 端到端 RPC 探针默认关（会连发 20 条，刷日志）；需要时改成 pcall(probe_p1_setrpc)
+          if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
         end
         local n = select('#', ...)
