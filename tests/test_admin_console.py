@@ -138,7 +138,13 @@ def run():
     r = run_cmd(tok_a, "/who")
     check("/who 成功", r.get("ok") is True, r.get("msg"))
     who_text = "\n".join(r.get("lines") or [])
-    check("/who 列出在线玩家", ADMIN in who_text, who_text[:120])
+    # /who 现在只统计**真正进了游戏**的连接（game_online 表，由 game_server 维护）。
+    # 以前读的是 sessions（网页会话），启动器每登录一次留一条、过期又长，
+    # 结果同一个账号能列出 8 条。测试环境没有游戏服在跑，所以应该是 0 人。
+    check("/who 不把网页会话当在线", ADMIN not in who_text and PLAYER not in who_text,
+          who_text[:120])
+    check("/who 显示 0 人", "在线 0" in (r.get("chat") or "") or "0 人" in who_text,
+          (r.get("chat"), who_text[:120]))
 
     r = run_cmd(tok_a, "/server")
     check("/server 成功", r.get("ok") is True, r.get("msg"))

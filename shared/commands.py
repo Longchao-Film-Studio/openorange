@@ -273,16 +273,21 @@ def cmd_help(ctx, target, *args):
 
 @register("who", aliases=("在线",), desc="列出在线玩家", group="基础")
 def cmd_who(ctx, target, *args):
-    rows = db.online_accounts()
+    # 只统计**真正进了游戏**的连接（game_online 表，由 game_server 维护）。
+    # 以前读的是 sessions（网页会话），启动器每登录一次留一条，
+    # 过期时间又长，结果 /who 把历史登录全列出来（同一个账号 8 条）。
+    rows = db.list_game_online()
     if not rows:
-        return ok(["当前没有网页在线玩家。"], chat="在线 0 人")
+        return ok(["当前没有游戏内在线玩家。"], chat="在线 0 人")
     lines = ["在线 %d 人：" % len(rows)]
     for r in rows:
-        name = r["username"] or "?"
-        perm = PERM_NAMES.get(int(r["perm_level"] or 0), "?")
-        lines.append("  %-16s %-8s %s" % (name, perm,
-                                          time.strftime("%m-%d %H:%M", time.localtime(int(r["issued_ts"])))))
-    chat = "在线 %d 人: %s" % (len(rows), " ".join(r["username"] or "?" for r in rows[:4]))
+        name = r.get("username") or "?"
+        perm = PERM_NAMES.get(int(r.get("perm_level") or 0), "?")
+        uid = r.get("uid") or "-"
+        addr = r.get("addr") or "-"
+        since = time.strftime("%m-%d %H:%M", time.localtime(int(r.get("since_ts") or 0)))
+        lines.append("  %-16s %-8s uid=%-12s %s  上线 %s" % (name, perm, uid, addr, since))
+    chat = "在线 %d 人: %s" % (len(rows), " ".join(r.get("username") or "?" for r in rows[:4]))
     return ok(lines, chat=chat)
 
 

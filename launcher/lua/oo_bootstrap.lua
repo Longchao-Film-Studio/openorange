@@ -1132,6 +1132,12 @@ local function probe_sig_watch()
     end
     -- 道具数量也一起盯：属性同步帧排在应答帧后面，
     -- 应答回调里读到的还是旧值，必须在这里持续观察。
+    local n110 = 'nil'
+    pcall(function() n110 = tostring(A:getItemNumAll(110)) end)
+    if pc.n110Last ~= n110 then
+      LOG('itemwatch| #' .. pc.sigWatch .. ' 时砂之盒(110)=' .. n110)
+      pc.n110Last = n110
+    end
     local cnt = 'nil'
     pcall(function() cnt = tostring(A:getItemNumAll(101)) end)
     if pc.itemLast ~= cnt then

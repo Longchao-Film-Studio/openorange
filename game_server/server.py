@@ -36,6 +36,16 @@ import time
 from . import ms as msmod
 from . import entity_rpc as erpc
 
+try:
+    from shared import db as shared_db
+except Exception:
+    shared_db = None
+
+# 最近一次 ms GameLoadService.query 里带的账号名。
+# gate 的帧里没有账号标识，但同一个客户端会先走 ms 登录，
+# 所以在这里记下来，createChannelEntity 时用它上报在线。
+_last_username = None
+
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -238,6 +248,16 @@ def _handle_ms(conn, addr, cid):
                 #     给它塞 ServerList 属于多余数据，可能引起解析侧异常；
                 #   query 的 onGetServerGates 才需要 ServerList + ClusterId。
                 if method == "query":
+                    # 从 query 参数里抓账号名（field 4 是 msgpack，含 Username）
+                    global _last_username
+                    if 4 in fields:
+                        try:
+                            _q = msmod.mp_decode(fields[4][0])[0]
+                            if isinstance(_q, dict) and _q.get("Username"):
+                                _last_username = _q["Username"]
+                                print("[ms] #%03d 账号 %s" % (cid, _last_username), flush=True)
+                        except Exception:
+                            pass
                     params = msmod.build_load_service_params(GATE_PORT)
                 elif method == "batchGetAttribute":
                     # ★ 1-3 玩家数据的主通道（avataruserdatacomp.lua:151）
@@ -405,7 +425,12 @@ def _handle_gate_probe(conn, addr, cid):
             is_heartbeat_frame = (frame_type == 6)
             is_connect_frame = (frame_type == 3 and proto_req is not None)
             if is_heartbeat_frame:
-                # sendHeartbeat 是单向的，不回。
+                # sendHeartbeat 是单向的，不回。心跳同时用来刷新在线表的 last_seen_ts。
+                if shared_db is not None:
+                    try:
+                        shared_db.touch_game_online("gate-%03d" % cid)
+                    except Exception:
+                        pass
                 print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)
             elif is_connect_frame:
                 pkt = msmod.frame_connect_resp(1, "OO00000001")
@@ -534,10 +559,30 @@ def _handle_gate_probe(conn, addr, cid):
                     print("[GATE] #%03d TX %s  (reqType=%d) (%d B)"
                           % (cid, label, proto_req, len(bpkt)), flush=True)
                     print(_hexdump(bpkt, limit=256), flush=True)
+                    # ★ 上报游戏内在线：createChannelEntity 一发出去，
+                    #   客户端就已经在实体层了（onBecomePlayer 随后触发）。
+                    if label == "createChannelEntity" and shared_db is not None:
+                        try:
+                            shared_db.set_game_online(
+                                session_id="gate-%03d" % cid,
+                                username=_last_username,
+                                uid="OO00000001",
+                                entity_id="avatar_2000",
+                                addr="%s:%d" % (addr[0], addr[1]))
+                            print("[GATE] #%03d 在线登记 %s"
+                                  % (cid, _last_username or "(未知账号)"), flush=True)
+                        except Exception as _e:
+                            print("[GATE] #%03d 在线登记失败: %s" % (cid, _e), flush=True)
     except Exception as e:
         print("[GATE] #%03d error: %s" % (cid, e), flush=True)
     finally:
         dur = int((time.time() - t0) * 1000)
+        # 连接断开就从在线表里摘掉
+        if shared_db is not None:
+            try:
+                shared_db.clear_game_online("gate-%03d" % cid)
+            except Exception:
+                pass
         print("[GATE] #%03d CLOSE after %d ms  %s"
               % (cid, dur, "★★ 活过 4 秒！" if dur > 5000 else ""), flush=True)
         try:

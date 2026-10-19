@@ -78,6 +78,18 @@ CREATE TABLE IF NOT EXISTS sessions (
     issued_ts   INTEGER NOT NULL,
     expire_ts   INTEGER NOT NULL
 );
+
+-- 游戏内在线表：由 game_server 在收到 createChannelEntity / 心跳 / 断连时维护。
+-- 以前 /who 读的是 sessions（网页会话），启动器每登一次留一条，越积越多。
+CREATE TABLE IF NOT EXISTS game_online (
+    session_id   TEXT PRIMARY KEY,   -- 游戏服连接标识（服务端自增连接号）
+    username     TEXT,               -- 账号名（来自 ms GameLoadService.query）
+    uid          TEXT,               -- 游戏内 uid，如 OO00000001
+    entity_id    TEXT,               -- 实体 id，如 avatar_2000
+    addr         TEXT,               -- 客户端地址
+    since_ts     INTEGER NOT NULL,   -- 本次上线时间
+    last_seen_ts INTEGER NOT NULL    -- 最后一次心跳/活动时间
+);
 """
 
 
@@ -257,19 +269,66 @@ def set_perm_level(username, level):
     return cur.rowcount > 0
 
 
-def online_accounts(limit=200):
-    """在线账号：网页会话未过期。
+# 心跳间隔约 1 秒，超过这个秒数没动静就认为掉线了。
+ONLINE_STALE_SEC = 120
 
-    注意：启动器登录不建网页会话（见 models.verify_credentials），
-    所以这里只统计网页端在线。游戏内在线要等实体层实现后再统计。
+
+def set_game_online(session_id, username=None, uid=None, entity_id=None, addr=None):
+    """标记一个游戏连接上线（由 game_server 调用）。
+
+    同一个 session_id 重复调用会刷新 last_seen_ts，不会重复插入。
     """
     now = int(time.time())
+    c = _conn()
+    c.execute(
+        "INSERT INTO game_online (session_id, username, uid, entity_id, addr, since_ts, last_seen_ts) "
+        "VALUES (?,?,?,?,?,?,?) "
+        "ON CONFLICT(session_id) DO UPDATE SET "
+        "  username=COALESCE(excluded.username, game_online.username), "
+        "  uid=COALESCE(excluded.uid, game_online.uid), "
+        "  entity_id=COALESCE(excluded.entity_id, game_online.entity_id), "
+        "  addr=COALESCE(excluded.addr, game_online.addr), "
+        "  last_seen_ts=excluded.last_seen_ts",
+        (str(session_id), username, uid, entity_id, addr, now, now))
+    c.commit()
+    return True
+
+
+def touch_game_online(session_id):
+    """刷新 last_seen_ts（心跳时调用）。连接已不存在则忽略。"""
+    c = _conn()
+    c.execute("UPDATE game_online SET last_seen_ts=? WHERE session_id=?",
+              (int(time.time()), str(session_id)))
+    c.commit()
+
+
+def clear_game_online(session_id):
+    """标记下线（连接关闭时调用）。"""
+    c = _conn()
+    c.execute("DELETE FROM game_online WHERE session_id=?", (str(session_id),))
+    c.commit()
+
+
+def list_game_online(stale_sec=ONLINE_STALE_SEC, limit=200):
+    """真正的游戏内在线玩家：game_online 里最近有动静的。"""
+    now = int(time.time())
     rows = _conn().execute(
-        "SELECT s.username, s.issued_ts, s.expire_ts, a.account_id, a.perm_level, a.last_login_ts "
-        "FROM sessions s LEFT JOIN accounts a ON a.username = s.username "
-        "WHERE s.expire_ts > ? ORDER BY s.issued_ts DESC LIMIT ?",
-        (now, limit)).fetchall()
+        "SELECT g.*, a.perm_level, a.last_login_ts "
+        "FROM game_online g LEFT JOIN accounts a ON a.username = g.username "
+        "WHERE g.last_seen_ts > ? ORDER BY g.since_ts DESC LIMIT ?",
+        (now - int(stale_sec), limit)).fetchall()
     return [dict(r) for r in rows]
+
+
+def online_accounts(limit=200):
+    """在线玩家（游戏内）。
+
+    历史：这里以前读 sessions（网页会话），而启动器每登录一次就留一条、
+    过期时间很长，导致 /who 把历史登录全列出来（同一个账号 8 条）。
+    现在改读 game_online —— 由 game_server 在 createChannelEntity / 心跳 /
+    断连时维护，只有真正进了游戏的连接才会出现。
+    """
+    return list_game_online(limit=limit)
 
 
 def list_accounts(limit=100):
