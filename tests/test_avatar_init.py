@@ -78,6 +78,11 @@ def run():
           and props["player_name"] != "", props.get("player_name"))
     check("gender = 1（男）", props.get("gender") == 1, props.get("gender"))
     check("story_finished[1] 为真", props["story_finished"].get("#1") is True)
+    # ★ street_id 必须是 101，不能是 0。
+    # loginmanager.lua:118-135：street_id ~= 0 走 JumpToStreetStage，
+    # 否则走 JumpToHallStage（大厅 sc_mainstage，这一版资源里没有）。
+    # CommonConstData.DefaultStreet = 101，StreetData[101].scene = sc_zhpmap_01_streaming。
+    check("street_id = 101（走街区而不是大厅）", props.get("street_id") == 101, props.get("street_id"))
 
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})

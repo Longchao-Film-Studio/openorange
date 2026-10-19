@@ -142,7 +142,20 @@ SIMPLE_PROPS = {
     "rank_mode_win_count": 0,
     "rank_mvp_count": 0,
     "rank_score": 0,
-    "street_id": 0,
+    # ★ 2026-10-19：这里必须给 101，不能给 0。
+    # 依据 entities/../manager/loginmanager.lua:118-135：
+    #   local street_id = player:getStreetID()
+    #   if player:isInEden() then ...
+    #   elseif street_id ~= nil and street_id ~= 0 then
+    #       JumpToStreetStage("StreetData", street_id)      <- 进主城街区
+    #   else
+    #       if story_finished[1] then JumpToHallStage() end <- 大厅 sc_mainstage
+    # street_id = 0 会走 JumpToHallStage()，而这一版客户端资源里没有 sc_mainstage
+    # 场景（见 ROADMAP 第 9/15/19 节，四条独立证据），于是黑屏 + 断线。
+    # CommonConstData.DefaultStreet = 101（中浦区），
+    # TableData.CommonData.StreetData[101].scene = "sc_zhpmap_01_streaming"，
+    # 而 ab_mapping 里 scenes/streaming/sc_zhpmap_01_streaming 是存在的。
+    "street_id": 101,
     "street_trace_taskid": 0,
     "temp_floor": 0,
     "winNum": 0,

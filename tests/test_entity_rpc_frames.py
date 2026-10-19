@@ -134,6 +134,19 @@ def run():
     check("QueryMyTeamInfo rid=4 回带", rid == 4, rid)
     check("QueryMyTeamInfo status=false", val[0].get("status") is False, val[0])
 
+    print("\n[4b] 心跳帧 type=6 不是连接帧（实机字节）")
+    # 0A 00 00 00 06 00 08 C8 92 C8 EB AA AE 21
+    #   type=6，field1 = 纳秒时间戳（sendHeartbeat）
+    # 旧代码因为「field 1 存在」就当成 connect 帧回 ConnectServerResp，
+    # 客户端收到莫名的 Connected 就断开重连。判断连接帧必须看 frame_type == 3。
+    F_HEARTBEAT6 = h("0A 00 00 00 06 00 08 C8 92 C8 EB AA AE 21")
+    frames, rest = msmod.split_frames(F_HEARTBEAT6)
+    check("心跳帧可切分", len(frames) == 1 and rest == b"", (len(frames), rest))
+    mtype = struct.unpack_from("<H", frames[0], 4)[0]
+    check("心跳帧 type=6（不是 3）", mtype == 6, mtype)
+    f1 = msmod.pb_parse(frames[0][6:])
+    check("field1 是纳秒时间戳（不是 reqType）", f1[1][0] > 1e12, f1.get(1))
+
     print("\n[5] 单向帧不应答")
     for tag, frame in (("RpcPullHotfix", F_HOTFIX), ("心跳", F_HEARTBEAT0),
                        ("RpcSyncServerTime", F_SYNC_TIME)):

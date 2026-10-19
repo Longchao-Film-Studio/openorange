@@ -380,8 +380,20 @@ def _handle_gate_probe(conn, addr, cid):
             #   ConnectServerResp 是错的，只会让客户端困惑。
             #   实测：reqType=3 那条连接在 createChannelEntity 之后会连发 5 帧
             #   0C 00 00 00 | 04 00 | 18 <varint> | 22 <msgpack>
-            is_connect_frame = proto_req is not None
-            if is_connect_frame:
+            # ★ 2026-10-19 修：判断「连接帧」不能只看 field 1 存在。
+            #   实机抓到 type=6 的帧：
+            #     0A 00 00 00 06 00 08 C8 92 C8 EB AA AE 21
+            #   field1 = 纳秒时间戳，那是 sendHeartbeat(Time.getNanosecond())
+            #   （core/client/gateclientrpchandler.lua:255），不是 reqType。
+            #   以前把它当连接帧回 ConnectServerResp，客户端收到莫名的
+            #   Connected 就会断开重连，表现为「进街区后又掉线、反复重登」。
+            #   真正的连接帧是 type=3（sendConnectServer）。
+            is_heartbeat_frame = (frame_type == 6)
+            is_connect_frame = (frame_type == 3 and proto_req is not None)
+            if is_heartbeat_frame:
+                # sendHeartbeat 是单向的，不回。
+                print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)
+            elif is_connect_frame:
                 pkt = msmod.frame_connect_resp(1, "OO00000001")
                 conn.sendall(pkt)
                 print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:OO00000001, 5:MSGPACK} (%d B)"
@@ -459,8 +471,13 @@ def _handle_gate_probe(conn, addr, cid):
             #   reqType=3 BIND_AVATAR     -> bindSoul     (客户端回 reqType=2)
             #   reqType=2 BIND_SOUL       -> 绑定完成
             global _bind_push_count
+            # ★ 2026-10-19 修：这里原来是 `_bind_push_count <= 12` 的调试限制，
+            #   每帧 +1，只够走 4 轮完整绑定链。之后任何新连接都拿不到
+            #   bindAccount/bindAvatar/createChannelEntity，客户端只能无限重连
+            #   （实机表现：第一次能进街区，之后一直转圈重登）。
+            #   真实服务端对每条连接都必须应答，这里改成无条件。
             _bind_push_count += 1
-            if _bind_push_count <= 12:
+            if True:
                 if proto_req == 0:
                     bpkt = msmod.frame_bind_account(session_id="OO00000001")
                     label = "bindAccount"

@@ -1122,6 +1122,31 @@ local function probe_cs_api()
     end
   end)
 
+  -- ★ 问 Unity 自己要内置场景列表。
+  -- 如果 sc_mainstage 在内置列表里，那它是「构建进包里的场景」，
+  -- No Asset Bundle found 那句话就是别的原因；
+  -- 不在，才说明它是资源包场景。这是最直接的一问，之前一直没问。
+  pcall(function()
+    local SM = CS.UnityEngine.SceneManagement.SceneManager
+    local SU = CS.UnityEngine.SceneManagement.SceneUtility
+    local n = SM.sceneCountInBuildSettings
+    LOG('csapi| 内置场景数 = ' .. tostring(n))
+    for i = 0, math.min(n - 1, 200) do
+      local okP, p = pcall(function() return SU.GetScenePathByBuildIndex(i) end)
+      if okP then LOG('csapi|   buildScene[' .. i .. '] = ' .. tostring(p)) end
+    end
+  end)
+
+  -- 再拿几个候选名直接问 IsAssetExist，看大厅到底叫什么
+  pcall(function()
+    for _, nm in ipairs({ 'sc_mainstage', 'mainstage', 'sc_hall', 'hall',
+                          'sc_zhujiemian', 'sc_zhujiemianchengshi',
+                          'sc_maincity', 'sc_street_main', 'empty', 'login3' }) do
+      local ok, v = pcall(function() return inst:IsAssetExist(nm) end)
+      LOG('csapi| exist2 ' .. nm .. ' = ' .. tostring(ok and v))
+    end
+  end)
+
   -- 把资源表整体打出来（游戏自己的 GM 功能，只读）
   local okDump, errDump = pcall(function() inst:DumpResourceInfo() end)
   LOG('csapi| DumpResourceInfo ok=' .. tostring(okDump) .. ' err=' .. tostring(errDump))
