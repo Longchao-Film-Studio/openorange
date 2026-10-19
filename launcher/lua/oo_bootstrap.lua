@@ -993,6 +993,89 @@ local CB_NAMES = {
 -- 但 xLua 把 C# 类型暴露给 Lua，可以用 .NET 反射把 Core.ResourceManager 和
 -- DeepAssetBundle 的公开方法列出来，再挑「名字 -> 包」的那个直接调，
 -- 问它 sc_mainstage 在不在。这比猜加密清单的密钥实在。
+-- ------------------------------------------------------------
+-- 街区 Actor 探针：进街区后问客户端自己「人在不在、模型有没有」
+-- ------------------------------------------------------------
+-- 依据 stage/loadstep/impl/loadstepstreet.lua:109-165：
+--   curCharId = StreetPlayerRoleMgr:getCurRoleId(streetId)
+--   if data[curCharId] then
+--     skin = GlobalData.Avatar:getUsingSkinId(curCharId)
+--     modelPath = CharAppearanceData[skin].modelStreet
+--     player:loadActorView(modelPath, cb)
+--   else 直接结束（人不在）
+-- 所以这里把这条链上的每一环都打出来，看断在哪。
+local function probe_street_actor()
+  if pc.streetprobe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil then return end
+    local nm = stage.name
+    if nm ~= GlobalConst.EGameStage.Street then return end
+    pc.streetprobe = true
+    LOG('street| === 街区 Actor 探测 ===')
+    local A = GlobalData.Avatar
+    LOG('street| Avatar = ' .. type(A))
+    if A == nil then return end
+    local cid = A.character_choosen_char
+    LOG('street| character_choosen_char = ' .. tostring(cid))
+    local skin
+    local okSkin, s = pcall(function() return A:getUsingSkinId(cid) end)
+    if okSkin then skin = s end
+    LOG('street| getUsingSkinId(' .. tostring(cid) .. ') = ' .. tostring(skin))
+    local app = DataTable('Common', 'CharAppearanceData')
+    local appd = app and skin and app[skin]
+    LOG('street| CharAppearanceData[' .. tostring(skin) .. '] = ' .. type(appd))
+    if appd then
+      LOG('street|   modelStreet = ' .. tostring(appd.modelStreet))
+    end
+    local logic = game.stageMgr:getStreetStageLogic()
+    LOG('street| streetStageLogic = ' .. type(logic))
+    if logic then
+      local okMP, mp = pcall(function() return logic:getMainPlayer() end)
+      LOG('street| getMainPlayer() ok=' .. tostring(okMP) .. ' -> ' .. type(mp))
+      if okMP and mp then
+        LOG('street|   charId = ' .. tostring(mp.charId))
+        LOG('street|   viewAssetPath = ' .. tostring(mp.viewAssetPath))
+        LOG('street|   actorModel = ' .. type(mp.actorModel))
+        if mp.actorModel then
+          LOG('street|   actorModel.actorView = ' .. type(mp.actorModel.actorView))
+          pcall(function()
+            local go = mp.actorModel.actorModel
+            LOG('street|   actorModel.actorModel = ' .. type(go))
+            if go ~= nil and not LuaHelper.IsNull(go) then
+              LOG('street|     name = ' .. tostring(go.name))
+              LOG('street|     activeSelf = ' .. tostring(go.activeSelf))
+              LOG('street|     activeInHierarchy = ' .. tostring(go.activeInHierarchy))
+              local tr = go.transform
+              if tr ~= nil and not LuaHelper.IsNull(tr) then
+                local p = tr.position
+                LOG('street|     pos = ' .. tostring(p.x) .. ',' .. tostring(p.y) .. ',' .. tostring(p.z))
+              end
+              local kids = go.transform.childCount
+              LOG('street|     childCount = ' .. tostring(kids))
+            else
+              LOG('street|     actorModel.actorModel 为 nil 或已销毁')
+            end
+          end)
+          -- 摄像机到底跟没跟：直接比摄像机位置和玩家位置
+          pcall(function()
+            local cam = CS.UnityEngine.Camera.main
+            if cam == nil then LOG('street|   Camera.main = nil'); return end
+            local cp = cam.transform.position
+            LOG('street|   camera pos = ' .. tostring(cp.x) .. ',' .. tostring(cp.y) .. ',' .. tostring(cp.z))
+            local pp = mp.actorModel.actorModel.transform.position
+            local dx = cp.x - pp.x
+            local dy = cp.y - pp.y
+            local dz = cp.z - pp.z
+            local d = math.sqrt(dx*dx + dy*dy + dz*dz)
+            LOG('street|   camera 到玩家距离 = ' .. string.format('%.2f', d))
+          end)
+        end
+      end
+    end
+  end)
+end
+
 local function probe_cs_api()
   if pc.csapi then return end
   pc.csapi = true
@@ -1155,6 +1238,7 @@ local function install_cb_wrappers()
           -- 等界面起来几帧再反射 C# 类型，太早 CS 可能还没初始化完
           pc.frames = (pc.frames or 0) + 1
           if pc.frames == 90 then pcall(probe_cs_api) end
+          if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
         end
         local n = select('#', ...)
         local parts = {}
