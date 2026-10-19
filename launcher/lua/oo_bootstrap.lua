@@ -1045,41 +1045,19 @@ function require(name)
       LOG('lua: ServerListComp tracer installed')
     end
 
-  -- (5c) LoginManager：记录失败原因
+  -- (5c) LoginManager / GateClient：不再做方法包装
+  --
+  -- ★ 教训（2026-10-19）：游戏有类属性重复校验。用 m[n] = wrapper 覆盖类方法会触发
+  --     "class GateClient has repeat attr connect"
+  --     "class LoginManager has repeat attr LoginFailed"
+  --   把链路搞坏。要看这些信息请用 LoggerManager 的日志级别，不要覆盖类方法。
   elseif key == 'manager.loginmanager' and not pc.lmhook then
     pc.lmhook = true
-    if type(m) == 'table' then
-      local lf = m.LoginFailed
-      if type(lf) == 'function' then
-        m.LoginFailed = function(self2, tid, text)
-          LOG('loginmgr: LoginFailed tid=' .. tostring(tid) .. ' text=' .. tostring(text))
-          return lf(self2, tid, text)
-        end
-      end
-      LOG('lua: LoginManager tracer installed')
-    end
+    LOG('lua: LoginManager 已加载（不做方法包装）')
 
-  -- (6) GateClient：记录连接生命周期
   elseif key == 'core.client.gateclient' and not pc.gchook then
     pc.gchook = true
-    if type(m) == 'table' then
-      for _, n in ipairs({ 'connect', 'OnChannelConnect', 'OnChannelConnectFail',
-                           'OnSessionKeyOk', 'handleConnectResponse',
-                           'OnChannelDisconnected' }) do
-        local f = m[n]
-        if type(f) == 'function' then
-          m[n] = function(self, ...)
-            LOG('gate: ' .. n
-              .. ' target=' .. tostring(self.ip) .. ':' .. tostring(self.port)
-              .. ' kcp=' .. tostring(self.useKcp)
-              .. ' enc=' .. tostring(self.enable_encrypt)
-              .. ' act=' .. tostring(self.connectAction))
-            return f(self, ...)
-          end
-        end
-      end
-      LOG('lua: GateClient tracer installed')
-    end
+    LOG('lua: GateClient 已加载（不做方法包装）')
 
   -- (7) 聊天框指令通道：/ 开头的消息不发聊天，改走本机后端
   elseif key == 'entities.avatarcomponent.avatarchatcomp' and not pc.chathook then
@@ -1099,6 +1077,25 @@ function require(name)
     else
       LOG('lua: chat command hook failed (AvatarChat_GroupChat_CS missing)')
     end
+
+  -- (8) 只提升日志级别，不做方法包装
+  --
+  -- ★ 教训：曾经在这里包装 MsClient / ChannelClient / HandlerManager 的方法，
+  --   结果触发了游戏的类属性重复校验，日志里出现
+  --     "class ChannelClient has repeat attr HandleConnectLost"
+  --     "class MsClient has repeat attr OnChannelConnect"
+  --   反而把链路搞坏了。以后要看这些，改用 LoggerManager 的日志，
+  --   不要覆盖类方法。
+  elseif key == 'core.microservice.msclient' and not pc.mshook then
+    pc.mshook = true
+    pcall(function()
+      local LM = original_require('Core.Log.LoggerManager')
+      local ph = original_require('phonestcore')
+      if type(LM) == 'table' and LM.setLevel and type(ph) == 'table' then
+        LM.setLevel(ph.SPDLOG_LEVEL_DEBUG)
+        LOG('loglevel: 已设为 DEBUG')
+      end
+    end)
   end
 
   return m

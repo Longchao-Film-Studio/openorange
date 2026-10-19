@@ -152,17 +152,45 @@ def mp_arr(items):
 
 
 # ---------------------------------------------------------------- 服务器列表
-def build_server_list_json(gate_port=33101):
+# ms 服务端口（clientGate 字段的含义）
+#
+# ★ 2026-10-19 修正：这两个端口以前被填成同一个值，导致 ms 通道连到了网关端口，
+#   客户端表现为 "dispatchRpc ... rpcHandler is invalid" + 3.9 秒重连循环。
+#
+# 依据 manager/server.lua：
+#   Server:ctor(hostnum, name, status, open_time, rid, ms_gate, clusters)
+#     self.ms_gate = ms_gate                       ← 来自 server.clientGate
+#   Cluster:ctor(cluster_id, addrs, status)
+#     self.gates = parseGate(addrs)                ← addrs 是网关地址
+#
+# 再依据 manager/serverlistmanager.lua：
+#   self.ms_gate   = body.clientGate
+#   local ms_gate  = server.clientGate
+#   if not ms_gate and region then ms_gate = region.ms_gate end
+#
+# 所以：
+#   clientGate  → ms 服务端口（MS_PORT，33100）
+#   clusters.addrs → 网关端口（GATE_PORT，33101）
+MS_ADVERTISE_PORT = 33100
+
+
+def build_server_list_json(gate_port=33101, ms_port=None):
     """返回给 ParseFromLoadService 的 JSON 字符串。
+
     loadcomp 里 response.ServerList 会被 ParseFromLoadService 直接 json.decode，
-    所以它必须是一个 JSON **字符串**。"""
+    所以它必须是一个 JSON **字符串**。
+
+    clientGate 填 ms 端口，clusters[].addrs 填网关端口 —— 两者不能混。
+    """
+    if ms_port is None:
+        ms_port = MS_ADVERTISE_PORT
     return (
         '{"clientGate":"127.0.0.1:%d",'
         '"regions":[{"rid":10,"name":"OpenOrange","clientGate":"127.0.0.1:%d"}],'
         '"servers":[{"hostnum":2000,"name":"OpenOrange","status":1,"openTime":0,"rid":10,'
         '"clientGate":"127.0.0.1:%d",'
         '"clusters":[{"clusterId":20000,"status":1,"addrs":["127.0.0.1:%d"]}]}]}'
-        % (gate_port, gate_port, gate_port, gate_port)
+        % (ms_port, ms_port, ms_port, gate_port)
     )
 
 
