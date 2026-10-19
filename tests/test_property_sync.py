@@ -126,6 +126,32 @@ def run():
     check("CharLevel = 3", pstate.get_state().get("characterBag")[9001].get("CharLevel") == 3,
           pstate.get_state().get("characterBag")[9001].get("CharLevel"))
 
+    print("\n[4f] 1-3 的 Set* 系列：真正改数据 + 推根属性同步")
+    pstate.reset_state({"portrait_id": 0, "is_char_list_shown": False, "canScore": 0,
+                        "char_list": {"__tp__": "IntList", "__id__": 1044}})
+    fs6 = erpc.handle(erpc.RPC_INDEX["SetPortrait_CS"], msmod.mp_arr([12345]), 31)
+    check("SetPortrait 返回 2 帧", len(fs6) == 2, len(fs6))
+    check("portrait_id = 12345", pstate.get_state().get("portrait_id") == 12345,
+          pstate.get_state().get("portrait_id"))
+    d7 = parse_sync(fs6[1])
+    check("同步 propertyid = 0（根属性）", d7.get("propertyid") == 0, d7.get("propertyid"))
+    check("同步 name = portrait_id", d7.get("name") == "portrait_id", d7.get("name"))
+    check("同步 value = 12345", d7.get("value") == 12345, d7.get("value"))
+
+    fs7 = erpc.handle(erpc.RPC_INDEX["SetIsCharListShown_CS"], msmod.mp_arr([True]), 32)
+    check("is_char_list_shown = true", pstate.get_state().get("is_char_list_shown") is True,
+          pstate.get_state().get("is_char_list_shown"))
+
+    fs8 = erpc.handle(erpc.RPC_INDEX["SetCanScore_CS"], msmod.mp_arr([]), 33)
+    check("SetCanScore 无参数也能改", pstate.get_state().get("canScore") == 1,
+          pstate.get_state().get("canScore"))
+
+    fs9 = erpc.handle(erpc.RPC_INDEX["SetCharShown_CS"], msmod.mp_arr([[9001, 9002]]), 34)
+    cl = pstate.get_state().get("char_list")
+    check("char_list 保留 __tp__", cl.get("__tp__") == "IntList", cl.get("__tp__"))
+    check("char_list 保留 __id__", cl.get("__id__") == 1044, cl.get("__id__"))
+    check("char_list 有 2 项", cl.get("#1") == 9001 and cl.get("#2") == 9002, cl)
+
     print("\n[5] 其它 RPC 仍然只有一帧")
     frames2 = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
     check("1 帧", len(frames2) == 1, len(frames2))

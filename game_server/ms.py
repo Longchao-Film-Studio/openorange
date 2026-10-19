@@ -1133,7 +1133,9 @@ def build_property_sync(ownerid, property_id, op_type, name, value, session_id="
     body += pb_varint_field(3, int(op_type))
     body += pb_bytes_field(4, name.encode("utf-8") if isinstance(name, str) else name)
     if value is not None:
-        body += pb_bytes_field(5, mp_any(value))
+        # "#N" 形式的键要转成整数键（自定义类型里用得多），
+        # 否则客户端 __IntTypeKey__ 的容器会收到字符串键。
+        body += pb_bytes_field(5, mp_any(_conv_int_keys(value)))
     if ownerid:
         body = pb_bytes_field(1, ownerid.encode("utf-8")
                               if isinstance(ownerid, str) else ownerid) + body

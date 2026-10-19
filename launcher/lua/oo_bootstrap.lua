@@ -1113,6 +1113,17 @@ local function probe_sig_watch()
       LOG('lvwatch| #' .. pc.sigWatch .. ' charLevel9001=' .. lv)
       pc.lvLast = lv
     end
+    -- 1-3 的 setter 目标属性
+    local pv = tostring(A.portrait_id)
+    if pc.pvLast ~= pv then
+      LOG('setwatch| #' .. pc.sigWatch .. ' portrait_id=' .. pv)
+      pc.pvLast = pv
+    end
+    local cs = tostring(A.is_char_list_shown)
+    if pc.csLast ~= cs then
+      LOG('setwatch| #' .. pc.sigWatch .. ' is_char_list_shown=' .. cs)
+      pc.csLast = cs
+    end
   end)
 end
 local function probe_userdata()
@@ -1188,7 +1199,7 @@ local function probe_phonestcore_keys()
   end
 end
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
-OO_PROBE_RPC = false    -- SetSignature 端到端探针（验证完已关）
+OO_PROBE_RPC = false    -- Set* 系列端到端探针（会改数据，默认关）
 OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
 
 local function probe_p1_setrpc()
@@ -1222,7 +1233,7 @@ local function probe_p1_setrpc()
     local calls = {
       { 'SetSignature',              function(c) A:SetSignature_CS('OpenOrange', c) end },
       { 'SetIsCharListShown',        function(c) A:SetIsCharListShown_CS(1, c) end },
-      { 'SetPortrait',               function(c) A:SetPortrait_CS(0, c) end },
+      { 'SetPortrait',               function(c) A:SetPortrait_CS(12345, c) end },
       { 'SetIsHonorWallShown',       function(c) A:SetIsHonorWallShown_CS(1, c) end },
       { 'SetIsAccountCreateTimeHidden', function(c) A:SetIsAccountCreateTimeHidden_CS(0, c) end },
     }

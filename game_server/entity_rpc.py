@@ -259,6 +259,98 @@ def _use_item(rid, params):
     return frames
 
 
+# ---------------------------------------------------------------------------
+# 1-3 的 Set* 系列：真正改数据 + 推根属性同步
+# ---------------------------------------------------------------------------
+# 客户端 entities/avatarcomponent/avataruserdatacomp.lua 里每个 setter 都是
+#   SetXxx_CS(v, callback) -> serverRpc("SetXxx_CS", {v}, ...)
+# 目标属性名对照 SystemConst.CommonUserDataType（common/systemconst.lua:1390）。
+#
+# 只处理「简单类型 + IntList」的属性：
+#   - 简单类型（int/bool/str）：直接改根属性；
+#   - IntList 等自定义类型：保留原来的 __tp__/__id__，用新值重建条目，
+#     客户端 _changeRootProperty 靠 __id__ 命中做原地 rochange。
+# 查表类 RPC（QueryExpiredItems 等）和没有属性可改的（ForbidSelf）只回 ACK。
+_SIMPLE_SETTERS = {
+    "SetPortrait_CS": ("portrait_id", 0),
+    "SetPlayerCard_CS": ("player_card_id", 0),
+    "SetPlayerCardFrame_CS": ("player_card_frame_id", 0),
+    "SetPortraitFrame_CS": ("portrait_frame_id", 0),
+    "SetBackground_CS": ("background_id", 0),
+    "SetChatBubble_CS": ("chat_bubble_id", 0),
+    "SetIsAccountCreateTimeHidden_CS": ("is_account_create_time_hidden", 0),
+    "SetIsCharListShown_CS": ("is_char_list_shown", 0),
+    "SetIsHonorWallShown_CS": ("is_honor_wall_shown", 0),
+    "SetShownHonorWallCharId_CS": ("shown_honor_wall_char_id", 0),
+    "SetSignature_CS": ("signature", 0),
+    "UpgradePlayerStage_CS": ("player_stage_id", 0),
+    "SetCharShown_CS": ("char_list", 0),
+    "SetPlayerTitle_CS": ("shown_titles", 0),
+}
+
+# 没有参数、只把某个开关置成常量的 setter
+_CONST_SETTERS = {
+    "SetCanScore_CS": ("canScore", 1),
+    "SetHasScore_CS": ("hasScore", 1),
+    "RetSetHasScore_CS": ("hasScore", 1),
+    "SetCancelScore_CS": ("canScore", 0),
+}
+
+
+def _apply_property(prop_name, new_value):
+    """把新值写进状态，返回要推给客户端的值。"""
+    st = _state()
+    cur = st.get(prop_name)
+    if isinstance(cur, dict) and "__tp__" in cur:
+        # 自定义类型：保留 __tp__/__id__，用新值重建条目
+        newobj = {"__tp__": cur["__tp__"], "__id__": cur.get("__id__", 0)}
+        if isinstance(new_value, list):
+            for i, v in enumerate(new_value, 1):
+                newobj["#%d" % i] = v
+        st.set(prop_name, newobj)
+        st.save()
+        return newobj
+    st.set(prop_name, new_value)
+    st.save()
+    return new_value
+
+
+def _generic_setter(rid, params, spec):
+    """Set*_CS 的通用处理：改数据 + 推根属性同步。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    prop_name, arg_idx = spec
+    if arg_idx is None:
+        new_value = spec[2] if len(spec) > 2 else None
+    else:
+        vals = decode_params(params)
+        if not (isinstance(vals, list) and len(vals) > arg_idx):
+            return frames
+        new_value = vals[arg_idx]
+    applied = _apply_property(prop_name, new_value)
+    frames.append(msmod.build_property_sync(
+        "", 0, msmod.OP_CHANGE, prop_name, applied))
+    return frames
+
+
+def _const_setter(rid, params, spec):
+    """无参数 setter：把属性置成常量 + 推同步。"""
+    prop_name, const_value = spec
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    applied = _apply_property(prop_name, const_value)
+    frames.append(msmod.build_property_sync(
+        "", 0, msmod.OP_CHANGE, prop_name, applied))
+    return frames
+
+
+def _make_setter(spec, is_const):
+    fn = _const_setter if is_const else _generic_setter
+
+    def handler(rid, params):
+        return fn(rid, params, spec)
+
+    return handler
+
+
 def _set_signature(rid, params):
     """1-3 改签名：真正改服务端状态，再推一条属性同步。
 
@@ -299,6 +391,14 @@ _HANDLERS = {
     msmod.RPC_GET_MATCH_DURATION: _match_duration,
     msmod.RPC_QUERY_MY_TEAM_INFO_CS: _team_info,
 }
+
+# 把 1-3 的 Set* 系列挂上（真正改数据 + 推同步，不再是假 ACK）
+for _name, _spec in _SIMPLE_SETTERS.items():
+    if _name in RPC_INDEX:
+        _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, False)
+for _name, _spec in _CONST_SETTERS.items():
+    if _name in RPC_INDEX:
+        _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
 
 
 def handle(index, params, rid):
