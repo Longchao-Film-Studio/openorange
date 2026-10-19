@@ -43,7 +43,8 @@ def run():
     check("Uid 值正确", info.get("Uid") == "OO00000001", info.get("Uid"))
     amap = info.get("AttributesMap") or {}
     check("player_name 有值", isinstance(amap.get("player_name"), str), amap.get("player_name"))
-    check("level = 1", amap.get("level") == 1, amap.get("level"))
+    # level 现在是 10（AllSystemCatalogueData 有一批 Level 门槛 4/5/6/7）
+    check("level = 10", amap.get("level") == 10, amap.get("level"))
     check("gender = 1", amap.get("gender") == 1, amap.get("gender"))
     check("signature 存在", "signature" in amap, list(amap.keys()))
 
@@ -55,14 +56,14 @@ def run():
     amap2 = d2["Results"][0]["AttributesMap"]
     check("skins 被跳过", "skins" not in amap2, list(amap2.keys()))
     check("char_list 被跳过", "char_list" not in amap2, list(amap2.keys()))
-    check("level 仍然保留", amap2.get("level") == 1, amap2.get("level"))
+    check("level 仍然保留", amap2.get("level") == 10, amap2.get("level"))
 
     print("\n[3] 未知属性名不报错")
     req3 = [[["OO00000001", ["__not_a_prop__", "level"]]]]
     d3 = msmod.mp_decode(msmod.build_userdata_batch_params(req3))[0]
     amap3 = d3["Results"][0]["AttributesMap"]
     check("未知属性被忽略", "__not_a_prop__" not in amap3, list(amap3.keys()))
-    check("level 还在", amap3.get("level") == 1, amap3.get("level"))
+    check("level 还在", amap3.get("level") == 10, amap3.get("level"))
 
     print("\n[4] 多 uid")
     req4 = [[["A1", ["level"]], ["A2", ["gender"]]]]

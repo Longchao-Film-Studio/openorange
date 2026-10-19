@@ -1053,6 +1053,14 @@ local function probe_sysunlock()
       for _ in pairs(A.system_p.unlocked_system) do n = n + 1 end
       LOG('sysunlock| unlocked_system 条目数 = ' .. n)
     end)
+    LOG('sysunlock| level = ' .. tostring(A.level))
+    LOG('sysunlock| TaskState.Finished = ' .. tostring(GlobalConst.TaskState.Finished))
+    local okA, va = pcall(function() return A:getSystemTaskState(1) end)
+    LOG('sysunlock| getSystemTaskState(1) ok=' .. tostring(okA) .. ' -> ' .. tostring(va))
+    local okB, vb = pcall(function() return A:getTaskStateByTaskID(1005) end)
+    LOG('sysunlock| getTaskStateByTaskID(1005) ok=' .. tostring(okB) .. ' -> ' .. tostring(vb))
+    local okC, vc = pcall(function() return A:getSystemTaskState(15) end)
+    LOG('sysunlock| getSystemTaskState(15) ok=' .. tostring(okC) .. ' -> ' .. tostring(vc))
     local items = { {'PlayerInfo', 1}, {'Role', 4}, {'Bag', 7}, {'Map', 11},
                     {'Formation', 30}, {'BattlePass', 32}, {'Menu', 1001} }
     for _, it in ipairs(items) do

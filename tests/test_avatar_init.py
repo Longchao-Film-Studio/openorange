@@ -121,6 +121,25 @@ def run():
                         ("Formation", 30), ("BattlePass", 32), ("Menu", 1001)):
         check("解锁 %s(%d)" % (_name, _sid), us.get("#%d" % _sid) is True, us.get("#%d" % _sid))
 
+    print("\n[5d] 系统入口的第二层门槛（不满足就弹「暂未开放」）")
+    # node_menu_itemgroup.lua:231-256 checkSystemUnlockState：
+    #   Task      -> getSystemTaskState(taskId) == Finished(6)
+    #                -> task_bag[TaskType] 必须存在，且 done_tasks[TaskType][taskId] 为真
+    #   StoryTask -> done_story_tasks[taskId] 是 StoryTaskItem 且 state == 6
+    #   Level     -> level >= unlockParam
+    check("level = 10（Level 类门槛 4/5/6/7 都要过）", props.get("level") == 10, props.get("level"))
+    tb = props.get("task_bag") or {}
+    check("task_bag 有 TaskType=1 槽位", isinstance(tb.get("#1"), dict), type(tb.get("#1")))
+    dt = props.get("done_tasks") or {}
+    dt1 = dt.get("#1") or {}
+    check("done_tasks[1][1] 为真（地图/背包/任务门槛）", bool(dt1.get("#1")), dt1.get("#1"))
+    check("done_tasks[1][15] 为真（编队门槛）", bool(dt1.get("#15")), dt1.get("#15"))
+    dst = props.get("done_story_tasks") or {}
+    item = dst.get("#1005") or {}
+    check("done_story_tasks[1005] 是对象不是 true", isinstance(item, dict), type(item))
+    check("done_story_tasks[1005].state = 6", item.get("state") == 6, item.get("state"))
+    check("done_story_tasks[1005].id = 1005", item.get("id") == 1005, item.get("id"))
+
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
     check("#1 -> 1", 1 in conv["a"])
