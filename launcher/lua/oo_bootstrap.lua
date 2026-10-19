@@ -994,6 +994,89 @@ local CB_NAMES = {
   'CallbackManagerHandler',
 }
 
+-- ------------------------------------------------------------
+-- 探测 C# 资源 API：场景名 -> 资源包 到底怎么解析
+-- ------------------------------------------------------------
+-- 背景（实机日志）：
+--   ReportException: UnityLogError No Asset Bundle found for Scene: sc_mainstage
+-- 这句话出自 C#（Core.ResourceManager / DeepClient.SceneManagement），
+-- Assembly-CSharp.dll 是加密的（文件头 cb9422e1，不是 MZ），没法直接反编译。
+-- 但 xLua 把 C# 类型暴露给 Lua，可以用 .NET 反射把 Core.ResourceManager 和
+-- DeepAssetBundle 的公开方法列出来，再挑「名字 -> 包」的那个直接调，
+-- 问它 sc_mainstage 在不在。这比猜加密清单的密钥实在。
+local function probe_cs_api()
+  if pc.csapi then return end
+  pc.csapi = true
+
+  local function dump_methods(tag, typeObj)
+    local ok, err = pcall(function()
+      LOG('csapi| === ' .. tag .. ' ===')
+      local ms = typeObj:GetMethods()
+      local n = 0
+      local seen = {}
+      for i = 0, ms.Length - 1 do
+        local m = ms[i]
+        local nm = tostring(m.Name)
+        if not seen[nm] then
+          seen[nm] = true
+          n = n + 1
+          if n <= 160 then LOG('csapi| ' .. tag .. ' :: ' .. nm) end
+        end
+      end
+      LOG('csapi| ' .. tag .. ' 方法数(去重)=' .. n)
+    end)
+    if not ok then LOG('csapi: ' .. tag .. ' 反射失败: ' .. tostring(err)) end
+  end
+
+  -- xLua 没包 System.Type.GetMethods（反射不可用），但 C# 成员可以直接调。
+  -- 依据 modules/gmcommand/gmcommand.lua:88-120，资源管理器自己就有两个探针：
+  --   Inst:DumpResourceInfo()            把资源表打出来
+  --   Inst:IsAssetInBundle(assetName)    查某个资源在不在包里 -> bool
+  --   Inst:IsAssetExist(assetPath)       查资源存不存在 -> bool
+  -- 正好拿 login3（确定能加载）和 sc_mainstage（加载失败）做对照实验。
+  local inst
+  local okInst = pcall(function() inst = CS.Core.ResourceManager.Inst end)
+  if not okInst or inst == nil then
+    LOG('csapi: ResourceManager.Inst 拿不到')
+    return
+  end
+  pcall(function()
+    LOG('csapi| Inst 类型 = ' .. tostring(inst:GetType():ToString()))
+  end)
+
+  -- 候选名字：场景名、带目录的路径、带 Assets/ 前缀的路径都试一遍。
+  local probes = {
+    'login3', 'sc_mainstage', 'sc_login', 'empty',
+    'scenes/login3', 'scenes/sc_mainstage',
+    'Assets/res/scenes/sc_mainstage',
+    'scenes/mainstage/sc_mainstage',
+    'scenes/Login/login3',
+  }
+  for _, nm in ipairs(probes) do
+    local ok1, v1 = pcall(function() return inst:IsAssetInBundle(nm) end)
+    local ok2, v2 = pcall(function() return inst:IsAssetExist(nm) end)
+    LOG('csapi| probe ' .. nm .. ' | InBundle ok=' .. tostring(ok1) .. ' v=' .. tostring(v1)
+      .. ' | Exist ok=' .. tostring(ok2) .. ' v=' .. tostring(v2))
+  end
+
+  -- 探测成员名：xLua 对不存在的成员会抛错，所以 pcall 成功就说明成员存在。
+  -- 目标是找「资源名 -> 包名」的那一个方法。
+  local members = {
+    'GetBundleName', 'GetAssetBundleName', 'GetBundlePath', 'GetAssetPath',
+    'GetBundleHash', 'GetBundleMd5', 'TryGetBundleName', 'GetAssetBundle',
+    'HasBundle', 'ContainsBundle', 'GetDependencies', 'GetAssetBundleNames',
+    'GetAllBundleNames', 'DumpResourceInfo', 'IsAssetInBundle', 'IsAssetExist',
+    'LoadSceneAsync', 'LoadScene', 'Load', 'LoadAsync', 'GetBundleCount',
+  }
+  for _, nm in ipairs(members) do
+    local ok, v = pcall(function() return inst[nm] end)
+    LOG('csapi| member ' .. nm .. ' exists=' .. tostring(ok and v ~= nil))
+  end
+
+  -- 把资源表整体打出来（游戏自己的 GM 功能，只读）
+  local okDump, errDump = pcall(function() inst:DumpResourceInfo() end)
+  LOG('csapi| DumpResourceInfo ok=' .. tostring(okDump) .. ' err=' .. tostring(errDump))
+end
 local function install_cb_wrappers()
   for _, nm in ipairs(CB_NAMES) do
     local mark = '__oo_cbwrapped_' .. nm
@@ -1006,6 +1089,9 @@ local function install_cb_wrappers()
           pcall(register_entity_names)
           pcall(bump_lua_log_level)
           pcall(enable_table_dump)
+          -- 等界面起来几帧再反射 C# 类型，太早 CS 可能还没初始化完
+          pc.frames = (pc.frames or 0) + 1
+          if pc.frames == 90 then pcall(probe_cs_api) end
         end
         local n = select('#', ...)
         local parts = {}
