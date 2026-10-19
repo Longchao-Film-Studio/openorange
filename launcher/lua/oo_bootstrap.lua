@@ -886,10 +886,97 @@ local function login()
 end
 
 -- ------------------------------------------------------------
+-- 全局回调包装（安全）
+-- ------------------------------------------------------------
+-- 这些是普通全局函数，不是类方法，包装它们不会触发游戏的
+-- "class X has repeat attr Y" 校验。
+--
+-- 目的：确认原生层到底有没有回调 RpcHandlerCallbackOnConnect。
+-- 如果它从不被调用，cObj 就永远不会被 setCobj 赋值，
+-- 也就解释了 "dispatchRpc ... rpcHandler is invalid"。
+local CB_NAMES = {
+  'RpcHandlerCallbackOnConnect',
+  'RpcHandlerCallbackOnClose',
+  'RpcHandlerCallbackOnMethod',
+  'RpcHandlerCallbackProtoExceedLimit',
+  'CallbackManagerHandler',
+}
+
+local function install_cb_wrappers()
+  for _, nm in ipairs(CB_NAMES) do
+    local mark = '__oo_cbwrapped_' .. nm
+    local f = rawget(_G, nm)
+    if type(f) == 'function' and not rawget(_G, mark) then
+      rawset(_G, mark, true)
+      rawset(_G, nm, function(...)
+        local n = select('#', ...)
+        local parts = {}
+        for i = 1, math.min(n, 5) do
+          parts[#parts + 1] = tostring(select(i, ...))
+        end
+        LOG('cb: ' .. nm .. '(' .. table.concat(parts, ', ') .. ')')
+        return f(...)
+      end)
+      LOG('lua: 全局回调已包装 ' .. nm)
+    end
+  end
+end
+
+-- ------------------------------------------------------------
+-- 注册 gate / ms 的 RPC 名字到原生索引表
+-- ------------------------------------------------------------
+-- 背景：原生层用 phonestcore.RpcIndex 做「索引 -> 名字」的反查，
+-- 日志里能看到大量
+--     [rpc index 2119322371 not found]   ← connectResponse
+--     [rpc index 1378977164 not found]   ← sendRequestEncryptToken
+--     [rpc index 889905872 not found]    ← bindAccount
+-- 说明这张表是空的。全库只有 Core.Common.EntityFactory 会调
+-- phonestcore.registerRpc（那是给实体 RPC 用的），gate/ms 的 RPC 名字没人注册。
+--
+-- registerRpc(name) 会返回该名字的 32 位索引，顺带把名字登记进表里。
+-- 这里在 phonestcore 首次被 require 时补注册一遍。
+local GATE_RPC_NAMES = {
+  'connectServer', 'sendConnectServer', 'connectResponse', 'confirmEncryptKeyAck',
+  'requestEncryptToken', 'sendRequestEncryptToken', 'responseEncryptToken',
+  'createChannelEntity', 'entityMessage', 'entityMessageResponse', 'channelMessage',
+  'frameMessage', 'gateMessage', 'gateFrameMessage',
+  'bindAccount', 'bindAvatar', 'bindSoul', 'unbindSoul', 'disconnectClient',
+  'recvHeartbeat', 'sendHeartbeat', 'setHeartbeatCb',
+  'propertySync2Client', 'propertyStrategySync2Client',
+  'onSyncProperty', 'onStrategySyncProperty',
+  'sendMicroRequest', 'onMicroResponse', 'onMicroPush', 'onConfirmEncryptKeyAck',
+  'onProtoExceedLimit', 'onSessionDisconnected',
+}
+
+local function register_gate_rpcs(ph)
+  if pc.rpcreg or type(ph) ~= 'table' then return end
+  pc.rpcreg = true
+  local ok_n, fail_n = 0, 0
+  for _, nm in ipairs(GATE_RPC_NAMES) do
+    local ok, idx = pcall(ph.registerRpc, nm)
+    if ok then
+      ok_n = ok_n + 1
+      if nm == 'connectResponse' or nm == 'sendRequestEncryptToken'
+         or nm == 'bindAccount' or nm == 'confirmEncryptKeyAck' then
+        LOG('rpcreg: ' .. nm .. ' -> ' .. tostring(idx))
+      end
+    else
+      fail_n = fail_n + 1
+    end
+  end
+  LOG('rpcreg: 注册完成 ok=' .. ok_n .. ' fail=' .. fail_n)
+end
+
+-- ------------------------------------------------------------
 -- 接管 require
 -- ------------------------------------------------------------
 function require(name)
   local m = original_require(name)
+  pcall(install_cb_wrappers)
+  pcall(function()
+    local k = string.lower(string.gsub(name, '/', '.'))
+    if k == 'phonestcore' then register_gate_rpcs(m) end
+  end)
   local key = string.lower(string.gsub(name, '/', '.'))
 
   -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice
