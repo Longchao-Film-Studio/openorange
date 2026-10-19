@@ -948,6 +948,42 @@ local GATE_RPC_NAMES = {
   'onProtoExceedLimit', 'onSessionDisconnected',
 }
 
+-- ------------------------------------------------------------
+-- 注册实体类名到原生索引表
+-- ------------------------------------------------------------
+-- createChannelEntity 的 ChannelEntityInfo.type 是 uint32，但 Lua 侧
+-- GateClientRpcHandler:createChannelEntity(entityType, ...) 把它直接传给
+-- EntityFactory.createEntity(name, entityId) —— 也就是**类名字符串**。
+--
+-- 实测（tools/phonest_probe.py）：
+--   genRpcIndex("ClientAvatar") = 1292148699
+--   registerRpc("ClientAvatar") 之后 getRpcName(1292148699) -> "ClientAvatar"
+--
+-- 所以：实体类型号 = genRpcIndex(类名)，原生层靠 RpcIndex 表反查回类名。
+-- 不注册类名，原生层就还原不出名字，createChannelEntity 必然失败。
+local function register_entity_names()
+  if pc.entreg then return end
+  local ok, EF = pcall(original_require, 'Core.Common.EntityFactory')
+  if not ok or type(EF) ~= 'table' then return end
+  local ents = EF._entities
+  if type(ents) ~= 'table' then return end
+  local ph = original_require('phonestcore')
+  if type(ph) ~= 'table' or type(ph.registerRpc) ~= 'function' then return end
+  local n = 0
+  for name in pairs(ents) do
+    if type(name) == 'string' then
+      pcall(ph.registerRpc, name)
+      n = n + 1
+    end
+  end
+  if n > 0 then
+    pc.entreg = true
+    LOG('entreg: 注册实体类名 ' .. n .. ' 个')
+    local ok2, idx = pcall(ph.genRpcIndex, 'ClientAvatar')
+    if ok2 then LOG('entreg: ClientAvatar -> ' .. tostring(idx)) end
+  end
+end
+
 local function register_gate_rpcs(ph)
   if pc.rpcreg or type(ph) ~= 'table' then return end
   pc.rpcreg = true
@@ -977,6 +1013,7 @@ function require(name)
     local k = string.lower(string.gsub(name, '/', '.'))
     if k == 'phonestcore' then register_gate_rpcs(m) end
   end)
+  pcall(register_entity_names)
   local key = string.lower(string.gsub(name, '/', '.'))
 
   -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice

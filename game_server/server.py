@@ -376,11 +376,18 @@ def _handle_gate_probe(conn, addr, cid):
                     bpkt = msmod.frame_bind_avatar(session_id="OO00000001")
                     label = "bindAvatar"
                 elif proto_req == 3:
-                    # 实测：在 BIND_AVATAR 连接上再发 bindSoul 会让客户端断开重连，
-                    # 而 soul 是麻将/斗地主子系统，登录流程并不需要它。
-                    # 所以这里不发任何东西，只保留 connectResponse，让连接保持。
-                    bpkt = None
-                    label = None
+                    # ★ reqType=3 (BIND_AVATAR)：客户端在这里等 createChannelEntity。
+                    #
+                    # 实测证据（work/oo_analysis/gamesrv_run.log）：
+                    #   reqType=0 -> 发 bindAccount -> 客户端 150ms 后主动断开重连（正常）
+                    #   reqType=4 -> 发 bindAvatar  -> 客户端  16ms 后主动断开重连（正常）
+                    #   reqType=3 -> 什么都不发    -> 客户端 3700ms 后超时断开重连（卡点）
+                    # 3.7 秒正好是客户端的连接超时，说明它在等一条消息。
+                    #
+                    # 依据 gateclientrpchandler.lua:createChannelEntity，
+                    # 这条消息是 IGateClientService 的第 4 个方法。
+                    bpkt = msmod.build_channel_entity()
+                    label = "createChannelEntity"
                 else:
                     bpkt = None
                     label = None

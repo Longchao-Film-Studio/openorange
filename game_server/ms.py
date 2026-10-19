@@ -211,6 +211,37 @@ def build_response_params(gate_port=33101, ret_err=0, ret_status=True):
     })
 
 
+# ---------------------------------------------------------------- 实体
+#
+# ChannelEntityInfo { uint32 type = 1; bytes info = 2; string entityId = 3; string sessionId = 4 }
+#
+# type 的含义：Lua 侧 GateClientRpcHandler:createChannelEntity(entityType, initDict, entityId)
+# 把 entityType 直接传给 EntityFactory.createEntity(name, entityId)，也就是**类名字符串**。
+# 原生层用 phonestcore 的 RpcIndex 表把 uint32 反查回类名，所以：
+#
+#     type = genRpcIndex("ClientAvatar")
+#
+# 实测（tools/phonest_probe.py）：
+#   genRpcIndex("ClientAvatar") = 1292148699
+#   registerRpc("ClientAvatar") 之后 getRpcName(1292148699) -> "ClientAvatar"
+CLIENT_AVATAR_TYPE = 1292148699
+
+# msgpack 空 map —— 作为最小 initDict 先试水
+MSGPACK_EMPTY_MAP = b"\x80"
+
+
+def build_channel_entity(entity_type=CLIENT_AVATAR_TYPE,
+                         info=MSGPACK_EMPTY_MAP,
+                         entity_id="avatar_2000",
+                         session_id="OO00000001"):
+    """构造 createChannelEntity（IGateClientService 第 4 个方法）。"""
+    body = pb_varint_field(1, entity_type)
+    body += pb_bytes_field(2, info)
+    body += pb_bytes_field(3, entity_id.encode("utf-8"))
+    body += pb_bytes_field(4, session_id.encode("utf-8"))
+    return frame(4, body)
+
+
 def build_candidates(rid, gate_port=33101, typ=None):
     """应答候选。
     若给定 typ，则只返回该类型号的一个候选（用于全量爆破）。
