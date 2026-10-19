@@ -24,7 +24,11 @@ import os
 import threading
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_STATE_DIR = os.path.join(os.path.dirname(_HERE), "work", "player_state")
+# 默认 work/player_state；设 OO_STATE_DIR 可换目录。
+# ★ 测试必须设成临时目录，否则会覆盖真实玩家存档
+#   （test_property_sync.py 用默认 uid 跑 reset_state + save，踩过一次）。
+_STATE_DIR = (os.environ.get("OO_STATE_DIR")
+               or os.path.join(os.path.dirname(_HERE), "work", "player_state"))
 
 _LOCK = threading.RLock()
 _CURRENT = None

@@ -9,8 +9,13 @@ optype 见 core/propertysync/propertytypes.lua:27-33。
 """
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# ★ 必须在 import player_state 之前设：本测试会调 st.save()，
+#   不隔离的话会把真实存档 work/player_state/OO00000001.json 覆盖掉。
+os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_state_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
