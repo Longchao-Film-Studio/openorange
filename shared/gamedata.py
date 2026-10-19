@@ -29,6 +29,23 @@ _item_by_name = {}
 _char_by_id = {}
 _char_by_name = {}
 
+# 命令系统用到的附加表（同样是 BDD 来的真数据）
+_currencies = None
+_activities = None
+_tasks = None
+_maps = None
+_gachas = None
+_stories = None
+_currency_by_id = {}
+_activity_by_id = {}
+_activity_by_name = {}
+_task_by_id = {}
+_map_by_id = {}
+_map_by_name = {}
+_gacha_by_id = {}
+_gacha_by_name = {}
+_story_by_id = {}
+
 
 def _load(name, list_key):
     path = os.path.join(DATA_DIR, name)
@@ -37,8 +54,18 @@ def _load(name, list_key):
     return obj.get(list_key) or []
 
 
+def _load_optional(name, list_key):
+    """附加表缺失时返回空列表，不影响主流程。"""
+    path = os.path.join(DATA_DIR, name)
+    if not os.path.exists(path):
+        return []
+    with io.open(path, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    return obj.get(list_key) or []
+
+
 def _ensure_loaded():
-    global _items, _chars
+    global _items, _chars, _currencies, _activities, _tasks, _maps, _gachas, _stories
     if _items is not None:
         return
     _items = _load("items.json", "items")
@@ -50,6 +77,31 @@ def _ensure_loaded():
         _char_by_id[ch["id"]] = ch
         _char_by_name.setdefault(ch["name"], []).append(ch)
 
+    _currencies = _load_optional("currencies.json", "currencies")
+    _activities = _load_optional("activities.json", "activities")
+    _tasks = _load_optional("tasks.json", "tasks")
+    _maps = _load_optional("maps.json", "maps")
+    _gachas = _load_optional("gachas.json", "gachas")
+    _stories = _load_optional("stories.json", "stories")
+    for c in _currencies:
+        _currency_by_id[c["id"]] = c
+    for a in _activities:
+        _activity_by_id[a["id"]] = a
+        if a.get("name"):
+            _activity_by_name.setdefault(a["name"], []).append(a)
+    for t in _tasks:
+        _task_by_id[t["id"]] = t
+    for m in _maps:
+        _map_by_id[m["id"]] = m
+        if m.get("name"):
+            _map_by_name.setdefault(m["name"], []).append(m)
+    for g in _gachas:
+        _gacha_by_id[g["id"]] = g
+        if g.get("name"):
+            _gacha_by_name.setdefault(g["name"], []).append(g)
+    for s in _stories:
+        _story_by_id[s["id"]] = s
+
 
 def stats():
     _ensure_loaded()
@@ -58,6 +110,13 @@ def stats():
         "item_names": len(_item_by_name),
         "chars": len(_chars),
         "char_names": len(_char_by_name),
+        "playable_chars": sum(1 for c in _chars if _tier(c) == 0),
+        "currencies": len(_currencies),
+        "activities": len(_activities),
+        "tasks": len(_tasks),
+        "maps": len(_maps),
+        "gachas": len(_gachas),
+        "stories": len(_stories),
     }
 
 
@@ -158,6 +217,100 @@ def search_chars(keyword):
     return _search(_chars, keyword)
 
 
+def _by_id_or_name(token, by_id, by_name, allow_unavailables=False):
+    """给附加表用的通用解析：纯数字按 ID，其它按名字。"""
+    _ensure_loaded()
+    token = str(token or "").strip()
+    if not token:
+        return None, []
+    force_id = token.startswith("#")
+    if force_id:
+        token = token[1:].strip()
+    if force_id or token.isdigit():
+        if not token.isdigit():
+            return None, []
+        entry = by_id.get(int(token))
+        return (entry, []) if entry else (None, [])
+    hits = list(by_name.get(token) or [])
+    if len(hits) > 1 and not allow_unavailables:
+        best = min(_tier(h) for h in hits)
+        hits = [h for h in hits if _tier(h) == best]
+    if len(hits) == 1:
+        return hits[0], []
+    if len(hits) > 1:
+        return None, hits
+    return None, []
+
+
+def resolve_currency(token):
+    """解析货币。ID 是字符串（crystal / gold …），也支持按货币 ID 查。"""
+    _ensure_loaded()
+    token = str(token or "").strip()
+    if not token:
+        return None, []
+    entry = _currency_by_id.get(token.lower())
+    if entry:
+        return entry, []
+    # 也允许传物品 ID
+    if token.isdigit():
+        for c in _currencies:
+            if c.get("item_id") == int(token):
+                return c, []
+    return None, []
+
+
+def resolve_activity(token, allow_unavailables=False):
+    """解析活动（按 activityId 或名字）。"""
+    return _by_id_or_name(token, _activity_by_id, _activity_by_name, allow_unavailables)
+
+
+def resolve_task(token, allow_unavailables=False):
+    """解析任务（按 uiD）。"""
+    _ensure_loaded()
+    token = str(token or "").strip()
+    if token.startswith("#"):
+        token = token[1:].strip()
+    if token.isdigit():
+        entry = _task_by_id.get(int(token))
+        return (entry, []) if entry else (None, [])
+    hits = [t for t in _tasks if token and token in (t.get("desc") or "")]
+    if len(hits) == 1:
+        return hits[0], []
+    return None, hits
+
+
+def resolve_map(token, allow_unavailables=False):
+    """解析地图（按 referenceId 或房间名）。"""
+    return _by_id_or_name(token, _map_by_id, _map_by_name, allow_unavailables)
+
+
+def resolve_gacha(token, allow_unavailables=False):
+    """解析卡池。"""
+    return _by_id_or_name(token, _gacha_by_id, _gacha_by_name, allow_unavailables)
+
+
+def resolve_story(token):
+    """解析剧情（按 dialogueName）。"""
+    _ensure_loaded()
+    token = str(token or "").strip()
+    if not token:
+        return None, []
+    entry = _story_by_id.get(token)
+    if entry:
+        return entry, []
+    low = token.lower()
+    hits = [s for s in _stories if low in str(s["id"]).lower()]
+    if len(hits) == 1:
+        return hits[0], []
+    return None, hits[:20]
+
+
+def list_playable_chars():
+    """所有可玩角色（tier 0），按 ID 排序。"""
+    _ensure_loaded()
+    return [c for c in _chars if _tier(c) == 0]
+
+
 def item_count_by_name(name):
     """某个名字对应几条记录（用于判断是否重名）。"""
     _ensure_loaded()
@@ -185,3 +338,10 @@ if __name__ == "__main__":
     print()
     for r in search_items("长命")[:6]:
         print("  search 长命:", r["id"], r["name"])
+    print()
+    for tok in ("crystal", "101"):
+        e, c = resolve_currency(tok)
+        print("  currency %-8s -> %s" % (tok, e))
+    for tok in ("无常", "1020", "寒衣卡池"):
+        e, c = resolve_char(tok) if not tok.endswith("卡池") else resolve_activity(tok)
+        print("  %-10s -> %s" % (tok, e and (e.get("name"), e.get("id"))))

@@ -122,7 +122,7 @@ def run():
     check("管理员能执行 /help", r.get("ok") is True, r.get("msg"))
     text = "\n".join(r.get("lines") or [])
     check("帮助里有 /give", "/give" in text, text[:120])
-    check("帮助里标注未实现", "未实现" in text)
+    check("帮助里 GM 命令都已实现", "未实现" not in text, text[:300])
 
     print("\n[3] 玩家权限边界")
     r = run_cmd(tok_p, "/account %s" % ADMIN)
@@ -143,8 +143,8 @@ def run():
     r = run_cmd(tok_a, "/server")
     check("/server 成功", r.get("ok") is True, r.get("msg"))
     sv_text = "\n".join(r.get("lines") or [])
-    check("/server 显示物品索引条数", "1866" in sv_text, sv_text[:200])
-    check("/server 显示角色索引条数", "105" in sv_text, sv_text[:200])
+    check("/server 显示物品索引条数", "2728" in sv_text, sv_text[:200])
+    check("/server 显示角色索引条数", "193" in sv_text, sv_text[:200])
 
     r = run_cmd(tok_a, "/clear")
     check("/clear 返回清屏标记", (r.get("data") or {}).get("clear") is True, r.get("data"))
@@ -178,8 +178,10 @@ def run():
     r = run_cmd(tok_a, "/account %s perm 1" % PLAYER)
     check("管理员能给玩家提 GM", r.get("ok") is True, r.get("lines"))
     r = run_cmd(tok_p, "/give @ 1001 1")
-    check("提权后能执行 GM 命令（但功能未实现）",
-          "尚未实现" in "\n".join(r.get("lines") or []), r.get("lines"))
+    _gv = "\n".join(r.get("lines") or [])
+    check("提权后能执行 GM 命令", r.get("ok") is True, _gv)
+    check("GM 命令能解析物品", "长命锁" in _gv, _gv)
+    check("GM 命令标注未实际生效", "未实际生效" in _gv, _gv)
     r = run_cmd(tok_a, "/account %s perm 2" % PLAYER)
     check("管理员能提到管理员", r.get("ok") is True, r.get("lines"))
     r = run_cmd(tok_p, "/account %s" % ADMIN)

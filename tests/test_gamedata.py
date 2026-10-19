@@ -34,10 +34,12 @@ def check(name, cond, detail=""):
 def run():
     print("\n[1] 索引加载")
     st = gd.stats()
-    check("物品 1866 条", st["items"] == 1866, st["items"])
-    check("物品名字 1596 个", st["item_names"] == 1596, st["item_names"])
-    check("角色 105 条", st["chars"] == 105, st["chars"])
-    check("角色名字 56 个", st["char_names"] == 56, st["char_names"])
+    # 数据来自 BDD（pmdata.bin），是游戏运行时真正用的那份。
+    # 旧的 Lua 兜底表只有 1866 物品 / 105 角色，别再用那些数字。
+    check("物品 2728 条", st["items"] == 2728, st["items"])
+    check("物品名字 2355 个", st["item_names"] == 2355, st["item_names"])
+    check("角色 193 条", st["chars"] == 193, st["chars"])
+    check("角色名字 65 个", st["char_names"] == 65, st["char_names"])
 
     print("\n[2] 物品按 ID 解析")
     e, cands = gd.resolve_item("1001")
@@ -98,10 +100,23 @@ def run():
     check("瞳 候选是 9001/9002", sorted(c["id"] for c in cands) == [9001, 9002],
           [c["id"] for c in cands])
 
+    print("\n[7a] 后期限定角色（BDD 才有，Lua 兜底表里没有）")
+    # 这些角色只在 BDD 的 CharData 里，旧 Lua 表里根本不存在。
+    # 加进来是为了防止哪天又退回去读 Lua 兜底表。
+    for name, cid in (("无常", 1020), ("茯苓", 1019), ("珠砂", 1021),
+                      ("寒衣", 1022), ("秦川", 1024), ("蜃", 1025),
+                      ("殭", 1026), ("烬", 1027), ("青龙元君", 1005)):
+        e, _ = gd.resolve_char(name)
+        check(name + " 命中 " + str(cid), e is not None and e["id"] == cid, e)
+    e, _ = gd.resolve_char("无常")
+    check("无常 称号是 幻灭无界", e and e.get("title") == "幻灭无界", e)
+    check("无常 CV 是 汪悦", e and e.get("cv") == "汪悦", e)
+    check("无常 是 tier0 可玩", e and e.get("tier") == 0, e)
+
     print("\n[7b] 角色 --allow-unavailables")
     e, cands = gd.resolve_char("长命锁", allow_unavailables=True)
     check("开启后长命锁不再自动命中", e is None, e)
-    check("开启后返回 3 个候选", len(cands) == 3, [c["id"] for c in cands])
+    check("开启后返回 7 个候选", len(cands) == 7, [c["id"] for c in cands])
     check("候选含皮肤变体", 100101 in [c["id"] for c in cands], [c["id"] for c in cands])
 
     print("\n[8] 强制 ID 绕过名字")
