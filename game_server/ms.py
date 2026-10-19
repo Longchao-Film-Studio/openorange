@@ -727,6 +727,30 @@ def build_by_type(typ, rid, gate_port=33101, ret_status=True, ret_err=0):
     return pb_varint_field(1, rid) + pb_bytes_field(2, params)
 
 
+def split_frames(buf):
+    """按 [u32 LE payloadLen][u16 LE msgType][payload] 切帧。
+
+    返回 (帧列表, 剩余不足一帧的尾巴)。
+
+    ★ 为什么必须切帧：实测客户端会把两条实体消息粘在同一个 TCP 段里发。
+      例如 77 字节 = Cmd_Avatar_StartGame_CS(61 B) + 心跳 index=0(16 B)。
+      旧代码把整块当一帧，protobuf 读到下一帧帧头 0C（field1 wiretype4）
+      直接失败，第二条被丢掉——丢的正好是心跳 index=0，
+      客户端 _recvHeartbeatIndex 就永远停在 0。
+    """
+    frames = []
+    off = 0
+    n = len(buf)
+    while n - off >= 6:
+        plen = struct.unpack_from("<I", buf, off)[0]
+        total = 4 + plen
+        if total < 6 or n - off < total:
+            break
+        frames.append(bytes(buf[off:off + total]))
+        off += total
+    return frames, bytes(buf[off:])
+
+
 def frame(msg_type, body):
     payload = struct.pack("<H", msg_type) + body
     return struct.pack("<I", len(payload)) + payload

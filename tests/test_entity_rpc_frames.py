@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""实体帧解析 / 应答的抓包回归测试。
+
+用法:
+    python tests/test_entity_rpc_frames.py
+
+★ 这里所有字节都是 **实机抓到的原始帧**（work/oo_analysis/gamesrv_runX.log
+  里 [GATE] RX 段的十六进制），不是构造出来的。改帧格式解析就靠这套兜底。
+"""
+import os
+import struct
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from game_server import entity_rpc as erpc  # noqa: E402
+from game_server import ms as msmod  # noqa: E402
+
+passed = []
+failed = []
+
+
+def check(name, cond, detail=""):
+    if cond:
+        passed.append(name)
+        print("  PASS  " + name)
+    else:
+        failed.append(name)
+        print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
+
+
+def h(s):
+    return bytes.fromhex(s.replace(" ", ""))
+
+
+# ---- 实机抓到的单帧 ----
+F_SYNC_TIME = h("0F 00 00 00 04 00 18 94 BD A1 07 22 06 91 CE 6A D6 1C 3C")
+F_HOTFIX = h("0C 00 00 00 04 00 18 AF 97 B1 DD 07 22 02 91 A0")
+# RpcGetMatchDuration，rid=1
+F_MATCHDUR_RID1 = h("0D 00 00 00 04 00 18 E9 A1 89 D8 06 22 01 90 28 01")
+# RpcGetSunActLevel_CS，rid=2
+F_SUNACT_RID2 = h("0D 00 00 00 04 00 18 B3 C0 ED EC 03 22 01 90 28 02")
+F_HEARTBEAT0 = h("0C 00 00 00 04 00 18 A4 84 E1 D8 04 22 02 91 00")
+
+# ---- 实机抓到的「两帧粘在一个 TCP 段里」的 77 字节 ----
+F_TWO = h(
+    "39 00 00 00 04 00 18 A0 CE 97 41 22 2E "
+    "91 84 A7 73 74 6F 72 79 49 44 01 A6 6D 6F 64 65 49 64 01 "
+    "AB 73 79 73 74 65 6D 5F 74 79 70 65 CD 03 EC AA 6D 61 74 63 68 5F 74 79 70 65 03 "
+    "28 03 "
+    "0C 00 00 00 04 00 18 A4 84 E1 D8 04 22 02 91 00"
+)
+
+
+def parse_response(pkt):
+    plen = struct.unpack_from("<I", pkt, 0)[0]
+    assert len(pkt) == 4 + plen, (len(pkt), plen)
+    mtype = struct.unpack_from("<H", pkt, 4)[0]
+    fields = msmod.pb_parse(pkt[6:])
+    rid = fields[1][0] if 1 in fields else None
+    raw = fields[2][0] if 2 in fields else b""
+    val, _ = msmod.mp_decode(raw)
+    return mtype, rid, val
+
+
+def run():
+    print("\n[1] 单帧解析（实机字节）")
+    idx, params, rid = msmod.parse_entity_frame(F_SYNC_TIME[6:])
+    check("RpcSyncServerTime index=15228564", idx == 15228564, idx)
+    check("RpcSyncServerTime rid=0", rid == 0, rid)
+    val, used = msmod.mp_decode(params)
+    check("参数是 [客户端时间]", isinstance(val, list) and len(val) == 1, val)
+    check("客户端时间是整数", isinstance(val[0], int) and val[0] > 0, val)
+
+    idx, params, rid = msmod.parse_entity_frame(F_HOTFIX[6:])
+    check("RpcPullHotfix index=2074889135", idx == 2074889135, idx)
+    check("RpcPullHotfix rid=0", rid == 0, rid)
+    # ★ 注意：91 A0 里 A0 是 fixstr(0)，也就是空字符串，不是空 map（空 map 是 80）。
+    #   对应 basecomp.lua:8 CallServer("RpcPullHotfix", mgr.hotfix_md5)，
+    #   hotfix_md5 是空串而不是 nil。
+    check("RpcPullHotfix 参数是 [\"\"]", msmod.mp_decode(params)[0] == [""])
+
+    idx, params, rid = msmod.parse_entity_frame(F_MATCHDUR_RID1[6:])
+    check("RpcGetMatchDuration index=1795313897", idx == 1795313897, idx)
+    check("RpcGetMatchDuration rid=1", rid == 1, rid)
+    check("RpcGetMatchDuration 参数是 []", msmod.mp_decode(params)[0] == [])
+
+    idx, params, rid = msmod.parse_entity_frame(F_SUNACT_RID2[6:])
+    check("RpcGetSunActLevel_CS index=1033592883", idx == 1033592883, idx)
+    check("RpcGetSunActLevel_CS rid=2", rid == 2, rid)
+    check("RpcGetSunActLevel_CS 参数是 []", msmod.mp_decode(params)[0] == [])
+
+    idx, params, rid = msmod.parse_entity_frame(F_HEARTBEAT0[6:])
+    check("心跳 index=1259880996", idx == 1259880996, idx)
+    check("心跳 rid=0", rid == 0, rid)
+    check("心跳参数是 [0]", msmod.mp_decode(params)[0] == [0])
+
+    print("\n[2] 两帧粘连（实机 77 字节）")
+    frames, rest = msmod.split_frames(F_TWO)
+    check("切成 2 帧", len(frames) == 2, len(frames))
+    check("长度 61 + 16", [len(f) for f in frames] == [61, 16], [len(f) for f in frames])
+    check("没有剩余字节", rest == b"", rest)
+    i1, _, r1 = msmod.parse_entity_frame(frames[0][6:])
+    i2, _, r2 = msmod.parse_entity_frame(frames[1][6:])
+    check("第 1 帧是 Cmd_Avatar_StartGame_CS", i1 == 136701728, i1)
+    check("第 1 帧 rid=3", r1 == 3, r1)
+    check("第 2 帧是心跳 index=0", i2 == 1259880996 and r2 == 0, (i2, r2))
+
+    print("\n[3] 半帧 / 空缓冲")
+    frames, rest = msmod.split_frames(F_TWO[:30])
+    check("半帧不返回", frames == [], frames)
+    check("半帧进剩余缓冲", rest == F_TWO[:30], len(rest))
+    frames, rest = msmod.split_frames(b"")
+    check("空缓冲不返回", frames == [] and rest == b"")
+    frames, rest = msmod.split_frames(F_TWO[:5])
+    check("不足 6 字节不返回", frames == [] and len(rest) == 5)
+
+    print("\n[4] 用实机帧跑应答（帧类型 3、rid 回带）")
+    mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1))
+    check("RpcGetSunActLevel 应答帧类型 3", mtype == 3, mtype)
+    check("RpcGetSunActLevel rid=1 回带", rid == 1, rid)
+    check("RpcGetSunActLevel 回 levelIds", val[1].get("levelIds") == [], val[1])
+
+    mtype, rid, val = parse_response(erpc.handle(1795313897, b"\x90", 3))
+    check("RpcGetMatchDuration rid=3 回带", rid == 3, rid)
+    check("RpcGetMatchDuration 回 data", val[1].get("data") == {}, val[1])
+
+    mtype, rid, val = parse_response(erpc.handle(1674960337, b"\x90", 4))
+    check("QueryMyTeamInfo rid=4 回带", rid == 4, rid)
+    check("QueryMyTeamInfo status=false", val[0].get("status") is False, val[0])
+
+    print("\n[5] 单向帧不应答")
+    for tag, frame in (("RpcPullHotfix", F_HOTFIX), ("心跳", F_HEARTBEAT0),
+                       ("RpcSyncServerTime", F_SYNC_TIME)):
+        idx, params, rid = msmod.parse_entity_frame(frame[6:])
+        check(tag + "（rid=0）返回 None", erpc.handle(idx, params, rid) is None)
+
+    print("\n[6] 阶段 1 的 RPC 都能用通用 ACK 应答")
+    # 抽 6 条 1-1/1-2/1-3 的 RPC，用空数组参数模拟调用
+    for nm in ("UpgradeCharacter_CS", "BreakCharacter_CS", "UseItem_CS",
+               "SubmitItem_CS", "SetSignature_CS", "UpgradePlayerStage_CS"):
+        idx = erpc.RPC_INDEX[nm]
+        pkt = erpc.handle(idx, b"\x90", 9)
+        mtype, rid, val = parse_response(pkt)
+        ok = (mtype == 3 and rid == 9 and val[0].get("status") is True)
+        check(nm + " 通用 ACK", ok, (mtype, rid, val))
+
+    print("\n" + "=" * 56)
+    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    return 0 if not failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())

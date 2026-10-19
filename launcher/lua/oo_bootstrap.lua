@@ -1044,13 +1044,25 @@ local function probe_cs_api()
     LOG('csapi| Inst 类型 = ' .. tostring(inst:GetType():ToString()))
   end)
 
-  -- 候选名字：场景名、带目录的路径、带 Assets/ 前缀的路径都试一遍。
+  -- ★ 关键对照实验：
+  --   IsAssetInBundle 到底是「全量包表」还是「已加载过的包」？
+  --   login3 启动时就被加载过，所以它返回 true 不能证明包表完整。
+  --   下面这些路径是从 tools/scan_bundles.py 扫出来的**真实容器路径**
+  --   （work/oo_analysis/base_containers.json，673 个基础包里确实存在），
+  --   但游戏从来没加载过它们。如果它们返回 true，说明包表是全量的，
+  --   sc_mainstage 就是真的没有；如果返回 false，说明包表只记已加载的，
+  --   那之前「sc_mainstage 不在包表里」的结论就不成立。
   local probes = {
-    'login3', 'sc_mainstage', 'sc_login', 'empty',
-    'scenes/login3', 'scenes/sc_mainstage',
-    'Assets/res/scenes/sc_mainstage',
-    'scenes/mainstage/sc_mainstage',
-    'scenes/Login/login3',
+    -- 对照组：启动时就加载过
+    'login3', 'empty',
+    -- 目标
+    'sc_mainstage', 'scenes/sc_mainstage', 'Assets/res/scenes/sc_mainstage',
+    -- 从未加载过的真实容器路径（一定在盘上）
+    'env/mainstage/prop/env_mainstage_prop_light/p_env_mainstage_prop_light_02',
+    'scenes/Street/zhp/sc_zhpmap_01/gvp_sc_zhp_restaurant_01',
+    'scenes/Level/material/sc_material_6/p_lighting_sc_material_06',
+    -- 从未加载过的场景名
+    'sc_zhpmap_01', 'sc_material_6', 'sc_favorspace', 'sc_Infinite_challenge',
   }
   for _, nm in ipairs(probes) do
     local ok1, v1 = pcall(function() return inst:IsAssetInBundle(nm) end)

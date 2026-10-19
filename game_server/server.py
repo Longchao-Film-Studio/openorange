@@ -336,13 +336,10 @@ def _handle_gate_probe(conn, addr, cid):
             """
             nonlocal _buf
             while True:
-                if len(_buf) >= 6:
-                    plen = struct.unpack_from("<I", _buf, 0)[0]
-                    total = 4 + plen
-                    if total >= 6 and len(_buf) >= total:
-                        one = bytes(_buf[:total])
-                        del _buf[:total]
-                        return one
+                frames, rest = msmod.split_frames(_buf)
+                if frames:
+                    _buf[:] = rest
+                    return frames[0]
                 chunk = conn.recv(8192)
                 if not chunk:
                     return b""
