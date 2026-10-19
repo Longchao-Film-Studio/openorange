@@ -96,6 +96,11 @@ def run():
     check("第 1 队有 value 列表", isinstance(team.get("value"), dict))
     check("第 1 队出战角色是 9001", team.get("value", {}).get("#1") == 9001, team.get("value"))
     check("choosen_index = 1", props.get("choosen_index") == 1, props.get("choosen_index"))
+    # streetplayerrolemgr.lua:17 -> return GlobalData.Avatar.character_choosen_char
+    # loadstepstreet.lua:129 -> if data[curCharId] then 才会 loadActorView 加载玩家模型
+    # 给 0 的话 data[0] 是 nil，直接跳过模型加载：场景在、人不在。
+    check("character_choosen_char = 9001", props.get("character_choosen_char") == 9001,
+          props.get("character_choosen_char"))
 
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})

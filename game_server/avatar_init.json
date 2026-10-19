@@ -1640,7 +1640,7 @@
   "avatarNowState": 0,
   "avatarTeamMatchState": 0,
   "battle_prop_choosen_index": 0,
-  "character_choosen_char": 0,
+  "character_choosen_char": 9001,
   "choosen_index": 1,
   "daily_active_value": 0,
   "endless_choosen_index": 0,

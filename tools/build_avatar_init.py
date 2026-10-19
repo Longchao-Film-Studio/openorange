@@ -148,7 +148,19 @@ SIMPLE_PROPS = {
     "avatarNowState": 0,
     "avatarTeamMatchState": 0,
     "battle_prop_choosen_index": 0,
-    "character_choosen_char": 0,
+    # ★ 2026-10-20：必须是 9001，不能是 0。
+    # system/streetsystem/manager/streetplayerrolemgr.lua:8-18：
+    #   function StreetPlayerRoleMgr:getCurRoleId(streetId)
+    #     ... 街道替换角色逻辑 ...
+    #     return GlobalData.Avatar and GlobalData.Avatar.character_choosen_char
+    #   end
+    # 而 stage/loadstep/impl/loadstepstreet.lua:115-165：
+    #   local curCharId = StreetPlayerRoleMgr.GetInstance():getCurRoleId(streetId)
+    #   ...
+    #   if data[curCharId] then  <- 只有这里才会 loadActorView 加载玩家模型
+    #   else 直接 loadedCallback() 结束（场景有、但没人、摄像机没目标）
+    # 实测就是黑屏之外的第二阶段症状：场景能进、看不到角色。
+    "character_choosen_char": 9001,
     # 编队下标：1 = 第一队（和 STARTER_FORMATION 的那一队对应）
     "choosen_index": 1,
     "daily_active_value": 0,
