@@ -95,6 +95,14 @@ def run():
     team = (cl or {}).get("#1") or {}
     check("第 1 队有 value 列表", isinstance(team.get("value"), dict))
     check("第 1 队出战角色是 9001", team.get("value", {}).get("#1") == 9001, team.get("value"))
+    # ★ 编队是 3 个格子，空位必须是 0，不能缺。
+    # streetv2panel.lua:1324-1331 initFormation:
+    #   for i = 1, 3 do local charId = formation.value[i] ...
+    #   if member and 0 < charId then   <- charId 为 nil 时抛 compare number with nil
+    # 只给 1 个元素 -> i=2 是 nil -> initEx 被打断 -> 面板建了又关 -> 零 HUD。
+    v = team.get("value", {})
+    check("编队第 2 格是 0", v.get("#2") == 0, v.get("#2"))
+    check("编队第 3 格是 0", v.get("#3") == 0, v.get("#3"))
     check("choosen_index = 1", props.get("choosen_index") == 1, props.get("choosen_index"))
     # streetplayerrolemgr.lua:17 -> return GlobalData.Avatar.character_choosen_char
     # loadstepstreet.lua:129 -> if data[curCharId] then 才会 loadActorView 加载玩家模型

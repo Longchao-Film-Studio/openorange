@@ -1070,6 +1070,33 @@ local function probe_street_actor()
             local d = math.sqrt(dx*dx + dy*dy + dz*dz)
             LOG('street|   camera 到玩家距离 = ' .. string.format('%.2f', d))
           end)
+          -- 逐条调用 StreetV2Panel:setData -> refreshRoleRedPoint 链上的函数，
+          -- 看哪一个抛异常
+          pcall(function()
+            local A = GlobalData.Avatar
+            local names = { 'hasAnyCharacterCanRisingStar',
+                            'getCharInFormationHasAnyNotFetchedCharBreakReward',
+                            'isFullFormation' }
+            for _, n in ipairs(names) do
+              local ok, r = pcall(function() return A[n](A) end)
+              LOG('panelprobe| ' .. n .. ' ok=' .. tostring(ok) .. ' r=' .. tostring(r))
+            end
+            local ok2, r2 = pcall(function() return A:checkAvatarFashionEquipRedPoint(false) end)
+            LOG('panelprobe| checkAvatarFashionEquipRedPoint ok=' .. tostring(ok2) .. ' r=' .. tostring(r2))
+            LOG('panelprobe| type(A.chars) = ' .. type(A.chars))
+            -- 背包内容 + 直接调 onItemNumChanged，看是不是我们预置的条目有问题
+            local n = 0
+            for k, v in pairs(A.item_bag) do
+              n = n + 1
+              LOG('bagprobe| key=' .. tostring(k) .. ' id=' .. tostring(v.id)
+                .. ' itemId=' .. tostring(v.itemId) .. ' num=' .. tostring(v.num))
+            end
+            LOG('bagprobe| item_bag 条目数 = ' .. n)
+            for _, iid in ipairs({ 101, 103 }) do
+              local ok3, e3 = pcall(function() return A:onItemNumChanged(iid) end)
+              LOG('bagprobe| onItemNumChanged(' .. iid .. ') ok=' .. tostring(ok3) .. ' err=' .. tostring(e3))
+            end
+          end)
         end
       end
     end

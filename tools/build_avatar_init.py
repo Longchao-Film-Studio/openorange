@@ -135,7 +135,15 @@ REQUIRED = {
 # 所以 msgpack 里要用整数键 1..n，对应生成器的 "#1" 写法。
 STARTER_FORMATION = {
     "character_list": [
-        {"name": "", "value": [9001]},
+        # ★ 必须是 3 个格子，空位填 0，不能只给 1 个。
+        # streetv2panel.lua:1311-1341 initFormation：
+        #   for i = 1, 3 do
+        #     local charId = formation.value[i]
+        #     ...
+        #     if member and 0 < charId then   <- i=2 时 charId 是 nil -> 0 < nil 抛错
+        # 只给 1 个元素的话，i=2 就是 nil，StreetV2Panel:initEx 整个被打断，
+        # 于是面板建了又关、零 HUD。
+        {"name": "", "value": [9001, 0, 0]},
     ],
 }
 
