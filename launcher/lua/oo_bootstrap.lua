@@ -931,6 +931,61 @@ local function register_entity_names()
   end
 end
 
+-- ------------------------------------------------------------
+-- 把 Lua 日志级别提到 DEBUG
+-- ------------------------------------------------------------
+-- 依据 game.lua:299-305：
+--     if GlobalConst.DEBUG_MODE == true then
+--       LoggerManager.setLevel(loggingCls.DEBUG)
+--     else
+--       LoggerManager.setLevel(loggingCls.WARN)     -- 正式包走这里
+--       LoggerManager.setEngineLogLevel(loggingCls.ERROR)
+--     end
+--
+-- 正式包里 Lua 侧是 WARN，所有 logger:info(...) 全被吞掉。
+-- 这导致我们一直看不到客户端到底走到哪一步（比如
+-- AvatarTimeComp 的 "Client-Server Ping" 就是 logger:info）。
+-- 这里把它提回 DEBUG。不改游戏源码，只在运行时调它的公开 API。
+local function bump_lua_log_level()
+  if pc.loglv then return end
+  local LM = package.loaded['Core.Log.LoggerManager']
+  if type(LM) ~= 'table' then return end
+  local ok1, loggingCls = pcall(LM.getLoggingClass)
+  if not ok1 or type(loggingCls) ~= 'table' then return end
+  local ok2 = pcall(LM.setLevel, loggingCls.DEBUG)
+  if ok2 then
+    pc.loglv = true
+    LOG('loglv: Lua 日志级别已提到 DEBUG')
+  end
+end
+
+-- ------------------------------------------------------------
+-- 打开 TableDump 输出
+-- ------------------------------------------------------------
+-- ★ 这是登录失败的真正原因（2026-10-19 实机日志）：
+--     [GLog] exception got: ClientAvatar:init, TableDump is disabled.
+--            Open by: GlobalConst.EnableTableDumpOutput
+--     [GLog] [Login] login failed, got exception.
+--
+-- game.lua:286 里：
+--     GlobalConst.EnableTableDumpOutput = GlobalConst.DEBUG_MODE
+-- 正式包 DEBUG_MODE = false，于是 ClientAvatar:init 里调 TableDump 直接抛异常，
+-- 整个 init 中断 -> 登录失败 -> 回 LoadingPanel -> 重连循环。
+--
+-- 这不是改游戏源码，只是把它自己的公开开关打开。
+local function enable_table_dump()
+  if pc.tabledump then return end
+  local GC = package.loaded['GlobalConst']
+  if type(GC) ~= 'table' then return end
+  GC.EnableTableDumpOutput = true
+  local ok = pcall(function()
+    local LU = package.loaded['Utils.LogUtils']
+    if type(LU) == 'table' then LU.EnableTablePrint = true end
+  end)
+  pc.tabledump = true
+  LOG('tabledump: EnableTableDumpOutput = true' .. (ok and '' or ' (LogUtils 跳过)'))
+end
+
 local CB_NAMES = {
   'RpcHandlerCallbackOnConnect',
   'RpcHandlerCallbackOnClose',
@@ -949,6 +1004,8 @@ local function install_cb_wrappers()
         -- CallbackManagerHandler 每秒被调一次，借它当心跳做增量注册
         if nm == 'CallbackManagerHandler' then
           pcall(register_entity_names)
+          pcall(bump_lua_log_level)
+          pcall(enable_table_dump)
         end
         local n = select('#', ...)
         local parts = {}

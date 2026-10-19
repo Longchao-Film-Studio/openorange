@@ -22,6 +22,8 @@
 指定的网关端口。因此我们让网关监听 33101，ms 监听 33100 ——
 **只要 33101 上出现连接，就说明 ms 应答格式对了。**
 """
+import json
+import os
 import struct
 
 
@@ -122,7 +124,14 @@ def mp_bool(v):
     return b"\xc3" if v else b"\xc2"
 
 
+def mp_float(v):
+    """msgpack float64（0xCB）。"""
+    return b"\xcb" + struct.pack(">d", float(v))
+
+
 def mp_any(v):
+    if isinstance(v, float):
+        return mp_float(v)
     if isinstance(v, bool):
         return mp_bool(v)
     if isinstance(v, int):
@@ -137,7 +146,17 @@ def mp_any(v):
 
 
 def mp_map(d):
-    out = bytearray([0x80 | len(d)])
+    """msgpack map。
+
+    ★ 超过 15 项必须用 map16(0xDE)，不能再用 0x80|n ——
+    0x80|173 = 0xAD 是 fixstr(13) 的标记，客户端会把整张表当字符串解，
+    报 "bad argument #1 to 'pairs' (table expected, got string)"。
+    """
+    n = len(d)
+    if n < 16:
+        out = bytearray([0x80 | n])
+    else:
+        out = bytearray(b"\xde" + struct.pack(">H", n))
     for k, v in d.items():
         out += mp_str(k)
         out += mp_any(v)
@@ -145,7 +164,12 @@ def mp_map(d):
 
 
 def mp_arr(items):
-    out = bytearray([0x90 | len(items)])
+    """msgpack array。同样：超过 15 项要用 array16(0xDC)。"""
+    n = len(items)
+    if n < 16:
+        out = bytearray([0x90 | n])
+    else:
+        out = bytearray(b"\xdc" + struct.pack(">H", n))
     for v in items:
         out += mp_any(v)
     return bytes(out)
@@ -266,11 +290,46 @@ MSGPACK_EMPTY_MAP = b"\x80"
 #               Properties = {}, __ValueType__ = "ItemInfo", __IntTypeKey__ = false }
 # __tp__ 必须填**注册名**（ItemBag），不能填 PropertyCallbacks 里的类型标签（customDict）——
 # 填 customDict 会报 "can not find custom class customDict"。
-DEFAULT_INIT_DICT = {
+# ★ 完整属性表从 config.lua 的 AvatarProperties 生成（tools: work/oo_analysis/gen_initdict.py）
+#
+# config.lua 里 AvatarProperties.Properties 是玩家实体属性的权威声明，
+# 每条形如 {propType, default, aoiscope, persist}。共 173 条：
+#   45 个简单类型（int/string/double/boolean）-> 直接给默认值
+#   128 个自定义类型 -> 给 { __tp__ = <类型名>, __id__ = <唯一整数> }
+#
+# 这份表由 game_server/avatar_init.json 提供，避免手写遗漏。
+_AVATAR_INIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "avatar_init.json")
+
+
+def _load_avatar_init():
+    try:
+        with open(_AVATAR_INIT_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print("[ms] 读取 avatar_init.json 失败: %s" % e, flush=True)
+        return {"__Properties__": {}}
+
+
+AVATAR_INIT_DICT = _load_avatar_init()
+
+# 旧的手写最小表，保留作为参考/兜底
+_LEGACY_INIT_DICT = {
     "__Properties__": {
         "item_bag": {"__tp__": "ItemBag", "__id__": 1},
+        "task_bag": {"__tp__": "TaskBag", "__id__": 2},
+        "cur_activity_info": {"__tp__": "ActivityProp", "__id__": 3},
     },
 }
+
+# 每个自定义字典属性都要给 { __tp__ = <注册名>, __id__ = <唯一整数> }。
+#
+# 逐条补的依据都是客户端异常（Player.log）：
+#   AvatarBagComp:refreshLocalBagData    -> pairs(self.item_bag)  nil
+#     => item_bag, 类型 ItemBag  (__ValueType__=ItemInfo,  __IntTypeKey__=false)
+#   AvatarTaskComp:getAllDoingDailyTaskItem -> self.task_bag.*  nil
+#     => task_bag, 类型 TaskBag  (__ValueType__=TaskItem,  __IntTypeKey__=true)
+# 实际使用的 initDict：优先用 AvatarProperties 生成的完整表
+DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") else _LEGACY_INIT_DICT
 
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
@@ -319,7 +378,8 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
 #     end
 RPC_SYNC_SERVER_TIME = 15228564        # 客户端 -> 服务端
 RPC_ON_SYNC_SERVER_TIME = 1381181593   # 服务端 -> 客户端
-RPC_NETWORK_CHECK = 1259880996         # networkCheckAfterChange_CS
+RPC_NETWORK_CHECK = 1259880996         # networkCheckAfterChange_CS（客户端心跳）
+RPC_NETWORK_CHECK_SC = 151106036       # networkCheckAfterChange_SC（服务端必须回）
 RPC_INDEX_NOT_FOUND = 1501621037       # __rpc_index_not_found__
 
 
@@ -405,6 +465,21 @@ def build_time_sync(client_time, server_time):
     payload = mp_arr([{"ct": int(client_time), "st": int(server_time)}])
     return build_entity_message(method_name="RpcOnSyncServerTime",
                                 index=RPC_ON_SYNC_SERVER_TIME,
+                                params=payload)
+
+
+def build_net_check_ack(index):
+    """构造 networkCheckAfterChange_SC(index) 心跳应答。
+
+    依据 entities/avatarcomponent/avatarnetcomp.lua：
+      _heartbeatTimerCB() 每秒发一次 networkCheckAfterChange_CS({_sendHeartbeatIndex})
+      networkCheckAfterChange_SC(index) -> self._recvHeartbeatIndex = index
+    服务端不回，_recvHeartbeatIndex 永远是 0，
+    差值超过 15 后客户端就会 closeClient() + tryReConnect()。
+    """
+    payload = mp_arr([int(index)])
+    return build_entity_message(method_name="networkCheckAfterChange_SC",
+                                index=RPC_NETWORK_CHECK_SC,
                                 params=payload)
 
 
