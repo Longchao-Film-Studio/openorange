@@ -58,13 +58,15 @@ F_TWO = h(
 
 
 def parse_response(pkt):
+    """应答 = entityMessage(type=2) + methodName __rpc_response__ + field4/5。
+
+    这是扫客户端进程内存拿到 proto 描述符之后确定的格式，
+    见 game_server/ms.py 里 build_entity_response 的注释。
+    """
     plen = struct.unpack_from("<I", pkt, 0)[0]
     assert len(pkt) == 4 + plen, (len(pkt), plen)
-    mtype = struct.unpack_from("<H", pkt, 4)[0]
-    fields = msmod.pb_parse(pkt[6:])
-    rid = fields[1][0] if 1 in fields else None
-    raw = fields[2][0] if 2 in fields else b""
-    val, _ = msmod.mp_decode(raw)
+    mtype, method, rid, val = msmod.parse_entity_response(pkt)
+    assert method == "__rpc_response__", method
     return mtype, rid, val
 
 
@@ -122,7 +124,7 @@ def run():
 
     print("\n[4] 用实机帧跑应答（帧类型 + rid 回带）")
     mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1))
-    check("应答帧类型 = ENTITY_RESPONSE_FRAME_TYPE",
+    check("应答帧类型 = 2（entityMessage）",
           mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
           (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("RpcGetSunActLevel rid=1 回带", rid == 1, rid)

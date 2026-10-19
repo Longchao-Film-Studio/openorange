@@ -461,8 +461,8 @@ def _handle_gate_probe(conn, addr, cid):
                             # 应答格式穷举（实测 5 组全不认，默认关；见 ROADMAP 第 24 节）
                             if msmod.ENTITY_RESPONSE_TRY_CANDIDATES:
                                 try:
-                                    _combo = int(rid) % 5
-                                    _cpkt = msmod.build_entity_response_candidate(rid, _combo)
+                                    _combo = int(rid) % 20
+                                    _cpkt = msmod.build_entity_response_combo(rid, _combo)
                                     conn.sendall(_cpkt)
                                     print("[GATE] #%03d TX 应答候选 combo=%d rid=%d (%d B)"
                                           % (cid, _combo, rid, len(_cpkt)), flush=True)

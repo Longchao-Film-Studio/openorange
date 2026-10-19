@@ -42,13 +42,14 @@ def split_frame(pkt):
 
 
 def parse_response(pkt):
-    """解析 entityMessageResponse：字段 1 = rid，字段 2 = msgpack [ret, resp]。"""
-    mtype, body = split_frame(pkt)
-    fields = msmod.pb_parse(body)
-    rid = fields[1][0] if 1 in fields else None
-    raw = fields[2][0] if 2 in fields else b""
-    val, _ = msmod.mp_decode(raw)
-    return mtype, rid, val
+    """解析应答帧，返回 (mtype, rid, params)。
+
+    ★ 应答格式是逆向出来的（扫客户端进程内存拿到的 proto 描述符）：
+      type=2 entityMessage，field2="__rpc_response__"，field4=msgpack，field5=rid。
+    """
+    mtype, method, rid, params = msmod.parse_entity_response(pkt)
+    assert method == "__rpc_response__", method
+    return mtype, rid, params
 
 
 def run():
@@ -85,11 +86,8 @@ def run():
     print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
     pkt = erpc.handle(732022161, b"\x90", 7)
     mtype, rid, val = parse_response(pkt)
-    # ★ 帧类型本身还没最终确认（见 ROADMAP 第 24 节）：
-    #   type=3 实测是 channelMessage；5..9 客户端不认。这里只断言「用的是
-    #   ms.ENTITY_RESPONSE_FRAME_TYPE 这个常量」，改常量时测试跟着走，
-    #   不要在测试里写死数字。
-    check("帧类型 = ENTITY_RESPONSE_FRAME_TYPE",
+    # 应答 = entityMessage(type=2) + methodName __rpc_response__（逆向确认）
+    check("帧类型 = 2（entityMessage）",
           mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
           (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("rid 回带 7", rid == 7, rid)

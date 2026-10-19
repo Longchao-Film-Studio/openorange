@@ -561,10 +561,13 @@ def build_net_check_ack(index):
                                 params=payload)
 
 
-# server -> client 的 entityMessageResponse 帧类型。
-# 1=connectResponse 2=entityMessage 3=channelMessage 4=createChannelEntity 已知，
-# 所以应答从 5 开始试（改这里就能换类型做实验）。
-ENTITY_RESPONSE_FRAME_TYPE = 5
+# server -> client 的应答帧类型。
+# ★ 逆向确定：应答不是独立帧类型，而是 entityMessage(type=2) 带 methodName=__rpc_response__。
+#   依据：client_gate.proto 的 IGateClientService 只有
+#   1=connectResponse 2=entityMessage 3=channelMessage 4=createChannelEntity 5=disconnectClient ...
+#   没有 entityMessageResponse；而 xlua.dll 镜像里 GateClientProtobufHandler 的
+#   字符串表有 __rpc_response__ 这个魔数。
+ENTITY_RESPONSE_FRAME_TYPE = 2
 # 探测用：把同一个应答再换几个帧类型发一遍，让客户端自己认领。
 # 已确认 1/2/3/4 都被占用（3=channelMessage，实测把 chanMsg 异常从 5 次降到 0），
 # 5 也不对（回调仍超时）。所以 6..9 一起试，哪个能让 _SC 回调拿到 status=true 就是它。
@@ -594,6 +597,42 @@ def _cand_payload(ret, resp):
         resp = {}
     return mp_arr([ret, resp])
 
+
+
+# ---------------------------------------------------------------------------
+# 应答帧格式二维穷举（临时实验）
+# ---------------------------------------------------------------------------
+# 一次测 20 组：combo = rid % 20；type = BASE + combo // 4；layout = combo % 4
+# BASE 从 F:/haowancheng/work/oo_analysis/resp_type_base.txt 读，
+# 这样换一批帧类型不用改代码。
+_RESP_BASE_FILE = r"F:/haowancheng/work/oo_analysis/resp_type_base.txt"
+
+
+def _resp_type_base():
+    try:
+        return int(open(_RESP_BASE_FILE, encoding="utf-8").read().strip())
+    except Exception:
+        return 5
+
+
+RESP_PROBE_TYPE_BASE = _resp_type_base()
+
+
+def build_entity_response_combo(rid, combo):
+    """combo 0..19 -> (帧类型, 字段布局)。"""
+    payload = _cand_payload(None, None)
+    r = int(rid)
+    ftype = RESP_PROBE_TYPE_BASE + (combo // 4)
+    layout = combo % 4
+    if layout == 0:      # 1=rid, 2=params
+        body = pb_varint_field(1, r) + pb_bytes_field(2, payload)
+    elif layout == 1:    # 4=params, 5=rid
+        body = pb_bytes_field(4, payload) + pb_varint_field(5, r)
+    elif layout == 2:    # 3=rid, 4=params
+        body = pb_varint_field(3, r) + pb_bytes_field(4, payload)
+    else:                # 2=rid, 3=params
+        body = pb_varint_field(2, r) + pb_bytes_field(3, payload)
+    return frame(ftype, body)
 
 def build_entity_response_candidate(rid, combo):
     """combo 0..4 对应 5 种候选（帧类型, 字段布局）。"""
@@ -633,6 +672,61 @@ def build_entity_response_via_message(rid, ret=None, resp=None):
     return frame(2, body)
 
 
+
+
+def parse_entity_response(pkt):
+    """解析服务端应答帧，返回 (mtype, methodName, rid, params)。
+
+    ★ 逆向确定的应答格式（见 build_entity_response 注释）：
+      frame type=2 (entityMessage)
+        field 2 = \"__rpc_response__\"
+        field 4 = msgpack [retStatus, response]
+        field 5 = rid (int64)
+    """
+    mtype = int.from_bytes(pkt[4:6], "little")
+    body = pkt[6:]
+    i = 0
+    n = len(body)
+    method = None
+    params = None
+    rid = 0
+    while i < n:
+        key = body[i]
+        i += 1
+        fn, wt = key >> 3, key & 7
+        if wt == 0:
+            val = 0
+            shift = 0
+            while True:
+                b = body[i]
+                i += 1
+                val |= (b & 0x7F) << shift
+                if not (b & 0x80):
+                    break
+                shift += 7
+        elif wt == 2:
+            ln = 0
+            shift = 0
+            while True:
+                b = body[i]
+                i += 1
+                ln |= (b & 0x7F) << shift
+                if not (b & 0x80):
+                    break
+                shift += 7
+            val = body[i:i + ln]
+            i += ln
+        else:
+            raise ValueError("unsupported wire type %d" % wt)
+        if fn == 2:
+            method = val.decode("utf-8", "replace")
+        elif fn == 4:
+            decoded = mp_decode(val)
+            params = decoded[0] if isinstance(decoded, tuple) else decoded
+        elif fn == 5:
+            rid = val
+    return mtype, method, rid, params
+
 def reframe_as(pkt, new_type):
     """把已有帧的 msgType 换掉（body 不变），用来探测帧类型。"""
     return frame(new_type, pkt[6:])
@@ -667,8 +761,28 @@ def build_entity_response(rid, ret=None, resp=None):
     if resp is None:
         resp = {}
     payload = mp_arr([ret, resp])
-    body = pb_varint_field(1, int(rid)) + pb_bytes_field(2, payload)
-    # ★ 2026-10-20 修正帧类型：3 不是 entityMessageResponse，是 channelMessage！
+    # ★★★ 2026-10-20 逆向确定（扫客户端进程内存拿到解密后的 proto 描述符）：
+    #
+    #   client_gate.proto 里 IGateClientService 的方法顺序是：
+    #     1=connectResponse 2=entityMessage 3=channelMessage 4=createChannelEntity
+    #     5=disconnectClient 6=bindAccount 7=bindAvatar 8=bindSoul 9=unbindSoul ...
+    #   **根本没有 entityMessageResponse 这个帧类型**！
+    #
+    #   EntityMessage 的字段（描述符二进制直接读出来的）：
+    #     entityId=1  methodName=2  index=3  parameters=4  rid=5(int64)
+    #     sessionId=6  context=7
+    #
+    #   xlua.dll 镜像里 GateClientProtobufHandler 的字符串表：
+    #     connectResponse / __rpc_response__ / entityMessageResponse / entityMessage / ...
+    #   -> 应答就是 entityMessage(type=2)，但 methodName 必须是 __rpc_response__，
+    #      客户端看到这个魔数就改调 entityMessageResponse(rid, parameters)。
+    #
+    #   之前所有失败的原因：methodName 留空 -> 被派发到 Lua 的 entityMessage，
+    #   报 'got empty methodName'，回调永远等不到。
+    body = (pb_bytes_field(2, b"__rpc_response__")
+            + pb_bytes_field(4, payload)
+            + pb_varint_field(5, int(rid)))
+    return frame(2, body)
     #   证据：客户端日志一直有
     #     GateClientRpcHandler.lua:196: attempt to index local 'chanMsg' (a nil value)
     #   而 channelMessage(chanMsg) 在 gateclientrpchandler.lua:165 ——
@@ -676,9 +790,7 @@ def build_entity_response(rid, ret=None, resp=None):
     #   更硬的证据：把应答发成 type=3 之后，客户端的 _SC 回调全部超时：
     #     AvatarUserDataComp:SetSignature_SC, retStatus: {status=false, errmsg="rpc timeout"}
     #   服务端明明 TX 了应答，客户端却没收到回调 -> 应答根本没被派发。
-    #   s->c 已知：1=connectResponse 2=entityMessage 4=createChannelEntity，
-    #   3 被 channelMessage 占掉之后，entityMessageResponse 最可能是 5。
-    return frame(ENTITY_RESPONSE_FRAME_TYPE, body)
+
 
 
 def build_sunact_level_sc(rid, level_ids=None):

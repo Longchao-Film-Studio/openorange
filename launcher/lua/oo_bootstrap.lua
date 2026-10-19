@@ -1018,6 +1018,62 @@ local CB_NAMES = {
 --   SetSignature_CS(signature, callback) -> serverRpc(..., CallbackHandler(self, "SetSignature_SC"))
 --   SetSignature_SC(callback, retStatus, response) -> callback(retStatus)
 -- 所以回调能拿到 status=true，就说明整条 RPC 链闭环了。
+-- ------------------------------------------------------------
+-- dump phonestcore 的全部 key（它暴露了 HandlerTypeGateClient 这类常量，
+-- 也许还有消息类型枚举，能直接解掉 entityMessageResponse 的帧类型问题）
+-- ------------------------------------------------------------
+-- ------------------------------------------------------------
+-- 让客户端自己编码一帧 entityMessageResponse，我们抓包看真实格式
+-- ------------------------------------------------------------
+-- core/net/rpchandler.lua:20-26 dispatchRpc 是双向的：
+--   function RpcHandler:dispatchRpc(rpcName, ...)
+--     if self.cObj then self.cObj:dispatchRpc(rpcName, ...) end
+-- 所以客户端可以直接让它编码任意一个 handler 方法。
+-- 我们调 entityMessageResponse(rid, parameters)，抓包就能拿到：
+--   1) 帧头里的 u16 方法索引（= 真正的帧类型）
+--   2) protobuf 字段布局（rid / parameters 各在几号字段）
+local function probe_encode_response()
+  if pc.encresp then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local CR = original_require('Core.Client.ClientRepo')
+    local nh = CR.netHandler
+    if nh == nil then return end
+    local gc = nh.gateClient
+    if gc == nil then return end
+    local h = gc.handler
+    if h == nil or h.cObj == nil then return end
+    pc.encresp = true
+    -- msgpack: [ {status:true, errmsg:""}, {} ]
+    local payload = string.char(0x92)
+      .. string.char(0x82) .. string.char(0xA6) .. 'status' .. string.char(0xC3)
+      .. string.char(0xA6) .. 'errmsg' .. string.char(0xA0)
+      .. string.char(0x80)
+    LOG('encresp| payload hex = ' .. string.format('%s', (payload:gsub('.', function(c) return string.format('%02x', string.byte(c)) end))))
+    LOG('encresp| 调 cObj:dispatchRpc(entityMessageResponse, 4242, payload)')
+    local ok, err = pcall(function() h.cObj:dispatchRpc('entityMessageResponse', 4242, payload) end)
+    LOG('encresp| ok=' .. tostring(ok) .. ' err=' .. tostring(err))
+  end)
+end
+local function probe_phonestcore_keys()
+  if pc.phkeys then return end
+  pc.phkeys = true
+  local ok, ph = pcall(original_require, 'phonestcore')
+  if not ok or type(ph) ~= 'table' then
+    LOG('phkeys: phonestcore 不可用')
+    return
+  end
+  local keys = {}
+  for k, v in pairs(ph) do
+    keys[#keys + 1] = tostring(k) .. ' = ' .. tostring(v)
+  end
+  table.sort(keys)
+  LOG('phkeys| phonestcore 共 ' .. #keys .. ' 个 key')
+  for i = 1, math.min(#keys, 120) do
+    LOG('phkeys| ' .. keys[i])
+  end
+end
 local function probe_p1_setrpc()
   if pc.setrpc then return end
   pcall(function()
@@ -1054,10 +1110,18 @@ local function probe_p1_setrpc()
       { 'SetIsHonorWallShown',       function(c) A:SetIsHonorWallShown_CS(1, c) end },
       { 'SetIsAccountCreateTimeHidden', function(c) A:SetIsAccountCreateTimeHidden_CS(0, c) end },
     }
-    for _, item in ipairs(calls) do
-      local ok, e = pcall(function() item[2](cb(item[1])) end)
-      LOG('setrpc| ' .. item[1] .. '_CS 发出 ok=' .. tostring(ok) .. ' err=' .. tostring(e))
+    -- 5 个 setter 各调 4 次 = 20 次，rid 连续 20 个 -> rid %% 20 覆盖全部 20 组组合
+    local n = 0
+    for round = 1, 4 do
+      for _, item in ipairs(calls) do
+        n = n + 1
+        local ok, e = pcall(function() item[2](cb(item[1] .. '#' .. n)) end)
+        if not ok then
+          LOG('setrpc| ' .. item[1] .. ' 发出失败: ' .. tostring(e))
+        end
+      end
     end
+    LOG('setrpc| 共发出 ' .. n .. ' 条，等待回调（每组超时 10 秒）')
   end)
 end
 local function probe_p1_accept()
@@ -1375,9 +1439,11 @@ local function install_cb_wrappers()
           -- 等界面起来几帧再反射 C# 类型，太早 CS 可能还没初始化完
           pc.frames = (pc.frames or 0) + 1
           if pc.frames == 90 then pcall(probe_cs_api) end
+          if pc.frames == 60 then pcall(probe_phonestcore_keys) end
           if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
           if (pc.frames % 30) == 15 then pcall(probe_p1_accept) end
           if (pc.frames % 30) == 20 then pcall(probe_p1_setrpc) end
+          if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
         end
         local n = select('#', ...)
         local parts = {}
