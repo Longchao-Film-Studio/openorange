@@ -34,6 +34,7 @@ import threading
 import time
 
 from . import ms as msmod
+from . import entity_rpc as erpc
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -423,21 +424,6 @@ def _handle_gate_probe(conn, addr, cid):
                             print("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e), flush=True)
                         rpkt = msmod.build_net_check_ack(hb)
                         label = "networkCheckAfterChange_SC(%d)" % hb
-                    elif idx == msmod.RPC_GET_SUNACT_LEVEL_CS:
-                        # 这条是 serverRpc（带回调 rid），不回就 2 秒后弱网转圈
-                        rpkt = msmod.build_sunact_level_sc(rid)
-                        label = "RpcGetSunActLevel_SC(rid=%d)" % rid
-                    elif idx == msmod.RPC_QUERY_MY_TEAM_INFO_CS:
-                        rpkt = msmod.build_team_info_sc(rid)
-                        label = "QueryMyTeamInfo_SC(rid=%d, 无队伍)" % rid
-                    elif idx == msmod.RPC_GET_MATCH_DURATION:
-                        rpkt = msmod.build_match_duration_sc(rid)
-                        label = "RpcGetMatchDuration_SC(rid=%d)" % rid
-                    elif idx == msmod.RPC_PULL_HOTFIX:
-                        # basecomp.lua:8 用 CallServer 发，rid 恒为 0，单向。
-                        # 真正的应答是 RpcSyncHotfix(hotfix_md5, hotfix)，
-                        # 但 HotfixManager 没有阻塞登录，先不回。
-                        label = None
                     elif idx == msmod.RPC_CMD_AVATAR_STARTGAME_CS:
                         # clientavatar.lua:180 序章 StartGame。已经把
                         # story_finished[1] 置真，正常不会走到这里。
@@ -450,14 +436,19 @@ def _handle_gate_probe(conn, addr, cid):
                         # 这是我们自己 echo 造成的，现在不再 echo，理论上不会再出现
                         label = None
                     else:
-                        label = None
+                        # 其余全部交给实体 RPC 层：带 rid 的一律回
+                        # entityMessageResponse，单向的返回 None。
+                        # 阶段 1 三个组件的 RPC 清单在 game_server/entity_rpc.py。
+                        rpkt = erpc.handle(idx, params, rid)
+                        if rpkt is not None:
+                            label = "%s(rid=%d)" % (erpc.describe(idx), rid)
 
                     if rpkt is not None:
                         conn.sendall(rpkt)
                         print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(rpkt)), flush=True)
                         print(_hexdump(rpkt, limit=256), flush=True)
                     else:
-                        print("[GATE] #%03d index=%s 无需应答" % (cid, idx), flush=True)
+                        print("[GATE] #%03d %s 无需应答" % (cid, erpc.describe(idx)), flush=True)
 
             # 主动下发 bindAccount —— 只在 reqType=0（NEW_CONNECTION）时发。
             #

@@ -145,6 +145,51 @@ def cmd_lookup(argv):
         print("%-12s -> %s" % (idx, ", ".join(names) if names else "（表里没有）"))
 
 
+def cmd_verify(argv):
+    """用真身 genRpcIndex 重新核对 game_server/entity_rpc.py 里的索引表。
+
+    这一步是「不靠猜」的闭环：代码里每个硬编码的索引都能被机器复算一遍。
+    """
+    dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
+    if not os.path.isfile(dll):
+        raise SystemExit("找不到 xlua.dll: %s" % dll)
+    sys.path.insert(0, ROOT)
+    from game_server.entity_rpc import RPC_INDEX
+
+    lib, state = _open_lua(dll)
+    lua_lines = ["local f = io.open('%s', 'w')" % os.path.join(
+        ROOT, "work", "verify_hashes.tsv").replace("\\", "/")]
+    lua_lines.append("local names = {")
+    for nm in RPC_INDEX:
+        lua_lines.append('  "%s",' % nm)
+    lua_lines.append("}")
+    lua_lines.append("for _, n in ipairs(names) do")
+    lua_lines.append("  local ok, v = pcall(phonestcore.genRpcIndex, n)")
+    lua_lines.append("  if ok and f then f:write(n, '\\t', tostring(v), '\\n') end")
+    lua_lines.append("end")
+    lua_lines.append("if f then f:close() end")
+    code = "\n".join(lua_lines)
+    if lib.luaL_loadstring(state, code.encode("utf-8")) != 0:
+        raise SystemExit("Lua 片段加载失败")
+    if lib.lua_pcall(state, 0, 0, 0) != 0:
+        raise SystemExit("genRpcIndex 失败")
+
+    out = os.path.join(ROOT, "work", "verify_hashes.tsv")
+    bad = 0
+    n = 0
+    for line in open(out, encoding="utf-8"):
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) != 2:
+            continue
+        nm, idx = parts[0], int(parts[1])
+        n += 1
+        if RPC_INDEX[nm] != idx:
+            bad += 1
+            print("  MISMATCH %-40s 代码=%s 真身=%s" % (nm, RPC_INDEX[nm], idx))
+    print("核对 %d 条，不一致 %d 条" % (n, bad))
+    return 0 if bad == 0 else 1
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -156,6 +201,8 @@ def main():
         cmd_build(sys.argv[2:])
     elif cmd == "lookup":
         cmd_lookup(sys.argv[2:])
+    elif cmd == "verify":
+        return cmd_verify(sys.argv[2:])
     else:
         print(__doc__)
         return 1
