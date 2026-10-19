@@ -520,23 +520,12 @@ local function probe_rpc_api()
   local ok5, v5 = pcall(ph.getRpcName)
   LOG('  rpcNameNoArg| ok=' .. tostring(ok5) .. ' val=' .. tostring(v5))
 
-  -- 宽范围扫描：如果线包里的 u16 是"注册序号"，
-  -- 那么 getRpcName(序号) / getSendRpcName(序号) 应该能查到名字。
-  LOG('===== 扫描注册表 0..2000 =====')
-  local hitName, hitSend = 0, 0
-  for i = 0, 2000 do
-    local okA, va = pcall(ph.getRpcName, i)
-    if okA and type(va) == 'string' and va ~= '' then
-      hitName = hitName + 1
-      LOG('  reg| getRpcName(' .. i .. ') = ' .. va)
-    end
-    local okB, vb = pcall(ph.getSendRpcName, i)
-    if okB and type(vb) == 'string' and vb ~= '' then
-      hitSend = hitSend + 1
-      LOG('  reg| getSendRpcName(' .. i .. ') = ' .. vb)
-    end
-  end
-  LOG('  reg| 命中 getRpcName=' .. hitName .. ' getSendRpcName=' .. hitSend)
+  -- ★ 2026-10-20 移除：原来这里 for i = 0, 2000 扫 getRpcName，
+  --   每个未注册的索引都会让原生层打一条
+  --     [PHONESTCORE_HOOK] [rpc index N not found]
+  --   一次启动就产生 2001 条 CrashSight 异常日志，把真正的错误埋掉了。
+  --   这个探测当时是为了搞清「注册序号 vs 哈希」，结论早就有了（是 32 位哈希），
+  --   所以整段删掉。
 
   -- 试 registerRpc 的签名（只观察报错信息，不实际改变行为）
   local okR, vR = pcall(ph.registerRpc)
@@ -1386,51 +1375,28 @@ function require(name)
       LOG('lua: G.init hook installed')
     end
 
-  -- (5) RPC 层：记录客户端发出的每个 RPC 与服务端回调
+  -- (5) GateClientRpcHandler：不再做方法包装
+  --
+  -- ★ 2026-10-20 移除：这里原来包了 dispatchRpc 和 bindAccount/bindAvatar/
+  --   bindSoul/unbindSoul/disconnectClient，实机日志里立刻出现
+  --     class GateClientRpcHandler has repeat attr bindAccount
+  --     class GateClientRpcHandler has repeat attr bindAvatar
+  --     ...（每个被包的方法一条）
+  --   这正是项目里记过的「绝不能包装类方法」——游戏有类属性重复校验。
+  --   RPC 收发现在看服务端协议日志就够了（gamesrv_runX.log），
+  --   客户端这边不需要再包。
   elseif key == 'core.client.gateclientrpchandler' and not pc.rpchook then
     pc.rpchook = true
-    if type(m) == 'table' then
-      local dr = m.dispatchRpc
-      if type(dr) == 'function' then
-        m.dispatchRpc = function(self, rpcName, ...)
-          LOG('rpc TX: ' .. tostring(rpcName) .. ' (' .. argstr(...) .. ')')
-          return dr(self, rpcName, ...)
-        end
-      end
-      for _, n in ipairs({ 'connectResponse', 'confirmEncryptKeyAck',
-                           'bindAccount', 'bindAvatar', 'bindSoul',
-                           'unbindSoul', 'disconnectClient' }) do
-        local f = m[n]
-        if type(f) == 'function' then
-          m[n] = function(self, ...)
-            LOG('rpc RX: ' .. n .. ' (' .. argstr(...) .. ')')
-            return f(self, ...)
-          end
-        end
-      end
-      LOG('lua: RPC tracer installed')
-    end
+    LOG('lua: GateClientRpcHandler 已加载（不做方法包装）')
 
-  -- (5b) ServerListComp：记录 LoginGameServer / QueryLoadService
+  -- (5b) ServerListComp：同样不再包装
+  --
+  -- ★ 2026-10-20 移除：原来包了 LoginGameServer / QueryLoadService /
+  --   queryServerList / RefreshServerList / QueryServerList，
+  --   实机日志出现 component ServerListComp has repeat attr queryServerList。
   elseif key == 'manager.login.serverlistcomp' and not pc.slchook then
     pc.slchook = true
-    if type(m) == 'table' then
-      for _, n in ipairs({ 'LoginGameServer', 'QueryLoadService', 'queryServerList',
-                           'RefreshServerList', 'QueryServerList' }) do
-        local f = m[n]
-        if type(f) == 'function' then
-          m[n] = function(self2, ...)
-            LOG('slc: ' .. n .. ' (' .. argstr(...) .. ')')
-            local r = f(self2, ...)
-            LOG('slc: ' .. n .. ' -> ' .. tostring(r))
-            return r
-          end
-        else
-          LOG('slc: ' .. n .. ' 不存在(可能是C#实现)')
-        end
-      end
-      LOG('lua: ServerListComp tracer installed')
-    end
+    LOG('lua: ServerListComp 已加载（不做方法包装）')
 
   -- (5c) LoginManager / GateClient：不再做方法包装
   --
