@@ -43,8 +43,72 @@ except Exception:
 
 # 最近一次 ms GameLoadService.query 里带的账号名。
 # gate 的帧里没有账号标识，但同一个客户端会先走 ms 登录，
-# 所以在这里记下来，createChannelEntity 时用它上报在线。
+# 所以在这里记下来。
 _last_username = None
+
+# ---- 多账号：gate 连接 <-> 账号 的关联 ----
+#
+# 客户端登录顺序是固定的：ms 上先发 GameLoadService.query（带 Username），
+# 然后 gate 建新连接（reqType=0）。所以用「待关联队列 + 时间窗」把它们对上。
+# 局限：两个客户端**同时**启动时可能串号（先后启动没问题）。
+# 要彻底解决得让客户端把账号带进 connectServer 的 auth 字段。
+_USERNAME_LOCK = threading.Lock()
+_pending_usernames = []          # [(ts, username)]
+_gate_uid = {}                   # cid -> username（= 游戏内 uid）
+USERNAME_MATCH_WINDOW = 30       # 秒
+
+
+def _remember_username(username):
+    """ms query 里看到的账号名，放进待关联队列。"""
+    if not username:
+        return
+    now = time.time()
+    with _USERNAME_LOCK:
+        _pending_usernames.append((now, username))
+        # 只留窗口内的，防止无限增长
+        while _pending_usernames and now - _pending_usernames[0][0] > USERNAME_MATCH_WINDOW * 4:
+            _pending_usernames.pop(0)
+
+
+def _claim_username():
+    """给一条新 gate 连接领一个账号名（最早的、窗口内的）。领不到返回 None。"""
+    now = time.time()
+    with _USERNAME_LOCK:
+        while _pending_usernames:
+            ts, name = _pending_usernames.pop(0)
+            if now - ts <= USERNAME_MATCH_WINDOW:
+                return name
+        return None
+
+
+def _uid_of(cid):
+    """这条 gate 连接对应的 uid（= 账号名）。没有就回退默认值。"""
+    return _gate_uid.get(cid) or "OO00000001"
+
+
+def _uid_from_auth(fields):
+    """从 connectServer 的 auth 字段里还原账号 uid。
+
+    绑定链的每一步都是**新连接**（新 cid），所以账号不能只靠 cid 记住。
+    好在 bindAccount/bindAvatar 下发的 mailbox 名字客户端会原样回传在 auth 里：
+      reqType=4 -> auth = Mailbox{1:"account_<uid>", 2:ip, 3:port, 4:...}
+      reqType=3 -> auth = Mailbox{1:"avatar_<uid>",  ...}
+    所以剥掉前缀就能把账号带过整条链路。
+    """
+    raw = fields.get(5)
+    if not raw:
+        return None
+    try:
+        mb = msmod.pb_parse(raw[0])
+        name = mb.get(1, [b""])[0]
+        if isinstance(name, bytes):
+            name = name.decode("utf-8", "replace")
+        for p in ("account_", "avatar_"):
+            if name.startswith(p):
+                return name[len(p):]
+    except Exception:
+        pass
+    return None
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -255,6 +319,7 @@ def _handle_ms(conn, addr, cid):
                             _q = msmod.mp_decode(fields[4][0])[0]
                             if isinstance(_q, dict) and _q.get("Username"):
                                 _last_username = _q["Username"]
+                                _remember_username(_last_username)
                                 print("[ms] #%03d 账号 %s" % (cid, _last_username), flush=True)
                         except Exception:
                             pass
@@ -405,6 +470,23 @@ def _handle_gate_probe(conn, addr, cid):
                 except Exception as e:
                     print("[GATE] #%03d 帧类型=%d  protobuf 解析失败: %s" % (cid, frame_type, e), flush=True)
 
+            # ★ 多账号：新连接（reqType=0）到达时，从待关联队列里领一个账号名。
+            #   必须在回 ConnectServerResp 之前领，后面整条链路都要用这个 uid。
+            if proto_req == 0 and cid not in _gate_uid:
+                _claimed = _claim_username()
+                _gate_uid[cid] = _claimed
+                print("[GATE] #%03d 关联账号 %s"
+                      % (cid, _claimed or "(队列为空，回退 OO00000001)"), flush=True)
+            elif proto_req in (2, 3, 4) and cid not in _gate_uid:
+                # 绑定链的后续连接：从 auth 里的 mailbox 名字还原账号
+                try:
+                    _u = _uid_from_auth(fields)
+                except Exception:
+                    _u = None
+                if _u:
+                    _gate_uid[cid] = _u
+                    print("[GATE] #%03d 从 auth 还原账号 %s" % (cid, _u), flush=True)
+
             # 正确应答：ConnectServerResp {1: Connected, 2: sessionId, 5: content_type=MSGPACK}
             # content_type 必须显式写出（proto2 has-field 语义），否则客户端判为无效。
             #
@@ -433,10 +515,11 @@ def _handle_gate_probe(conn, addr, cid):
                         pass
                 print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)
             elif is_connect_frame:
-                pkt = msmod.frame_connect_resp(1, "OO00000001")
+                _sid = _uid_of(cid)
+                pkt = msmod.frame_connect_resp(1, _sid)
                 conn.sendall(pkt)
-                print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:OO00000001, 5:MSGPACK} (%d B)"
-                      % (cid, len(pkt)), flush=True)
+                print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:%s, 5:MSGPACK} (%d B)"
+                      % (cid, _sid, len(pkt)), flush=True)
                 print(_hexdump(pkt, limit=256), flush=True)
             else:
                 # 实体 RPC：试探性地 echo field 3 回去，参数给空 msgpack map。
@@ -487,7 +570,7 @@ def _handle_gate_probe(conn, addr, cid):
                         # 其余全部交给实体 RPC 层：带 rid 的一律回
                         # entityMessageResponse，单向的返回 None。
                         # 阶段 1 三个组件的 RPC 清单在 game_server/entity_rpc.py。
-                        rpkt = erpc.handle(idx, params, rid)
+                        rpkt = erpc.handle(idx, params, rid, uid=_uid_of(cid))
                         if rpkt is not None:
                             label = "%s(rid=%d)" % (erpc.describe(idx), rid)
 
@@ -532,11 +615,20 @@ def _handle_gate_probe(conn, addr, cid):
             #   真实服务端对每条连接都必须应答，这里改成无条件。
             _bind_push_count += 1
             if True:
+                _sid = _uid_of(cid)
                 if proto_req == 0:
-                    bpkt = msmod.frame_bind_account(session_id="OO00000001")
+                    # mailbox 名字带上账号，客户端会把 auth 原样回传，
+                    # 便于在日志里确认「这条连接确实是这个账号」
+                    bpkt = msmod.frame_bind_account(
+                        session_id=_sid,
+                        act_mailbox=msmod.build_entity_mailbox(
+                            entity_id="account_%s" % _sid))
                     label = "bindAccount"
                 elif proto_req == 4:
-                    bpkt = msmod.frame_bind_avatar(session_id="OO00000001")
+                    bpkt = msmod.frame_bind_avatar(
+                        session_id=_sid,
+                        avt_mailbox=msmod.build_entity_mailbox(
+                            entity_id="avatar_%s" % _sid))
                     label = "bindAvatar"
                 elif proto_req == 3:
                     # ★ reqType=3 (BIND_AVATAR)：客户端在这里等 createChannelEntity。
@@ -549,7 +641,11 @@ def _handle_gate_probe(conn, addr, cid):
                     #
                     # 依据 gateclientrpchandler.lua:createChannelEntity，
                     # 这条消息是 IGateClientService 的第 4 个方法。
-                    bpkt = msmod.build_channel_entity()
+                    _sid = _uid_of(cid)
+                    bpkt = msmod.build_channel_entity(
+                        entity_id="avatar_%s" % _sid,
+                        session_id=_sid,
+                        uid=_sid)
                     label = "createChannelEntity"
                 else:
                     bpkt = None
@@ -566,8 +662,8 @@ def _handle_gate_probe(conn, addr, cid):
                             shared_db.set_game_online(
                                 session_id="gate-%03d" % cid,
                                 username=_last_username,
-                                uid="OO00000001",
-                                entity_id="avatar_2000",
+                                uid=_uid_of(cid),
+                                entity_id="avatar_%s" % _uid_of(cid),
                                 addr="%s:%d" % (addr[0], addr[1]))
                             print("[GATE] #%03d 在线登记 %s"
                                   % (cid, _last_username or "(未知账号)"), flush=True)
@@ -577,7 +673,8 @@ def _handle_gate_probe(conn, addr, cid):
         print("[GATE] #%03d error: %s" % (cid, e), flush=True)
     finally:
         dur = int((time.time() - t0) * 1000)
-        # 连接断开就从在线表里摘掉
+        # 连接断开就从在线表里摘掉，并释放账号关联
+        _gate_uid.pop(cid, None)
         if shared_db is not None:
             try:
                 shared_db.clear_game_online("gate-%03d" % cid)

@@ -367,10 +367,12 @@ _LEGACY_INIT_DICT = {
 DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") else _LEGACY_INIT_DICT
 
 
-def _live_init_dict():
+def _live_init_dict(uid=None):
     """登录时的 initDict 用服务端可变状态（player_state）。
 
     这样 Set* 改过的值、以及落盘后重启的存档，都会在下次登录时生效。
+    uid 不为空时把 initDict 里的 uid 覆盖成它 —— 多账号时每个账号用自己的 uid
+    （现在 uid 直接复用账号名，见 game_server/server.py 的在线账号关联）。
     """
     try:
         from . import player_state as pstate
@@ -384,16 +386,21 @@ def _live_init_dict():
         #   avatar_init.json 里是 "#9001" 这种写法，_conv_int_keys 之后才是 9001。
         #   以前只有发包时才转换，导致 player_state 里存的是 "#9001"，
         #   改数据、算同步的 name 时对不上。
-        props = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {})).props
+        props = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
+                                 uid=uid).props
     except Exception:
         return DEFAULT_INIT_DICT
+    if uid:
+        props = dict(props)
+        props["uid"] = uid
     return {"__Properties__": props}
 
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
                          init_dict=None,
                          entity_id="avatar_2000",
-                         session_id="OO00000001"):
+                         session_id="OO00000001",
+                         uid=None):
     """构造 createChannelEntity（IGateClientService 第 4 个方法）。
 
     字段 1 按 **string** 发类名（如 "ClientAvatar"）；
@@ -402,7 +409,7 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
     if not isinstance(entity_type, bytes):
         entity_type = str(entity_type).encode("utf-8")
     if init_dict is None:
-        init_dict = _live_init_dict()
+        init_dict = _live_init_dict(uid)
     info = mp_map(_conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
     body = pb_bytes_field(1, entity_type)
     body += pb_bytes_field(2, info)

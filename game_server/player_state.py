@@ -31,7 +31,9 @@ _STATE_DIR = (os.environ.get("OO_STATE_DIR")
                or os.path.join(os.path.dirname(_HERE), "work", "player_state"))
 
 _LOCK = threading.RLock()
-_CURRENT = None
+# 每个账号一份状态：uid -> PlayerState。
+# 以前只有一个 _CURRENT，多开时所有客户端会共用同一份数据。
+_STATES = {}
 
 DEFAULT_UID = "OO00000001"
 
@@ -146,26 +148,41 @@ def load(uid=DEFAULT_UID):
 
 
 def get_state(init_props=None, uid=DEFAULT_UID):
-    """取当前玩家状态；第一次调用时优先读盘，没有盘就用 init_props 建一份。"""
-    global _CURRENT
+    """取某个账号的玩家状态；第一次调用时优先读盘，没有盘就用 init_props 建一份。
+
+    多账号：按 uid 分开缓存，各自读自己的 <uid>.json。
+    """
+    uid = uid or DEFAULT_UID
     with _LOCK:
-        if _CURRENT is None:
+        st = _STATES.get(uid)
+        if st is None:
             st = load(uid)
             if st is None:
                 st = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
-            _CURRENT = st
-        return _CURRENT
+            _STATES[uid] = st
+        return st
 
 
 def reset_state(init_props=None, uid=DEFAULT_UID):
-    global _CURRENT
+    uid = uid or DEFAULT_UID
     with _LOCK:
-        _CURRENT = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
-        return _CURRENT
+        _STATES[uid] = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
+        return _STATES[uid]
 
 
-def save_state():
+def save_state(uid=None):
+    """保存状态。uid 为 None 时保存全部。"""
     with _LOCK:
-        if _CURRENT is None:
-            return False
-        return _CURRENT.save()
+        if uid is not None:
+            st = _STATES.get(uid)
+            return st.save() if st is not None else False
+        ok = True
+        for st in _STATES.values():
+            ok = st.save() and ok
+        return ok
+
+
+def list_states():
+    """当前缓存里有哪些账号。"""
+    with _LOCK:
+        return sorted(_STATES.keys())

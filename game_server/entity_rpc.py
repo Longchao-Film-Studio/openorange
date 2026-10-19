@@ -127,7 +127,7 @@ def describe(index):
 # ---------------------------------------------------------------------------
 # 具体应答
 # ---------------------------------------------------------------------------
-def _sunact_level(rid, params):
+def _sunact_level(rid, params, uid=None):
     """RpcGetSunActLevel_CS -> RpcGetSunActLevel_SC。
 
     avatarsunactcomp.lua:315-321：
@@ -138,7 +138,7 @@ def _sunact_level(rid, params):
     return msmod.build_sunact_level_sc(rid)
 
 
-def _match_duration(rid, params):
+def _match_duration(rid, params, uid=None):
     """RpcGetMatchDuration -> 应答。
 
     avatarmatch.lua:73-79：
@@ -149,7 +149,7 @@ def _match_duration(rid, params):
     return msmod.build_match_duration_sc(rid)
 
 
-def _team_info(rid, params):
+def _team_info(rid, params, uid=None):
     """QueryMyTeamInfo_CS -> 应答（该玩家不在任何队伍里）。
 
     avatarteamcomp.lua:688-707：
@@ -161,7 +161,7 @@ def _team_info(rid, params):
     return msmod.build_team_info_sc(rid)
 
 
-def _upgrade_character(rid, params):
+def _upgrade_character(rid, params, uid=None):
     """1-1 角色升级：加 CharLevel + 推 characterBag 子属性同步。
 
     客户端 entities/avatarcomponent/avatarcharcomp.lua:1015-1029：
@@ -184,7 +184,7 @@ def _upgrade_character(rid, params):
     if not (isinstance(vals, list) and vals):
         return frames
     char_id = vals[0]
-    st = _state()
+    st = _state(uid)
     bag = st.get("characterBag")
     if not isinstance(bag, dict):
         return frames
@@ -214,7 +214,7 @@ def _upgrade_character(rid, params):
     return frames
 
 
-def _use_item(rid, params):
+def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
     客户端 entities/avatarcomponent/avatarbagcomp.lua:340-346：
@@ -238,7 +238,7 @@ def _use_item(rid, params):
         return frames
     if count <= 0:
         return frames
-    st = _state()
+    st = _state(uid)
     bag = st.get("item_bag")
     if not isinstance(bag, dict):
         return frames
@@ -297,9 +297,9 @@ _CONST_SETTERS = {
 }
 
 
-def _apply_property(prop_name, new_value):
+def _apply_property(prop_name, new_value, uid=None):
     """把新值写进状态，返回要推给客户端的值。"""
-    st = _state()
+    st = _state(uid)
     cur = st.get(prop_name)
     if isinstance(cur, dict) and "__tp__" in cur:
         # 自定义类型：保留 __tp__/__id__，用新值重建条目
@@ -315,7 +315,7 @@ def _apply_property(prop_name, new_value):
     return new_value
 
 
-def _generic_setter(rid, params, spec):
+def _generic_setter(rid, params, spec, uid=None):
     """Set*_CS 的通用处理：改数据 + 推根属性同步。"""
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     prop_name, arg_idx = spec
@@ -326,13 +326,13 @@ def _generic_setter(rid, params, spec):
         if not (isinstance(vals, list) and len(vals) > arg_idx):
             return frames
         new_value = vals[arg_idx]
-    applied = _apply_property(prop_name, new_value)
+    applied = _apply_property(prop_name, new_value, uid)
     frames.append(msmod.build_property_sync(
         "", 0, msmod.OP_CHANGE, prop_name, applied))
     return frames
 
 
-def _const_setter(rid, params, spec):
+def _const_setter(rid, params, spec, uid=None):
     """无参数 setter：把属性置成常量 + 推同步。"""
     prop_name, const_value = spec
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
@@ -345,13 +345,13 @@ def _const_setter(rid, params, spec):
 def _make_setter(spec, is_const):
     fn = _const_setter if is_const else _generic_setter
 
-    def handler(rid, params):
-        return fn(rid, params, spec)
+    def handler(rid, params, uid=None):
+        return fn(rid, params, spec, uid)
 
     return handler
 
 
-def _set_signature(rid, params):
+def _set_signature(rid, params, uid=None):
     """1-3 改签名：真正改服务端状态，再推一条属性同步。
 
     依据 entities/avatarcomponent/avataruserdatacomp.lua:348-352：
@@ -362,7 +362,7 @@ def _set_signature(rid, params):
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if isinstance(vals, list) and vals and isinstance(vals[0], str):
-        st = _state()
+        st = _state(uid)
         st.set("signature", vals[0])
         st.save()
         # ★ propertyId = 0 表示「改根属性」，客户端会走
@@ -374,12 +374,12 @@ def _set_signature(rid, params):
     return frames
 
 
-def _state():
-    """服务端可变玩家状态（懒加载，首次用 initDict 初始化）。"""
+def _state(uid=None):
+    """服务端可变玩家状态（按 uid 分开，懒加载，首次用 initDict 初始化）。"""
     from . import player_state as pstate
     # 和 ms._live_init_dict 保持一致：状态里一律用整数键
     props = msmod._conv_int_keys(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
-    return pstate.get_state(props)
+    return pstate.get_state(props, uid=uid or pstate.DEFAULT_UID)
 
 
 # 索引 -> 处理函数。没列进来的走通用 ACK。
@@ -401,8 +401,10 @@ for _name, _spec in _CONST_SETTERS.items():
         _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
 
 
-def handle(index, params, rid):
+def handle(index, params, rid, uid=None):
     """处理一条实体 RPC，返回**帧列表**（可能为空）。
+
+    uid：这条连接对应的账号 uid（多账号时由服务端从 gate 连接上带过来）。
 
     返回列表是因为有的 RPC 除了应答帧，还要推额外的帧（比如 SetSignature_CS
     改完签名要再推一条 propertySync2Client）。
@@ -418,7 +420,7 @@ def handle(index, params, rid):
         return []
     fn = _HANDLERS.get(index)
     if fn is not None:
-        out = fn(rid, params)
+        out = fn(rid, params, uid)
         if out is None:
             return []
         return out if isinstance(out, list) else [out]
