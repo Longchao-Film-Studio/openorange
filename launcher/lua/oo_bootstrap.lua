@@ -1047,6 +1047,31 @@ local GATE_RPC_NAMES = {
 }
 
 -- ------------------------------------------------------------
+-- 实体 RPC 应答名（_SC）补注册（历史遗留，保留但已不是关键路径）
+-- ------------------------------------------------------------
+-- 依据 core/common/entityfactory.lua:97-122：
+--   EntityFactory._parseMethod 只遍历 config 里 5 个 accessor 段
+--   （ClientOnlyMsg / ServerOnlyMsg / ChannelMsg / EngineMsg / GmMethod），
+--   对每个名字调 phonestcore.registerRpc。所有 _SC 应答方法都不在这 5 段里，
+--   所以原生 RpcIndex 查不到它们的名字，实机日志：
+--     [PHONESTCORE_HOOK] [rpc index 405867711 not found]
+--       [RpcIndex.cpp:31(phonestcore::RpcIndex::getRpcName)]
+--
+-- ★ 但补注册**并不够**：把应答塞进 entityMessage 时，名字能查到之后客户端又报
+--     [RpcCall] Entity(avatar_2000) CallRpc Error.
+--       Function(RpcGetSunActLevel_SC) Is Not Rpc.
+--   因为 entityMessage 一律走 CallRpc 查 EntityFactory.rpc_methods，而 _SC
+--   从来没被注册成 rpc_method。
+--   真正的应答通道是独立的 entityMessageResponse（帧类型 3，字段 1=rid、
+--   字段 2=msgpack[retStatus, response]），见
+--   core/client/gateclientrpchandler.lua:128-150 —— 那条路不需要名字。
+--   这里保留注册只是让日志干净些，别再指望它解决派发问题。
+local SERVER_RPC_SC_NAMES = {
+  'RpcGetSunActLevel_SC',
+  'RpcGetMatchDuration_SC',
+}
+
+-- ------------------------------------------------------------
 -- 注册实体类名到原生索引表
 -- ------------------------------------------------------------
 -- createChannelEntity 的 ChannelEntityInfo.type 是 uint32，但 Lua 侧
@@ -1063,7 +1088,10 @@ local function register_gate_rpcs(ph)
   if pc.rpcreg or type(ph) ~= 'table' then return end
   pc.rpcreg = true
   local ok_n, fail_n = 0, 0
-  for _, nm in ipairs(GATE_RPC_NAMES) do
+  local all = {}
+  for _, nm in ipairs(GATE_RPC_NAMES) do all[#all + 1] = nm end
+  for _, nm in ipairs(SERVER_RPC_SC_NAMES) do all[#all + 1] = nm end
+  for _, nm in ipairs(all) do
     local ok, idx = pcall(ph.registerRpc, nm)
     if ok then
       ok_n = ok_n + 1

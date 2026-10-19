@@ -158,7 +158,9 @@ def mp_map(d):
     else:
         out = bytearray(b"\xde" + struct.pack(">H", n))
     for k, v in d.items():
-        out += mp_str(k)
+        # 键也要走 mp_any：自定义字典里 __IntTypeKey__=true 的类型（如
+        # BooleanDictKeyInt）键必须是 msgpack 整数。见 _conv_int_keys。
+        out += mp_str(k) if isinstance(k, str) else mp_any(k)
         out += mp_any(v)
     return bytes(out)
 
@@ -301,6 +303,26 @@ MSGPACK_EMPTY_MAP = b"\x80"
 _AVATAR_INIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "avatar_init.json")
 
 
+def _conv_int_keys(obj):
+    """把 JSON 里 "#<int>" 形式的键转成真正的整数键。
+
+    JSON 的对象键只能是字符串，但客户端自定义字典（CustomDict:roinit）
+    会把键原样放进 _properties，不做类型转换；__IntTypeKey__=true 的类型
+    必须收到整数键。所以生成器里用 "#1" 这种写法表示整数 1。
+    """
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if isinstance(k, str) and k.startswith("#") and k[1:].lstrip("-").isdigit():
+                out[int(k[1:])] = _conv_int_keys(v)
+            else:
+                out[k] = _conv_int_keys(v)
+        return out
+    if isinstance(obj, list):
+        return [_conv_int_keys(v) for v in obj]
+    return obj
+
+
 def _load_avatar_init():
     """读取 avatar_init.json。
 
@@ -355,7 +377,7 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
         entity_type = str(entity_type).encode("utf-8")
     if init_dict is None:
         init_dict = DEFAULT_INIT_DICT
-    info = mp_map(init_dict) if init_dict else MSGPACK_EMPTY_MAP
+    info = mp_map(_conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
     body = pb_bytes_field(1, entity_type)
     body += pb_bytes_field(2, info)
     body += pb_bytes_field(3, entity_id.encode("utf-8"))
@@ -391,6 +413,28 @@ RPC_ON_SYNC_SERVER_TIME = 1381181593   # 服务端 -> 客户端
 RPC_NETWORK_CHECK = 1259880996         # networkCheckAfterChange_CS（客户端心跳）
 RPC_NETWORK_CHECK_SC = 151106036       # networkCheckAfterChange_SC（服务端必须回）
 RPC_INDEX_NOT_FOUND = 1501621037       # __rpc_index_not_found__
+
+# 2026-10-19 用 phonestcore.genRpcIndex 对 73470 条 Lua 字符串字面量做全量哈希反查
+# （tools 里 work/oo_analysis/hash_all.py + rpc_hashes.tsv），把登录后客户端发出的
+# 两个未知 index 定死了：
+#   2074889135 -> RpcPullHotfix        （entities/commoncomponent/basecomp.lua:8 CallServer）
+#   1033592883 -> RpcGetSunActLevel_CS （entities/avatarcomponent/avatarsunactcomp.lua:12）
+RPC_PULL_HOTFIX = 2074889135
+RPC_GET_SUNACT_LEVEL_CS = 1033592883
+RPC_GET_SUNACT_LEVEL_SC = 405867711
+# 136701728 也是同一张表查出来的：clientavatar.lua:196 序章 StartGame 用的那个。
+RPC_CMD_AVATAR_STARTGAME_CS = 136701728
+# 同一张表查出来的：
+#   1795313897 -> RpcGetMatchDuration（entities/avatarcomponent/avatarmatch.lua:74
+#                 serverRpc 带内联回调，不回也是 2 秒弱网）
+RPC_GET_MATCH_DURATION = 1795313897
+# 应答名游戏里没有对应方法（_CS 用的是内联闭包），按 _CS/_SC 约定补一个，
+# 并在 launcher/lua/oo_bootstrap.lua 的 SERVER_RPC_SC_NAMES 里注册，
+# 否则原生 RpcIndex::getRpcName 查不到名字，应答派发不下去。
+RPC_GET_MATCH_DURATION_SC = 520324610
+#   1674960337 -> QueryMyTeamInfo_CS（entities/avatarcomponent/avatarteamcomp.lua:684
+#                 HallStage -> HallLogic:active -> CheckMyTeamInfo_CS -> QueryMyTeamInfo_CS）
+RPC_QUERY_MY_TEAM_INFO_CS = 1674960337
 
 
 def mp_decode(b, i=0):
@@ -493,8 +537,85 @@ def build_net_check_ack(index):
                                 params=payload)
 
 
+def build_entity_response(rid, ret=None, resp=None):
+    """构造 serverRpc（带回调）的应答帧。
+
+    ★ 应答**不是** entityMessage，而是独立的 gate 方法 entityMessageResponse。
+    依据 core/client/gateclientrpchandler.lua:128-150（实机源码）：
+        function GateClientRpcHandler:entityMessageResponse(rid, parameters)
+          local name, callback = ClientRepo.responseManager:popResponseCallback(rid)
+          if callback then
+            local retStatus, response = unpack(parameters)
+            SafeCallback(callback, retStatus, response)
+          end
+        end
+    也就是说：
+      帧类型 = 3
+        （1=connectResponse，2=entityMessage，4=createChannelEntity，
+          3 是夹在 entityMessage 和 createChannelEntity 之间的 entityMessageResponse）
+      字段 1 = rid（int）
+      字段 2 = msgpack 参数，内容就是 [retStatus, response] 两元组
+    这条路径上不需要方法名，所以也不需要在客户端注册 _SC 名字。
+
+    反证：把应答塞进 entityMessage 时，客户端日志报
+      [RpcCall] Entity(avatar_2000) CallRpc Error. Function(RpcGetSunActLevel_SC) Is Not Rpc.
+    因为 entityMessage 一律走 CallRpc 查 EntityFactory.rpc_methods。
+    """
+    if ret is None:
+        ret = {"status": True, "errmsg": ""}
+    if resp is None:
+        resp = {}
+    payload = mp_arr([ret, resp])
+    body = pb_varint_field(1, int(rid)) + pb_bytes_field(2, payload)
+    return frame(3, body)
+
+
+def build_sunact_level_sc(rid, level_ids=None):
+    """RpcGetSunActLevel_CS -> RpcGetSunActLevel_SC。
+
+    entities/avatarcomponent/avatarsunactcomp.lua:311-321:
+      RpcGetSunActLevel_CS() -> serverRpc("RpcGetSunActLevel_CS", {},
+                                CallbackHandler(self, "RpcGetSunActLevel_SC"))
+      RpcGetSunActLevel_SC(ret, response) -> self.sun_daily_level_ids = response.levelIds
+    不回的话 avatarrpccomp.lua:22 的 2 秒定时器会触发 EStartWeakNetTurnCircle，
+    然后 DisconnectionPanel -> 重新登录，形成死循环。
+    """
+    return build_entity_response(rid, resp={"levelIds": list(level_ids or [])})
+
+
+def build_match_duration_sc(rid):
+    """RpcGetMatchDuration -> 应答。
+
+    entities/avatarcomponent/avatarmatch.lua:73-79:
+      self:serverRpc("RpcGetMatchDuration", {}, function(retstatus, response)
+        if retstatus.status then
+          self.predictMatchTime = response.data or {}
+        end
+      end)
+    没有匹配时间数据就回空表，客户端会走 response.data or {}。
+    """
+    return build_entity_response(rid, resp={"data": {}})
+
+
+def build_team_info_sc(rid):
+    """QueryMyTeamInfo_CS -> 应答（当前不在任何队伍里）。
+
+    entities/avatarcomponent/avatarteamcomp.lua:688-707:
+      function AvatarTeamComp:QueryMyTeamInfo_SC(cb, retstatus, response)
+        local status = self:CheckTeamStatus(retstatus)
+        if status then ... UpdateTeamInfo(response.TeamId, response.TeamInfo) ...
+        else self:ResetTeamInfo() end
+        if cb then cb(isInTeam) end
+      end
+    CheckTeamStatus -> retstatus.status 为假时走 ResetTeamInfo()，
+    TeamErrorResult(nil, nil) 会因为 errcode=-1 查不到 TeamErrorOrient 而安静返回。
+    所以 { status = false } 是"该玩家没有队伍"的合法应答。
+    """
+    return build_entity_response(rid, ret={"status": False, "errmsg": ""})
+
+
 def build_entity_message(entity_id="", method_name=None, index=0,
-                         params=b"\x80", session_id=None):
+                         params=b"\x80", session_id=None, rid=0):
     """构造 server -> client 的 entityMessage。
 
     对应 GateClientRpcHandler:entityMessage(entityId, methodName, index, parameters)，
@@ -513,20 +634,33 @@ def build_entity_message(entity_id="", method_name=None, index=0,
         body += pb_varint_field(3, index)
     if params:
         body += pb_bytes_field(4, params)
+    # 字段 5 = rid。客户端 serverRpc 发的 rid 必须原样带回，
+    # 否则 core/net/responsemanager 弹不出回调，2 秒后必触发弱网转圈
+    # （avatarcomponent/avatarrpccomp.lua:22 turnCircleTime=2）。
+    if rid:
+        body += pb_varint_field(5, int(rid))
     return frame(2, body)
 
 
 def parse_entity_frame(body):
-    """从客户端 type=4 帧里取出 field 3（index）和 field 4（msgpack 参数）。"""
+    """从客户端 type=4 帧里取出 field 3（index）、field 4（msgpack 参数）、field 5（rid）。
+
+    rid != 0 表示客户端用的是 serverRpc（带回调），服务端必须回一个
+    带同样 rid 的应答，否则 2 秒后客户端会弹弱网转圈。
+    rid == 0 表示 serverMsg / CallServer（单向），不用回。
+    """
     try:
         fields = pb_parse(body)
     except Exception:
-        return None, None
+        return None, None, 0
     idx = None
     if 3 in fields and isinstance(fields[3][0], int):
         idx = fields[3][0]
     params = fields.get(4, [b""])[0]
-    return idx, params
+    rid = 0
+    if 5 in fields and isinstance(fields[5][0], int):
+        rid = fields[5][0]
+    return idx, params, rid
 
 
 def build_candidates(rid, gate_port=33101, typ=None):

@@ -1514,7 +1514,8 @@
   },
   "story_finished": {
    "__tp__": "BooleanDictKeyInt",
-   "__id__": 1330
+   "__id__": 1330,
+   "#1": true
   },
   "story_max_collect_num": {
    "__tp__": "IntDictKeyInt",
@@ -1543,6 +1544,43 @@
   "done_story_tasks": {
    "__tp__": "StoryTaskBag",
    "__id__": 1337
-  }
+  },
+  "singleMatchInfo": {
+   "__tp__": "SingleMatchInfo",
+   "__id__": 1338,
+   "state": 0,
+   "match_id": "",
+   "match_info": {
+    "__id__": 1339,
+    "system_type": 0,
+    "match_type": 0,
+    "modeId": 0,
+    "act_id": 0
+   }
+  },
+  "avatarNowState": 0,
+  "avatarTeamMatchState": 0,
+  "battle_prop_choosen_index": 0,
+  "character_choosen_char": 0,
+  "choosen_index": 0,
+  "daily_active_value": 0,
+  "endless_choosen_index": 0,
+  "four_racing_character": 0,
+  "has_seen_unlock_action": false,
+  "is_rank_mode_available": false,
+  "mvp_count": 0,
+  "normal_match_count": 0,
+  "normal_mode_win_count": 0,
+  "normal_mvp_count": 0,
+  "punishment_end_time": 0,
+  "puzzle_character": 0,
+  "rank_match_count": 0,
+  "rank_mode_win_count": 0,
+  "rank_mvp_count": 0,
+  "rank_score": 0,
+  "street_id": 0,
+  "street_trace_taskid": 0,
+  "temp_floor": 0,
+  "winNum": 0
  }
 }

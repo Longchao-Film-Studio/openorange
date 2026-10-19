@@ -95,6 +95,62 @@ REQUIRED = {
     "story_task_bag": "StoryTaskBag",
     "done_tasks": "DoneTaskTypeBag",
     "done_story_tasks": "StoryTaskBag",
+    # --- 动态根属性：只出现在 PropertyCallbacks、AvatarProperties 里没有声明 ---
+    # 证据：generated/config.lua:6370 的 Custom.SingleMatchInfo 定义了
+    #   state(int) / match_id(string) / match_info(MatchInfo)；
+    #   entities/avatarcomponent/avatarteamcomp.lua:648 不判空直接
+    #   self.singleMatchInfo.state —— 空指针就会把 HallStage 进场打断。
+    # 真实服务端是用 _changeRootProperty 运行时建这个属性（带 __tp__），
+    # 我们改从 initDict 建，等价。
+    "singleMatchInfo": "SingleMatchInfo",
+}
+
+# PropertyCallbacks 里出现、但 AvatarProperties 没有声明的"简单类型"动态根属性。
+# 表来自 work/oo_analysis/missing_props.py：它把各 Avatar*Comp 的
+# PropertyCallbacks 段和 AvatarProperties 对差，并按回调里声明的类型
+# （number/string/boolean）分类。客户端访问这些属性时基本不判空，
+# 所以 initDict 里必须先给默认值。
+SIMPLE_PROPS = {
+    "avatarNowState": 0,
+    "avatarTeamMatchState": 0,
+    "battle_prop_choosen_index": 0,
+    "character_choosen_char": 0,
+    "choosen_index": 0,
+    "daily_active_value": 0,
+    "endless_choosen_index": 0,
+    "four_racing_character": 0,
+    "has_seen_unlock_action": False,
+    "is_rank_mode_available": False,
+    "mvp_count": 0,
+    "normal_match_count": 0,
+    "normal_mode_win_count": 0,
+    "normal_mvp_count": 0,
+    "punishment_end_time": 0,
+    "puzzle_character": 0,
+    "rank_match_count": 0,
+    "rank_mode_win_count": 0,
+    "rank_mvp_count": 0,
+    "rank_score": 0,
+    "street_id": 0,
+    "street_trace_taskid": 0,
+    "temp_floor": 0,
+    "winNum": 0,
+}
+
+# 需要预置的字典条目：属性名 -> {条目键: 值}。
+#
+# 键以 "#" 开头表示**整数键**。依据 core/propertysync/customdict.lua:464：
+#   for k, v in pairs(value) do ... self._properties[k] = v
+# roinit 直接把 msgpack 解出来的键原样拷进 _properties，**不做类型转换**。
+# 所以 BooleanDictKeyInt 这类 __IntTypeKey__=true 的字典，
+# 键在 msgpack 里必须真的是整数，写成字符串 "1" 的话 story_finished[1] 永远是 nil。
+SEED = {
+    # entities/clientavatar.lua:180 CheckEnterPrologue():
+    #   if not self.story_finished[1] then <走序章 StartGame> else LoginSuccess end
+    # 序章要 Cmd_Avatar_StartGame_CS 返回 spaceInfo 才能进场景，
+    # 那是完整的匹配/进场流程。把 1 号剧情标记为已完成，
+    # 客户端就直接走 LoginSuccess -> JumpToHallStage，等价于"老玩家回流"。
+    "story_finished": {"#1": True},
 }
 
 _uid = [1000]
@@ -230,6 +286,17 @@ def main():
     for k, typ in REQUIRED.items():
         if k not in props:
             props[k] = gen_top(types, typ)
+
+    # 简单类型动态根属性（见 SIMPLE_PROPS 注释）
+    for k, v in SIMPLE_PROPS.items():
+        props.setdefault(k, v)
+
+    # 预置字典条目（见 SEED 注释）
+    for k, entries in SEED.items():
+        node = props.get(k)
+        if not isinstance(node, dict):
+            raise SystemExit("SEED 目标属性不存在或不是自定义类型: %s" % k)
+        node.update(entries)
 
     # 关键简单值
     props["uid"] = "OO00000001"

@@ -321,8 +321,34 @@ def _handle_gate_probe(conn, addr, cid):
     print("=" * 64, flush=True)
     try:
         conn.settimeout(60)
+        _buf = bytearray()
+
+        def _next_frame():
+            """按 [u32 LE payloadLen][u16 LE msgType][payload] 切出**一帧**。
+
+            以前是把一次 recv 的数据整块当一帧处理。实测客户端会把两条实体
+            消息粘在同一个 TCP 段里发（77 B = Cmd_Avatar_StartGame_CS + 心跳），
+            于是第二条被 protobuf 解析失败直接丢掉——丢的正好是
+            networkCheckAfterChange_CS(index=0)，客户端 _recvHeartbeatIndex
+            就停在 0，差值越拉越大，最后触发弱网重连。
+            现在按帧头长度切，一次 recv 里有多少帧就处理多少帧。
+            """
+            nonlocal _buf
+            while True:
+                if len(_buf) >= 6:
+                    plen = struct.unpack_from("<I", _buf, 0)[0]
+                    total = 4 + plen
+                    if total >= 6 and len(_buf) >= total:
+                        one = bytes(_buf[:total])
+                        del _buf[:total]
+                        return one
+                chunk = conn.recv(8192)
+                if not chunk:
+                    return b""
+                _buf += chunk
+
         while True:
-            data = conn.recv(8192)
+            data = _next_frame()
             if not data:
                 print("[GATE] #%03d peer closed" % cid, flush=True)
                 break
@@ -366,9 +392,9 @@ def _handle_gate_probe(conn, addr, cid):
             else:
                 # 实体 RPC：试探性地 echo field 3 回去，参数给空 msgpack map。
                 # 目的只是看客户端会不会因为「收到应答」而继续往下走。
-                idx, params = msmod.parse_entity_frame(data[6:])
-                print("[GATE] #%03d 实体消息 type=%d index=%s params=%s"
-                      % (cid, frame_type, idx,
+                idx, params, rid = msmod.parse_entity_frame(data[6:])
+                print("[GATE] #%03d 实体消息 type=%d index=%s rid=%s params=%s"
+                      % (cid, frame_type, idx, rid,
                          params.hex() if isinstance(params, bytes) else params),
                       flush=True)
                 if idx is not None:
@@ -386,7 +412,38 @@ def _handle_gate_probe(conn, addr, cid):
                         rpkt = msmod.build_time_sync(ct, int(time.time()))
                         label = "RpcOnSyncServerTime(ct=%d)" % ct
                     elif idx == msmod.RPC_NETWORK_CHECK:
-                        # networkCheckAfterChange_CS：通知性质，不回
+                        # networkCheckAfterChange_CS：客户端心跳，必须回
+                        # networkCheckAfterChange_SC(index)，否则 15 次后断线重连
+                        hb = 0
+                        try:
+                            val, _ = msmod.mp_decode(params or b"")
+                            if isinstance(val, list) and val:
+                                hb = int(val[0])
+                        except Exception as e:
+                            print("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e), flush=True)
+                        rpkt = msmod.build_net_check_ack(hb)
+                        label = "networkCheckAfterChange_SC(%d)" % hb
+                    elif idx == msmod.RPC_GET_SUNACT_LEVEL_CS:
+                        # 这条是 serverRpc（带回调 rid），不回就 2 秒后弱网转圈
+                        rpkt = msmod.build_sunact_level_sc(rid)
+                        label = "RpcGetSunActLevel_SC(rid=%d)" % rid
+                    elif idx == msmod.RPC_QUERY_MY_TEAM_INFO_CS:
+                        rpkt = msmod.build_team_info_sc(rid)
+                        label = "QueryMyTeamInfo_SC(rid=%d, 无队伍)" % rid
+                    elif idx == msmod.RPC_GET_MATCH_DURATION:
+                        rpkt = msmod.build_match_duration_sc(rid)
+                        label = "RpcGetMatchDuration_SC(rid=%d)" % rid
+                    elif idx == msmod.RPC_PULL_HOTFIX:
+                        # basecomp.lua:8 用 CallServer 发，rid 恒为 0，单向。
+                        # 真正的应答是 RpcSyncHotfix(hotfix_md5, hotfix)，
+                        # 但 HotfixManager 没有阻塞登录，先不回。
+                        label = None
+                    elif idx == msmod.RPC_CMD_AVATAR_STARTGAME_CS:
+                        # clientavatar.lua:180 序章 StartGame。已经把
+                        # story_finished[1] 置真，正常不会走到这里。
+                        print("[GATE] #%03d ★ 客户端仍在请求序章 StartGame "
+                              "(rid=%s)，说明 story_finished[1] 没生效" % (cid, rid),
+                              flush=True)
                         label = None
                     elif idx == msmod.RPC_INDEX_NOT_FOUND:
                         # __rpc_index_not_found__：客户端在说「你发了个我不认识的 rpc」
