@@ -239,6 +239,20 @@ def _handle_ms(conn, addr, cid):
                 #   query 的 onGetServerGates 才需要 ServerList + ClusterId。
                 if method == "query":
                     params = msmod.build_load_service_params(GATE_PORT)
+                elif method == "batchGetAttribute":
+                    # ★ 1-3 玩家数据的主通道（avataruserdatacomp.lua:151）
+                    _req = []
+                    if 4 in fields:
+                        try:
+                            _req = msmod.mp_decode(fields[4][0])[0]
+                        except Exception as _e:
+                            print("[ms] #%03d batchGetAttribute 参数解析失败: %s"
+                                  % (cid, _e), flush=True)
+                            _req = []
+                    params = msmod.build_userdata_batch_params(_req)
+                    print("[ms] #%03d    -> 回 %d 条 Results"
+                          % (cid, len(msmod.mp_decode(params)[0].get("Results", []))),
+                          flush=True)
                 else:
                     params = msmod.mp_map({"Ret": [True, 0]})
                 pkt = msmod.frame_ms_response(seq, params, service)

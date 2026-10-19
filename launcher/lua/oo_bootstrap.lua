@@ -1032,6 +1032,39 @@ local CB_NAMES = {
 -- 我们调 entityMessageResponse(rid, parameters)，抓包就能拿到：
 --   1) 帧头里的 u16 方法索引（= 真正的帧类型）
 --   2) protobuf 字段布局（rid / parameters 各在几号字段）
+-- ------------------------------------------------------------
+-- 1-3 主数据通道验证：强制调一次 BatchGetUserData
+-- ------------------------------------------------------------
+local function probe_userdata()
+  if pc.udprobe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    if A:isServerLost() then return end
+    pc.udprobe = true
+    LOG('udprobe| 调 BatchGetUserData，uid=' .. tostring(A.uid))
+    A:BatchGetUserData({ A.uid }, function(status, response)
+      LOG('udprobe| 回调 status=' .. tostring(status and status.status))
+      if response and response.Results then
+        for _, info in ipairs(response.Results) do
+          LOG('udprobe|   Uid=' .. tostring(info.Uid))
+          local n = 0
+          for k, v in pairs(info.AttributesMap or {}) do
+            n = n + 1
+            if n <= 12 then
+              LOG('udprobe|     ' .. tostring(k) .. ' = ' .. tostring(v))
+            end
+          end
+          LOG('udprobe|     属性数=' .. n)
+        end
+      else
+        LOG('udprobe|   response.Results 为空')
+      end
+    end)
+  end)
+end
 local function probe_encode_response()
   if pc.encresp then return end
   pcall(function()
@@ -1463,6 +1496,7 @@ local function install_cb_wrappers()
           -- 端到端 RPC 探针默认关（会连发 20 条，刷日志）；需要时改成 pcall(probe_p1_setrpc)
           if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
+          if (pc.frames % 30) == 10 then pcall(probe_userdata) end
         end
         local n = select('#', ...)
         local parts = {}

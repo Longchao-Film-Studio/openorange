@@ -1049,6 +1049,55 @@ def frame_ms_response(rid, params_bytes, service_id=""):
     return frame(MS_RESP_TYPE, build_ms_response(rid, params_bytes, service_id))
 
 
+
+
+# ---------------------------------------------------------------------------
+# UserDataService.batchGetAttribute（1-3 玩家数据的主通道）
+# ---------------------------------------------------------------------------
+# 客户端 entities/avatarcomponent/avataruserdatacomp.lua:118-162：
+#   requests = { { tostring(uid), {属性名...} }, ... }
+#   self:callService("UserDataService", "batchGetAttribute", {list}, cb)
+# 应答（同文件 164-212 的 AvatarUserDataComp_GetUsersData_cb）：
+#   response.Results = { { Uid = <字符串>, AttributesMap = { 属性名 = 值 } }, ... }
+#   if uid == Uid then ... setOneAttributeData(key, attrs[key])
+# 注意 Uid 是严格比较，请求里是 tostring(uid)，所以必须回字符串。
+_SIMPLE_TYPES = (str, int, float, bool)
+
+
+def build_userdata_batch_params(request_params, uid_default="OO00000001"):
+    """构造 batchGetAttribute 的应答参数（msgpack map）。
+
+    请求结构：parameters = [ list ]，list = [ [uidStr, [attr, ...]], ... ]
+    应答结构：{ Ret = [status, errmsg], Results = [ {Uid, AttributesMap} ] }
+
+    只回简单类型的属性（str/int/float/bool）。自定义类型（skins、char_list 等）
+    在 initDict 里是 {__tp__, __id__} 这种占位表示，不是客户端要的真实结构，
+    硬塞会喂错数据，所以跳过 —— 客户端对缺失属性本来就是容忍的。
+    """
+    props = AVATAR_INIT_DICT.get("__Properties__", {}) or {}
+    reqs = []
+    if isinstance(request_params, list) and request_params:
+        first = request_params[0]
+        if isinstance(first, list):
+            reqs = first
+    results = []
+    for item in reqs:
+        if not isinstance(item, list) or len(item) < 2:
+            continue
+        u = item[0]
+        names = item[1] if isinstance(item[1], list) else []
+        amap = {}
+        for nm in names:
+            if not isinstance(nm, str):
+                continue
+            if nm in props and isinstance(props[nm], _SIMPLE_TYPES):
+                amap[nm] = props[nm]
+        results.append({"Uid": u if isinstance(u, str) else str(u),
+                        "AttributesMap": amap})
+    if not results:
+        results.append({"Uid": uid_default, "AttributesMap": {}})
+    return mp_map({"Ret": [True, 0], "Results": results})
+
 def build_load_service_params(gate_port=33101, ret_err=0, ret_status=True):
     """GameLoadService.query 的应答参数（msgpack）。"""
     return mp_map({
