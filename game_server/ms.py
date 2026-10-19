@@ -302,12 +302,22 @@ _AVATAR_INIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "av
 
 
 def _load_avatar_init():
+    """读取 avatar_init.json。
+
+    ★ 必须响亮地失败：之前这个文件被写坏成 0 字节，
+      静默降级成空表，导致属性全是 nil，白白排查了很久。
+    """
     try:
         with open(_AVATAR_INIT_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            d = json.load(f)
     except Exception as e:
-        print("[ms] 读取 avatar_init.json 失败: %s" % e, flush=True)
-        return {"__Properties__": {}}
+        raise RuntimeError("avatar_init.json 读取失败: %s" % e)
+    props = d.get("__Properties__")
+    if not isinstance(props, dict) or len(props) < 10:
+        raise RuntimeError(
+            "avatar_init.json 内容异常：__Properties__ 只有 %s 项（文件 %s）"
+            % (len(props) if isinstance(props, dict) else props, _AVATAR_INIT_PATH))
+    return d
 
 
 AVATAR_INIT_DICT = _load_avatar_init()

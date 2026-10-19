@@ -1,0 +1,165 @@
+{
+ "__Properties__": {
+  "username": "oologin",
+  "uid": "OO00000001",
+  "entityType": "",
+  "createdTime": 0,
+  "account_create_time": 0.0,
+  "serverId": 0,
+  "level": 1,
+  "exp": 0,
+  "all_exp": 0,
+  "consume_vit": 0,
+  "today_consume_vit_count": 0,
+  "today_consume_vit_time": 0,
+  "new_player_floor": 0,
+  "season_floor": 0,
+  "season_floor_min_time": 0,
+  "has_unlocked_season_tower": false,
+  "tower_score": 0,
+  "tower_reward_keys": 0,
+  "next_key_recover_timestamp": 0,
+  "total_key_recover_timestamp": 0,
+  "climbtower_weekday": 0,
+  "climbtower_highest_floor": 0,
+  "player_card_id": 0,
+  "player_card_frame_id": 0,
+  "chat_bubble_id": 0,
+  "portrait_id": 0,
+  "portrait_frame_id": 0,
+  "background_id": 0,
+  "player_stage_id": 0,
+  "is_account_create_time_hidden": false,
+  "signature": "",
+  "is_char_list_shown": false,
+  "gender": 0,
+  "canScore": 0,
+  "hasScore": 0,
+  "create_account_step": 0,
+  "player_id": "",
+  "player_name": "",
+  "enable_being_searched": 0,
+  "enable_being_recommended": 0,
+  "shown_honor_wall_char_id": 0,
+  "is_honor_wall_shown": false,
+  "crystal": 0,
+  "yaw": 0.0,
+  "version": 0,
+  "accu_charge_gacha_p": {
+   "__tp__": "AccuChargeGachaSetProp",
+   "__id__": 1
+  },
+  "achieve_type_bag": {
+   "__tp__": "AchieveTypeBag",
+   "__id__": 2
+  },
+  "bp_info": {
+   "__tp__": "BpInfo",
+   "__id__": 3
+  },
+  "card_prop": {
+   "__tp__": "CardDictProp",
+   "__id__": 4
+  },
+  "championship_data": {
+   "__tp__": "ChampionshipData",
+   "__id__": 5
+  },
+  "chat_p": {
+   "__tp__": "ChatProp",
+   "__id__": 6
+  },
+  "contribution_player_cycle": {
+   "__tp__": "ContributionPlayerInfoRecord",
+   "__id__": 7
+  },
+  "gacha_prop": {
+   "__tp__": "GachaProp",
+   "__id__": 8
+  },
+  "multitower_task_prop": {
+   "__tp__": "ActiveTaskBag",
+   "__id__": 9
+  },
+  "popup_gift_p": {
+   "__tp__": "PopupGiftProp",
+   "__id__": 10
+  },
+  "returning_player_act_p": {
+   "__tp__": "ReturningPlayerActProp",
+   "__id__": 11
+  },
+  "rogue_p": {
+   "__tp__": "RogueProp",
+   "__id__": 12
+  },
+  "street_info_2d": {
+   "__tp__": "StreetInfoDict2D",
+   "__id__": 13
+  },
+  "weekly_play_bp_p": {
+   "__tp__": "WeeklyPlayBPProp",
+   "__id__": 14
+  },
+  "item_bag": {
+   "__tp__": "ItemBag",
+   "__id__": 15
+  },
+  "task_bag": {
+   "__tp__": "TaskBag",
+   "__id__": 16
+  },
+  "street_info": {
+   "__tp__": "StreetInfoDict",
+   "__id__": 17
+  },
+  "street_dispatch": {
+   "__tp__": "StreetDispatchDict",
+   "__id__": 18
+  },
+  "soul_task_bag": {
+   "__tp__": "SoulTaskBag",
+   "__id__": 19
+  },
+  "story_task_bag": {
+   "__tp__": "StoryTaskBag",
+   "__id__": 20
+  },
+  "done_tasks": {
+   "__tp__": "DoneTaskTypeBag",
+   "__id__": 21
+  },
+  "done_story_tasks": {
+   "__tp__": "StoryTaskBag",
+   "__id__": 22
+  },
+  "cur_activity_info": {
+   "__tp__": "ActivityProp",
+   "__id__": 23
+  },
+  "characterBag": {
+   "__tp__": "CharacterList",
+   "__id__": 24
+  },
+  "story_finished": {
+   "__tp__": "BooleanDictKeyInt",
+   "__id__": 901
+  },
+  "story_max_collect_num": {
+   "__tp__": "IntDictKeyInt",
+   "__id__": 902
+  },
+  "story_reward_list": {
+   "__tp__": "IntListDictKeyInt",
+   "__id__": 903
+  },
+  "system_guide_records": {
+   "__tp__": "IntDictKeyInt",
+   "__id__": 904
+  },
+  "battle_teach_state": {
+   "__tp__": "IntDictKeyInt",
+   "__id__": 905
+  }
+ }
+}
