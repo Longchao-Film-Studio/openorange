@@ -1085,6 +1085,43 @@ local function probe_cs_api()
     LOG('csapi| member ' .. nm .. ' exists=' .. tostring(ok and v ~= nil))
   end
 
+  -- ★★ 拿清单的解密密钥。
+  -- 依据 patch/patchhelper.lua:305-318：
+  --   PatchHelper.decodeJsonFileByAes(filePath)
+  --     -> CSHelper.AesDecryptorBase64(encodedStr, CommonConfig.AesKey)
+  -- 也就是说所有加密清单（patch_info.json / assets_md5_cache.json /
+  -- patch_md5_cache.json / version.json）都是 AES+Base64，密钥是
+  -- C# 的 CommonConfig.AesKey。把它读出来就能离线解密，不用再啃加密的
+  -- Assembly-CSharp.dll。
+  pcall(function()
+    local CC = CS.UnityEngine.Utility.Funplus.Runtime.CommonConfig
+    LOG('csapi| CommonConfig.AesKey = ' .. tostring(CC.AesKey))
+  end)
+  pcall(function()
+    local PC = CS.Core.Patch.PatchConfig
+    LOG('csapi| PatchConfig.AesKey = ' .. tostring(PC.AesKey))
+  end)
+
+  -- 顺手用游戏自己的函数解一份 patch_info.json，验证密钥对不对
+  pcall(function()
+    local PH = original_require('Patch.PatchHelper')
+    local p = 'F:/haowancheng/GuiLongchao/game/GuiLongchao_Data/PersistentPath/HybridData/patch_info.json'
+    local t = PH.decodeJsonFileByAes(p)
+    if type(t) == 'table' then
+      local n = 0
+      for _ in pairs(t) do n = n + 1 end
+      LOG('csapi| patch_info 解密成功，顶层字段数=' .. n)
+      local i = 0
+      for k, v in pairs(t) do
+        LOG('csapi|   patch_info.' .. tostring(k) .. ' = ' .. tostring(v))
+        i = i + 1
+        if i >= 12 then break end
+      end
+    else
+      LOG('csapi| patch_info 解密失败 type=' .. type(t))
+    end
+  end)
+
   -- 把资源表整体打出来（游戏自己的 GM 功能，只读）
   local okDump, errDump = pcall(function() inst:DumpResourceInfo() end)
   LOG('csapi| DumpResourceInfo ok=' .. tostring(okDump) .. ' err=' .. tostring(errDump))
