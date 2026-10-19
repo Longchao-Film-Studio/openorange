@@ -1755,6 +1755,12 @@ function require(name)
 
     a.Call = function(module, fn, payload)
       if module == 'platform' and fn == 'login' then
+        -- ★ 只有 --auto 才接管登录（自动进入游戏）。
+        --   不加 --auto 时走游戏原来的路径，会停在它自己的登录界面。
+        if rawget(_G, 'OO_AUTO') == false then
+          LOG('login: OO_AUTO=false，不接管 platform/login（停在游戏登录界面）')
+          return call(module, fn, payload)
+        end
         return login()
       end
       if module == 'platform' and (fn == 'logout' or fn == 'unbindPlayer') then

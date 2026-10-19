@@ -6,7 +6,7 @@
   "createdTime": 0,
   "account_create_time": 0.0,
   "serverId": 0,
-  "level": 10,
+  "level": 1,
   "exp": 0,
   "all_exp": 0,
   "consume_vit": 0,
@@ -255,71 +255,7 @@
    "__tp__": "SystemProp",
    "__id__": 1045,
    "unlocked_system": {
-    "__id__": 1046,
-    "#1": true,
-    "#2": true,
-    "#3": true,
-    "#4": true,
-    "#5": true,
-    "#6": true,
-    "#7": true,
-    "#8": true,
-    "#9": true,
-    "#10": true,
-    "#11": true,
-    "#12": true,
-    "#13": true,
-    "#14": true,
-    "#15": true,
-    "#16": true,
-    "#17": true,
-    "#18": true,
-    "#19": true,
-    "#20": true,
-    "#21": true,
-    "#22": true,
-    "#23": true,
-    "#24": true,
-    "#25": true,
-    "#28": true,
-    "#29": true,
-    "#30": true,
-    "#31": true,
-    "#32": true,
-    "#33": true,
-    "#34": true,
-    "#35": true,
-    "#42": true,
-    "#43": true,
-    "#44": true,
-    "#45": true,
-    "#46": true,
-    "#47": true,
-    "#48": true,
-    "#49": true,
-    "#50": true,
-    "#51": true,
-    "#52": true,
-    "#53": true,
-    "#54": true,
-    "#55": true,
-    "#57": true,
-    "#59": true,
-    "#60": true,
-    "#61": true,
-    "#62": true,
-    "#64": true,
-    "#67": true,
-    "#68": true,
-    "#70": true,
-    "#71": true,
-    "#73": true,
-    "#74": true,
-    "#75": true,
-    "#78": true,
-    "#81": true,
-    "#82": true,
-    "#1001": true
+    "__id__": 1046
    },
    "upload_rank_sys_banned": {
     "__id__": 1047
@@ -1555,42 +1491,31 @@
    "__tp__": "ItemBag",
    "__id__": 1324,
    "1": {
-    "__id__": 1412,
+    "__id__": 1357,
     "id": "1",
     "itemId": 101,
     "num": 1000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1413
+     "__id__": 1358
     }
    },
    "2": {
-    "__id__": 1414,
+    "__id__": 1359,
     "id": "2",
     "itemId": 103,
     "num": 100000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1415
+     "__id__": 1360
     }
    }
   },
   "task_bag": {
    "__tp__": "TaskBag",
-   "__id__": 1325,
-   "#1": {
-    "__id__": 1354,
-    "id": 0,
-    "type": 0,
-    "state": 0,
-    "get_time": 0,
-    "complete_count": 0,
-    "cache": {
-     "__id__": 1355
-    }
-   }
+   "__id__": 1325
   },
   "characterBag": {
    "__tp__": "CharacterPersistentDict",
@@ -1681,224 +1606,11 @@
   },
   "done_tasks": {
    "__tp__": "DoneTaskTypeBag",
-   "__id__": 1336,
-   "#1": {
-    "__id__": 1356,
-    "#1": 1,
-    "#15": 1
-   }
+   "__id__": 1336
   },
   "done_story_tasks": {
    "__tp__": "StoryTaskBag",
-   "__id__": 1337,
-   "#1005": {
-    "__id__": 1357,
-    "id": 1005,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1358
-    },
-    "finish_targets": {
-     "__id__": 1359
-    },
-    "finish_parameter": {
-     "__id__": 1360
-    }
-   },
-   "#1007": {
-    "__id__": 1361,
-    "id": 1007,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1362
-    },
-    "finish_targets": {
-     "__id__": 1363
-    },
-    "finish_parameter": {
-     "__id__": 1364
-    }
-   },
-   "#1010": {
-    "__id__": 1365,
-    "id": 1010,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1366
-    },
-    "finish_targets": {
-     "__id__": 1367
-    },
-    "finish_parameter": {
-     "__id__": 1368
-    }
-   },
-   "#1031": {
-    "__id__": 1369,
-    "id": 1031,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1370
-    },
-    "finish_targets": {
-     "__id__": 1371
-    },
-    "finish_parameter": {
-     "__id__": 1372
-    }
-   },
-   "#100003": {
-    "__id__": 1373,
-    "id": 100003,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1374
-    },
-    "finish_targets": {
-     "__id__": 1375
-    },
-    "finish_parameter": {
-     "__id__": 1376
-    }
-   },
-   "#400101": {
-    "__id__": 1377,
-    "id": 400101,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1378
-    },
-    "finish_targets": {
-     "__id__": 1379
-    },
-    "finish_parameter": {
-     "__id__": 1380
-    }
-   },
-   "#415802": {
-    "__id__": 1381,
-    "id": 415802,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1382
-    },
-    "finish_targets": {
-     "__id__": 1383
-    },
-    "finish_parameter": {
-     "__id__": 1384
-    }
-   },
-   "#415805": {
-    "__id__": 1385,
-    "id": 415805,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1386
-    },
-    "finish_targets": {
-     "__id__": 1387
-    },
-    "finish_parameter": {
-     "__id__": 1388
-    }
-   },
-   "#415902": {
-    "__id__": 1389,
-    "id": 415902,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1390
-    },
-    "finish_targets": {
-     "__id__": 1391
-    },
-    "finish_parameter": {
-     "__id__": 1392
-    }
-   },
-   "#416002": {
-    "__id__": 1393,
-    "id": 416002,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1394
-    },
-    "finish_targets": {
-     "__id__": 1395
-    },
-    "finish_parameter": {
-     "__id__": 1396
-    }
-   },
-   "#416101": {
-    "__id__": 1397,
-    "id": 416101,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1398
-    },
-    "finish_targets": {
-     "__id__": 1399
-    },
-    "finish_parameter": {
-     "__id__": 1400
-    }
-   },
-   "#416202": {
-    "__id__": 1401,
-    "id": 416202,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1402
-    },
-    "finish_targets": {
-     "__id__": 1403
-    },
-    "finish_parameter": {
-     "__id__": 1404
-    }
-   },
-   "#430201": {
-    "__id__": 1405,
-    "id": 430201,
-    "state": 6,
-    "get_time": 0,
-    "start_time": 0,
-    "doing_targets": {
-     "__id__": 1406
-    },
-    "finish_targets": {
-     "__id__": 1407
-    },
-    "finish_parameter": {
-     "__id__": 1408
-    }
-   }
+   "__id__": 1337
   },
   "singleMatchInfo": {
    "__tp__": "SingleMatchInfo",
@@ -1917,10 +1629,10 @@
    "__tp__": "CharacterList",
    "__id__": 1340,
    "#1": {
-    "__id__": 1409,
+    "__id__": 1354,
     "name": "",
     "value": {
-     "__id__": 1411,
+     "__id__": 1356,
      "#1": 9001,
      "#2": 0,
      "#3": 0

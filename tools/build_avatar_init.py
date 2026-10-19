@@ -155,20 +155,12 @@ REQUIRED = {
 # 实测的门槛：地图/背包/任务/图鉴/教学/客服/攻略要任务 1，
 #             角色/商城/龙隐门/成就/好友/活动要剧情任务 1005/1007/1010，
 #             编队要任务 15，播客/昼夜/基础课程/玩法总览要等级 4~7。
-DONE_TASK_IDS = [1, 15]
-# 只需要 TaskType=1（TaskData[1] 和 TaskData[15] 的 TaskType 都是 1）。
-# 之前种了 40 种，createChannelEntity 涨到 24 KB，客户端直接登不进去。
-DONE_TASK_TYPES = [1]
-DONE_STORY_TASK_IDS = [1005, 1007, 1010, 1031, 100003, 400101, 415802,
-                       415805, 415902, 416002, 416101, 416202, 430201]
-PLAYER_LEVEL = 10
-
-SYSTEM_UNLOCKS = [
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 35, 42, 43, 44, 45, 46,
-    47, 48, 49, 50, 51, 52, 53, 54, 55, 57, 59, 60, 61, 62, 64, 67, 68, 70,
-    71, 73, 74, 75, 78, 81, 82, 1001,
-]
+# ★ 系统解锁 / 任务全完成 / 等级拉高 这些**脚手架**已经搬到
+#   game_server/scaffold.py，改成运行时可开关的覆盖层（默认关闭），
+#   不再烤进 avatar_init.json。原因见那个文件的头部注释。
+#
+#   本文件只负责「客户端声明的属性默认值 + 新号初始数据」—— 这些是合法的、
+#   真实服务端也会给的东西，长期保留。
 
 STARTER_FORMATION = {
     "character_list": [
@@ -448,52 +440,8 @@ def main():
             info.update(overrides)
             node["#%d" % char_id] = info
 
-    # 系统入口第二层门槛（见 DONE_TASK_IDS 注释）
-    # task_bag 的声明类型是 ActiveTaskBag（值类型 ActiveTask）。
-    # getSystemTaskState 会先看 task_bag[taskType] 是否存在，为空就直接返回 -1，
-    # 根本走不到 done_tasks 的判断。所以每种任务类型都要给一个空槽位。
-    _tb = props.get("task_bag")
-    if isinstance(_tb, dict):
-        for _tt in DONE_TASK_TYPES:
-            _tb["#%d" % _tt] = gen_nested(types, "ActiveTask")
-
-    _dt = props.get("done_tasks")
-    if isinstance(_dt, dict):
-        for _tt in DONE_TASK_TYPES:
-            # ★ DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt（不是它自己），
-            #   用错类型会让客户端 roinit 建出错误对象，
-            #   表现为登录时 'class ClientAvatar function init must have a boolean return value'。
-            _slot = gen_nested(types, "IntDictKeyInt")
-            for _tid in DONE_TASK_IDS:
-                _slot["#%d" % _tid] = 1
-            _dt["#%d" % _tt] = _slot
-    else:
-        raise SystemExit("done_tasks 属性不存在")
-
-    _dst = props.get("done_story_tasks")
-    if isinstance(_dst, dict):
-        # StoryTaskBag 的 __ValueType__ 是 StoryTaskItem 对象，不能直接塞 true
-        for _tid in DONE_STORY_TASK_IDS:
-            _item = gen_nested(types, "StoryTaskItem")
-            _item["id"] = _tid
-            _item["state"] = 6      # GlobalConst.TaskState.Finished
-            _dst["#%d" % _tid] = _item
-    else:
-        raise SystemExit("done_story_tasks 属性不存在")
-
-    props["level"] = PLAYER_LEVEL
-
-    # 系统入口解锁（见 SYSTEM_UNLOCKS 注释）
-    _sysp = props.get("system_p")
-    if isinstance(_sysp, dict):
-        _us = _sysp.get("unlocked_system")
-        if isinstance(_us, dict):
-            for _sid in SYSTEM_UNLOCKS:
-                _us["#%d" % _sid] = True
-        else:
-            raise SystemExit("system_p.unlocked_system 不是字典")
-    else:
-        raise SystemExit("system_p 属性不存在")
+    # ★ 系统解锁 / 任务全完成 等脚手架不在这里生成，
+    #   由 game_server/scaffold.py 在运行时按开关覆盖。
 
     # 初始编队（见 STARTER_FORMATION 注释）
     for prop, items in STARTER_FORMATION.items():
@@ -525,9 +473,9 @@ def main():
     # 关键简单值
     props["uid"] = "OO00000001"
     props["username"] = "oologin"
-    # 玩家等级。AllSystemCatalogueData 里有一批系统是 unlockType=3(Level)，
-    # 门槛 4/5/6/7；等级太低这些入口会弹「暂未开放」。
-    props["level"] = PLAYER_LEVEL
+    # 玩家等级：客户端声明默认值。
+    # 脚手架要拉高等级请用 --unlock-all（game_server/scaffold.py），不要改这里。
+    props["level"] = 1
     props["entityType"] = "Avatar"
     # 玩家名/性别：streetstage.lua:172-177 的 checkIsCanEnterStreet 要求
     # player_name 非空、gender 非 0。名字取 CommonConstData.Default_PlayerName，

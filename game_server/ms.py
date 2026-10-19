@@ -26,6 +26,16 @@ import json
 import os
 import struct
 
+try:
+    from . import config as ooconf
+except Exception:
+    import config as ooconf  # type: ignore
+
+# ★ 默认值统一从 config 取，不要在这里写死端口/uid/实体 id。
+_DEF_UID = ooconf.FALLBACK_UID
+_DEF_AVATAR_EID = ooconf.avatar_entity_id(ooconf.FALLBACK_UID)
+_DEF_ACCOUNT_EID = ooconf.account_entity_id(ooconf.FALLBACK_UID)
+
 
 # ---------------------------------------------------------------- protobuf
 def pb_read_varint(data, i):
@@ -386,20 +396,39 @@ def _live_init_dict(uid=None):
         #   avatar_init.json 里是 "#9001" 这种写法，_conv_int_keys 之后才是 9001。
         #   以前只有发包时才转换，导致 player_state 里存的是 "#9001"，
         #   改数据、算同步的 name 时对不上。
-        props = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
-                                 uid=uid).props
+        st = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
+                              uid=uid)
     except Exception:
         return DEFAULT_INIT_DICT
+    # 账号 uid 写进状态本身（多账号时每个账号用自己的 uid）
     if uid:
-        props = dict(props)
-        props["uid"] = uid
-    return {"__Properties__": props}
+        st.props["uid"] = uid
+    # ★ 脚手架覆盖层：只在「该账号首次建状态」时应用一次，默认关闭。
+    #   以前是烤进 avatar_init.json 的，生成后关不掉，见 scaffold.py 头部注释。
+    if not getattr(st, "_scaffold_applied", False):
+        try:
+            from . import scaffold as scaffold_mod
+        except Exception:
+            try:
+                import scaffold as scaffold_mod
+            except Exception:
+                scaffold_mod = None
+        if scaffold_mod is not None:
+            try:
+                changed = scaffold_mod.apply(st.props)
+                if changed:
+                    print("[init] 脚手架已应用(uid=%s): %s"
+                          % (uid, "、".join(changed)), flush=True)
+            except Exception as e:
+                print("[init] 脚手架应用失败: %s" % e, flush=True)
+        st._scaffold_applied = True
+    return {"__Properties__": st.props}
 
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
                          init_dict=None,
-                         entity_id="avatar_2000",
-                         session_id="OO00000001",
+                         entity_id=_DEF_AVATAR_EID,
+                         session_id=_DEF_UID,
                          uid=None):
     """构造 createChannelEntity（IGateClientService 第 4 个方法）。
 
@@ -1017,7 +1046,8 @@ def frame(msg_type, body):
 CONNECT_RESP_TYPE = 1
 
 
-def build_connect_server_resp(resp_type=1, session_id="OO00000001", content_type=0):
+def build_connect_server_resp(resp_type=1, session_id=None, content_type=0):
+    session_id = session_id or _DEF_UID
     """构造 ConnectServerResp 的 protobuf 体。
 
     ★ 关键：content_type（字段 5）必须**显式写出**，即使值为默认的 0。
@@ -1038,7 +1068,7 @@ def build_connect_server_resp(resp_type=1, session_id="OO00000001", content_type
     return body
 
 
-def frame_connect_resp(resp_type=1, session_id="OO00000001", content_type=0):
+def frame_connect_resp(resp_type=1, session_id=None, content_type=0):
     """构造完整的 ConnectServerResp 帧。"""
     return frame(CONNECT_RESP_TYPE,
                  build_connect_server_resp(resp_type, session_id, content_type))
@@ -1150,7 +1180,8 @@ def build_property_sync(ownerid, property_id, op_type, name, value, session_id="
         body += pb_bytes_field(6, session_id.encode("utf-8"))
     return frame(PROPERTY_SYNC_TYPE, body)
 
-def build_userdata_batch_params(request_params, uid_default="OO00000001"):
+def build_userdata_batch_params(request_params, uid_default=None):
+    uid_default = uid_default or _DEF_UID
     """构造 batchGetAttribute 的应答参数（msgpack map）。
 
     请求结构：parameters = [ list ]，list = [ [uidStr, [attr, ...]], ... ]
@@ -1216,9 +1247,10 @@ def build_load_service_params(gate_port=33101, ret_err=0, ret_status=True):
 BIND_ACCOUNT_TYPE = 6
 
 
-def build_entity_mailbox(entity_id="account_2000", server_ip="127.0.0.1",
+def build_entity_mailbox(entity_id=None, server_ip="127.0.0.1",
                          server_port=33101, cluster_id=20000):
     """EntityMailbox { 1:entityId  2:serverIp  3:serverPort  4:clusterId }"""
+    entity_id = entity_id or _DEF_ACCOUNT_EID
     body = b""
     if entity_id:
         body += pb_bytes_field(1, entity_id.encode("utf-8"))
@@ -1229,7 +1261,7 @@ def build_entity_mailbox(entity_id="account_2000", server_ip="127.0.0.1",
     return body
 
 
-def build_bind_account(auth="", cluster_id=20000, online_info=b"", session_id="OO00000001",
+def build_bind_account(auth="", cluster_id=20000, online_info=b"", session_id=None,
                        act_mailbox=None):
     """构造 BindAccountInfo 的 protobuf 体。
 
@@ -1248,7 +1280,7 @@ def build_bind_account(auth="", cluster_id=20000, online_info=b"", session_id="O
     return body
 
 
-def frame_bind_account(auth="", cluster_id=20000, online_info=b"", session_id="OO00000001",
+def frame_bind_account(auth="", cluster_id=20000, online_info=b"", session_id=None,
                        act_mailbox=None):
     return frame(BIND_ACCOUNT_TYPE,
                  build_bind_account(auth, cluster_id, online_info, session_id, act_mailbox))
@@ -1281,7 +1313,7 @@ def build_server_info(port=33101, name="OpenOrange", cluster_id=20000):
     return body
 
 
-def build_bind_avatar(auth="", cluster_id=20000, online_info=b"", session_id="OO00000001",
+def build_bind_avatar(auth="", cluster_id=20000, online_info=b"", session_id=None,
                       avt_mailbox=None):
     if avt_mailbox is None:
         avt_mailbox = build_entity_mailbox("avatar_2000", "127.0.0.1", 33101, cluster_id)
@@ -1295,13 +1327,13 @@ def build_bind_avatar(auth="", cluster_id=20000, online_info=b"", session_id="OO
     return body
 
 
-def frame_bind_avatar(auth="", cluster_id=20000, online_info=b"", session_id="OO00000001",
+def frame_bind_avatar(auth="", cluster_id=20000, online_info=b"", session_id=None,
                       avt_mailbox=None):
     return frame(BIND_AVATAR_TYPE,
                  build_bind_avatar(auth, cluster_id, online_info, session_id, avt_mailbox))
 
 
-def build_bind_soul(auth="", session_id="OO00000001", soul_mailbox=None,
+def build_bind_soul(auth="", session_id=None, soul_mailbox=None,
                     gates=None, cluster_id=20000):
     if soul_mailbox is None:
         soul_mailbox = build_entity_mailbox("soul_2000", "127.0.0.1", 33101, cluster_id)
@@ -1317,7 +1349,7 @@ def build_bind_soul(auth="", session_id="OO00000001", soul_mailbox=None,
     return body
 
 
-def frame_bind_soul(auth="", session_id="OO00000001", soul_mailbox=None,
+def frame_bind_soul(auth="", session_id=None, soul_mailbox=None,
                     gates=None, cluster_id=20000):
     return frame(BIND_SOUL_TYPE,
                  build_bind_soul(auth, session_id, soul_mailbox, gates, cluster_id))

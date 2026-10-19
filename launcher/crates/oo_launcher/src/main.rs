@@ -37,12 +37,17 @@ fn main() {
         attach_parent_console();
         let username = args.get(i + 1).cloned().unwrap_or_default();
         let password = args.get(i + 2).cloned().unwrap_or_default();
+        // ★ --auto：才注入「自动进入游戏」的逻辑。
+        //   不加 --auto 时启动器仍会登录后端并拉起游戏，但不会接管
+        //   platform/login，游戏会停在它自己的登录界面（方便观察原始流程）。
+        let auto = args.iter().any(|a| a == "--auto");
         if username.is_empty() || password.is_empty() {
-            eprintln!("用法: OO_Launcher.exe --cli <账号> <密码>");
+            eprintln!("用法: OO_Launcher.exe --cli <账号> <密码> [--auto]");
+            eprintln!("  --auto  自动进入游戏（不加则只拉起客户端，停在登录界面）");
             std::process::exit(2);
         }
         // 日志与配置初始化在 ui::run_cli -> init_shared 内完成
-        let code = ui::run_cli(&username, &password);
+        let code = ui::run_cli(&username, &password, auto);
         std::process::exit(code);
     }
 

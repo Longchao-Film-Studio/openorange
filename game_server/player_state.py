@@ -27,15 +27,17 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # 默认 work/player_state；设 OO_STATE_DIR 可换目录。
 # ★ 测试必须设成临时目录，否则会覆盖真实玩家存档
 #   （test_property_sync.py 用默认 uid 跑 reset_state + save，踩过一次）。
-_STATE_DIR = (os.environ.get("OO_STATE_DIR")
-               or os.path.join(os.path.dirname(_HERE), "work", "player_state"))
+# 存档目录统一由 config 管：默认 work/player_state，设 OO_STATE_DIR 可换。
+from . import config as _cfg  # noqa: E402
+_STATE_DIR = _cfg.STATE_DIR
 
 _LOCK = threading.RLock()
 # 每个账号一份状态：uid -> PlayerState。
 # 以前只有一个 _CURRENT，多开时所有客户端会共用同一份数据。
 _STATES = {}
 
-DEFAULT_UID = "OO00000001"
+# 兜底 uid（账号关联失败时才用）。正常路径 uid = 登录名。
+DEFAULT_UID = _cfg.FALLBACK_UID
 
 
 def _keys_to_json(obj):

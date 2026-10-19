@@ -58,8 +58,40 @@ _gate_uid = {}                   # cid -> username（= 游戏内 uid）
 USERNAME_MATCH_WINDOW = 30       # 秒
 
 
+def _resolve_display_uid(raw):
+    """把 ms query 里的 Username 还原成玩家看得懂的 uid。
+
+    ms GameLoadService.query 里的 Username 其实是 **account_id**
+    （`oo_` + sha256("acct:"+登录名) 前 16 位），例如
+    `oo_08bed76013b06783` 对应登录名 `15900159000`。
+    所以查库换回真正的登录名；查不到就用账号表自增 id（1、2、3…）兜底，
+    再不行才用原始串。
+    """
+    if not raw:
+        return None
+    if shared_db is not None:
+        try:
+            acc = shared_db.get_account_by_account_id(raw)
+            if acc:
+                name = (acc.get("username") or "").strip()
+                if name:
+                    return name
+                print("[GATE] 警告：account_id=%s 的账号没有登录名，只能退回原始串"
+                      % raw, flush=True)
+            else:
+                print("[GATE] 警告：account_id=%s 在库里查不到，只能退回原始串" % raw,
+                      flush=True)
+        except Exception as _e:
+            print("[GATE] 警告：还原登录名失败 %s" % _e, flush=True)
+    # ★ 不用数字兜底：uid 必须是登录名。查不到才退回原始串（正常不会走到）。
+    return raw
+
+
 def _remember_username(username):
-    """ms query 里看到的账号名，放进待关联队列。"""
+    """ms query 里看到的账号，还原成 uid 后放进待关联队列。"""
+    if not username:
+        return
+    username = _resolve_display_uid(username)
     if not username:
         return
     now = time.time()
@@ -115,11 +147,14 @@ if __package__ in (None, ""):
 
 from shared import db  # noqa: E402
 
-HOST = "0.0.0.0"
-PORT = 33100
+from . import config as ooconf  # noqa: E402
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CAPTURE_DIR = os.path.join(_ROOT, "work", "captures")
+# ★ 端口/路径一律从 game_server.config 取，不要在这里写死。
+HOST = ooconf.HOST
+PORT = ooconf.MS_PORT
+
+_ROOT = ooconf.ROOT_DIR
+CAPTURE_DIR = ooconf.CAPTURE_DIR
 
 ECHO = False
 UPSTREAM = None          # (host, port)
@@ -133,8 +168,8 @@ UPSTREAM = None          # (host, port)
 # 成功判据：客户端收到正确的 ms 应答后，会去连 ServerList 里 clusters.addrs 指定的
 # 网关地址，也就是 33101 —— 只要那里出现连接，就证明应答格式对了。
 MS_MODE = False
-MS_PORT = 33100
-GATE_PORT = 33101
+MS_PORT = ooconf.MS_PORT
+GATE_PORT = ooconf.GATE_PORT
 MS_BRUTE = False       # 全量爆破类型号
 MS_BRUTE_MAX = 256
 # 语义探针：始终回 ERR_CONN_NEED_BIND。
@@ -842,6 +877,29 @@ def main():
             hp = argv[i + 1]
             h, _, p = hp.rpartition(":")
             UPSTREAM = (h, int(p))
+
+    # ---- 脚手架开关（默认全关，走和真实游戏一致的开局）----
+    # 见 game_server/config.py 的 Scaffold 注释与 game_server/scaffold.py。
+    _unlock_all = "--unlock-all" in argv
+    _level = None
+    _tasks_done = None
+    for i, a in enumerate(argv):
+        if a == "--level" and i + 1 < len(argv):
+            try:
+                _level = int(argv[i + 1])
+            except Exception:
+                print("[cfg] --level 需要整数", flush=True)
+        if a == "--tasks-done":
+            _tasks_done = True
+        if a == "--no-tasks-done":
+            _tasks_done = False
+    if "--no-scaffold" in argv:
+        _unlock_all = False
+        _level = None
+        _tasks_done = False
+    _sc = ooconf.configure_scaffold(unlock_all=_unlock_all, level=_level,
+                                    all_tasks_done=_tasks_done)
+    print("[cfg] 脚手架: %s" % _sc.describe(), flush=True)
     if MS_MODE:
         os.makedirs(CAPTURE_DIR, exist_ok=True)
         db.init()

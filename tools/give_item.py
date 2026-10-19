@@ -36,13 +36,24 @@ INIT_JSON = os.path.join(_ROOT, "game_server", "avatar_init.json")
 
 
 def load_props(uid):
-    """取玩家属性：优先存档，否则用 initDict。"""
+    """取玩家属性：优先存档，否则用 initDict。
+
+    ★ 不管走哪条路，都要把 props["uid"] 覆盖成 uid。
+    以前从 initDict 起状态时没覆盖，导致存档里出现
+    「顶层 uid=15900159000，props.uid=OO00000001」这种自相矛盾的数据 ——
+    而客户端读的正是 props.uid。
+    """
     st = pstate.load(uid)
     if st is not None:
-        return st.props, "存档"
-    with open(INIT_JSON, "r", encoding="utf-8") as f:
-        d = json.load(f)
-    return msmod._conv_int_keys(d["__Properties__"]), "initDict"
+        props = st.props
+        src = "存档"
+    else:
+        with open(INIT_JSON, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        props = msmod._conv_int_keys(d["__Properties__"])
+        src = "initDict"
+    props["uid"] = uid
+    return props, src
 
 
 def max_id(obj, cur=0):

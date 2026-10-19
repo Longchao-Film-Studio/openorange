@@ -60,6 +60,15 @@ pub unsafe fn run(l: LuaState) -> Result<(), String> {
         (api.gettop)(l)
     ));
 
+    // ---- 1.5) 把启动参数送进 Lua ----
+    // --auto 才启用「自动进入游戏」；默认 false。
+    // 由启动器通过环境变量 OO_AUTO 传递（游戏进程继承父进程环境）。
+    let auto = std::env::var("OO_AUTO").map(|v| v == "1").unwrap_or(false);
+    let prelude = format!("rawset(_G, 'OO_AUTO', {})", if auto { "true" } else { "false" });
+    log::write(&format!("inject: OO_AUTO = {auto}"));
+    capi::load_chunk(l, &prelude, "@oo_prelude")?;
+    capi::pcall(&api, l, 0, 0)?;
+
     // ---- 2) 载入引导脚本 ----
     log::write(&format!(
         "inject: about to load bootstrap chunk ({} bytes) via trampoline",

@@ -498,10 +498,13 @@ fn on_login_clicked(hwnd: HWND) {
 // 用途：在无法操作 GUI 的环境下跑通完整流程（登录 -> 拉起 -> 注入 -> 放行）。
 // 每个失败点都会明确打印，绝不静默。
 // ============================================================================
-pub fn run_cli(username: &str, password: &str) -> i32 {
+pub fn run_cli(username: &str, password: &str, auto: bool) -> i32 {
+    // ★ 通过环境变量把「是否自动进入游戏」传给注入的 DLL（游戏进程继承父进程环境）。
+    //   DLL 会在加载引导脚本前把它写成 Lua 全局 OO_AUTO。
+    std::env::set_var("OO_AUTO", if auto { "1" } else { "0" });
     init_shared(true);
     let st = state();
-    log_info!("=== 命令行模式：{username} ===");
+    log_info!("=== 命令行模式：{username}（auto={auto}）===");
 
     let dll = st.cfg.resolve_inject_dll();
     if !dll.is_file() {

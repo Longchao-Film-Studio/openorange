@@ -139,6 +139,19 @@ def verify_password(password, salt_hex, hash_hex):
 
 # ---------------- accounts ----------------
 
+def get_account_by_account_id(account_id):
+    """按 account_id（oo_+sha256）查账号。
+
+    游戏服的 ms GameLoadService.query 里带的是 account_id 而不是登录名，
+    要还原成登录名就得靠这个查询。
+    """
+    if not account_id:
+        return None
+    r = _conn().execute("SELECT * FROM accounts WHERE account_id=?",
+                        (str(account_id),)).fetchone()
+    return dict(r) if r else None
+
+
 def get_account_by_username(username):
     r = _conn().execute("SELECT * FROM accounts WHERE username=?", (username,)).fetchone()
     return dict(r) if r else None

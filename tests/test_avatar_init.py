@@ -110,35 +110,24 @@ def run():
     check("character_choosen_char = 9001", props.get("character_choosen_char") == 9001,
           props.get("character_choosen_char"))
 
-    print("\n[5c] 系统入口解锁（决定 M 键地图 / ESC 菜单 / 等级显示）")
-    # avatarsystemguidecomp.lua:86-94 isSysEntryUnlock 读
-    #   system_p.unlocked_system[sysId] == true
-    # 不填的话 M 键地图、ESC 菜单里的角色/队伍、左上角等级全都不显示。
+    print("\n[5c] avatar_init.json 里**不应**含脚手架")
+    # ★ 架构决定：系统解锁 / 任务全完成 / 等级拉高 这些脚手架是**运行时可开关的
+    #   覆盖层**（game_server/scaffold.py），不再烤进 avatar_init.json。
+    #   原因：烤进去之后就关不掉，而且会掩盖服务端真正的 bug。
+    #   脚手架本身的验证在 tests/test_scaffold.py。
     sysp = props.get("system_p")
     check("system_p 存在", isinstance(sysp, dict), type(sysp))
     us = (sysp or {}).get("unlocked_system") or {}
-    for _name, _sid in (("PlayerInfo", 1), ("Role", 4), ("Bag", 7), ("Map", 11),
-                        ("Formation", 30), ("BattlePass", 32), ("Menu", 1001)):
-        check("解锁 %s(%d)" % (_name, _sid), us.get("#%d" % _sid) is True, us.get("#%d" % _sid))
-
-    print("\n[5d] 系统入口的第二层门槛（不满足就弹「暂未开放」）")
-    # node_menu_itemgroup.lua:231-256 checkSystemUnlockState：
-    #   Task      -> getSystemTaskState(taskId) == Finished(6)
-    #                -> task_bag[TaskType] 必须存在，且 done_tasks[TaskType][taskId] 为真
-    #   StoryTask -> done_story_tasks[taskId] 是 StoryTaskItem 且 state == 6
-    #   Level     -> level >= unlockParam
-    check("level = 10（Level 类门槛 4/5/6/7 都要过）", props.get("level") == 10, props.get("level"))
-    tb = props.get("task_bag") or {}
-    check("task_bag 有 TaskType=1 槽位", isinstance(tb.get("#1"), dict), type(tb.get("#1")))
-    dt = props.get("done_tasks") or {}
-    dt1 = dt.get("#1") or {}
-    check("done_tasks[1][1] 为真（地图/背包/任务门槛）", bool(dt1.get("#1")), dt1.get("#1"))
-    check("done_tasks[1][15] 为真（编队门槛）", bool(dt1.get("#15")), dt1.get("#15"))
-    dst = props.get("done_story_tasks") or {}
-    item = dst.get("#1005") or {}
-    check("done_story_tasks[1005] 是对象不是 true", isinstance(item, dict), type(item))
-    check("done_story_tasks[1005].state = 6", item.get("state") == 6, item.get("state"))
-    check("done_story_tasks[1005].id = 1005", item.get("id") == 1005, item.get("id"))
+    check("unlocked_system 是空的（脚手架默认关）",
+          len([k for k in us if k.startswith("#")]) == 0,
+          len([k for k in us if k.startswith("#")]))
+    check("level = 1（客户端声明默认值）", props.get("level") == 1, props.get("level"))
+    check("done_tasks 是空的",
+          len([k for k in (props.get("done_tasks") or {}) if k.startswith("#")]) == 0)
+    check("done_story_tasks 是空的",
+          len([k for k in (props.get("done_story_tasks") or {}) if k.startswith("#")]) == 0)
+    check("task_bag 是空的",
+          len([k for k in (props.get("task_bag") or {}) if k.startswith("#")]) == 0)
 
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
