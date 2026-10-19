@@ -161,6 +161,59 @@ def _team_info(rid, params):
     return msmod.build_team_info_sc(rid)
 
 
+def _upgrade_character(rid, params):
+    """1-1 角色升级：加 CharLevel + 推 characterBag 子属性同步。
+
+    客户端 entities/avatarcomponent/avatarcharcomp.lua:1015-1029：
+      UpgradeCharacter(charId, level, items)
+        -> serverRpc("UpgradeCharacter_CS", {charId, sendItems}, ...)
+      UpgradeCharacter_SC(charId, addLevel, retstatus, response)
+        -> CheckCharacterStatus 且 addLevel > 0 时 post ECharLevelUp
+
+    等级读取（同文件 237-261）：
+      getCharacterLevel(charID) -> characterBag[charID]["CharLevel"] or 1
+    所以把 CharLevel 写进角色字典，再推子属性同步即可。
+
+    characterBag 结构（initDict 实测）：
+      {__tp__:"CharacterPersistentDict", __id__:1326, 9001:{__id__:1341, useSkinId:..., ...}}
+    键在 _conv_int_keys 之后是整数 9001；但 proto 的 name 字段是字符串，
+    所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    char_id = vals[0]
+    st = _state()
+    bag = st.get("characterBag")
+    if not isinstance(bag, dict):
+        return frames
+    bag_id = bag.get("__id__") or 0
+    key = None
+    if char_id in bag:
+        key = char_id
+    elif str(char_id) in bag:
+        key = str(char_id)
+    elif isinstance(char_id, str) and char_id.isdigit() and int(char_id) in bag:
+        key = int(char_id)
+    if key is None:
+        return frames
+    char = bag.get(key)
+    if not isinstance(char, dict):
+        return frames
+    try:
+        old_level = int(char.get("CharLevel") or 1)
+    except Exception:
+        old_level = 1
+    char["CharLevel"] = old_level + 1
+    char.setdefault("CharExp", 0)
+    st.set("characterBag", bag)
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", bag_id, msmod.OP_CHANGE, str(key), char))
+    return frames
+
+
 def _use_item(rid, params):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -232,13 +285,16 @@ def _set_signature(rid, params):
 def _state():
     """服务端可变玩家状态（懒加载，首次用 initDict 初始化）。"""
     from . import player_state as pstate
-    return pstate.get_state(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
+    # 和 ms._live_init_dict 保持一致：状态里一律用整数键
+    props = msmod._conv_int_keys(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
+    return pstate.get_state(props)
 
 
 # 索引 -> 处理函数。没列进来的走通用 ACK。
 _HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
+    msmod.RPC_INDEX_UPGRADE_CHARACTER_CS: _upgrade_character,
     msmod.RPC_GET_SUNACT_LEVEL_CS: _sunact_level,
     msmod.RPC_GET_MATCH_DURATION: _match_duration,
     msmod.RPC_QUERY_MY_TEAM_INFO_CS: _team_info,

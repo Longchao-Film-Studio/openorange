@@ -380,7 +380,11 @@ def _live_init_dict():
         except Exception:
             return DEFAULT_INIT_DICT
     try:
-        props = pstate.get_state(AVATAR_INIT_DICT.get("__Properties__") or {}).props
+        # ★ 服务端状态必须用整数键（和客户端一致）。
+        #   avatar_init.json 里是 "#9001" 这种写法，_conv_int_keys 之后才是 9001。
+        #   以前只有发包时才转换，导致 player_state 里存的是 "#9001"，
+        #   改数据、算同步的 name 时对不上。
+        props = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {})).props
     except Exception:
         return DEFAULT_INIT_DICT
     return {"__Properties__": props}
@@ -1109,6 +1113,8 @@ PROPERTY_SYNC_TYPE = 13
 RPC_INDEX_SET_SIGNATURE_CS = 2040954396
 # 1-2 使用道具（avatarbagcomp.lua:340）
 RPC_INDEX_USE_ITEM_CS = 168315907
+# 1-1 角色升级（avatarcharactercomp.lua:1015）
+RPC_INDEX_UPGRADE_CHARACTER_CS = 732022161
 OP_CHANGE = 1
 OP_ADD = 2
 OP_DEL = 3

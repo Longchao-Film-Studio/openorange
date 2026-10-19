@@ -1037,6 +1037,21 @@ local CB_NAMES = {
 -- ------------------------------------------------------------
 -- 观察 signature 是否被服务端推的属性同步改掉
 -- 1-2 使用道具验证：扣数量 + 属性同步
+-- 1-1 角色升级验证
+local function probe_upgrade()
+  if pc.upgradeprobe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil or A:isServerLost() then return end
+    pc.upgradeprobe = true
+    local lv = 'nil'
+    pcall(function() lv = tostring(A:getCharacterLevel(9001)) end)
+    LOG('upgrade| before getCharacterLevel(9001)=' .. lv)
+    A:UpgradeCharacter(9001, 1, {})
+  end)
+end
 local function probe_useitem()
   if pc.useitemprobe then return end
   pcall(function()
@@ -1090,6 +1105,13 @@ local function probe_sig_watch()
     if pc.itemLast ~= cnt then
       LOG('itemwatch| #' .. pc.sigWatch .. ' item101=' .. cnt)
       pc.itemLast = cnt
+    end
+    -- 角色等级也盯一下
+    local lv = 'nil'
+    pcall(function() lv = tostring(A:getCharacterLevel(9001)) end)
+    if pc.lvLast ~= lv then
+      LOG('lvwatch| #' .. pc.sigWatch .. ' charLevel9001=' .. lv)
+      pc.lvLast = lv
     end
   end)
 end
@@ -1166,7 +1188,8 @@ local function probe_phonestcore_keys()
   end
 end
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
-OO_PROBE_RPC = false  -- SetSignature 端到端探针（验证完已关）
+OO_PROBE_RPC = false    -- SetSignature 端到端探针（验证完已关）
+OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1555,7 +1578,11 @@ local function install_cb_wrappers()
           if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
           if (pc.frames % 30) == 10 then pcall(probe_userdata) end
-          if (pc.frames % 30) == 5 then pcall(probe_useitem) end
+          -- 写操作探针默认关（会改数据）；需要时打开
+          if OO_PROBE_WRITE then
+            if (pc.frames % 30) == 5 then pcall(probe_useitem) end
+            if (pc.frames % 30) == 8 then pcall(probe_upgrade) end
+          end
           pcall(probe_sig_watch)
         end
         local n = select('#', ...)

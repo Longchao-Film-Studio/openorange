@@ -107,6 +107,25 @@ def run():
     bag4 = pstate.get_state().get("item_bag")
     check("不会变负数", bag4["1"]["num"] == 0, bag4["1"]["num"])
 
+    print("\n[4d] UpgradeCharacter_CS 升级 + characterBag 子属性同步")
+    pstate.reset_state({"characterBag": {"__tp__": "CharacterPersistentDict", "__id__": 1326,
+                                         9001: {"__id__": 1341, "useSkinId": 900101}}})
+    frames5 = erpc.handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 21)
+    check("返回 2 帧", len(frames5) == 2, len(frames5))
+    cbag = pstate.get_state().get("characterBag")
+    check("CharLevel 默认 1 -> 2", cbag[9001].get("CharLevel") == 2, cbag[9001].get("CharLevel"))
+    d6 = parse_sync(frames5[1])
+    check("同步帧类型 13", d6["type"] == 13, d6["type"])
+    check("propertyid = characterBag 的 __id__", d6.get("propertyid") == 1326, d6.get("propertyid"))
+    check("name = 角色 id 字符串", d6.get("name") == "9001", d6.get("name"))
+    check("value 里 CharLevel=2", (d6.get("value") or {}).get("CharLevel") == 2,
+          (d6.get("value") or {}).get("CharLevel"))
+
+    print("\n[4e] 再升一次到 3")
+    erpc.handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 22)
+    check("CharLevel = 3", pstate.get_state().get("characterBag")[9001].get("CharLevel") == 3,
+          pstate.get_state().get("characterBag")[9001].get("CharLevel"))
+
     print("\n[5] 其它 RPC 仍然只有一帧")
     frames2 = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
     check("1 帧", len(frames2) == 1, len(frames2))
@@ -120,7 +139,8 @@ def run():
     _props = {1: {"a": 2}, 3: "x"}
     for _i in range(12):
         _props["k%d" % _i] = _i
-    st = pstate.PlayerState(props=_props)
+    # 用独立的 uid，别污染真实玩家存档（load 会优先读盘）
+    st = pstate.PlayerState(uid="OO_TEST_SAVE", props=_props)
     st.save()
     st2 = pstate.load(st.uid)
     check("存档能读回", st2 is not None)
