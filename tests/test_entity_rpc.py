@@ -84,7 +84,7 @@ def run():
     check("RpcGetSunActLevel_CS", erpc.RPC_INDEX["RpcGetSunActLevel_CS"] == 1033592883)
 
     print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
-    pkt = erpc.handle(732022161, b"\x90", 7)
+    pkt = erpc.handle(732022161, b"\x90", 7)[0]
     mtype, rid, val = parse_response(pkt)
     # 应答 = entityMessage(type=2) + methodName __rpc_response__（逆向确认）
     check("帧类型 = 2（entityMessage）",
@@ -96,15 +96,15 @@ def run():
     check("response 为空表", val[1] == {}, val[1])
 
     print("\n[5] 单向消息不应答")
-    check("rid=0 返回 None", erpc.handle(732022161, b"\x90", 0) is None)
-    check("index=None 返回 None", erpc.handle(None, b"\x90", 5) is None)
+    check("rid=0 返回空列表", erpc.handle(732022161, b"\x90", 0) == [])
+    check("index=None 返回空列表", erpc.handle(None, b"\x90", 5) == [])
 
     print("\n[6] 专用应答")
-    _, _, v1 = parse_response(erpc.handle(1033592883, b"\x90", 2))
+    _, _, v1 = parse_response(erpc.handle(1033592883, b"\x90", 2)[0])
     check("RpcGetSunActLevel 回 levelIds", v1[1].get("levelIds") == [], v1[1])
-    _, _, v2 = parse_response(erpc.handle(1795313897, b"\x90", 1))
+    _, _, v2 = parse_response(erpc.handle(1795313897, b"\x90", 1)[0])
     check("RpcGetMatchDuration 回 data", v2[1].get("data") == {}, v2[1])
-    _, _, v3 = parse_response(erpc.handle(1674960337, b"\x90", 3))
+    _, _, v3 = parse_response(erpc.handle(1674960337, b"\x90", 3)[0])
     check("QueryMyTeamInfo 回 status=false", v3[0].get("status") is False, v3[0])
 
     print("\n[7] 名字解析 / 参数解码")

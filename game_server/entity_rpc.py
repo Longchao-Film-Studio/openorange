@@ -161,8 +161,34 @@ def _team_info(rid, params):
     return msmod.build_team_info_sc(rid)
 
 
+def _set_signature(rid, params):
+    """1-3 改签名：真正改服务端状态，再推一条属性同步。
+
+    依据 entities/avatarcomponent/avataruserdatacomp.lua:348-352：
+      SetSignature_CS(signature, callback)
+        -> serverRpc("SetSignature_CS", {signature}, ...)
+    属性同步格式见 ms.build_property_sync（描述符逆向出来的）。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if isinstance(vals, list) and vals and isinstance(vals[0], str):
+        st = _state()
+        st.set("signature", vals[0])
+        st.save()
+        frames.append(msmod.build_property_sync(
+            "", st.next_property_id(), msmod.OP_CHANGE, "signature", vals[0]))
+    return frames
+
+
+def _state():
+    """服务端可变玩家状态（懒加载，首次用 initDict 初始化）。"""
+    from . import player_state as pstate
+    return pstate.get_state(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
+
+
 # 索引 -> 处理函数。没列进来的走通用 ACK。
 _HANDLERS = {
+    msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_GET_SUNACT_LEVEL_CS: _sunact_level,
     msmod.RPC_GET_MATCH_DURATION: _match_duration,
     msmod.RPC_QUERY_MY_TEAM_INFO_CS: _team_info,
@@ -170,22 +196,28 @@ _HANDLERS = {
 
 
 def handle(index, params, rid):
-    """处理一条实体 RPC。
+    """处理一条实体 RPC，返回**帧列表**（可能为空）。
 
-    返回应答帧（bytes），或者 None 表示这条不用应答。
+    返回列表是因为有的 RPC 除了应答帧，还要推额外的帧（比如 SetSignature_CS
+    改完签名要再推一条 propertySync2Client）。
+
+    空列表表示这条不用应答：
+      - index 为 None；
+      - rid <= 0 的单向消息（serverMsg / CallServer），回了客户端反而会报
+        "entityMessageResponse got rid 0"（gateclientrpchandler.lua:138）。
     """
     if index is None:
-        return None
-    nm = name_of(index)
+        return []
     if rid <= 0:
-        # 单向消息（serverMsg / CallServer），没有回调，回了客户端反而会
-        # 报 "entityMessageResponse got rid 0"（gateclientrpchandler.lua:138）。
-        return None
+        return []
     fn = _HANDLERS.get(index)
     if fn is not None:
-        return fn(rid, params)
+        out = fn(rid, params)
+        if out is None:
+            return []
+        return out if isinstance(out, list) else [out]
     # 通用成功应答：所有 _SC 处理函数都只看 retstatus.status。
-    return msmod.build_entity_response(rid, ret=dict(ACK_OK))
+    return [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
 
 
 def decode_params(params):

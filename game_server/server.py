@@ -466,41 +466,25 @@ def _handle_gate_probe(conn, addr, cid):
                         if rpkt is not None:
                             label = "%s(rid=%d)" % (erpc.describe(idx), rid)
 
-                    if rpkt is not None:
-                        conn.sendall(rpkt)
-                        # 探测：同一个应答再换 6..9 号帧类型发一遍，让客户端认领
-                        if (len(rpkt) >= 6
-                                and rpkt[4] == (msmod.ENTITY_RESPONSE_FRAME_TYPE & 0xFF)
-                                and rpkt[5] == (msmod.ENTITY_RESPONSE_FRAME_TYPE >> 8)):
-                            # 应答格式穷举（实测 5 组全不认，默认关；见 ROADMAP 第 24 节）
-                            if msmod.ENTITY_RESPONSE_TRY_CANDIDATES:
-                                try:
-                                    _combo = int(rid) % 20
-                                    _cpkt = msmod.build_entity_response_combo(rid, _combo)
-                                    conn.sendall(_cpkt)
-                                    print("[GATE] #%03d TX 应答候选 combo=%d rid=%d (%d B)"
-                                          % (cid, _combo, rid, len(_cpkt)), flush=True)
-                                except Exception as _e:
-                                    print("[GATE] #%03d 候选发送失败: %s" % (cid, _e), flush=True)
-                            # 候选 2：type=2 entityMessage + field5=rid（实测不认，默认关）
-                            if msmod.ENTITY_RESPONSE_TRY_MESSAGE:
-                                try:
-                                    _alt = msmod.build_entity_response_via_message(rid)
-                                    conn.sendall(_alt)
-                                    print("[GATE] #%03d TX 候选2 entityMessage+rid (%d B)"
-                                          % (cid, len(_alt)), flush=True)
-                                except Exception:
-                                    pass
-                            for _t in msmod.ENTITY_RESPONSE_PROBE_TYPES:
-                                try:
-                                    conn.sendall(msmod.reframe_as(rpkt, _t))
-                                except Exception:
-                                    pass
-                            print("[GATE] #%03d TX %s + 探测类型 %s"
-                                  % (cid, label, list(msmod.ENTITY_RESPONSE_PROBE_TYPES)),
-                                  flush=True)
-                        print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(rpkt)), flush=True)
-                        print(_hexdump(rpkt, limit=256), flush=True)
+                    # ★ rpkt 有两种形态：
+                    #   - 裸 bytes：老路径（如 networkCheckAfterChange_SC）；
+                    #   - 帧列表：entity_rpc.handle 返回（应答帧 + 可能的属性同步帧）。
+                    # 之前直接 for 遍历，裸 bytes 会被逐字节当成 int 发出去，
+                    # 报 "a bytes-like object is required, not 'int'" 并断连。
+                    if isinstance(rpkt, (bytes, bytearray)):
+                        _pkts = [rpkt]
+                    elif rpkt:
+                        _pkts = list(rpkt)
+                    else:
+                        _pkts = []
+                    for _pkt in _pkts:
+                        conn.sendall(_pkt)
+                        print("[GATE] #%03d TX %s (%d B)"
+                              % (cid, label, len(_pkt)), flush=True)
+                        print(_hexdump(_pkt, limit=256), flush=True)
+                    if len(_pkts) > 1:
+                        print("[GATE] #%03d TX %s + %d 条属性同步"
+                              % (cid, label, len(_pkts) - 1), flush=True)
                     else:
                         print("[GATE] #%03d %s 无需应答" % (cid, erpc.describe(idx)), flush=True)
 

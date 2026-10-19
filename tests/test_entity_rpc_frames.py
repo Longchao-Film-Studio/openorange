@@ -123,18 +123,18 @@ def run():
     check("不足 6 字节不返回", frames == [] and len(rest) == 5)
 
     print("\n[4] 用实机帧跑应答（帧类型 + rid 回带）")
-    mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1))
+    mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1)[0])
     check("应答帧类型 = 2（entityMessage）",
           mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
           (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("RpcGetSunActLevel rid=1 回带", rid == 1, rid)
     check("RpcGetSunActLevel 回 levelIds", val[1].get("levelIds") == [], val[1])
 
-    mtype, rid, val = parse_response(erpc.handle(1795313897, b"\x90", 3))
+    mtype, rid, val = parse_response(erpc.handle(1795313897, b"\x90", 3)[0])
     check("RpcGetMatchDuration rid=3 回带", rid == 3, rid)
     check("RpcGetMatchDuration 回 data", val[1].get("data") == {}, val[1])
 
-    mtype, rid, val = parse_response(erpc.handle(1674960337, b"\x90", 4))
+    mtype, rid, val = parse_response(erpc.handle(1674960337, b"\x90", 4)[0])
     check("QueryMyTeamInfo rid=4 回带", rid == 4, rid)
     check("QueryMyTeamInfo status=false", val[0].get("status") is False, val[0])
 
@@ -155,14 +155,14 @@ def run():
     for tag, frame in (("RpcPullHotfix", F_HOTFIX), ("心跳", F_HEARTBEAT0),
                        ("RpcSyncServerTime", F_SYNC_TIME)):
         idx, params, rid = msmod.parse_entity_frame(frame[6:])
-        check(tag + "（rid=0）返回 None", erpc.handle(idx, params, rid) is None)
+        check(tag + "（rid=0）返回空列表", erpc.handle(idx, params, rid) == [])
 
     print("\n[6] 阶段 1 的 RPC 都能用通用 ACK 应答")
     # 抽 6 条 1-1/1-2/1-3 的 RPC，用空数组参数模拟调用
     for nm in ("UpgradeCharacter_CS", "BreakCharacter_CS", "UseItem_CS",
                "SubmitItem_CS", "SetSignature_CS", "UpgradePlayerStage_CS"):
         idx = erpc.RPC_INDEX[nm]
-        pkt = erpc.handle(idx, b"\x90", 9)
+        pkt = erpc.handle(idx, b"\x90", 9)[0]
         mtype, rid, val = parse_response(pkt)
         ok = (mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE and rid == 9
               and val[0].get("status") is True)

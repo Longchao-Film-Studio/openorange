@@ -364,6 +364,25 @@ _LEGACY_INIT_DICT = {
 DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") else _LEGACY_INIT_DICT
 
 
+def _live_init_dict():
+    """登录时的 initDict 用服务端可变状态（player_state）。
+
+    这样 Set* 改过的值、以及落盘后重启的存档，都会在下次登录时生效。
+    """
+    try:
+        from . import player_state as pstate
+    except Exception:
+        try:
+            import player_state as pstate
+        except Exception:
+            return DEFAULT_INIT_DICT
+    try:
+        props = pstate.get_state(AVATAR_INIT_DICT.get("__Properties__") or {}).props
+    except Exception:
+        return DEFAULT_INIT_DICT
+    return {"__Properties__": props}
+
+
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
                          init_dict=None,
                          entity_id="avatar_2000",
@@ -376,7 +395,7 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
     if not isinstance(entity_type, bytes):
         entity_type = str(entity_type).encode("utf-8")
     if init_dict is None:
-        init_dict = DEFAULT_INIT_DICT
+        init_dict = _live_init_dict()
     info = mp_map(_conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
     body = pb_bytes_field(1, entity_type)
     body += pb_bytes_field(2, info)
@@ -1063,6 +1082,53 @@ def frame_ms_response(rid, params_bytes, service_id=""):
 # 注意 Uid 是严格比较，请求里是 tostring(uid)，所以必须回字符串。
 _SIMPLE_TYPES = (str, int, float, bool)
 
+
+
+
+# ---------------------------------------------------------------------------
+# propertySync2Client（s->c 方法 13）
+# ---------------------------------------------------------------------------
+# 描述符（扫客户端进程内存拿到的 PropertySyncClientMessage）：
+#   ownerid    = 1  bytes
+#   propertyid = 2  int64  (required)
+#   optype     = 3  int32  (required)
+#   name       = 4  bytes  (required)
+#   value      = 5  bytes  (msgpack)
+#   sessionId  = 6  bytes
+#
+# 客户端 core/client/gateclientrpchandler.lua:269-288：
+#   onSyncProperty(ownerid, propertyid, optype, name, value)
+#     -> owner:__syncProperty__(propertyid, optype, name, value, true)
+# optype 取值（core/propertysync/propertytypes.lua:27-33）：
+#   OP_CHANGE=1  OP_ADD=2  OP_DEL=3  OP_INSERT=4  OP_REMOVE=5
+PROPERTY_SYNC_TYPE = 13
+# 1-3 里第一个打通写操作链路的 RPC（avataruserdatacomp.lua:348）
+RPC_INDEX_SET_SIGNATURE_CS = 2040954396
+OP_CHANGE = 1
+OP_ADD = 2
+OP_DEL = 3
+OP_INSERT = 4
+OP_REMOVE = 5
+
+
+def build_property_sync(ownerid, property_id, op_type, name, value, session_id=""):
+    """构造一条 propertySync2Client 帧。
+
+    ownerid 留空字符串表示「就是当前玩家自己」（客户端 onSyncProperty 里
+    ownerid ~= "" 才去 getRealOwner）。
+    value 用 msgpack 编码；OP_DEL / OP_REMOVE 时传 None。
+    """
+    body = pb_varint_field(2, int(property_id))
+    body += pb_varint_field(3, int(op_type))
+    body += pb_bytes_field(4, name.encode("utf-8") if isinstance(name, str) else name)
+    if value is not None:
+        body += pb_bytes_field(5, mp_any(value))
+    if ownerid:
+        body = pb_bytes_field(1, ownerid.encode("utf-8")
+                              if isinstance(ownerid, str) else ownerid) + body
+    if session_id:
+        body += pb_bytes_field(6, session_id.encode("utf-8"))
+    return frame(PROPERTY_SYNC_TYPE, body)
 
 def build_userdata_batch_params(request_params, uid_default="OO00000001"):
     """构造 batchGetAttribute 的应答参数（msgpack map）。

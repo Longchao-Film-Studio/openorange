@@ -1035,6 +1035,23 @@ local CB_NAMES = {
 -- ------------------------------------------------------------
 -- 1-3 主数据通道验证：强制调一次 BatchGetUserData
 -- ------------------------------------------------------------
+-- 观察 signature 是否被服务端推的属性同步改掉
+local function probe_sig_watch()
+  pc.sigWatch = (pc.sigWatch or 0) + 1
+  if pc.sigWatch > 600 then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    local cur = tostring(A.signature)
+    -- 值变化立刻打，另外每 10 次打一条心跳式日志
+    if pc.sigLast ~= cur or (pc.sigWatch % 10) == 0 then
+      LOG('sigwatch| #' .. pc.sigWatch .. ' signature=[' .. cur .. ']')
+      pc.sigLast = cur
+    end
+  end)
+end
 local function probe_userdata()
   if pc.udprobe then return end
   pcall(function()
@@ -1108,7 +1125,7 @@ local function probe_phonestcore_keys()
   end
 end
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
-OO_PROBE_RPC = OO_PROBE_RPC or false
+OO_PROBE_RPC = true   -- 临时打开：验证 SetSignature_CS -> 属性同步链路
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1497,6 +1514,7 @@ local function install_cb_wrappers()
           if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
           if (pc.frames % 30) == 10 then pcall(probe_userdata) end
+          pcall(probe_sig_watch)
         end
         local n = select('#', ...)
         local parts = {}
