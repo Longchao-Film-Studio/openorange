@@ -161,6 +161,51 @@ def _team_info(rid, params):
     return msmod.build_team_info_sc(rid)
 
 
+def _use_item(rid, params):
+    """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
+
+    客户端 entities/avatarcomponent/avatarbagcomp.lua:340-346：
+      UseItem_CS(itemID, itemCount, ext, callback)
+        -> serverRpc("UseItem_CS", {itemID, itemCount, ext}, ...)
+
+    同步方式：item_bag 是 CustomDict（initDict 里 __id__ = 1324，
+    格子形如 {"1": {__id__: 1357, id: "1", itemId: 101, num: 1000}}）。
+    改某个格子的数量属于「改子属性」：
+      propertyId = item_bag 的 __id__，name = 格子键，value = 整个格子。
+    客户端 _changeSubProperty 里会比对 __id__，命中就原地 rochange。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    item_id = vals[0]
+    try:
+        count = int(vals[1])
+    except Exception:
+        return frames
+    if count <= 0:
+        return frames
+    st = _state()
+    bag = st.get("item_bag")
+    if not isinstance(bag, dict):
+        return frames
+    bag_id = bag.get("__id__") or 0
+    for key, grid in list(bag.items()):
+        if key in ("__tp__", "__id__"):
+            continue
+        if not isinstance(grid, dict) or grid.get("itemId") != item_id:
+            continue
+        old_num = grid.get("num") or 0
+        new_num = max(0, old_num - count)
+        grid["num"] = new_num
+        st.set("item_bag", bag)
+        st.save()
+        frames.append(msmod.build_property_sync(
+            "", bag_id, msmod.OP_CHANGE, key, grid))
+        break
+    return frames
+
+
 def _set_signature(rid, params):
     """1-3 改签名：真正改服务端状态，再推一条属性同步。
 
@@ -175,8 +220,12 @@ def _set_signature(rid, params):
         st = _state()
         st.set("signature", vals[0])
         st.save()
+        # ★ propertyId = 0 表示「改根属性」，客户端会走
+        #   puppetpropertycomponent.lua:233-235 的 _changeRootProperty(k, v)。
+        #   之前传的是递增序号 1，那是「改子属性」的语义（要 _id 命中
+        #   __CustomPropertiesCache__ 里的对象），属于用错了分支。
         frames.append(msmod.build_property_sync(
-            "", st.next_property_id(), msmod.OP_CHANGE, "signature", vals[0]))
+            "", 0, msmod.OP_CHANGE, "signature", vals[0]))
     return frames
 
 
@@ -189,6 +238,7 @@ def _state():
 # 索引 -> 处理函数。没列进来的走通用 ACK。
 _HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
+    msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
     msmod.RPC_GET_SUNACT_LEVEL_CS: _sunact_level,
     msmod.RPC_GET_MATCH_DURATION: _match_duration,
     msmod.RPC_QUERY_MY_TEAM_INFO_CS: _team_info,

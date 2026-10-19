@@ -130,6 +130,9 @@ def mp_float(v):
 
 
 def mp_any(v):
+    if v is None:
+        # msgpack nil（0xC0）。UseItem_CS 的 ext 参数经常是 nil。
+        return b"\xc0"
     if isinstance(v, float):
         return mp_float(v)
     if isinstance(v, bool):
@@ -1104,6 +1107,8 @@ _SIMPLE_TYPES = (str, int, float, bool)
 PROPERTY_SYNC_TYPE = 13
 # 1-3 里第一个打通写操作链路的 RPC（avataruserdatacomp.lua:348）
 RPC_INDEX_SET_SIGNATURE_CS = 2040954396
+# 1-2 使用道具（avatarbagcomp.lua:340）
+RPC_INDEX_USE_ITEM_CS = 168315907
 OP_CHANGE = 1
 OP_ADD = 2
 OP_DEL = 3

@@ -86,6 +86,27 @@ def run():
     check("服务端状态已改", pstate.get_state().get("signature") == "OpenOrange",
           pstate.get_state().get("signature"))
 
+    print("\n[4b] UseItem_CS 扣道具 + 子属性同步")
+    pstate.reset_state({"item_bag": {"__tp__": "ItemBag", "__id__": 1324,
+                                      "1": {"__id__": 1357, "id": "1", "itemId": 101,
+                                            "num": 1000, "ext": {"__id__": 1358}}}})
+    frames3 = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 100, None]), 11)
+    check("返回 2 帧", len(frames3) == 2, len(frames3))
+    bag = pstate.get_state().get("item_bag")
+    check("数量 1000 -> 900", bag["1"]["num"] == 900, bag["1"]["num"])
+    d5 = parse_sync(frames3[1])
+    check("同步帧类型 13", d5["type"] == 13, d5["type"])
+    check("propertyid = item_bag 的 __id__", d5.get("propertyid") == 1324, d5.get("propertyid"))
+    check("name = 格子键 1", d5.get("name") == "1", d5.get("name"))
+    check("value 里 num=900", (d5.get("value") or {}).get("num") == 900, d5.get("value"))
+    check("value 带 __id__（原地更新要用）", (d5.get("value") or {}).get("__id__") == 1357,
+          (d5.get("value") or {}).get("__id__"))
+
+    print("\n[4c] 道具不够时数量夹到 0")
+    frames4 = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 99999, None]), 12)
+    bag4 = pstate.get_state().get("item_bag")
+    check("不会变负数", bag4["1"]["num"] == 0, bag4["1"]["num"])
+
     print("\n[5] 其它 RPC 仍然只有一帧")
     frames2 = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
     check("1 帧", len(frames2) == 1, len(frames2))

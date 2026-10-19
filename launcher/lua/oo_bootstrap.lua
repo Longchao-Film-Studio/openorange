@@ -1036,6 +1036,39 @@ local CB_NAMES = {
 -- 1-3 主数据通道验证：强制调一次 BatchGetUserData
 -- ------------------------------------------------------------
 -- 观察 signature 是否被服务端推的属性同步改掉
+-- 1-2 使用道具验证：扣数量 + 属性同步
+local function probe_useitem()
+  if pc.useitemprobe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil or A:isServerLost() then return end
+    pc.useitemprobe = true
+    local before = 'nil'
+    pcall(function() before = tostring(A:getItemNumAll(101)) end)
+    LOG('useitem| before getItemNumAll(101)=' .. before)
+    pcall(function()
+      LOG('useitem| item_bag type=' .. type(A.item_bag)
+        .. ' _id=' .. tostring(A.item_bag._id)
+        .. ' __id__=' .. tostring(A.item_bag.__id__))
+      local cache = A.__CustomPropertiesCache__
+      LOG('useitem| CustomPropertiesCache type=' .. type(cache))
+      if type(cache) == 'table' then
+        local ids = {}
+        for k, v in pairs(cache) do ids[#ids + 1] = tostring(k) end
+        table.sort(ids)
+        LOG('useitem| cache ids = ' .. table.concat(ids, ','))
+      end
+    end)
+    A:UseItem_CS(101, 100, nil, function(status, response)
+      LOG('useitem| 回调 status=' .. tostring(status and status.status))
+      local after = 'nil'
+      pcall(function() after = tostring(A:getItemNumAll(101)) end)
+      LOG('useitem| after  getItemNumAll(101)=' .. after)
+    end)
+  end)
+end
 local function probe_sig_watch()
   pc.sigWatch = (pc.sigWatch or 0) + 1
   if pc.sigWatch > 600 then return end
@@ -1049,6 +1082,14 @@ local function probe_sig_watch()
     if pc.sigLast ~= cur or (pc.sigWatch % 10) == 0 then
       LOG('sigwatch| #' .. pc.sigWatch .. ' signature=[' .. cur .. ']')
       pc.sigLast = cur
+    end
+    -- 道具数量也一起盯：属性同步帧排在应答帧后面，
+    -- 应答回调里读到的还是旧值，必须在这里持续观察。
+    local cnt = 'nil'
+    pcall(function() cnt = tostring(A:getItemNumAll(101)) end)
+    if pc.itemLast ~= cnt then
+      LOG('itemwatch| #' .. pc.sigWatch .. ' item101=' .. cnt)
+      pc.itemLast = cnt
     end
   end)
 end
@@ -1125,7 +1166,7 @@ local function probe_phonestcore_keys()
   end
 end
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
-OO_PROBE_RPC = true   -- 临时打开：验证 SetSignature_CS -> 属性同步链路
+OO_PROBE_RPC = false  -- SetSignature 端到端探针（验证完已关）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1514,6 +1555,7 @@ local function install_cb_wrappers()
           if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
           if (pc.frames % 30) == 10 then pcall(probe_userdata) end
+          if (pc.frames % 30) == 5 then pcall(probe_useitem) end
           pcall(probe_sig_watch)
         end
         local n = select('#', ...)
