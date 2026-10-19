@@ -1004,6 +1004,67 @@ local CB_NAMES = {
 --     player:loadActorView(modelPath, cb)
 --   else 直接结束（人不在）
 -- 所以这里把这条链上的每一环都打出来，看断在哪。
+-- ------------------------------------------------------------
+-- 阶段 1 实机验收探针
+-- ------------------------------------------------------------
+-- 目标：不用肉眼看，直接从运行中的客户端读三件事：
+--   1-1 characterBag（角色）、1-2 item_bag（背包货币）、1-3 玩家数据；
+--   2) StreetV2Panel / StreetHpPanel 是否真的打开；
+--   3) HUD 关键控件（疾跑按钮、编队格子）是否绑定成功。
+local function probe_p1_accept()
+  if pc.p1probe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    pc.p1probe = true
+    LOG('p1| === 阶段 1 实机验收 ===')
+    local A = GlobalData.Avatar
+    LOG('p1| Avatar = ' .. type(A))
+    if A == nil then return end
+    local okc, cnt = pcall(function()
+      local c = 0
+      for _ in pairs(A.characterBag) do c = c + 1 end
+      return c
+    end)
+    LOG('p1| characterBag 条目数 ok=' .. tostring(okc) .. ' n=' .. tostring(cnt))
+    local ok2, cb = pcall(function() return A.characterBag[9001] end)
+    LOG('p1| characterBag[9001] = ' .. type(cb))
+    if cb ~= nil then
+      LOG('p1|   useSkinId = ' .. tostring(cb.useSkinId))
+      LOG('p1|   skins = ' .. type(cb.skins))
+      LOG('p1|   biography_read = ' .. tostring(cb.biography_read))
+    end
+    local oki, n = pcall(function()
+      local c = 0
+      for _ in pairs(A.item_bag) do c = c + 1 end
+      return c
+    end)
+    LOG('p1| item_bag 条目数 ok=' .. tostring(oki) .. ' n=' .. tostring(n))
+    local ok4, n101 = pcall(function() return A:getItemNumAll(101) end)
+    LOG('p1| getItemNumAll(101) ok=' .. tostring(ok4) .. ' v=' .. tostring(n101))
+    local ok5, n103 = pcall(function() return A:getItemNumAll(103) end)
+    LOG('p1| getItemNumAll(103) ok=' .. tostring(ok5) .. ' v=' .. tostring(n103))
+    for _, k in ipairs({ 'player_name', 'gender', 'portrait_id', 'signature',
+                         'street_id', 'level', 'uid' }) do
+      LOG('p1| A.' .. k .. ' = ' .. tostring(A[k]))
+    end
+    local pm = ui.GetPanel(PanelNames.StreetV2Panel)
+    LOG('p1| StreetV2Panel = ' .. type(pm))
+    if type(pm) == 'table' then
+      LOG('p1|   _btn_run_pc = ' .. type(pm._btn_run_pc))
+      LOG('p1|   _node_teammenbers_v2 = ' .. type(pm._node_teammenbers_v2))
+      LOG('p1|   _grid_teammenbers_pc = ' .. type(pm._grid_teammenbers_pc))
+      if type(pm._member_map) == 'table' then
+        local c = 0
+        for _ in pairs(pm._member_map) do c = c + 1 end
+        LOG('p1|   _member_map 条目 = ' .. c)
+      else
+        LOG('p1|   _member_map = ' .. type(pm._member_map))
+      end
+    end
+    LOG('p1| StreetHpPanel = ' .. type(ui.GetPanel(PanelNames.StreetHpPanel)))
+  end)
+end
 local function probe_street_actor()
   if pc.streetprobe then return end
   pcall(function()
@@ -1266,6 +1327,7 @@ local function install_cb_wrappers()
           pc.frames = (pc.frames or 0) + 1
           if pc.frames == 90 then pcall(probe_cs_api) end
           if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
+          if (pc.frames % 30) == 15 then pcall(probe_p1_accept) end
         end
         local n = select('#', ...)
         local parts = {}
