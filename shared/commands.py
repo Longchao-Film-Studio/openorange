@@ -151,7 +151,10 @@ def split_tokens(text):
 def resolve_target(ctx, token):
     """解析 target。返回 (username, error_result)。"""
     token = (token or "").strip()
-    if token in ("@", "self", "自己", "我"):
+    # 只保留 "@" 作为"自己"：它不可能成为账号名（注册规则只允许字母/数字/下划线）。
+    # 之前还接受 "self"/"自己"/"我"，但 "self" 恰好是合法账号名，
+    # 会把这个账号永久遮蔽成"自己"，导致管理员无法对它执行任何命令。
+    if token == "@":
         return ctx.actor, None
     if not token:
         return ctx.actor, None
