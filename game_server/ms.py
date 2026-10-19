@@ -561,6 +561,44 @@ def build_net_check_ack(index):
                                 params=payload)
 
 
+# server -> client 的 entityMessageResponse 帧类型。
+# 1=connectResponse 2=entityMessage 3=channelMessage 4=createChannelEntity 已知，
+# 所以应答从 5 开始试（改这里就能换类型做实验）。
+ENTITY_RESPONSE_FRAME_TYPE = 5
+# 探测用：把同一个应答再换几个帧类型发一遍，让客户端自己认领。
+# 已确认 1/2/3/4 都被占用（3=channelMessage，实测把 chanMsg 异常从 5 次降到 0），
+# 5 也不对（回调仍超时）。所以 6..9 一起试，哪个能让 _SC 回调拿到 status=true 就是它。
+# ★ 2026-10-20：探测结论 —— 这些类型客户端都不认，先关掉（留代码备查）。
+#   实测：3=channelMessage（发 type=3 时客户端报 chanMsg nil，改成别的类型后归零）；
+#   5/6/7/8/9 全试过，客户端 _SC 回调仍然 rpc timeout。
+ENTITY_RESPONSE_PROBE_TYPES = ()
+# 候选 2（type=2 entityMessage + field5=rid）也试过，不认（客户端报 got empty methodName）。
+ENTITY_RESPONSE_TRY_MESSAGE = False
+
+
+def build_entity_response_via_message(rid, ret=None, resp=None):
+    """候选方案 2：把应答塞进 type=2 的 entityMessage，用 field 5 = rid。
+
+    依据：c->s 的 sendEntityMessage 是 1=entityId 3=index 4=params **5=rid**，
+    而 s->c 的 entityMessage(entityId, methodName, index, parameters) 我们已知 1/2/3/4。
+    所以 field 5 很可能也是 rid；客户端看到 rid != 0 就按应答处理、
+    弹 responseManager 的回调，而不是走 CallRpc。
+    （独立帧类型 5/6/7/8/9 全试过，客户端都不认。）
+    """
+    if ret is None:
+        ret = {"status": True, "errmsg": ""}
+    if resp is None:
+        resp = {}
+    payload = mp_arr([ret, resp])
+    body = pb_bytes_field(4, payload) + pb_varint_field(5, int(rid))
+    return frame(2, body)
+
+
+def reframe_as(pkt, new_type):
+    """把已有帧的 msgType 换掉（body 不变），用来探测帧类型。"""
+    return frame(new_type, pkt[6:])
+
+
 def build_entity_response(rid, ret=None, resp=None):
     """构造 serverRpc（带回调）的应答帧。
 
@@ -591,7 +629,17 @@ def build_entity_response(rid, ret=None, resp=None):
         resp = {}
     payload = mp_arr([ret, resp])
     body = pb_varint_field(1, int(rid)) + pb_bytes_field(2, payload)
-    return frame(3, body)
+    # ★ 2026-10-20 修正帧类型：3 不是 entityMessageResponse，是 channelMessage！
+    #   证据：客户端日志一直有
+    #     GateClientRpcHandler.lua:196: attempt to index local 'chanMsg' (a nil value)
+    #   而 channelMessage(chanMsg) 在 gateclientrpchandler.lua:165 ——
+    #   说明我们发的 type=3 帧被派发给了 channelMessage，chanMsg 解不出来就是 nil。
+    #   更硬的证据：把应答发成 type=3 之后，客户端的 _SC 回调全部超时：
+    #     AvatarUserDataComp:SetSignature_SC, retStatus: {status=false, errmsg="rpc timeout"}
+    #   服务端明明 TX 了应答，客户端却没收到回调 -> 应答根本没被派发。
+    #   s->c 已知：1=connectResponse 2=entityMessage 4=createChannelEntity，
+    #   3 被 channelMessage 占掉之后，entityMessageResponse 最可能是 5。
+    return frame(ENTITY_RESPONSE_FRAME_TYPE, body)
 
 
 def build_sunact_level_sc(rid, level_ids=None):

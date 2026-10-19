@@ -1011,6 +1011,48 @@ local CB_NAMES = {
 --   1-1 characterBag（角色）、1-2 item_bag（背包货币）、1-3 玩家数据；
 --   2) StreetV2Panel / StreetHpPanel 是否真的打开；
 --   3) HUD 关键控件（疾跑按钮、编队格子）是否绑定成功。
+-- ------------------------------------------------------------
+-- 1-3 端到端验证：从客户端调 Set*_CS，验证「发出去 -> 服务端 ACK -> 回调执行」
+-- ------------------------------------------------------------
+-- 依据 entities/avatarcomponent/avataruserdatacomp.lua:238-334：
+--   SetSignature_CS(signature, callback) -> serverRpc(..., CallbackHandler(self, "SetSignature_SC"))
+--   SetSignature_SC(callback, retStatus, response) -> callback(retStatus)
+-- 所以回调能拿到 status=true，就说明整条 RPC 链闭环了。
+local function probe_p1_setrpc()
+  if pc.setrpc then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    -- ★ 先看 server 在不在：isServerLost() 就是 self.server == nil（cliententity.lua:35-37）
+    local lost = true
+    pcall(function() lost = A:isServerLost() end)
+    if lost then
+      -- 还没绑上就下次再试，别把探测标记置上
+      pc.setrpcTries = (pc.setrpcTries or 0) + 1
+      if pc.setrpcTries <= 3 or (pc.setrpcTries % 20) == 0 then
+        LOG('setrpc| server 未就绪（isServerLost=true），第 ' .. pc.setrpcTries .. ' 次重试')
+      end
+      return
+    end
+    pc.setrpc = true
+    LOG('setrpc| === 1-3 端到端 RPC 验证（server 已就绪）===')
+    local function cb(tag)
+      return function(ret)
+        local st = 'nil'
+        if ret ~= nil then st = tostring(ret.status) end
+        LOG('setrpc| ' .. tag .. ' 回调 status=' .. st)
+      end
+    end
+    local ok1, e1 = pcall(function() A:SetSignature_CS('OpenOrange', cb('SetSignature')) end)
+    LOG('setrpc| SetSignature_CS 发出 ok=' .. tostring(ok1) .. ' err=' .. tostring(e1))
+    local ok2, e2 = pcall(function() A:SetIsCharListShown_CS(1, cb('SetIsCharListShown')) end)
+    LOG('setrpc| SetIsCharListShown_CS 发出 ok=' .. tostring(ok2) .. ' err=' .. tostring(e2))
+    local ok3, e3 = pcall(function() A:SetPortrait_CS(0, cb('SetPortrait')) end)
+    LOG('setrpc| SetPortrait_CS 发出 ok=' .. tostring(ok3) .. ' err=' .. tostring(e3))
+  end)
+end
 local function probe_p1_accept()
   if pc.p1probe then return end
   pcall(function()
@@ -1328,6 +1370,7 @@ local function install_cb_wrappers()
           if pc.frames == 90 then pcall(probe_cs_api) end
           if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
           if (pc.frames % 30) == 15 then pcall(probe_p1_accept) end
+          if (pc.frames % 30) == 20 then pcall(probe_p1_setrpc) end
         end
         local n = select('#', ...)
         local parts = {}

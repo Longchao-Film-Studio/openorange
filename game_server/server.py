@@ -454,6 +454,27 @@ def _handle_gate_probe(conn, addr, cid):
 
                     if rpkt is not None:
                         conn.sendall(rpkt)
+                        # 探测：同一个应答再换 6..9 号帧类型发一遍，让客户端认领
+                        if (len(rpkt) >= 6
+                                and rpkt[4] == (msmod.ENTITY_RESPONSE_FRAME_TYPE & 0xFF)
+                                and rpkt[5] == (msmod.ENTITY_RESPONSE_FRAME_TYPE >> 8)):
+                            # 候选 2：type=2 entityMessage + field5=rid（实测不认，默认关）
+                            if msmod.ENTITY_RESPONSE_TRY_MESSAGE:
+                                try:
+                                    _alt = msmod.build_entity_response_via_message(rid)
+                                    conn.sendall(_alt)
+                                    print("[GATE] #%03d TX 候选2 entityMessage+rid (%d B)"
+                                          % (cid, len(_alt)), flush=True)
+                                except Exception:
+                                    pass
+                            for _t in msmod.ENTITY_RESPONSE_PROBE_TYPES:
+                                try:
+                                    conn.sendall(msmod.reframe_as(rpkt, _t))
+                                except Exception:
+                                    pass
+                            print("[GATE] #%03d TX %s + 探测类型 %s"
+                                  % (cid, label, list(msmod.ENTITY_RESPONSE_PROBE_TYPES)),
+                                  flush=True)
                         print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(rpkt)), flush=True)
                         print(_hexdump(rpkt, limit=256), flush=True)
                     else:
