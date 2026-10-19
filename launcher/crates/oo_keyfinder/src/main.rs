@@ -43,25 +43,92 @@ fn hex_encode(b: &[u8]) -> String {
     b.iter().map(|x| format!("{:02x}", x)).collect()
 }
 
-/// 在缓冲区里逐字节滑动找密钥
-fn scan(buf: &[u8], key_sig: &[u8; 16], target: &[u8; 16]) -> Option<usize> {
-    if buf.len() < 16 {
-        return None;
-    }
+/// 测试一个 16 字节候选
+#[inline]
+fn try_candidate(k: &[u8; 16], key_sig: &[u8; 16], target: &[u8; 16]) -> bool {
+    let cipher = match Aes128::new_from_slice(k) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
     let mut block = aes::Block::clone_from_slice(key_sig);
-    let last = buf.len() - 16;
-    for i in 0..=last {
-        let k = &buf[i..i + 16];
-        let cipher = match Aes128::new_from_slice(k) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-        block.copy_from_slice(key_sig);
-        cipher.encrypt_block(&mut block);
-        if &block[..] == &target[..] {
-            return Some(i);
+    cipher.encrypt_block(&mut block);
+    &block[..] == &target[..]
+}
+
+#[inline]
+fn hexval(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// 32 个 ASCII 十六进制字符 -> 16 字节
+#[inline]
+fn decode_hex32(s: &[u8]) -> Option<[u8; 16]> {
+    let mut out = [0u8; 16];
+    for i in 0..16 {
+        out[i] = (hexval(s[i * 2])? << 4) | hexval(s[i * 2 + 1])?;
+    }
+    Some(out)
+}
+
+/// 32 个 UTF-16LE 十六进制字符 -> 16 字节
+#[inline]
+fn decode_hex32_utf16(s: &[u8]) -> Option<[u8; 16]> {
+    let mut out = [0u8; 16];
+    for i in 0..16 {
+        let hi_b = s[i * 4];
+        let hi_h = s[i * 4 + 1];
+        let lo_b = s[i * 4 + 2];
+        let lo_h = s[i * 4 + 3];
+        if hi_h != 0 || lo_h != 0 {
+            return None;
+        }
+        out[i] = (hexval(hi_b)? << 4) | hexval(lo_b)?;
+    }
+    Some(out)
+}
+
+/// 在缓冲区里找密钥，返回 (偏移, 密钥, 形态)
+fn scan(buf: &[u8], key_sig: &[u8; 16], target: &[u8; 16]) -> Option<(usize, [u8; 16], &'static str)> {
+    let n = buf.len();
+
+    // 形态 1：原始 16 字节
+    if n >= 16 {
+        for i in 0..=n - 16 {
+            let mut k = [0u8; 16];
+            k.copy_from_slice(&buf[i..i + 16]);
+            if try_candidate(&k, key_sig, target) {
+                return Some((i, k, "raw"));
+            }
         }
     }
+
+    // 形态 2：32 位十六进制 ASCII（C# 字符串常量 / Convert.FromHexString）
+    if n >= 32 {
+        for i in 0..=n - 32 {
+            if let Some(k) = decode_hex32(&buf[i..i + 32]) {
+                if try_candidate(&k, key_sig, target) {
+                    return Some((i, k, "hex-ascii"));
+                }
+            }
+        }
+    }
+
+    // 形态 3：32 位十六进制 UTF-16LE（.NET string 在内存里的样子）
+    if n >= 64 {
+        for i in 0..=n - 64 {
+            if let Some(k) = decode_hex32_utf16(&buf[i..i + 64]) {
+                if try_candidate(&k, key_sig, target) {
+                    return Some((i, k, "hex-utf16"));
+                }
+            }
+        }
+    }
+
     None
 }
 
@@ -149,8 +216,8 @@ fn scan_file(path: &str, key_sig: &[u8; 16], target: &[u8; 16]) {
     };
     println!("扫描文件 {} ({:.1} MB)", path, data.len() as f64 / 1048576.0);
     match scan(&data, key_sig, target) {
-        Some(off) => {
-            println!("*** 找到密钥 (文件偏移 0x{:X}): {} ***", off, hex_encode(&data[off..off + 16]));
+        Some((off, k, form)) => {
+            println!("*** 找到密钥 (文件偏移 0x{:X}, 形态 {}): {} ***", off, form, hex_encode(&k));
         }
         None => println!("未找到（用时 {:.1}s）", t0.elapsed().as_secs_f64()),
     }
@@ -248,8 +315,11 @@ fn scan_process(pid_arg: &str, key_sig: &[u8; 16], target: &[u8; 16]) {
         if is_readable {
             regions += 1;
             // 分块读取
+            const OVERLAP: usize = 64;
             let mut off = 0usize;
             let chunk = 4 * 1024 * 1024;
+            let mut carry: Vec<u8> = Vec::new();
+            let mut carry_addr = 0usize;
             while off < size {
                 let n = std::cmp::min(chunk, size - off);
                 let mut buf = vec![0u8; n];
@@ -266,15 +336,25 @@ fn scan_process(pid_arg: &str, key_sig: &[u8; 16], target: &[u8; 16]) {
                 if ok.is_ok() && got >= 16 {
                     scanned += got as u64;
                     buf.truncate(got);
-                    if let Some(idx) = scan(&buf, key_sig, target) {
+                    // 把上一块的尾部拼到前面，避免跨块漏检
+                    let mut joined = Vec::with_capacity(carry.len() + buf.len());
+                    joined.extend_from_slice(&carry);
+                    joined.extend_from_slice(&buf);
+                    let joined_addr = if carry.is_empty() { base + off } else { carry_addr };
+                    if let Some((idx, k, form)) = scan(&joined, key_sig, target) {
                         println!(
-                            "*** 找到密钥 @ 0x{:X}: {} ***",
-                            base + off + idx,
-                            hex_encode(&buf[idx..idx + 16])
+                            "*** 找到密钥 @ 0x{:X} (形态 {}): {} ***",
+                            joined_addr + idx,
+                            form,
+                            hex_encode(&k)
                         );
                         found = true;
                         break;
                     }
+                    // 保留尾部作为下一块的前缀
+                    let keep = std::cmp::min(OVERLAP, joined.len());
+                    carry_addr = joined_addr + joined.len() - keep;
+                    carry = joined[joined.len() - keep..].to_vec();
                 }
                 off += n;
             }
