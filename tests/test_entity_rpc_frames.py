@@ -120,9 +120,11 @@ def run():
     frames, rest = msmod.split_frames(F_TWO[:5])
     check("不足 6 字节不返回", frames == [] and len(rest) == 5)
 
-    print("\n[4] 用实机帧跑应答（帧类型 3、rid 回带）")
+    print("\n[4] 用实机帧跑应答（帧类型 + rid 回带）")
     mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1))
-    check("RpcGetSunActLevel 应答帧类型 3", mtype == 3, mtype)
+    check("应答帧类型 = ENTITY_RESPONSE_FRAME_TYPE",
+          mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
+          (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("RpcGetSunActLevel rid=1 回带", rid == 1, rid)
     check("RpcGetSunActLevel 回 levelIds", val[1].get("levelIds") == [], val[1])
 
@@ -160,7 +162,8 @@ def run():
         idx = erpc.RPC_INDEX[nm]
         pkt = erpc.handle(idx, b"\x90", 9)
         mtype, rid, val = parse_response(pkt)
-        ok = (mtype == 3 and rid == 9 and val[0].get("status") is True)
+        ok = (mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE and rid == 9
+              and val[0].get("status") is True)
         check(nm + " 通用 ACK", ok, (mtype, rid, val))
 
     print("\n" + "=" * 56)

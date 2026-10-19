@@ -82,10 +82,16 @@ def run():
     check("SetPortrait_CS", erpc.RPC_INDEX["SetPortrait_CS"] == 40460550)
     check("RpcGetSunActLevel_CS", erpc.RPC_INDEX["RpcGetSunActLevel_CS"] == 1033592883)
 
-    print("\n[4] 通用 ACK：帧类型 3、rid 回带、参数是 [retStatus, response]")
+    print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
     pkt = erpc.handle(732022161, b"\x90", 7)
     mtype, rid, val = parse_response(pkt)
-    check("帧类型 3（entityMessageResponse）", mtype == 3, mtype)
+    # ★ 帧类型本身还没最终确认（见 ROADMAP 第 24 节）：
+    #   type=3 实测是 channelMessage；5..9 客户端不认。这里只断言「用的是
+    #   ms.ENTITY_RESPONSE_FRAME_TYPE 这个常量」，改常量时测试跟着走，
+    #   不要在测试里写死数字。
+    check("帧类型 = ENTITY_RESPONSE_FRAME_TYPE",
+          mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
+          (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("rid 回带 7", rid == 7, rid)
     check("参数是两元组", isinstance(val, list) and len(val) == 2, val)
     check("retStatus.status 为真", val[0].get("status") is True, val[0])
