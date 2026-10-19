@@ -1,0 +1,16 @@
+[package]
+name = "oo_keyfinder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "UnityCN AssetBundle 密钥搜索：用已知明文攻击在文件或进程内存里找 16 字节 AES 密钥"
+
+[dependencies]
+aes = "0.8"
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+] }
