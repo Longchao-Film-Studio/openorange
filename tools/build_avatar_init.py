@@ -114,6 +114,29 @@ REQUIRED = {
     # 真实服务端是用 _changeRootProperty 运行时建这个属性（带 __tp__），
     # 我们改从 initDict 建，等价。
     "singleMatchInfo": "SingleMatchInfo",
+    # --- AvatarFormationComp 的编队数据 ---
+    # 依据 entities/avatarcomponent/avatarformationcomp.lua:32-37：
+    #   function AvatarFormationComp:getFormationInfo(index)
+    #     return self.character_list[index] or { value = {}, name = "" }
+    #   end
+    # 兜底值正好是 Custom.Character 的两个字段（config.lua:1907-1923：
+    #   name = string, value = IntList），而 CharacterList 的
+    #   __ValueType__ = "Character"（config.lua:2074-2078）。
+    # config.lua:8388 的 PropertyCallbacks 是 ["character_list.*"]，
+    # 说明它是按下标取的自定义容器。
+    # 注意：之前几轮的对差脚本漏了它，因为 key 里带 * 号，
+    # 而那个脚本的正则字符类没包含 *。
+    "character_list": "CharacterList",
+}
+
+# 初始编队：一队，只放男主角色 9001。
+# CustomList:roinit（core/propertysync/customlist.lua:398）是
+#   for k, v in ipairs(value) do ...
+# 所以 msgpack 里要用整数键 1..n，对应生成器的 "#1" 写法。
+STARTER_FORMATION = {
+    "character_list": [
+        {"name": "", "value": [9001]},
+    ],
 }
 
 # PropertyCallbacks 里出现、但 AvatarProperties 没有声明的"简单类型"动态根属性。
@@ -126,7 +149,8 @@ SIMPLE_PROPS = {
     "avatarTeamMatchState": 0,
     "battle_prop_choosen_index": 0,
     "character_choosen_char": 0,
-    "choosen_index": 0,
+    # 编队下标：1 = 第一队（和 STARTER_FORMATION 的那一队对应）
+    "choosen_index": 1,
     "daily_active_value": 0,
     "endless_choosen_index": 0,
     "four_racing_character": 0,
@@ -366,6 +390,23 @@ def main():
             info = gen_nested(types, "CharacterInfo")
             info.update(overrides)
             node["#%d" % char_id] = info
+
+    # 初始编队（见 STARTER_FORMATION 注释）
+    for prop, items in STARTER_FORMATION.items():
+        node = props.get(prop)
+        if not isinstance(node, dict):
+            raise SystemExit("STARTER_FORMATION 目标属性不存在: %s" % prop)
+        for idx, item in enumerate(items, 1):
+            ent = gen_nested(types, "Character")
+            for k, v in item.items():
+                if k == "value":
+                    continue
+                ent[k] = v
+            lst = gen_nested(types, "IntList")
+            for i, cv in enumerate(item.get("value") or [], 1):
+                lst["#%d" % i] = cv
+            ent["value"] = lst
+            node["#%d" % idx] = ent
 
     # 初始货币（见 STARTER_ITEMS 注释）
     for prop, entries in STARTER_ITEMS.items():

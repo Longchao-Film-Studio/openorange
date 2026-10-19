@@ -40,7 +40,7 @@ def run():
     props = data["__Properties__"]
 
     print("\n[1] 整体规模")
-    check("属性数 211", len(props) == 211, len(props))
+    check("属性数 212", len(props) == 212, len(props))
     check("每个值都是 dict 或简单类型",
           all(isinstance(v, dict) or isinstance(v, (int, float, str, bool))
               for v in props.values()))
@@ -83,6 +83,19 @@ def run():
     # 否则走 JumpToHallStage（大厅 sc_mainstage，这一版资源里没有）。
     # CommonConstData.DefaultStreet = 101，StreetData[101].scene = sc_zhpmap_01_streaming。
     check("street_id = 101（走街区而不是大厅）", props.get("street_id") == 101, props.get("street_id"))
+
+    print("\n[5b] 编队（决定街道里生成哪个玩家角色）")
+    # avatarformationcomp.lua:32-37 getFormationInfo(index) 取 self.character_list[index]，
+    # 兜底是 {value = {}, name = ""}，也就是 Custom.Character 的两个字段。
+    # 编队为空 -> 街道系统没有出战角色 -> 不生成玩家 Actor -> 摄像机没有跟随目标。
+    cl = props.get("character_list")
+    check("character_list 是 CharacterList", isinstance(cl, dict) and cl.get("__tp__") == "CharacterList",
+          (cl or {}).get("__tp__"))
+    check("有第 1 队", isinstance(cl, dict) and "#1" in cl)
+    team = (cl or {}).get("#1") or {}
+    check("第 1 队有 value 列表", isinstance(team.get("value"), dict))
+    check("第 1 队出战角色是 9001", team.get("value", {}).get("#1") == 9001, team.get("value"))
+    check("choosen_index = 1", props.get("choosen_index") == 1, props.get("choosen_index"))
 
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
