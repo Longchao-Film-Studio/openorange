@@ -63,8 +63,19 @@ REQUIRED = {
     "cur_activity_info": "ActivityProp",
     # --- AvatarAchieveComp:initDoneAchievement -> pairs(achieve_type_bag) ---
     "achieve_type_bag": "AchieveTypeBag",
-    # --- AvatarCharacterComp -> pairs(characterBag) ---
-    "characterBag": "CharacterList",
+    # --- AvatarCharacterComp -> pairs(characterBag) / characterBag[charId].xxx ---
+    # ★ 2026-10-19 修正：原来写成 CharacterList 是错的。
+    #   CharacterList 继承 CustomList（列表），而 avatarcharactercomp 是这么用的：
+    #     :79   self.characterBag[charID].biography_read
+    #     :533  self.characterBag[charId].breakAward
+    #     :811  return self.characterBag[charId].useSkinId
+    #     :822  self.characterBag[charId].skins[charAppearanceId]
+    #   这些都是 CharacterInfo 的字段；列表没法按 charId 索引。
+    #   config.lua 里 CharacterPersistentDict 才是 __ValueType__=CharacterInfo、
+    #   __IntTypeKey__=true 的字典，而且
+    #   gamecommon/customtypes/character/characterpersistentdict.lua 上就写着
+    #   HasChar(no) / GetAllSkins / CheckAddSkin，正是 characterBag 的用法。
+    "characterBag": "CharacterPersistentDict",
     # --- AvatarStreetComp -> pairs(street_info) / pairs(street_dispatch) ---
     "street_info": "StreetInfoDict",
     "street_dispatch": "StreetDispatchDict",
@@ -151,6 +162,23 @@ SEED = {
     # 那是完整的匹配/进场流程。把 1 号剧情标记为已完成，
     # 客户端就直接走 LoginSuccess -> JumpToHallStage，等价于"老玩家回流"。
     "story_finished": {"#1": True},
+}
+
+# 初始角色（1-1 角色数据模型）。
+#
+# 证据：
+#   TableData.CommonData.CommonConstData.json
+#     male_player_char = 9001, female_player_char = 9002
+#     Default_PlayerName = "未具名导演"
+#   TableData.CommonData.CharData.json
+#     9001 -> charName "瞳", DefaultSkin 900101, charType 1（主角）
+#     9002 -> charName "瞳", DefaultSkin 900201
+#   stage/streetstage.lua:167-185 checkIsCanEnterStreet() 要求：
+#     story_finished[1] 为真、player_name 非空、gender 非 0、
+#     characterBag[male_player_char] 或 characterBag[female_player_char] 存在
+# 所以给一个男主角色（gender=1 走 male_player_char=9001）。
+STARTER_CHARS = {
+    "characterBag": {9001: {"useSkinId": 900101}},
 }
 
 _uid = [1000]
@@ -298,11 +326,26 @@ def main():
             raise SystemExit("SEED 目标属性不存在或不是自定义类型: %s" % k)
         node.update(entries)
 
+    # 初始角色：往 characterBag 里塞一个男主角色
+    for prop, chars in STARTER_CHARS.items():
+        node = props.get(prop)
+        if not isinstance(node, dict):
+            raise SystemExit("STARTER_CHARS 目标属性不存在: %s" % prop)
+        for char_id, overrides in chars.items():
+            info = gen_nested(types, "CharacterInfo")
+            info.update(overrides)
+            node["#%d" % char_id] = info
+
     # 关键简单值
     props["uid"] = "OO00000001"
     props["username"] = "oologin"
     props["level"] = 1
     props["entityType"] = "Avatar"
+    # 玩家名/性别：streetstage.lua:172-177 的 checkIsCanEnterStreet 要求
+    # player_name 非空、gender 非 0。名字取 CommonConstData.Default_PlayerName，
+    # gender=1 是男性（loginmanager.lua:142-148 switchVoice 用 1=男 2=女）。
+    props["player_name"] = "未具名导演"
+    props["gender"] = 1
 
     data = {"__Properties__": props}
     tmp = OUT + ".tmp"
