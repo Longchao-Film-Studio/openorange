@@ -1038,6 +1038,30 @@ local CB_NAMES = {
 -- 观察 signature 是否被服务端推的属性同步改掉
 -- 1-2 使用道具验证：扣数量 + 属性同步
 -- 1-1 角色升级验证
+-- 系统入口解锁验证
+local function probe_sysunlock()
+  if pc.sysunlock then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    pc.sysunlock = true
+    LOG('sysunlock| system_p = ' .. type(A.system_p))
+    pcall(function()
+      local n = 0
+      for _ in pairs(A.system_p.unlocked_system) do n = n + 1 end
+      LOG('sysunlock| unlocked_system 条目数 = ' .. n)
+    end)
+    local items = { {'PlayerInfo', 1}, {'Role', 4}, {'Bag', 7}, {'Map', 11},
+                    {'Formation', 30}, {'BattlePass', 32}, {'Menu', 1001} }
+    for _, it in ipairs(items) do
+      local ok, v = pcall(function() return A:isSysEntryUnlock(it[2]) end)
+      LOG('sysunlock| isSysEntryUnlock(' .. it[1] .. '=' .. it[2] .. ') ok='
+        .. tostring(ok) .. ' -> ' .. tostring(v))
+    end
+  end)
+end
 local function probe_upgrade()
   if pc.upgradeprobe then return end
   pcall(function()
@@ -1594,6 +1618,7 @@ local function install_cb_wrappers()
             if (pc.frames % 30) == 5 then pcall(probe_useitem) end
             if (pc.frames % 30) == 8 then pcall(probe_upgrade) end
           end
+          if (pc.frames % 30) == 12 then pcall(probe_sysunlock) end
           pcall(probe_sig_watch)
         end
         local n = select('#', ...)

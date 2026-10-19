@@ -110,6 +110,17 @@ def run():
     check("character_choosen_char = 9001", props.get("character_choosen_char") == 9001,
           props.get("character_choosen_char"))
 
+    print("\n[5c] 系统入口解锁（决定 M 键地图 / ESC 菜单 / 等级显示）")
+    # avatarsystemguidecomp.lua:86-94 isSysEntryUnlock 读
+    #   system_p.unlocked_system[sysId] == true
+    # 不填的话 M 键地图、ESC 菜单里的角色/队伍、左上角等级全都不显示。
+    sysp = props.get("system_p")
+    check("system_p 存在", isinstance(sysp, dict), type(sysp))
+    us = (sysp or {}).get("unlocked_system") or {}
+    for _name, _sid in (("PlayerInfo", 1), ("Role", 4), ("Bag", 7), ("Map", 11),
+                        ("Formation", 30), ("BattlePass", 32), ("Menu", 1001)):
+        check("解锁 %s(%d)" % (_name, _sid), us.get("#%d" % _sid) is True, us.get("#%d" % _sid))
+
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
     conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
     check("#1 -> 1", 1 in conv["a"])

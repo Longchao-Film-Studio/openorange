@@ -133,6 +133,23 @@ REQUIRED = {
 # CustomList:roinit（core/propertysync/customlist.lua:398）是
 #   for k, v in ipairs(value) do ...
 # 所以 msgpack 里要用整数键 1..n，对应生成器的 "#1" 写法。
+
+# 系统入口解锁表。
+# entities/avatarcomponent/avatarsystemguidecomp.lua:86-94：
+#   function AvatarSystemGuideComp:isSysEntryUnlock(sysId)
+#     if sysId == nil then return true end
+#     if self._gmSysUnlock then return true end
+#     return self.system_p.unlocked_system[sysId] == true
+#   end
+# 不填的话 M 键地图、ESC 菜单里的角色/队伍、左上角等级全都不显示（实测）。
+# 私服直接全解锁。id 来自 SystemConst.AllSystemCatalogue（common/systemconst.lua:184）。
+SYSTEM_UNLOCKS = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 35, 42, 43, 44, 45, 46,
+    47, 48, 49, 50, 51, 52, 53, 54, 55, 57, 59, 60, 61, 62, 64, 67, 68, 70,
+    71, 73, 74, 75, 78, 81, 82, 1001,
+]
+
 STARTER_FORMATION = {
     "character_list": [
         # ★ 必须是 3 个格子，空位填 0，不能只给 1 个。
@@ -410,6 +427,18 @@ def main():
             info = gen_nested(types, "CharacterInfo")
             info.update(overrides)
             node["#%d" % char_id] = info
+
+    # 系统入口解锁（见 SYSTEM_UNLOCKS 注释）
+    _sysp = props.get("system_p")
+    if isinstance(_sysp, dict):
+        _us = _sysp.get("unlocked_system")
+        if isinstance(_us, dict):
+            for _sid in SYSTEM_UNLOCKS:
+                _us["#%d" % _sid] = True
+        else:
+            raise SystemExit("system_p.unlocked_system 不是字典")
+    else:
+        raise SystemExit("system_p 属性不存在")
 
     # 初始编队（见 STARTER_FORMATION 注释）
     for prop, items in STARTER_FORMATION.items():
