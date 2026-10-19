@@ -395,15 +395,35 @@ def mp_decode(b, i=0):
 
 
 def build_time_sync(client_time, server_time):
-    """构造 RpcOnSyncServerTime 应答：{ ct = 客户端时间, st = 服务器时间 }。"""
-    payload = mp_map({"ct": int(client_time), "st": int(server_time)})
-    return build_entity_message(index=RPC_ON_SYNC_SERVER_TIME, params=payload)
+    """构造 RpcOnSyncServerTime 应答。
+
+    ★ parameters 是**参数数组**，不是单个 map。
+    客户端 RpcCall 会把 parameters 当参数列表展开：
+        RpcMethod(RpcOnSyncServerTime) need args num 1, but got 0
+    所以 RpcOnSyncServerTime(data) 要发 [{ ct = ..., st = ... }]。
+    """
+    payload = mp_arr([{"ct": int(client_time), "st": int(server_time)}])
+    return build_entity_message(method_name="RpcOnSyncServerTime",
+                                index=RPC_ON_SYNC_SERVER_TIME,
+                                params=payload)
 
 
-def build_entity_message(entity_id="", index=0, params=b"\x80", session_id=None):
+def build_entity_message(entity_id="", method_name=None, index=0,
+                         params=b"\x80", session_id=None):
+    """构造 server -> client 的 entityMessage。
+
+    对应 GateClientRpcHandler:entityMessage(entityId, methodName, index, parameters)，
+    四个参数都要给：
+      1 = entityId   （string）
+      2 = methodName （string，客户端按名字找处理方法）
+      3 = index      （uint32，genRpcIndex(methodName)）
+      4 = parameters （bytes，msgpack）
+    """
     body = b""
     if entity_id:
         body += pb_bytes_field(1, entity_id.encode("utf-8"))
+    if method_name:
+        body += pb_bytes_field(2, method_name.encode("utf-8"))
     if index:
         body += pb_varint_field(3, index)
     if params:
