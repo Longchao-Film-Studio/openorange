@@ -364,8 +364,43 @@ def _handle_gate_probe(conn, addr, cid):
                       % (cid, len(pkt)), flush=True)
                 print(_hexdump(pkt, limit=256), flush=True)
             else:
-                print("[GATE] #%03d 非 connectServer 帧（type=%d），暂不回包" % (cid, frame_type),
+                # 实体 RPC：试探性地 echo field 3 回去，参数给空 msgpack map。
+                # 目的只是看客户端会不会因为「收到应答」而继续往下走。
+                idx, params = msmod.parse_entity_frame(data[6:])
+                print("[GATE] #%03d 实体消息 type=%d index=%s params=%s"
+                      % (cid, frame_type, idx,
+                         params.hex() if isinstance(params, bytes) else params),
                       flush=True)
+                if idx is not None:
+                    rpkt = None
+                    label = None
+                    if idx == msmod.RPC_SYNC_SERVER_TIME:
+                        # 客户端发 [客户端时间]，回 {ct, st}
+                        ct = 0
+                        try:
+                            val, _ = msmod.mp_decode(params or b"")
+                            if isinstance(val, list) and val:
+                                ct = int(val[0])
+                        except Exception as e:
+                            print("[GATE] #%03d 解析客户端时间失败: %s" % (cid, e), flush=True)
+                        rpkt = msmod.build_time_sync(ct, int(time.time()))
+                        label = "RpcOnSyncServerTime(ct=%d)" % ct
+                    elif idx == msmod.RPC_NETWORK_CHECK:
+                        # networkCheckAfterChange_CS：通知性质，不回
+                        label = None
+                    elif idx == msmod.RPC_INDEX_NOT_FOUND:
+                        # __rpc_index_not_found__：客户端在说「你发了个我不认识的 rpc」
+                        # 这是我们自己 echo 造成的，现在不再 echo，理论上不会再出现
+                        label = None
+                    else:
+                        label = None
+
+                    if rpkt is not None:
+                        conn.sendall(rpkt)
+                        print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(rpkt)), flush=True)
+                        print(_hexdump(rpkt, limit=256), flush=True)
+                    else:
+                        print("[GATE] #%03d index=%s 无需应答" % (cid, idx), flush=True)
 
             # 主动下发 bindAccount —— 只在 reqType=0（NEW_CONNECTION）时发。
             #

@@ -294,6 +294,136 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
     return frame(4, body)
 
 
+# ---------------------------------------------------------------- 实体消息
+#
+# server -> client 的实体消息（GateClientRpcHandler:entityMessage 的入参）：
+#   entityMessage(entityId, methodName, index, parameters)
+#
+# 帧类型 2（IGateClientService 第 2 个方法）。
+#
+# 字段布局按 client->server 的 sendEntityMessage 镜像推断（实测那边是
+#   1=entityId(空省略) 3=genRpcIndex(name) 4=msgpack(params) 5=rid(0省略)）：
+#   1=entityId  3=index  4=msgpack(params)
+#
+# 目前只是试探：收到客户端的 type=4 帧就 echo 它的 field 3 回去，参数给空 map。
+# ---------------------------------------------------------------- 时间同步
+#
+# 客户端 AvatarTimeComp:syncFromServer() 会发：
+#     self:serverMsg("RpcSyncServerTime", { os.time() })
+# 也就是 genRpcIndex("RpcSyncServerTime") = 15228564，参数是 msgpack [客户端时间]。
+#
+# 服务端要回 RpcOnSyncServerTime，参数是 { ct = 客户端时间, st = 服务器时间 }：
+#     function AvatarTimeComp:RpcOnSyncServerTime(data)
+#       local rtt = os.time() - data.ct
+#       G.timemgr:SyncFromServer(data.st)
+#     end
+RPC_SYNC_SERVER_TIME = 15228564        # 客户端 -> 服务端
+RPC_ON_SYNC_SERVER_TIME = 1381181593   # 服务端 -> 客户端
+RPC_NETWORK_CHECK = 1259880996         # networkCheckAfterChange_CS
+RPC_INDEX_NOT_FOUND = 1501621037       # __rpc_index_not_found__
+
+
+def mp_decode(b, i=0):
+    """最小 msgpack 解码器，够用就行。返回 (值, 新下标)。"""
+    if i >= len(b):
+        return None, i
+    c = b[i]; i += 1
+    if c <= 0x7F:
+        return c, i
+    if c >= 0xE0:
+        return c - 0x100, i
+    if 0x80 <= c <= 0x8F:                      # fixmap
+        n = c & 0x0F
+        d = {}
+        for _ in range(n):
+            k, i = mp_decode(b, i)
+            v, i = mp_decode(b, i)
+            d[k] = v
+        return d, i
+    if 0x90 <= c <= 0x9F:                      # fixarray
+        n = c & 0x0F
+        arr = []
+        for _ in range(n):
+            v, i = mp_decode(b, i)
+            arr.append(v)
+        return arr, i
+    if 0xA0 <= c <= 0xBF:                      # fixstr
+        n = c & 0x1F
+        return b[i:i + n].decode("utf-8", "replace"), i + n
+    if c == 0xCC:
+        return b[i], i + 1
+    if c == 0xCD:
+        return int.from_bytes(b[i:i + 2], "big"), i + 2
+    if c == 0xCE:
+        return int.from_bytes(b[i:i + 4], "big"), i + 4
+    if c == 0xCF:
+        return int.from_bytes(b[i:i + 8], "big"), i + 8
+    if c == 0xD0:
+        return int.from_bytes(b[i:i + 1], "big", signed=True), i + 1
+    if c == 0xD1:
+        return int.from_bytes(b[i:i + 2], "big", signed=True), i + 2
+    if c == 0xD2:
+        return int.from_bytes(b[i:i + 4], "big", signed=True), i + 4
+    if c == 0xD3:
+        return int.from_bytes(b[i:i + 8], "big", signed=True), i + 8
+    if c == 0xD9:
+        n = b[i]; i += 1
+        return b[i:i + n].decode("utf-8", "replace"), i + n
+    if c == 0xDA:
+        n = int.from_bytes(b[i:i + 2], "big"); i += 2
+        return b[i:i + n].decode("utf-8", "replace"), i + n
+    if c == 0xDC:
+        n = int.from_bytes(b[i:i + 2], "big"); i += 2
+        arr = []
+        for _ in range(n):
+            v, i = mp_decode(b, i)
+            arr.append(v)
+        return arr, i
+    if c == 0xDE:
+        n = int.from_bytes(b[i:i + 2], "big"); i += 2
+        d = {}
+        for _ in range(n):
+            k, i = mp_decode(b, i)
+            v, i = mp_decode(b, i)
+            d[k] = v
+        return d, i
+    if c in (0xC0,):
+        return None, i
+    if c in (0xC2, 0xC3):
+        return c == 0xC3, i
+    return None, i
+
+
+def build_time_sync(client_time, server_time):
+    """构造 RpcOnSyncServerTime 应答：{ ct = 客户端时间, st = 服务器时间 }。"""
+    payload = mp_map({"ct": int(client_time), "st": int(server_time)})
+    return build_entity_message(index=RPC_ON_SYNC_SERVER_TIME, params=payload)
+
+
+def build_entity_message(entity_id="", index=0, params=b"\x80", session_id=None):
+    body = b""
+    if entity_id:
+        body += pb_bytes_field(1, entity_id.encode("utf-8"))
+    if index:
+        body += pb_varint_field(3, index)
+    if params:
+        body += pb_bytes_field(4, params)
+    return frame(2, body)
+
+
+def parse_entity_frame(body):
+    """从客户端 type=4 帧里取出 field 3（index）和 field 4（msgpack 参数）。"""
+    try:
+        fields = pb_parse(body)
+    except Exception:
+        return None, None
+    idx = None
+    if 3 in fields and isinstance(fields[3][0], int):
+        idx = fields[3][0]
+    params = fields.get(4, [b""])[0]
+    return idx, params
+
+
 def build_candidates(rid, gate_port=33101, typ=None):
     """应答候选。
     若给定 typ，则只返回该类型号的一个候选（用于全量爆破）。
