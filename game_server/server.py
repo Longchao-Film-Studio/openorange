@@ -349,11 +349,23 @@ def _handle_gate_probe(conn, addr, cid):
 
             # 正确应答：ConnectServerResp {1: Connected, 2: sessionId, 5: content_type=MSGPACK}
             # content_type 必须显式写出（proto2 has-field 语义），否则客户端判为无效。
-            pkt = msmod.frame_connect_resp(1, "OO00000001")
-            conn.sendall(pkt)
-            print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:OO00000001, 5:MSGPACK} (%d B)"
-                  % (cid, len(pkt)), flush=True)
-            print(_hexdump(pkt, limit=256), flush=True)
+            #
+            # ★ 2026-10-19：只对「连接建立」那一帧回 ConnectServerResp。
+            #   实体创建成功之后，客户端会在同一条连接上继续发实体 RPC（帧类型 4，
+            #   字段 3 = entityId 哈希、字段 4 = msgpack 参数）。对这些帧再回
+            #   ConnectServerResp 是错的，只会让客户端困惑。
+            #   实测：reqType=3 那条连接在 createChannelEntity 之后会连发 5 帧
+            #   0C 00 00 00 | 04 00 | 18 <varint> | 22 <msgpack>
+            is_connect_frame = proto_req is not None
+            if is_connect_frame:
+                pkt = msmod.frame_connect_resp(1, "OO00000001")
+                conn.sendall(pkt)
+                print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:OO00000001, 5:MSGPACK} (%d B)"
+                      % (cid, len(pkt)), flush=True)
+                print(_hexdump(pkt, limit=256), flush=True)
+            else:
+                print("[GATE] #%03d 非 connectServer 帧（type=%d），暂不回包" % (cid, frame_type),
+                      flush=True)
 
             # 主动下发 bindAccount —— 只在 reqType=0（NEW_CONNECTION）时发。
             #

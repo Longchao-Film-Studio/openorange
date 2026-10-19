@@ -238,15 +238,38 @@ MSGPACK_EMPTY_MAP = b"\x80"
 
 # 玩家实体的最小 initDict。
 #
-# 依据：实体创建成功后客户端会依次调各组件的 init(avtDict)，
-# 组件直接从属性表读字段。第一个炸的是 AvatarBagComp：
-#   AvatarBagComp:refreshLocalBagData()
-#     for key, grid in pairs(self.item_bag) do      -- item_bag 为 nil -> pairs 报错
-# 所以 item_bag 必须存在（先给空数组）。
+# ★ 结构必须是这样（依据 Core/PropertySync/PuppetPropertyComponent.lua:initProperty）：
 #
-# 后续每补一个字段就能多过一关，按客户端报错逐个加。
+#     local properties = dict.__Properties__      -- 没有这层包裹就直接 return
+#     if properties == nil then return end
+#     for name, value in pairs(properties) do
+#       if type(value) == "table" then
+#         local customType = value.__tp__          -- table 类型必须带 __tp__
+#         assert(customType ~= nil)
+#         value.__tp__ = nil
+#         CustomTypeFactory.createReadonly(customType, name, value, self, nil, true)
+#
+#   而 customDict 的 roinit 又要求：
+#     local id = value.__id__
+#     value.__id__ = nil
+#     assert(id ~= nil)                            -- 必须带 __id__
+#
+#   所以自定义字典属性的写法是 { __tp__ = "customDict", __id__ = N }。
+#
+# 之前直接给 {"item_bag": []}，因为没有 __Properties__ 包裹，
+# initProperty 第一行就 return 了，属性一个都没设上 ——
+# 于是 AvatarBagComp:refreshLocalBagData 里 pairs(self.item_bag) 拿到 nil。
+#
+# 后续每补一个属性就能多过一关，按客户端报错逐个加。
+# item_bag 的类型是 config.lua Custom 段里的 ItemBag：
+#   ItemBag = { NameSpace = "CustomTypes.Bag.ItemBag",
+#               Properties = {}, __ValueType__ = "ItemInfo", __IntTypeKey__ = false }
+# __tp__ 必须填**注册名**（ItemBag），不能填 PropertyCallbacks 里的类型标签（customDict）——
+# 填 customDict 会报 "can not find custom class customDict"。
 DEFAULT_INIT_DICT = {
-    "item_bag": [],
+    "__Properties__": {
+        "item_bag": {"__tp__": "ItemBag", "__id__": 1},
+    },
 }
 
 
