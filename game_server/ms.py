@@ -213,29 +213,58 @@ def build_response_params(gate_port=33101, ret_err=0, ret_status=True):
 
 # ---------------------------------------------------------------- 实体
 #
-# ChannelEntityInfo { uint32 type = 1; bytes info = 2; string entityId = 3; string sessionId = 4 }
+# ChannelEntityInfo 的字段 1 是 **string**，不是 uint32。
 #
-# type 的含义：Lua 侧 GateClientRpcHandler:createChannelEntity(entityType, initDict, entityId)
-# 把 entityType 直接传给 EntityFactory.createEntity(name, entityId)，也就是**类名字符串**。
-# 原生层用 phonestcore 的 RpcIndex 表把 uint32 反查回类名，所以：
+# 依据（实测，2026-10-19）：
+#   Lua 侧 GateClientRpcHandler:createChannelEntity(entityType, initDict, entityId)
+#   把 entityType 直接传给 EntityFactory.createEntity(name, entityId) —— 收的是类名字符串。
+#   把字段 1 按 varint 发（哪怕值正好是 genRpcIndex("ClientAvatar")=1292148699），
+#   客户端日志是：
+#       [GateClientRpcHandler] createChannelEntity (, avatar_2000) failed
+#       [EntityFactory] createEntity failed: can not find entity class
+#   第一个参数是**空字符串** —— 说明字段 1 被当成 string 解，varint 解不出来。
 #
-#     type = genRpcIndex("ClientAvatar")
+#   另外：RpcIndex 表确实能反查（registerRpc 之后 getRpcName(1292148699) 返回
+#   "ClientAvatar"），但客户端并不用它来还原这个名字，所以补注册实体类名是
+#   无害但也不是必需的。真正关键的是字段类型。
 #
-# 实测（tools/phonest_probe.py）：
-#   genRpcIndex("ClientAvatar") = 1292148699
-#   registerRpc("ClientAvatar") 之后 getRpcName(1292148699) -> "ClientAvatar"
-CLIENT_AVATAR_TYPE = 1292148699
+# 字段布局（推断）：
+#   string type = 1;  bytes info = 2;  string entityId = 3;  string sessionId = 4
+CLIENT_AVATAR_CLASS = "ClientAvatar"
 
 # msgpack 空 map —— 作为最小 initDict 先试水
 MSGPACK_EMPTY_MAP = b"\x80"
 
 
-def build_channel_entity(entity_type=CLIENT_AVATAR_TYPE,
-                         info=MSGPACK_EMPTY_MAP,
+# 玩家实体的最小 initDict。
+#
+# 依据：实体创建成功后客户端会依次调各组件的 init(avtDict)，
+# 组件直接从属性表读字段。第一个炸的是 AvatarBagComp：
+#   AvatarBagComp:refreshLocalBagData()
+#     for key, grid in pairs(self.item_bag) do      -- item_bag 为 nil -> pairs 报错
+# 所以 item_bag 必须存在（先给空数组）。
+#
+# 后续每补一个字段就能多过一关，按客户端报错逐个加。
+DEFAULT_INIT_DICT = {
+    "item_bag": [],
+}
+
+
+def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
+                         init_dict=None,
                          entity_id="avatar_2000",
                          session_id="OO00000001"):
-    """构造 createChannelEntity（IGateClientService 第 4 个方法）。"""
-    body = pb_varint_field(1, entity_type)
+    """构造 createChannelEntity（IGateClientService 第 4 个方法）。
+
+    字段 1 按 **string** 发类名（如 "ClientAvatar"）；
+    字段 2 是 msgpack 编码的 initDict。
+    """
+    if not isinstance(entity_type, bytes):
+        entity_type = str(entity_type).encode("utf-8")
+    if init_dict is None:
+        init_dict = DEFAULT_INIT_DICT
+    info = mp_map(init_dict) if init_dict else MSGPACK_EMPTY_MAP
+    body = pb_bytes_field(1, entity_type)
     body += pb_bytes_field(2, info)
     body += pb_bytes_field(3, entity_id.encode("utf-8"))
     body += pb_bytes_field(4, session_id.encode("utf-8"))

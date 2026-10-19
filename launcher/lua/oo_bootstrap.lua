@@ -894,6 +894,43 @@ end
 -- 目的：确认原生层到底有没有回调 RpcHandlerCallbackOnConnect。
 -- 如果它从不被调用，cObj 就永远不会被 setCobj 赋值，
 -- 也就解释了 "dispatchRpc ... rpcHandler is invalid"。
+-- ------------------------------------------------------------
+-- 实体类名增量注册（必须早于 install_cb_wrappers 定义）
+-- ------------------------------------------------------------
+-- ★ 注意两点：
+--   1. 绝对不能用 original_require 主动加载 EntityFactory ——
+--      那会让它在依赖就绪前被强制加载，游戏卡死在主界面加载动画。
+--      只从 package.loaded 里读。
+--   2. 不能只注册一次。EntityFactory._entities 是 parseEntity 逐条填的，
+--      第一次抓到的时候可能只有 1 条（实测就是 1 条），
+--      所以要**增量、可重入**，每次把新出现的名字补上。
+local ENT_REGISTERED = {}
+
+local function register_entity_names()
+  local EF = package.loaded['Core.Common.EntityFactory']
+  if type(EF) ~= 'table' then return end
+  local ents = EF._entities
+  if type(ents) ~= 'table' then return end
+  local ph = package.loaded['phonestcore']
+  if type(ph) ~= 'table' or type(ph.registerRpc) ~= 'function' then return end
+  local n = 0
+  for name in pairs(ents) do
+    if type(name) == 'string' and not ENT_REGISTERED[name] then
+      ENT_REGISTERED[name] = true
+      pcall(ph.registerRpc, name)
+      n = n + 1
+    end
+  end
+  if n > 0 then
+    LOG('entreg: 新增实体类名 ' .. n .. ' 个')
+    local ok2, idx = pcall(ph.genRpcIndex, 'ClientAvatar')
+    if ok2 then
+      local ok3, back = pcall(ph.getRpcName, idx)
+      LOG('entreg: ClientAvatar -> ' .. tostring(idx) .. ' 反查=' .. tostring(back))
+    end
+  end
+end
+
 local CB_NAMES = {
   'RpcHandlerCallbackOnConnect',
   'RpcHandlerCallbackOnClose',
@@ -909,6 +946,10 @@ local function install_cb_wrappers()
     if type(f) == 'function' and not rawget(_G, mark) then
       rawset(_G, mark, true)
       rawset(_G, nm, function(...)
+        -- CallbackManagerHandler 每秒被调一次，借它当心跳做增量注册
+        if nm == 'CallbackManagerHandler' then
+          pcall(register_entity_names)
+        end
         local n = select('#', ...)
         local parts = {}
         for i = 1, math.min(n, 5) do
@@ -961,29 +1002,6 @@ local GATE_RPC_NAMES = {
 --
 -- 所以：实体类型号 = genRpcIndex(类名)，原生层靠 RpcIndex 表反查回类名。
 -- 不注册类名，原生层就还原不出名字，createChannelEntity 必然失败。
-local function register_entity_names()
-  if pc.entreg then return end
-  local ok, EF = pcall(original_require, 'Core.Common.EntityFactory')
-  if not ok or type(EF) ~= 'table' then return end
-  local ents = EF._entities
-  if type(ents) ~= 'table' then return end
-  local ph = original_require('phonestcore')
-  if type(ph) ~= 'table' or type(ph.registerRpc) ~= 'function' then return end
-  local n = 0
-  for name in pairs(ents) do
-    if type(name) == 'string' then
-      pcall(ph.registerRpc, name)
-      n = n + 1
-    end
-  end
-  if n > 0 then
-    pc.entreg = true
-    LOG('entreg: 注册实体类名 ' .. n .. ' 个')
-    local ok2, idx = pcall(ph.genRpcIndex, 'ClientAvatar')
-    if ok2 then LOG('entreg: ClientAvatar -> ' .. tostring(idx)) end
-  end
-end
-
 local function register_gate_rpcs(ph)
   if pc.rpcreg or type(ph) ~= 'table' then return end
   pc.rpcreg = true
