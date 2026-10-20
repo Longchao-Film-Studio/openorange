@@ -124,6 +124,19 @@ def run():
     n2 = len([k for k in p4["done_story_tasks"] if isinstance(k, int)])
     check("剧情任务条数不变", n1 == n2, (n1, n2))
 
+    print("\n[8] 嵌套自定义值不能带 __tp__（会打断客户端 initProperty）")
+    # 2026-10-20 实机踩过：task_bag[type] 是 TaskBag（嵌套容器），
+    # 给它加 __tp__ 后客户端解析 CustomDict 走错分支，
+    # initProperty 提前中断 -> item_bag 没建 -> AvatarBagComp:refreshLocalBagData
+    # 里 pairs(nil) 报错 -> ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页。
+    p3 = base_props()
+    scaffold.apply(p3, config.Scaffold(unlock_all=True))
+    tb = p3.get("task_bag") or {}
+    for tt in [k for k in tb if isinstance(k, int)]:
+        slot = tb.get(tt) or {}
+        check("task_bag[%d] 有 __id__" % tt, isinstance(slot.get("__id__"), int), slot)
+        check("task_bag[%d] 没有 __tp__" % tt, "__tp__" not in slot, slot.get("__tp__"))
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

@@ -148,7 +148,13 @@ def apply(props, cfg=None):
         if isinstance(tb, dict):
             for tt in DONE_TASK_TYPES:
                 if tb.get(tt) is None:
-                    tb[tt] = _make({"__tp__": "TaskBag"}, gen)
+                    # ★ 嵌套的自定义值**只能带 __id__，不能带 __tp__**。
+                    #   类型由父容器的 __ValueType__ 决定（TaskTypeBag -> TaskBag）。
+                    #   带 __tp__ 会让客户端 CustomDict 解析走错分支，
+                    #   实测表现为 initProperty 提前中断 -> item_bag 没建出来 ->
+                    #   AvatarBagComp:refreshLocalBagData 里 pairs(nil) 报错 ->
+                    #   ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页的死循环。
+                    tb[tt] = _make({}, gen)
             changed.append("task_bag 槽位 %s" % DONE_TASK_TYPES)
 
         # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt
