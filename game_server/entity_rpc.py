@@ -87,6 +87,10 @@ RPC_INDEX = {
     # --- 阴阳界 / 宝箱（2 条，另外两条是单向） ---
     "RequestEnterStreetSurface_CS": 743475140,
     "RequestStreetTreasure_CS": 1398226462,
+    # --- 主线等级 / 剧情线 / 伊甸聊天（3 条） ---
+    "Street_Mainline_Levelup_CS": 484169195,
+    "finishStreetStoryline_CS": 1586165443,
+    "RpcGetEdenChatHistory": 1469599847,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -1090,6 +1094,77 @@ def _street_treasure_rpc(rid, params, uid=None):
     return frames
 
 
+# ---------------------------------------------------------------------------
+# 主线关卡等级 / 街区剧情线 / 伊甸聊天记录（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua：
+#   Street_Mainline_Levelup_CS(area_id) -> serverRpc({area_id})   :261-263
+#     读侧 getMainLineLevel(area_id) = self.mainline_level[area_id]  :265-268
+#     mainline_level 是 IntDictKeyInt（我们已补进 initDict）
+#   finishStreetStoryline_CS {eventId}                             :752-757
+#     标记某条街区剧情线完成
+#   avatarspacecomp.lua:147-158：
+#     GetEdenChatHistory(spaceNo) -> CallServer("RpcGetEdenChatHistory", spaceNo)
+#     客户端回调 RpcOnEdenChatHistory(chatInfo) 里取数据
+
+
+def _mainline_levelup(rid, params, uid=None):
+    """Street_Mainline_Levelup_CS {area_id} —— 主线关卡等级 +1。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        area_id = int(vals[0])
+    except Exception:
+        return frames
+    st = _state(uid)
+    ml = st.props.get("mainline_level")
+    if not isinstance(ml, dict):
+        return frames
+    cur = int(ml.get(area_id) or 0)
+    ml[area_id] = cur + 1
+    st.set("mainline_level", ml)
+    st.save()
+    print("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1), flush=True)
+    frames.append(msmod.build_property_sync(
+        "", ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
+    return frames
+
+
+def _finish_storyline(rid, params, uid=None):
+    """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        event_id = int(vals[0])
+    except Exception:
+        return frames
+    st = _state(uid)
+    done = st.props.get("_oo_storyline_done")
+    if not isinstance(done, list):
+        done = []
+    if event_id not in done:
+        done.append(event_id)
+    st.props["_oo_storyline_done"] = done
+    st.save()
+    print("[street] 街区剧情线完成 event=%s" % event_id, flush=True)
+    return frames
+
+
+def _eden_chat_history(rid, params, uid=None):
+    """RpcGetEdenChatHistory {spaceNo} —— 回一条空聊天记录。
+
+    客户端 avatarspacecomp.lua:152-158 的 RpcOnEdenChatHistory(chatInfo)
+    只是把 chatInfo 交给回调，空表即可。
+    """
+    resp = {"Ret": [True, 0], "ChatInfo": []}
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK), resp=resp)]
+    return frames
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1379,7 +1454,10 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("Street_Redpoint_Update_CS", _street_redpoint),
                    ("updateStreetTraceTask_CS", _street_trace_task),
                    ("RequestEnterStreetSurface_CS", _enter_surface),
-                   ("RequestStreetTreasure_CS", _street_treasure_rpc)):
+                   ("RequestStreetTreasure_CS", _street_treasure_rpc),
+                   ("Street_Mainline_Levelup_CS", _mainline_levelup),
+                   ("finishStreetStoryline_CS", _finish_storyline),
+                   ("RpcGetEdenChatHistory", _eden_chat_history)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
