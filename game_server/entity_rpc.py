@@ -140,6 +140,10 @@ RPC_INDEX = {
     "earlyLeaveMahjong": 404472060,
     # 带回调的只剩这一条
     "RollbackSpaceTask_CS": 1803698937,
+    # --- 副本结算（推进剧情 TaskType 3/7） ---
+    "Cmd_OfflineSpace_Finish_CS": 2006240685,
+    "Cmd_Dungeon_FinishInteract_CS": 1040600642,
+    "Cmd_Infinite_FinishInteract_CS": 390634949,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -1575,6 +1579,55 @@ def _space_frame_message(params, uid=None):
                         [payload])]
 
 
+# ---------------------------------------------------------------------------
+# 副本结算 -> 推进剧情（TaskType 3/7）
+# ---------------------------------------------------------------------------
+# 逆向依据：
+#   entities/avatarcomponent/avatardungeoncomp.lua:217-222
+#     FinishDungeonSpace(finishInfo) -> serverRpc("Cmd_OfflineSpace_Finish_CS", {finishInfo})
+#   entities/avatarcomponent/avatardungeoncomp.lua:203-215
+#     Cmd_Dungeon_FinishInteract_CS {} / Cmd_Infinite_FinishInteract_CS {}
+#
+# 剧情推进链条（BDD 实测）：
+#   StoryTask 1000 (TaskType=3, Parameter1=[1])
+#     -> TaskData[1] {Description:"完成序章", TriggerEventList:[4001]}
+#     -> TaskEventData[4001] {EventType:"FinishDungeon",
+#                             EventParam:{typeId:1004, modeId:1, level:1}}
+#   所以副本结算时把 finishInfo 里的整数键都当事件参数喂给 story.evaluate_event，
+#   命中就完成对应剧情任务。
+
+
+def _offline_space_finish(rid, params, uid=None):
+    """Cmd_OfflineSpace_Finish_CS {finishInfo} —— 副本结算 + 推进剧情。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    info = vals[0] if (isinstance(vals, list) and vals
+                      and isinstance(vals[0], dict)) else {}
+    if not isinstance(info, dict):
+        info = {}
+    # finishInfo 的具体结构没在 Lua 里找到构造点（调用方在 C#/战斗层），
+    # 这里不猜字段名：把所有整数/浮点值都当事件参数，event_matches 只比对
+    # EventParam 里声明的键，多余的键不影响匹配。
+    ev_params = {}
+    for k, v in info.items():
+        if isinstance(k, str) and k.startswith("__"):
+            continue
+        if isinstance(v, bool):
+            ev_params[k] = 1 if v else 0
+        elif isinstance(v, (int, float)):
+            ev_params[k] = int(v)
+    st = _state(uid)
+    hits, _changes = story.evaluate_event(st, "FinishDungeon", ev_params)
+    if hits:
+        frames.extend(_finish_story_tasks(st, hits))
+    # 链式任务（TaskType=6）：前置剧情任务全完成就推进
+    chain, _c2 = story.check_chain_tasks(st)
+    if chain:
+        frames.extend(_finish_story_tasks(st, chain))
+    print("[dungeon] 结算参数 %s -> 剧情推进 %s" % (ev_params, hits), flush=True)
+    return frames
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1879,7 +1932,10 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("Street_CD_Update_CS", _street_cd_update),
                    ("RequestRefreshTitleDailyTask_CS", _ack_only),
                    ("RequestDoneTitleTask_CS", _ack_only),
-                   ("RollbackSpaceTask_CS", _ack_only)):
+                   ("RollbackSpaceTask_CS", _ack_only),
+                   ("Cmd_OfflineSpace_Finish_CS", _offline_space_finish),
+                   ("Cmd_Dungeon_FinishInteract_CS", _ack_only),
+                   ("Cmd_Infinite_FinishInteract_CS", _ack_only)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 

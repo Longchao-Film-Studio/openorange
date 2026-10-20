@@ -139,6 +139,27 @@ def task(task_id):
     return v if isinstance(v, dict) else None
 
 
+def row(table_name, row_id):
+    """按表名 + 行 id 取一行（字符串/整数键都试）。读不到返回 None。"""
+    d = table(table_name)
+    if not isinstance(d, dict):
+        return None
+    v = d.get(str(row_id))
+    if v is None:
+        v = d.get(row_id)
+    return v
+
+
+def task_data(task_id):
+    """TaskData[task_id] —— 通用任务表，带 TriggerEventList（完成条件）。"""
+    return row("TaskData", task_id)
+
+
+def task_event(event_id):
+    """TaskEventData[event_id] —— 触发条件，形如 {EventType:"FinishDungeon", EventParam:{...}}。"""
+    return row("TaskEventData", event_id)
+
+
 def street_prestige(street_id):
     """StreetPrestigeData[street_id] —— 该街区的声望等级表（list，含 needExpNum/level/levelAward）。"""
     d = table("StreetPrestigeData")

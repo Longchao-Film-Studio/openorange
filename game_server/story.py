@@ -203,6 +203,140 @@ def story_award(st, task_id):
     return out
 
 
+# ---------------------------------------------------------------------------
+# 剧情触发引擎（TaskType 3 / 6 / 7）
+# ---------------------------------------------------------------------------
+# ★ 逆向结论（2026-10-20，查全 BDD 与 Lua 后确认）：
+#
+# 客户端 `avatarstorytaskcomp.lua:667-681` 的 RequestDoneStoryTaskParamInt_CS(type, param_int)
+# 只是**本地筛出 taskId** 然后发 {taskId, param_int} —— 所以 type 1/2/5 的完成是客户端驱动的。
+#
+# 但 TaskType 3/7 的 81+78 条任务，客户端**全项目没有任何调用点**会发它们。
+# 顺着 Parameter1 查下去才找到真正的机制：
+#
+#   StoryTask 1000 (TaskType=3, Parameter1=[1])
+#     -> TaskData[1] = {Description:"完成序章", TriggerEventList:[4001]}
+#     -> TaskEventData[4001] = {EventType:"FinishDungeon",
+#                              EventParam:{typeId:1004, modeId:1, level:1}}
+#
+# 也就是说：**TaskType 3/7 的完成条件是「服务端监听游戏事件」**，
+# 事件命中 TaskEventData 就把对应剧情任务标完成。
+#
+# TaskType 分布（StoryTaskData 1047 条）：
+#   0 -> 270  无完成条件（纯叙述）
+#   1 -> 380  客户端发 (1, storyId)   —— 剧情演出/对话/timeline
+#   2 -> 199  客户端发 (2, actorId)   —— 街景 NPC 交互
+#   3 ->  81  Parameter1 = TaskData id，服务端事件判定
+#   4 ->  13  Parameter1 = 街区 id
+#   5 ->   2  客户端发 (5, videoId)   —— 视频播完
+#   6 ->  24  Parameter1 = 前置剧情任务 id 列表，全部完成则本任务完成
+#   7 ->  78  Parameter1 = TaskData id，服务端事件判定（同 3）
+
+TASK_TYPE_CLIENT = (1, 2, 5)   # 客户端驱动
+TASK_TYPE_EVENT = (3, 7)       # 服务端按 TaskData -> TaskEventData 判定
+TASK_TYPE_CHAIN = (6,)         # 前置剧情任务全完成
+TASK_TYPE_STREET = (4,)        # 街区 id（暂未接）
+
+
+def _active_story_tasks(st):
+    """返回 [(taskId, StoryTaskItem)]，只含进行中的。"""
+    bag = _as_map(st.props, "story_task_bag")
+    if not isinstance(bag, dict):
+        return []
+    return [(k, v) for k, v in bag.items()
+            if isinstance(k, int) and isinstance(v, dict)]
+
+
+def event_matches(event_cfg, event_type, params):
+    """TaskEventData 是否命中本次事件。
+
+    EventParam 里除 KeyList/__bdd_metatype__ 外的每个键都必须出现在 params 里且相等。
+    例：EventParam={typeId:1004, modeId:1, level:1}，
+        则 params 必须同时给出这三个值。
+    """
+    if not isinstance(event_cfg, dict):
+        return False
+    if event_cfg.get("EventType") != event_type:
+        return False
+    ep = event_cfg.get("EventParam") or {}
+    if not isinstance(ep, dict):
+        return True
+    for k, v in ep.items():
+        if k in ("KeyList", "__bdd_metatype__"):
+            continue
+        if k not in params:
+            return False
+        try:
+            if int(params[k]) != int(v):
+                return False
+        except Exception:
+            if params[k] != v:
+                return False
+    return True
+
+
+def evaluate_event(st, event_type, params, now=None):
+    """按游戏事件推进剧情任务（TaskType 3/7），返回 (完成的taskId列表, 同步列表)。
+
+    params 例：
+      FinishDungeon -> {"typeId": 1004, "modeId": 1, "level": 1}
+      CharData      -> {"level": 10}
+    """
+    import time as _t
+    now = int(now if now is not None else _t.time())
+    hits = []
+    for task_id, _item in _active_story_tasks(st):
+        cfg = gamedata.story_task(task_id) or {}
+        if cfg.get("TaskType") not in TASK_TYPE_EVENT:
+            continue
+        p1 = cfg.get("Parameter1") or []
+        if not isinstance(p1, list):
+            continue
+        done = False
+        for pid in p1:
+            td = gamedata.task_data(pid)
+            if not isinstance(td, dict):
+                continue
+            for eid in (td.get("TriggerEventList") or []):
+                if event_matches(gamedata.task_event(eid), event_type, params):
+                    done = True
+                    break
+            if done:
+                break
+        if done:
+            hits.append(task_id)
+    # ★ 只做检测，不落状态 —— 落状态统一走 entity_rpc._finish_story_tasks，
+    #   那里才发奖 + 推同步 + 重算解锁。
+    #   踩过的坑：这里如果直接 finish_story_task，外层再调 _finish_story_tasks 时
+    #   会因为已经是 Finished 而跳过，导致**不发奖、不推同步帧**。
+    if hits:
+        print("[story] 事件 %s%s 命中剧情任务 %s" % (event_type, params, hits),
+              flush=True)
+    return hits, []
+
+
+def check_chain_tasks(st, now=None):
+    """TaskType=6：Parameter1 里的前置剧情任务全部完成 -> 本任务完成。
+
+    例：StoryTask 201000「完成第一章」Parameter1=[1031]，1031 完成即本任务完成。
+    """
+    import time as _t
+    now = int(now if now is not None else _t.time())
+    hits = []
+    for task_id, _item in _active_story_tasks(st):
+        cfg = gamedata.story_task(task_id) or {}
+        if cfg.get("TaskType") not in TASK_TYPE_CHAIN:
+            continue
+        p1 = cfg.get("Parameter1") or []
+        if not isinstance(p1, list) or not p1:
+            continue
+        if all(story_state(st.props, int(x)) == TASK_STATE_FINISHED for x in p1):
+            hits.append(task_id)
+    # 同 evaluate_event：只检测，不落状态。
+    if hits:
+        print("[story] 前置任务全完成，命中 %s" % hits, flush=True)
+    return hits, []
+
 def add_item(props, item_id, count):
     """往 item_bag 加道具（有则叠加，无则新建格子）。返回该道具的新数量。"""
     bag = props.get("item_bag")
