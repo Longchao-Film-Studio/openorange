@@ -58,7 +58,13 @@ REQUIRED = {
     # --- AvatarBagComp:refreshLocalBagData -> pairs(self.item_bag) ---
     "item_bag": "ItemBag",
     # --- AvatarTaskComp:initDoneAchievement / getAllDoingDailyTaskItem -> task_bag ---
-    "task_bag": "TaskBag",
+    # ★ task_bag 是**两层**的：task_bag[taskType][taskID]。
+    #   依据 generated/config.lua:10123 的回调路径 ["task_bag.*.*"]，
+    #   以及 avatartaskcomp.lua:257  getTaskState: self.task_bag[taskType][taskID]。
+    #   所以类型是 TaskTypeBag（Dict<int, TaskBag>），不是 TaskBag。
+    #   以前写成单层 TaskBag，getSystemTaskState 走 task_bag[type][id] 时
+    #   索引的是 TaskItem 对象，永远取不到，只能靠 done_tasks 兜底。
+    "task_bag": "TaskTypeBag",
     # --- AvatarActivityComp -> pairs(cur_activity_info) ---
     "cur_activity_info": "ActivityProp",
     # --- AvatarAchieveComp:initDoneAchievement -> pairs(achieve_type_bag) ---

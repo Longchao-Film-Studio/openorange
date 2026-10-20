@@ -148,7 +148,7 @@ def apply(props, cfg=None):
         if isinstance(tb, dict):
             for tt in DONE_TASK_TYPES:
                 if tb.get(tt) is None:
-                    tb[tt] = _make(_ACTIVE_TASK, gen)
+                    tb[tt] = _make({"__tp__": "TaskBag"}, gen)
             changed.append("task_bag 槽位 %s" % DONE_TASK_TYPES)
 
         # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt

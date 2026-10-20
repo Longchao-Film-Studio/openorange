@@ -1514,7 +1514,7 @@
    }
   },
   "task_bag": {
-   "__tp__": "TaskBag",
+   "__tp__": "TaskTypeBag",
    "__id__": 1325
   },
   "characterBag": {
