@@ -1379,6 +1379,40 @@ local function install_preload_hook()
   LOG('preload| 钩子已安装')
 end
 
+-- 诊断用：面板预加载超时后放行
+-- 背景：PanelManager:preLoadPanelByName（ui/base/panelmanager.lua:693-702）
+--   加载失败时**不调回调**，导致 LoadStepUI 永远不完成。
+-- 这里在运行时包一层：超过 N 秒没回调就手动 cb(nil) 放行，
+-- 用来验证「除了这个面板资源，副本流程本身能不能跑通」。
+-- 注意：这是诊断手段，不是修复 —— 缺的 HUD 面板依然缺。
+local PANEL_TIMEOUT_SEC = 6
+local function install_panel_timeout()
+  if pc.paneltimeout then return end
+  if ui == nil or ui.PreLoadPanelByName == nil then return end
+  pc.paneltimeout = true
+  local orig = ui.PreLoadPanelByName
+  ui.PreLoadPanelByName = function(name, cb)
+    local done = false
+    local function once(go)
+      if done then return end
+      done = true
+      if cb then cb(go) end
+    end
+    orig(name, function(go)
+      LOG('paneltmo| 正常返回 ' .. tostring(name))
+      once(go)
+    end)
+    TimerManager.addTimer(PANEL_TIMEOUT_SEC, function()
+      if not done then
+        LOG('paneltmo| 超时放行 ' .. tostring(name)
+          .. '（该面板资源加载失败，HUD 会缺失）')
+        once(nil)
+      end
+    end)
+  end
+  LOG('paneltmo| 钩子已安装，超时 ' .. PANEL_TIMEOUT_SEC .. ' 秒')
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1671,6 +1705,7 @@ OO_PROBE_HUBSTEPS = false  -- hub:init/getCopy 分步探针
 OO_PROBE_LOADSTATE = false -- LoadingStage 就绪标志探针
 OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
+OO_PANEL_TIMEOUT = true    -- 诊断：面板预加载超时放行（缺 HUD 但能验证流程）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -2109,6 +2144,9 @@ local function install_cb_wrappers()
           end
           if OO_PROBE_PRELOAD then
             if (pc.frames % 30) == 11 then pcall(install_preload_hook) end
+          end
+          if OO_PANEL_TIMEOUT then
+            if (pc.frames % 30) == 12 then pcall(install_panel_timeout) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
