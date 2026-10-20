@@ -548,6 +548,31 @@ def _handle_gate_probe(conn, addr, cid):
                         shared_db.touch_game_online("gate-%03d" % cid)
                     except Exception:
                         pass
+
+                # ★ 体力随时间恢复：借用心跳（每秒一次）做驱动。
+                #   放在这里而不是后台线程，是因为**必须在本连接的线程里写 socket**，
+                #   否则和 RPC 应答并发写会把帧切坏。
+                #   apply_recovery 只有真的到点（每 KeyRefresh=360 秒）才会返回 >0，
+                #   所以不会每秒钟都推包。
+                _uid_hb = _uid_of(cid)
+                if _uid_hb != ooconf.FALLBACK_UID:
+                    try:
+                        from . import stamina as stamina_mod
+                        _st = erpc._state(_uid_hb)
+                        _lv = int(_st.props.get("level") or 1)
+                        _gained, _ = stamina_mod.apply_recovery(_st.props, _lv)
+                        if _gained:
+                            _st.save()
+                            for _p in (stamina_mod.PROP_KEYS,
+                                       stamina_mod.PROP_NEXT,
+                                       stamina_mod.PROP_TOTAL):
+                                conn.sendall(msmod.build_property_sync(
+                                    "", 0, msmod.OP_CHANGE, _p, _st.props.get(_p)))
+                            print("[GATE] #%03d 体力恢复 +%d -> %s"
+                                  % (cid, _gained,
+                                     _st.props.get(stamina_mod.PROP_KEYS)), flush=True)
+                    except Exception as _e:
+                        print("[GATE] #%03d 体力恢复失败: %s" % (cid, _e), flush=True)
                 print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)
             elif is_connect_frame:
                 _sid = _uid_of(cid)

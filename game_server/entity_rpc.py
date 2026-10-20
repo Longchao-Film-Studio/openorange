@@ -243,20 +243,96 @@ def _use_item(rid, params, uid=None):
     if not isinstance(bag, dict):
         return frames
     bag_id = bag.get("__id__") or 0
-    for key, grid in list(bag.items()):
+    grid_key = None
+    grid = None
+    for key, g in list(bag.items()):
         if key in ("__tp__", "__id__"):
             continue
-        if not isinstance(grid, dict) or grid.get("itemId") != item_id:
-            continue
-        old_num = grid.get("num") or 0
-        new_num = max(0, old_num - count)
-        grid["num"] = new_num
-        st.set("item_bag", bag)
-        st.save()
+        if isinstance(g, dict) and g.get("itemId") == item_id:
+            grid_key, grid = key, g
+            break
+    if grid is None:
+        # 背包里没有这个道具：不动数据，只回成功（客户端只看 status）
+        return frames
+
+    old_num = grid.get("num") or 0
+    if old_num < count:
+        return frames
+
+    # ---- 1) 扣数量 ----
+    grid["num"] = old_num - count
+    st.set("item_bag", bag)
+
+    # ---- 2) 应用道具效果 ----
+    # 规则全在 ItemData：useType + useParam。
+    # 例：时砂之盒(110) = {useType:"avatarAttr", useParam:{TowerRewardKeys:60}}
+    changed_props = _apply_item_effect(st, item_id, count)
+
+    st.save()
+
+    # ---- 3) 推同步 ----
+    frames.append(msmod.build_property_sync(
+        "", bag_id, msmod.OP_CHANGE, grid_key, grid))
+    for prop, value in changed_props:
         frames.append(msmod.build_property_sync(
-            "", bag_id, msmod.OP_CHANGE, key, grid))
-        break
+            "", 0, msmod.OP_CHANGE, prop, value))
     return frames
+
+
+# useParam 的键（PascalCase）-> 属性名（snake_case）。
+# 只列「简单计数器」类的；Portrait/StickerId/Card/Background/Title/
+# PortraitFrame/Bubble 这些是往各自的 bag 里加条目，需要 bag 结构，暂未实现。
+_USE_PARAM_PROP = {
+    "TowerRewardKeys": "tower_reward_keys",
+    "Crystal": "crystal",
+    "Exp": "exp",
+}
+
+
+def _apply_item_effect(st, item_id, count):
+    """应用 ItemData 里声明的道具效果，返回 [(属性名, 新值)]。
+
+    目前只支持 useType == "avatarAttr" 的简单计数器（时砂/龙玉/经验）。
+    其它类型（randomItem / char / charSkin / item / selectItem ...）需要
+    各自的发放逻辑，属于阶段 2/3 的活。
+    """
+    try:
+        from . import gamedata
+    except Exception:
+        return []
+    use_type = gamedata.item_use_type(item_id)
+    if use_type != "avatarAttr":
+        return []
+    params = gamedata.item_use_param(item_id) or {}
+    out = []
+    for pk, pv in params.items():
+        prop = _USE_PARAM_PROP.get(pk)
+        if prop is None:
+            continue
+        try:
+            amount = int(pv) * int(count)
+        except Exception:
+            continue
+        if amount <= 0:
+            continue
+        if prop == "tower_reward_keys":
+            # 体力有上限，走 stamina 模块（会同时更新两个恢复时间戳）
+            try:
+                from . import stamina as stamina_mod
+                lv = int(st.props.get("level") or 1)
+                stamina_mod.add(st.props, amount, lv)
+                out.append((prop, st.props.get(prop)))
+                out.append((stamina_mod.PROP_NEXT, st.props.get(stamina_mod.PROP_NEXT)))
+                out.append((stamina_mod.PROP_TOTAL, st.props.get(stamina_mod.PROP_TOTAL)))
+                continue
+            except Exception as e:
+                print("[item] 体力加算失败: %s" % e, flush=True)
+        cur = st.props.get(prop)
+        if not isinstance(cur, (int, float)):
+            continue
+        st.props[prop] = cur + amount
+        out.append((prop, st.props[prop]))
+    return out
 
 
 # ---------------------------------------------------------------------------

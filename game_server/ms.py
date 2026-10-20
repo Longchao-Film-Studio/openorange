@@ -405,7 +405,8 @@ def _live_init_dict(uid=None):
         st.props["uid"] = uid
     # ★ 脚手架覆盖层：只在「该账号首次建状态」时应用一次，默认关闭。
     #   以前是烤进 avatar_init.json 的，生成后关不掉，见 scaffold.py 头部注释。
-    if not getattr(st, "_scaffold_applied", False):
+    # 只有「新建存档」才应用脚手架（老存档里的进度不能被覆盖）
+    if getattr(st, "is_new", False) and not getattr(st, "_scaffold_applied", False):
         try:
             from . import scaffold as scaffold_mod
         except Exception:
@@ -422,6 +423,33 @@ def _live_init_dict(uid=None):
             except Exception as e:
                 print("[init] 脚手架应用失败: %s" % e, flush=True)
         st._scaffold_applied = True
+
+    # ★ 体力：新号拉满；每次登录按离线时间补。
+    #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
+    #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。
+    try:
+        from . import stamina as stamina_mod
+    except Exception:
+        try:
+            import stamina as stamina_mod
+        except Exception:
+            stamina_mod = None
+    if stamina_mod is not None:
+        try:
+            _lv = int(st.props.get("level") or 1)
+            if getattr(st, "is_new", False) and not getattr(st, "_stamina_inited", False):
+                stamina_mod.init_new(st.props, _lv)
+                st._stamina_inited = True
+                print("[init] 体力初始化(uid=%s): %s/%s"
+                      % (uid, st.props.get("tower_reward_keys"),
+                         stamina_mod.max_stamina(_lv)), flush=True)
+            else:
+                _gained, _ = stamina_mod.apply_recovery(st.props, _lv)
+                if _gained:
+                    print("[init] 离线恢复体力(uid=%s): +%s -> %s"
+                          % (uid, _gained, st.props.get("tower_reward_keys")), flush=True)
+        except Exception as e:
+            print("[init] 体力处理失败: %s" % e, flush=True)
     return {"__Properties__": st.props}
 
 

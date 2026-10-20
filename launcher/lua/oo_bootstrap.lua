@@ -1168,6 +1168,14 @@ local function probe_sig_watch()
       LOG('lvwatch| #' .. pc.sigWatch .. ' charLevel9001=' .. lv)
       pc.lvLast = lv
     end
+    -- 体力（时之砂）
+    local sta = tostring(A.tower_reward_keys)
+    if pc.staLast ~= sta then
+      LOG('stamina| #' .. pc.sigWatch .. ' keys=' .. sta
+        .. ' next=' .. tostring(A.next_key_recover_timestamp)
+        .. ' total=' .. tostring(A.total_key_recover_timestamp))
+      pc.staLast = sta
+    end
     -- 1-3 的 setter 目标属性
     local pv = tostring(A.portrait_id)
     if pc.pvLast ~= pv then

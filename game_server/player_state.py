@@ -81,6 +81,8 @@ class PlayerState(object):
         self.uid = uid
         self.props = props if props is not None else {}
         self.property_seq = 0
+        # 是否「本次新建」而不是从存档读出来的（见 get_state 注释）
+        self.is_new = False
 
     # ---- 读写 ----
     def get(self, name, default=None):
@@ -161,6 +163,13 @@ def get_state(init_props=None, uid=DEFAULT_UID):
             st = load(uid)
             if st is None:
                 st = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
+                # ★ 标记「这是新建的存档」，不是从盘里读出来的。
+                #   新号初始化（脚手架、体力拉满）只能对新建存档做一次；
+                #   以前用内存标记，进程一重启就丢，导致每次登录都把
+                #   玩家的体力重置成满值、脚手架重新应用一遍。
+                st.is_new = True
+            else:
+                st.is_new = False
             _STATES[uid] = st
         return st
 

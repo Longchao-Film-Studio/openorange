@@ -33,6 +33,12 @@ STATE_DIR = os.environ.get("OO_STATE_DIR") or os.path.join(WORK_DIR, "player_sta
 # 客户端声明的属性默认值（由 tools/build_avatar_init.py 生成）
 AVATAR_INIT_PATH = os.path.join(_HERE, "avatar_init.json")
 
+# 客户端 BDD 数据表目录（65 MB，不在仓库里）。
+# 服务端要读 ItemData / CommonConstData / LevelExpData 等才知道道具效果、体力上限。
+# 找不到不会崩，只是相关功能降级（见 game_server/gamedata.py）。
+BDD_DIR = (os.environ.get("OO_BDD_DIR")
+           or os.path.normpath(os.path.join(ROOT_DIR, "..", "archive", "game_data", "BDD")))
+
 # ---------------------------------------------------------------- 网络
 HOST = "0.0.0.0"
 

@@ -107,10 +107,14 @@ def run():
     check("value 带 __id__（原地更新要用）", (d5.get("value") or {}).get("__id__") == 1357,
           (d5.get("value") or {}).get("__id__"))
 
-    print("\n[4c] 道具不够时数量夹到 0")
+    print("\n[4c] 道具不够时拒绝，不改数据")
+    # 真实服务端在数量不足时会拒绝整条请求。
+    # 以前这里实现成「夹到 0」，会凭空把道具用光；现在改成不动数据。
+    before_num = pstate.get_state().get("item_bag")["1"]["num"]
     frames4 = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 99999, None]), 12)
     bag4 = pstate.get_state().get("item_bag")
-    check("不会变负数", bag4["1"]["num"] == 0, bag4["1"]["num"])
+    check("数量没变", bag4["1"]["num"] == before_num, bag4["1"]["num"])
+    check("只回应答帧，没有同步帧", len(frames4) == 1, len(frames4))
 
     print("\n[4d] UpgradeCharacter_CS 升级 + characterBag 子属性同步")
     pstate.reset_state({"characterBag": {"__tp__": "CharacterPersistentDict", "__id__": 1326,
