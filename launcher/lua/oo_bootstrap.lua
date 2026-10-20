@@ -1731,7 +1731,7 @@ OO_PROBE_HUBSTEPS = false  -- hub:init/getCopy 分步探针
 OO_PROBE_LOADSTATE = false -- LoadingStage 就绪标志探针
 OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
-OO_PANEL_TIMEOUT = true    -- 诊断：面板预加载超时放行（缺 HUD 但能验证流程）
+OO_PANEL_TIMEOUT = false   -- 诊断：面板预加载超时放行（资源已修复，不再需要）
 OO_PROBE_NEXTLEVEL = false -- 自动触发进入下一关
 
 local function probe_p1_setrpc()

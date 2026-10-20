@@ -33,7 +33,9 @@ def scan_dir(d, quiet=False):
     total = 0
     good = 0
     bad = []
-    for root, _dirs, files in os.walk(d):
+    for root, dirs, files in os.walk(d):
+        # _corrupt_backup 是修复时故意留的坏文件备份，不算异常
+        dirs[:] = [x for x in dirs if x != "_corrupt_backup"]
         for fn in files:
             if not fn.lower().endswith(".dab"):
                 continue
