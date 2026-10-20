@@ -424,6 +424,22 @@ def _live_init_dict(uid=None):
                 print("[init] 脚手架应用失败: %s" % e, flush=True)
         st._scaffold_applied = True
 
+    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
+    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
+    #   数据来源是 entity_rpc 的 _update_street_pos / _client_move
+    #   存下的 _oo_street_pos。
+    _sp = st.props.get("_oo_street_pos")
+    if isinstance(_sp, dict):
+        _spi = st.props.get("street_pos_info")
+        if isinstance(_spi, dict):
+            try:
+                _spi["x"] = float(_sp.get("x") or 0)
+                _spi["y"] = float(_sp.get("y") or 0)
+                _spi["z"] = float(_sp.get("z") or 0)
+                st.props["street_pos_info"] = _spi
+            except Exception:
+                pass
+
     # ★ 新号的剧情起点（正式路径，不是脚手架）：
     #   把 StoryTaskData[1000] 设为进行中。街景 NPC 的 preTask 命中
     #   Doing(3) 才会出现，所以这一步决定「街上有没有 NPC」。

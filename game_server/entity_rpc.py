@@ -80,6 +80,10 @@ RPC_INDEX = {
     "RequestDoneSomeTypeTask_CS": 2089931997,
     # --- 空间/场景 avatarspacecomp（3 条，RpcEnterSpace/RpcOnSceneLoaded 是单向） ---
     "RpcLeaveSpace": 377940221,
+    # --- 街景交互 / 红点 / 追踪（3 条） ---
+    "Street_Actor_InteractID_Update_CS": 1693572640,
+    "Street_Redpoint_Update_CS": 1315049093,
+    "updateStreetTraceTask_CS": 1390116544,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -831,6 +835,7 @@ def _client_move(params, uid=None):
     except Exception:
         return []
     st.props["_oo_street_pos"] = saved
+    _throttled_save(st, uid)
     return []
 
 
@@ -844,6 +849,153 @@ def _change_micro_state(params, uid=None):
         st.props["_oo_micro_state"] = int(vals[0] or 0)
     except Exception:
         pass
+    return []
+
+
+# ---------------------------------------------------------------------------
+# 街景交互 / 红点 / 追踪任务（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetactorcomp.lua:19-40：
+#   sendStreetActorHadInteract(actor_id, interact_id, interact_group, cb)
+#     -> serverRpc("Street_Actor_InteractID_Update_CS",
+#                   {actor_id, interact_group, interact_id, taskId, interact_id})
+#   语义：把「这个 NPC 的这个交互做过了」记到服务端，
+#         若命中剧情任务（getTaskIdByParamInt(interact_id, 2)）则顺便完成它。
+#
+# 交互状态存在哪：StreetInfo 的 inter_actor_info（IntDictKeyInt），
+# 见 generated/config.lua:6834 StreetInfo.Properties —— actorId -> interactId。
+#
+# entities/avatarcomponent/avatarstreetcomp.lua:581-587：
+#   saveRedPointCount(key, value)
+#     -> serverRpc("Street_Redpoint_Update_CS", {key, value})
+#   存在 StreetInfoDict.street_redpoint（IntDict）。
+#
+# entities/avatarcomponent/avatarstreetcomp.lua:741：
+#   updateStreetTraceTask_CS(trackingTaskID) -> 存 street_trace_taskid
+
+
+def _street_info_of(st, street_id):
+    """取 street_info[street_id]，没有就建。"""
+    si = st.props.get("street_info")
+    if not isinstance(si, dict):
+        return None, None
+    cur = si.get(street_id)
+    if isinstance(cur, dict):
+        return si, cur
+    entry = {"__tp__": "StreetInfo", "__id__": st.next_property_id()}
+    entry.update(_STREET_INFO_DEFAULTS)
+    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
+               "treasure_box_info", "inter_actor_info"):
+        entry[_k] = {"__id__": st.next_property_id()}
+    si[street_id] = entry
+    st.set("street_info", si)
+    return si, entry
+
+
+def _actor_interact(rid, params, uid=None):
+    """Street_Actor_InteractID_Update_CS {actor_id, interact_group, interact_id, taskId?, interact_id}。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 3):
+        return frames
+    try:
+        actor_id = int(vals[0])
+        interact_id = int(vals[2])
+    except Exception:
+        return frames
+    task_id = None
+    if len(vals) >= 4:
+        try:
+            task_id = int(vals[3])
+        except Exception:
+            task_id = None
+    st = _state(uid)
+    street_id = int(st.props.get("street_id") or 0)
+    si, entry = _street_info_of(st, street_id)
+    if entry is not None:
+        ia = entry.get("inter_actor_info")
+        if not isinstance(ia, dict):
+            ia = {"__id__": st.next_property_id()}
+            entry["inter_actor_info"] = ia
+        ia[actor_id] = interact_id
+        st.set("street_info", si)
+        frames.append(msmod.build_property_sync(
+            "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry))
+    print("[street] NPC %s 交互 %s" % (actor_id, interact_id), flush=True)
+    # 命中剧情任务就顺手完成
+    if task_id:
+        frames.extend(_finish_story_tasks(st, [task_id]))
+    else:
+        hits = _find_story_tasks_by_param(st, interact_id, 2)
+        if hits:
+            frames.extend(_finish_story_tasks(st, hits))
+    st.save()
+    return frames
+
+
+def _street_redpoint(rid, params, uid=None):
+    """Street_Redpoint_Update_CS {key, value} —— 存在 street_info.street_redpoint。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        key = int(vals[0])
+        value = int(vals[1])
+    except Exception:
+        return frames
+    st = _state(uid)
+    si = st.props.get("street_info")
+    if not isinstance(si, dict):
+        return frames
+    rp = si.get("street_redpoint")
+    if not isinstance(rp, dict):
+        rp = {"__id__": st.next_property_id()}
+        si["street_redpoint"] = rp
+    rp[key] = value
+    st.set("street_info", si)
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", si.get("__id__") or 0, msmod.OP_CHANGE, "street_redpoint", rp))
+    return frames
+
+
+def _street_trace_task(rid, params, uid=None):
+    """updateStreetTraceTask_CS {trackingTaskID} —— 存追踪中的任务 id。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        tid = int(vals[0] or 0)
+    except Exception:
+        tid = 0
+    st = _state(uid)
+    st.props["street_trace_taskid"] = tid
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", 0, msmod.OP_CHANGE, "street_trace_taskid", tid))
+    return frames
+
+
+def _clear_treasure_actor(params, uid=None):
+    """RequestClearStreetTreasureActor_CS {streetID} —— 单向，清掉该街区的宝箱 actor。"""
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return []
+    try:
+        street_id = int(vals[0])
+    except Exception:
+        return []
+    st = _state(uid)
+    si, entry = _street_info_of(st, street_id)
+    if entry is not None:
+        tb = entry.get("treasure_box_info")
+        if isinstance(tb, dict):
+            for k in [k for k in tb if isinstance(k, int)]:
+                del tb[k]
+            st.set("street_info", si)
+    print("[street] 清理街区 %s 的宝箱 actor" % street_id, flush=True)
     return []
 
 
@@ -1131,7 +1283,10 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RequestCompleteTask_CS", _task_done),
                    ("RequestCompleteUnitlTask_CS", _task_done),
                    ("RequestDoneSomeTypeTask_CS", _task_done_type),
-                   ("RpcLeaveSpace", _leave_space_rpc)):
+                   ("RpcLeaveSpace", _leave_space_rpc),
+                   ("Street_Actor_InteractID_Update_CS", _actor_interact),
+                   ("Street_Redpoint_Update_CS", _street_redpoint),
+                   ("updateStreetTraceTask_CS", _street_trace_task)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -1140,6 +1295,25 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
 # 单向消息处理器（serverMsg / CallServer，rid = 0）
 # ---------------------------------------------------------------------------
 # 这些不回应答，只改服务端数据。
+
+
+# 位置上报很频繁（每次移动都发），不能每次都写盘。
+# 同一个 uid 每 5 秒最多落盘一次；正常退出/切场景时 force 写。
+_LAST_SAVE = {}
+_SAVE_INTERVAL = 5.0
+
+
+def _throttled_save(st, uid, force=False):
+    """节流落盘：同一账号 5 秒内最多写一次。"""
+    key = uid or ""
+    now = time.time()
+    if not force and (now - _LAST_SAVE.get(key, 0)) < _SAVE_INTERVAL:
+        return
+    _LAST_SAVE[key] = now
+    try:
+        st.save()
+    except Exception as e:
+        print("[save] 落盘失败 %s: %s" % (key, e), flush=True)
 
 
 def _update_street_pos(params, uid=None):
@@ -1172,7 +1346,7 @@ def _update_street_pos(params, uid=None):
         "dir": float(pos.get("dir") or 0),
     }
     st.props["_oo_street_pos"] = saved
-    st.save()
+    _throttled_save(st, uid, force=True)
 
 
 _ONE_WAY_HANDLERS = {
@@ -1183,6 +1357,7 @@ _ONE_WAY_HANDLERS = {
     1369842456: _enter_eden,         # RpcBackToEden
     1920167376: _client_move,        # RpcOnClientMove（AOI）
     1517096639: _change_micro_state, # RpcChangeMicroState
+    1675033651: _clear_treasure_actor,  # RequestClearStreetTreasureActor_CS
 }
 
 

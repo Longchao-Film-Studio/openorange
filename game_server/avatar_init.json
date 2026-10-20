@@ -1491,25 +1491,25 @@
    "__tp__": "ItemBag",
    "__id__": 1324,
    "1": {
-    "__id__": 1360,
+    "__id__": 1361,
     "id": "1",
     "itemId": 101,
     "num": 1000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1361
+     "__id__": 1362
     }
    },
    "2": {
-    "__id__": 1362,
+    "__id__": 1363,
     "id": "2",
     "itemId": 103,
     "num": 100000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1363
+     "__id__": 1364
     }
    }
   },
@@ -1521,48 +1521,48 @@
    "__tp__": "CharacterPersistentDict",
    "__id__": 1326,
    "#9001": {
-    "__id__": 1344,
+    "__id__": 1345,
     "RuneId": {
-     "__id__": 1345
+     "__id__": 1346
     },
     "fetch_time": 0,
     "biography_read": 0,
     "stamp_bag": {
-     "__id__": 1346
-    },
-    "sigil_bag": {
      "__id__": 1347
     },
-    "fashion_equip_bag": {
+    "sigil_bag": {
      "__id__": 1348
     },
-    "fashion_equip_suit_infos": {
+    "fashion_equip_bag": {
      "__id__": 1349
     },
-    "equip_bag": {
+    "fashion_equip_suit_infos": {
      "__id__": 1350
     },
-    "equip_suit_infos": {
+    "equip_bag": {
      "__id__": 1351
     },
-    "dragon_charm_infos": {
+    "equip_suit_infos": {
      "__id__": 1352
+    },
+    "dragon_charm_infos": {
+     "__id__": 1353
     },
     "dragon_charm_all_levelup": 0,
     "skins": {
-     "__id__": 1353
+     "__id__": 1354
     },
     "useSkinId": 900101,
     "charValue": 0,
     "charValueType": {
-     "__id__": 1354
+     "__id__": 1355
     },
     "breakAward": {
-     "__id__": 1355
+     "__id__": 1356
     },
     "has_unlock_sheme": 0,
     "fashion_equip_save_scheme": {
-     "__id__": 1356
+     "__id__": 1357
     }
    }
   },
@@ -1612,13 +1612,20 @@
    "__tp__": "StoryTaskBag",
    "__id__": 1337
   },
+  "street_pos_info": {
+   "__tp__": "Pos",
+   "__id__": 1338,
+   "x": 0.0,
+   "y": 0.0,
+   "z": 0.0
+  },
   "singleMatchInfo": {
    "__tp__": "SingleMatchInfo",
-   "__id__": 1338,
+   "__id__": 1339,
    "state": 0,
    "match_id": "",
    "match_info": {
-    "__id__": 1339,
+    "__id__": 1340,
     "system_type": 0,
     "match_type": 0,
     "modeId": 0,
@@ -1627,24 +1634,24 @@
   },
   "dungeonView": {
    "__tp__": "DungeonViewDict",
-   "__id__": 1340
+   "__id__": 1341
   },
   "endless_character_list": {
    "__tp__": "EndlessCharacterList",
-   "__id__": 1341
+   "__id__": 1342
   },
   "mainline_level": {
    "__tp__": "IntDictKeyInt",
-   "__id__": 1342
+   "__id__": 1343
   },
   "character_list": {
    "__tp__": "CharacterList",
-   "__id__": 1343,
+   "__id__": 1344,
    "#1": {
-    "__id__": 1357,
+    "__id__": 1358,
     "name": "",
     "value": {
-     "__id__": 1359,
+     "__id__": 1360,
      "#1": 9001,
      "#2": 0,
      "#3": 0

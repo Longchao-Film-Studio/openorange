@@ -112,6 +112,17 @@ REQUIRED = {
     "story_task_bag": "StoryTaskBag",
     "done_tasks": "DoneTaskTypeBag",
     "done_story_tasks": "StoryTaskBag",
+    # --- 位置持久化 ---
+    # street_pos_info 只在 PropertyCallbacks 里声明（config.lua:10011），
+    # AvatarProperties 没有它，所以生成器不会自动建。
+    # 客户端 system/streetsystem/manager/streetsystemmgrbase.lua:561-566 读它恢复出生点：
+    #   local posinfo = obj:getStreetPosInfo()
+    #   if posinfo and posinfo.x then remotePosInfo = copy(posinfo) end
+    # 然后 :654 用 remotePosInfo.x/y/z 定位、remotePosInfo.dir 定朝向。
+    #
+    # 客户端没有任何类型同时带 x/y/z/dir（全表搜过），所以用 Pos（x/y/z, double）。
+    # dir 为 nil 时 setRotation(x, nil, z) 会被 xlua 转成 0 —— 位置对了，朝向取默认。
+    "street_pos_info": "Pos",
     # --- 动态根属性：只出现在 PropertyCallbacks、AvatarProperties 里没有声明 ---
     # 证据：generated/config.lua:6370 的 Custom.SingleMatchInfo 定义了
     #   state(int) / match_id(string) / match_info(MatchInfo)；
