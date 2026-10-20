@@ -90,6 +90,29 @@ def run():
     sp = st.props.get("space_p") or {}
     check("spaceno -> 0", sp.get("spaceno") == 0, sp.get("spaceno"))
 
+    print("\n[7] 进伊甸 RpcEnterEden / RpcBackToEden")
+    erpc.handle(1277075552, msmod.mp_arr([0, "", {}]), 0, uid="space_test")
+    frames = erpc.handle(1588890197, msmod.mp_arr([50004]), 0, uid="space_test")
+    sp = st.props.get("space_p") or {}
+    check("RpcEnterEden -> spaceno = 1000", sp.get("spaceno") == 1000, sp.get("spaceno"))
+    check("下发 RpcOnEnterSpace", any(b"RpcOnEnterSpace" in f for f in frames))
+    check("info 带 toPosId", any(b"toPosId" in f for f in frames))
+    frames = erpc.handle(1369842456, msmod.mp_arr([]), 0, uid="space_test")
+    check("RpcBackToEden 也进 1000",
+          (st.props.get("space_p") or {}).get("spaceno") == 1000)
+
+    print("\n[8] AOI 移动 RpcOnClientMove")
+    erpc.handle(1920167376, msmod.mp_arr([1.5, -3.2, 60.25, 1.57]), 0, uid="space_test")
+    pos = st.props.get("_oo_street_pos") or {}
+    check("记录 x", abs(pos.get("x", 0) - 1.5) < 1e-6, pos)
+    check("记录 z", abs(pos.get("z", 0) - 60.25) < 1e-6, pos)
+    check("记录 dir", abs(pos.get("dir", 0) - 1.57) < 1e-6, pos)
+
+    print("\n[9] RpcChangeMicroState")
+    erpc.handle(1517096639, msmod.mp_arr([3]), 0, uid="space_test")
+    check("micro_state = 3", st.props.get("_oo_micro_state") == 3,
+          st.props.get("_oo_micro_state"))
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

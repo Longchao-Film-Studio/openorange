@@ -710,7 +710,9 @@ def _enter_space(params, uid=None):
 
     spaceno == 0 表示回到普通世界（离开空间）。
     """
-    vals = decode_params(params)
+    # params 可能是 msgpack 字节（来自客户端），也可能是已经解好的 list
+    # （服务端内部调用，比如 _enter_eden 直接传 [SPACE_EDEN, ...]）。
+    vals = params if isinstance(params, list) else decode_params(params)
     if not isinstance(vals, list):
         vals = []
     try:
@@ -784,6 +786,65 @@ def _leave_space_rpc(rid, params, uid=None):
         frames.append(_s2c_entity(
             "RpcOnTeleportOut", RPC_ON_TELEPORT_OUT, [old]))
     return frames
+
+
+# ---------------------------------------------------------------------------
+# 伊甸（Eden）与 AOI 移动（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avataredencomp.lua:30-39：
+#   enterEden(pos_id)  -> CallServer("RpcEnterEden", pos_id or 0)   单向
+#   BackToEden()       -> CallServer("RpcBackToEden")               单向
+# 两者最终都是「进 SPACE_EDEN 空间」：服务端改 space_p 并下发
+#   RpcOnEnterSpace(1000, spaceid, {toPosId=...})
+# 客户端 avatarspacecomp.lua:93-118 的 RpcOnEnterSpace 里会
+#   JumpToEdenStage("StreetData", 502, ...) 加载伊甸场景。
+#
+# AOI（entities/avatarcomponent/avataraoicomp.lua:7）：
+#   CallServer("RpcOnClientMove", moveInfo.x, moveInfo.y, moveInfo.z, moveInfo.dir)
+# 单向，记录玩家位置即可（多人联机时要广播给同场景其他人）。
+
+
+def _enter_eden(params, uid=None):
+    """RpcEnterEden [pos_id] / RpcBackToEden [] —— 进伊甸空间。"""
+    vals = decode_params(params)
+    pos_id = 0
+    if isinstance(vals, list) and vals:
+        try:
+            pos_id = int(vals[0] or 0)
+        except Exception:
+            pos_id = 0
+    info = {}
+    if pos_id:
+        info["toPosId"] = pos_id
+    return _enter_space([SPACE_EDEN, "", info], uid)
+
+
+def _client_move(params, uid=None):
+    """RpcOnClientMove [x, y, z, dir] —— 记录位置。"""
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 3):
+        return []
+    st = _state(uid)
+    try:
+        saved = {"x": float(vals[0]), "y": float(vals[1]), "z": float(vals[2]),
+                 "dir": float(vals[3]) if len(vals) > 3 and vals[3] is not None else 0.0}
+    except Exception:
+        return []
+    st.props["_oo_street_pos"] = saved
+    return []
+
+
+def _change_micro_state(params, uid=None):
+    """RpcChangeMicroState [state] —— 记录微状态（挂机/钓鱼等）。"""
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return []
+    st = _state(uid)
+    try:
+        st.props["_oo_micro_state"] = int(vals[0] or 0)
+    except Exception:
+        pass
+    return []
 
 
 def _use_item(rid, params, uid=None):
@@ -1118,6 +1179,10 @@ _ONE_WAY_HANDLERS = {
     294469585: _update_street_pos,   # RequestUpdateStreetPos_CS
     1277075552: _enter_space,        # RpcEnterSpace
     996547331: _scene_loaded,        # RpcOnSceneLoaded
+    1588890197: _enter_eden,         # RpcEnterEden
+    1369842456: _enter_eden,         # RpcBackToEden
+    1920167376: _client_move,        # RpcOnClientMove（AOI）
+    1517096639: _change_micro_state, # RpcChangeMicroState
 }
 
 
