@@ -55,7 +55,8 @@ def parse_response(pkt):
 def run():
     print("\n[1] 索引表完整性")
     # 42 = 1-1(9) + 1-2(4) + 1-3(22) + 登录链路(7)；再加编队 4 条 = 46
-    check("条目数 46", len(erpc.RPC_INDEX) == 46, len(erpc.RPC_INDEX))
+    # 42 = 1-1(9)+1-2(4)+1-3(22)+登录链路(7)；+编队 4 = 46；+街区 3 = 49
+    check("条目数 49", len(erpc.RPC_INDEX) == 49, len(erpc.RPC_INDEX))
     check("索引全不重复", len(set(erpc.RPC_INDEX.values())) == len(erpc.RPC_INDEX))
     check("索引全为正数", all(v > 0 for v in erpc.RPC_INDEX.values()))
     check("反查表一致",
