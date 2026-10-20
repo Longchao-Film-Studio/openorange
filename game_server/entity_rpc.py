@@ -41,7 +41,11 @@ avataruserdatacomp 逐个确认过），只有极少数还读 errorcode / color�
 """
 import struct
 
+import time
+
 from . import ms as msmod
+from . import gamedata
+from . import story
 
 # ---------------------------------------------------------------------------
 # 阶段 1 三个组件的 serverRpc 清单（名字 -> genRpcIndex）
@@ -63,6 +67,10 @@ RPC_INDEX = {
     "RequestSwitchStreet_CS": 87385605,
     "RpcEnterStreet": 831308625,
     "RequestLeaveStreet_CS": 1707898947,
+    # --- 剧情任务 avatarstorytaskcomp / avatarstreetcomp（3 条） ---
+    "RequestDoneStoryTaskParamInt_CS": 544079713,
+    "RequestDoneStoryTaskParamStr_CS": 1517361152,
+    "RequestStreetActor_CS": 200553260,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -387,6 +395,164 @@ def _apply_street_change(frames, new_id, uid):
     return frames
 
 
+# ---------------------------------------------------------------------------
+# 剧情任务推进（阶段 2 核心）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstorytaskcomp.lua:
+#   getStoryTaskState(taskID)  读 story_task_bag[taskID].state / done_story_tasks
+#   getTaskIdByParamInt        遍历 story_task_bag 找 TaskType+Parameter1 命中的
+#   RequestDoneStoryTaskParamInt_CS {taskId, param_int}
+#   RequestDoneStoryTaskParamStr_CS {taskId, param_str}
+#   RequestStreetActor_CS {actor_id}  = RequestDoneStoryTaskParamInt_CS(2, actor_id)
+#     + serverRpc("RequestStreetActor_CS")  ← 街景 NPC 交互就是剧情推进
+
+
+def _story_sync_frames(st, changes):
+    """把 story 模块的同步描述转成 propertySync 帧。"""
+    frames = []
+    for ch in changes:
+        kind = ch[0]
+        if kind == "root":
+            _, name, value = ch
+            frames.append(msmod.build_property_sync(
+                "", 0, msmod.OP_CHANGE, name, value))
+        elif kind == "sub":
+            _, container, key, value = ch
+            c = st.props.get(container)
+            if not isinstance(c, dict):
+                continue
+            frames.append(msmod.build_property_sync(
+                "", c.get("__id__") or 0, msmod.OP_CHANGE, str(key), value))
+        elif kind == "del":
+            _, container, key, _v = ch
+            c = st.props.get(container)
+            if not isinstance(c, dict):
+                continue
+            frames.append(msmod.build_property_sync(
+                "", c.get("__id__") or 0, msmod.OP_DEL, str(key), None))
+    return frames
+
+
+def _recalc_story_unlocks(st):
+    """按 AllSystemCatalogueData 的 unlockType=2(StoryTask) 重算系统解锁位。
+
+    客户端判定在 ui/panel/streetv2panel/node_menu_item/node_menu_itemgroup.lua:231：
+      unlock = getTaskStateByTaskID(taskId) == Finished
+               and isSysEntryUnlock(sysId)
+    后者读 system_p.unlocked_system[sysId]，所以服务端两样都要维护。
+    """
+    frames = []
+    sp = st.props.get("system_p")
+    if not isinstance(sp, dict):
+        return frames
+    us = sp.get("unlocked_system")
+    if not isinstance(us, dict):
+        return frames
+    us_id = us.get("__id__") or 0
+    changed = []
+    for row in gamedata.all_system_catalogue():
+        if row.get("unlockType") != 2:
+            continue
+        tid = row.get("unlockParam")
+        sid = row.get("id")
+        if not isinstance(tid, int) or not isinstance(sid, int):
+            continue
+        if us.get(sid) is True:
+            continue
+        if story.story_state(st.props, tid) != story.TASK_STATE_FINISHED:
+            continue
+        us[sid] = True
+        changed.append(sid)
+    if changed:
+        st.set("system_p", sp)
+        for sid in changed:
+            frames.append(msmod.build_property_sync(
+                "", us_id, msmod.OP_CHANGE, str(sid), True))
+        print("[story] 解锁系统 %s" % changed, flush=True)
+    return frames
+
+
+def _finish_story_tasks(st, task_ids):
+    """完成若干剧情任务，返回全部同步帧。"""
+    frames = []
+    now = int(time.time())
+    for tid in task_ids:
+        if story.story_state(st.props, tid) == story.TASK_STATE_FINISHED:
+            continue
+        changes = story.finish_story_task(st, tid, now)
+        frames.extend(_story_sync_frames(st, changes))
+        # 发奖励
+        for item_id, _cnt in story.story_award(st, tid):
+            bag = st.props.get("item_bag")
+            if not isinstance(bag, dict):
+                break
+            for key, grid in bag.items():
+                if isinstance(grid, dict) and grid.get("itemId") == item_id:
+                    frames.append(msmod.build_property_sync(
+                        "", bag.get("__id__") or 0, msmod.OP_CHANGE, str(key), grid))
+                    break
+        print("[story] 完成剧情任务 %s" % tid, flush=True)
+    frames.extend(_recalc_story_unlocks(st))
+    st.save()
+    return frames
+
+
+def _done_story_task(rid, params, uid=None):
+    """RequestDoneStoryTaskParamInt_CS / ParamStr_CS —— 参数第 0 项是 taskId。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        tid = int(vals[0])
+    except Exception:
+        return frames
+    st = _state(uid)
+    frames.extend(_finish_story_tasks(st, [tid]))
+    return frames
+
+
+def _street_actor(rid, params, uid=None):
+    """RequestStreetActor_CS {actor_id} —— 街景 NPC 交互。
+
+    客户端 avatarstreetcomp.lua:339-342 先调
+      RequestDoneStoryTaskParamInt_CS(2, actor_id)
+    再调 serverRpc("RequestStreetActor_CS", {actor_id})。
+    这里按同样的规则找命中任务：story_task_bag 里 TaskType==2 且 Parameter1 含 actor_id。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        actor_id = int(vals[0])
+    except Exception:
+        return frames
+    st = _state(uid)
+    hits = _find_story_tasks_by_param(st, actor_id, 2)
+    if hits:
+        frames.extend(_finish_story_tasks(st, hits))
+    return frames
+
+
+def _find_story_tasks_by_param(st, param_int, task_type):
+    """照 getTaskIdByParamInt 的规则找任务。"""
+    out = []
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict):
+        return out
+    for tid, item in bag.items():
+        if not isinstance(item, dict):
+            continue
+        cfg = gamedata.story_task(tid) or {}
+        if cfg.get("TaskType") != task_type:
+            continue
+        p1 = cfg.get("Parameter1") or []
+        if param_int in p1:
+            out.append(int(tid))
+    return out
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -662,9 +828,56 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("SetCharacterListName_CS", _set_character_list_name),
                    ("RequestSwitchStreet_CS", _switch_street),
                    ("RpcEnterStreet", _switch_street),
-                   ("RequestLeaveStreet_CS", _leave_street)):
+                   ("RequestLeaveStreet_CS", _leave_street),
+                   ("RequestDoneStoryTaskParamInt_CS", _done_story_task),
+                   ("RequestDoneStoryTaskParamStr_CS", _done_story_task),
+                   ("RequestStreetActor_CS", _street_actor)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
+
+
+# ---------------------------------------------------------------------------
+# 单向消息处理器（serverMsg / CallServer，rid = 0）
+# ---------------------------------------------------------------------------
+# 这些不回应答，只改服务端数据。
+
+
+def _update_street_pos(params, uid=None):
+    """RequestUpdateStreetPos_CS {street_id, pos_info} —— 客户端移动时上报位置。
+
+    逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:130-135：
+      function AvatarStreetComp:updatePlayerPos_CS(pos_info)
+        self:serverMsg("RequestUpdateStreetPos_CS", {self.street_id, pos_info})
+      end
+    调用点：streetplayeractormovesystem.lua:120 / streetmovecomponent.lua:309 /
+            streetactorbase.lua:381
+
+    pos_info 形如 {x=, y=, z=, dir=}（streetsystemmgrbase.lua:561-566 读它恢复位置）。
+    服务端存下来，下次登录通过 street_pos_info 下发即可回到原位。
+    """
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return
+    street_id = vals[0]
+    pos = vals[1]
+    if not isinstance(pos, dict):
+        return
+    st = _state(uid)
+    if int(st.props.get("street_id") or 0) != int(street_id or 0):
+        return
+    saved = {
+        "x": float(pos.get("x") or 0),
+        "y": float(pos.get("y") or 0),
+        "z": float(pos.get("z") or 0),
+        "dir": float(pos.get("dir") or 0),
+    }
+    st.props["_oo_street_pos"] = saved
+    st.save()
+
+
+_ONE_WAY_HANDLERS = {
+    294469585: _update_street_pos,   # RequestUpdateStreetPos_CS
+}
 
 
 def handle(index, params, rid, uid=None):
@@ -682,7 +895,17 @@ def handle(index, params, rid, uid=None):
     """
     if index is None:
         return []
+    # ★ 单向消息（serverMsg / CallServer，rid = 0）以前在这里直接 return []，
+    #   处理器根本没被调用 —— 但服务端**必须**处理它们（位置上报、红点、
+    #   清理等全是单向的），只是不能回应答帧。
+    #   所以单向消息走 _ONE_WAY_HANDLERS，只改数据、不回包。
     if rid <= 0:
+        fn1 = _ONE_WAY_HANDLERS.get(index)
+        if fn1 is not None:
+            try:
+                fn1(params, uid)
+            except Exception as e:
+                print("[rpc] 单向处理失败 index=%s: %s" % (index, e), flush=True)
         return []
     fn = _HANDLERS.get(index)
     if fn is not None:

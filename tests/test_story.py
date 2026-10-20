@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""阶段 2：剧情任务推进测试。
+
+逆向依据 entities/avatarcomponent/avatarstorytaskcomp.lua:617-710：
+  getStoryTaskState(taskID):
+    story_task_bag[taskID].state，或 done_story_tasks[taskID] 存在 -> Finished(6)
+  getTaskIdByParamInt(param_int, type):
+    遍历 story_task_bag，TaskType == type 且 Parameter1 含 param_int
+
+推进链：StoryTaskData[taskId].PostTasks 决定下一个任务。
+"""
+import os
+import sys
+import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_story_")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate
+from game_server import config, story, gamedata
+
+passed, failed = [], []
+
+
+def check(name, cond, detail=None):
+    if cond:
+        passed.append(name)
+        print("  PASS  " + name)
+    else:
+        failed.append(name)
+        print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
+
+
+def run():
+    print("\n[1] 索引与处理器")
+    for n in ("RequestDoneStoryTaskParamInt_CS", "RequestDoneStoryTaskParamStr_CS",
+              "RequestStreetActor_CS"):
+        check(n + " 在索引表", n in erpc.RPC_INDEX)
+        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc._HANDLERS)
+
+    print("\n[2] StoryTaskData[1000] 的 PostTasks 是推进依据")
+    cfg = gamedata.story_task(1000) or {}
+    check("1000 存在", bool(cfg))
+    posts = cfg.get("PostTasks") or []
+    check("1000 有 PostTasks", len(posts) > 0, posts)
+
+    print("\n[3] 把 1000 设为进行中")
+    config.configure_scaffold(unlock_all=True)
+    msmod._live_init_dict("story_test")
+    st = pstate.get_state(uid="story_test")
+    now = 1700000000
+    changes = story.start_story_task(st, 1000, now)
+    check("返回同步项", len(changes) > 0, len(changes))
+    check("story_task_bag 里有 1000", 1000 in st.props["story_task_bag"])
+    it = st.props["story_task_bag"][1000]
+    check("state = Doing(3)", it.get("state") == story.TASK_STATE_DOING, it.get("state"))
+    check("__tp__ = StoryTaskItem", it.get("__tp__") == "StoryTaskItem", it.get("__tp__"))
+    check("story_state() 读到 3", story.story_state(st.props, 1000) == 3)
+
+    print("\n[4] 通过 RPC 完成 1000")
+    frames = erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                         msmod.mp_arr([1000, 10103]), 1, uid="story_test")
+    check("返回多帧", len(frames) >= 3, len(frames))
+    check("done_story_tasks 里有 1000", 1000 in st.props["done_story_tasks"])
+    check("story_task_bag 里没有 1000", 1000 not in st.props["story_task_bag"])
+    check("story_state(1000) = Finished(6)",
+          story.story_state(st.props, 1000) == story.TASK_STATE_FINISHED)
+
+    print("\n[5] 自动推进到 PostTasks 的第一个任务")
+    nxt = int((cfg.get("PostTasks") or [0])[0])
+    check("story_task_bag 里有下一个任务 %d" % nxt,
+          nxt in st.props["story_task_bag"], list(st.props["story_task_bag"].keys())[:5])
+    check("下一个任务是 Doing(3)",
+          st.props["story_task_bag"].get(nxt, {}).get("state") == 3)
+
+    print("\n[6] 发奖励：AwardItemList")
+    awards = cfg.get("AwardItemList") or {}
+    ids = [int(k) for k in awards if k not in ("KeyList", "__bdd_metatype__")]
+    bag = st.props.get("item_bag") or {}
+    have = {g.get("itemId") for g in bag.values() if isinstance(g, dict)}
+    if ids:
+        check("奖励道具 %s 进了背包" % ids, all(i in have for i in ids), sorted(have))
+    else:
+        check("1000 无奖励（跳过）", True)
+
+    print("\n[7] 重复完成不重复推进")
+    before = dict(st.props["story_task_bag"])
+    erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                msmod.mp_arr([1000, 0]), 2, uid="story_test")
+    check("story_task_bag 没变", set(before.keys()) == set(st.props["story_task_bag"].keys()))
+
+    print("\n[8] 街景 NPC 交互 = 完成 Parameter1 命中的任务")
+    # 找一个 TaskType=2 且 Parameter1 含某 actor 的剧情任务
+    target = None
+    for tid in (1003, 1032, 1042, 1048, 1004, 1007):
+        c = gamedata.story_task(tid) or {}
+        p1 = c.get("Parameter1") or []
+        if c.get("TaskType") == 2 and p1:
+            target = (tid, p1[0])
+            break
+    check("找到 TaskType=2 的样例任务", target is not None, target)
+    if target:
+        tid, actor = target
+        story.start_story_task(st, tid, now)
+        frames = erpc.handle(erpc.RPC_INDEX["RequestStreetActor_CS"],
+                             msmod.mp_arr([actor]), 3, uid="story_test")
+        check("命中并完成 %d" % tid,
+              story.story_state(st.props, tid) == story.TASK_STATE_FINISHED,
+              story.story_state(st.props, tid))
+
+    print("\n[9] 系统解锁按剧情重算")
+    sp = st.props.get("system_p") or {}
+    us = sp.get("unlocked_system") or {}
+    check("1005 完成后 头衔(2)/龙胤(4)/成就(55) 应解锁", True)
+    # 1005 是 StoryTask 解锁 2/4/55 的那条
+    story.start_story_task(st, 1005, now)
+    erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                msmod.mp_arr([1005, 0]), 4, uid="story_test")
+    check("系统 2 已解锁", us.get(2) is True, us.get(2))
+    check("系统 4 已解锁", us.get(4) is True, us.get(4))
+    check("系统 55 已解锁", us.get(55) is True, us.get(55))
+
+    print("\n" + "=" * 56)
+    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    if failed:
+        print("失败项：" + ", ".join(failed))
+    return 0 if not failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())
