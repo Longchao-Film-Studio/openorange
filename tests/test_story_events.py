@@ -155,6 +155,30 @@ def run():
     if isinstance(got, tuple) and len(got) == 3:
         check("新道具 is_new = True", got[2] is True, got)
 
+    print("\n[11] 街景 NPC 可见性前提（客户端 checkActorCondition）")
+    # 客户端 system/streetsystem/streetactorbase.lua:109-129：
+    #   if self.actorData.preTask then
+    #     for taskId, taskState in pairs(preTask) do
+    #       taskSatisfy = GlobalData.Avatar:getTaskStateByTaskID(taskId) == taskState
+    #       if taskSatisfy then break end
+    #     end
+    #   end
+    # 也就是「preTask 里任一 (taskId, state) 命中」才显示。
+    # NPC 40004 的 preTask = {1003: 3}，所以要 1003 处于 Doing(3)。
+    npc = gamedata.row("StreetActorInfoData", 40004) or {}
+    pt = npc.get("preTask") or {}
+    check("NPC 40004 preTask[1003] = 3", pt.get(1003) == 3 or pt.get("1003") == 3, pt)
+    st8 = fresh("se_g")
+    check("推进前 1003 不满足（-1）",
+          story.story_state(st8.props, 1003) != 3,
+          story.story_state(st8.props, 1003))
+    erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+                msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
+                1, uid="se_g")
+    check("推进后 1003 = Doing(3)，NPC 条件满足",
+          story.story_state(st8.props, 1003) == 3,
+          story.story_state(st8.props, 1003))
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

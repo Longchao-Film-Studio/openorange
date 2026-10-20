@@ -1148,6 +1148,71 @@ local function probe_story_advance()
   end)
 end
 
+-- 剧情推进后街景 NPC 是否出现（验证 refreshActorState 动态刷新）
+local function probe_story_npc()
+  if pc.storynpc then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil or A.server == nil or A:isServerLost() then return end
+    pc.storynpc = true
+    -- StreetSystemMgr 是全局变量，由 stage/loadstep/loadstepbuilder.lua:116/119
+    -- 在街区加载时赋值（Streaming / Normal 二选一），不是可 require 的模块。
+    local mgr = nil
+    if StreetSystemMgr ~= nil then
+      local ok, r = pcall(function() return StreetSystemMgr.GetInstance() end)
+      if ok then mgr = r end
+    end
+    if mgr == nil then
+      local cands = {'System.StreetSystem.Manager.StreamingStreetSystemMgr',
+                     'System.StreetSystem.Manager.NormalStreetSystemMgr'}
+      for _, name in ipairs(cands) do
+        local okm, mod = pcall(require, name)
+        if okm and mod then
+          local ok2, r2 = pcall(function() return mod.GetInstance() end)
+          if ok2 and r2 then mgr = r2; break end
+        end
+      end
+    end
+    if mgr == nil then
+      LOG('storyprobe3| 拿不到 StreetSystemMgr（全局=' .. tostring(StreetSystemMgr) .. '）')
+      return
+    end
+    local function dump(tag)
+      local names = {}
+      if mgr._allActorByUniqueName then
+        for k in pairs(mgr._allActorByUniqueName) do
+          table.insert(names, tostring(k))
+        end
+      end
+      table.sort(names)
+      -- 关键：actor 对象总是创建，preTask 只控制 checkActorCondition() 的返回值
+      -- （system/streetsystem/streetactorbase.lua:109-129）
+      local condTxt = 'nil'
+      pcall(function()
+        local act = mgr:getActorByUniqueName('40004')
+        if act ~= nil then
+          local okc, cond = pcall(function() return act:checkActorCondition() end)
+          local ad = act.actorData
+          condTxt = tostring(cond) .. '/actorId=' .. tostring(ad and ad.actorId)
+            .. '/preTask=' .. tostring(ad and ad.preTask and ad.preTask[1003])
+        end
+      end)
+      LOG('storyprobe3| ' .. tag
+        .. ' actor数=' .. tostring(#names)
+        .. ' 1003=' .. tostring(A:getTaskStateByTaskID(1003))
+        .. ' 40004可见条件=' .. condTxt)
+    end
+    dump('结算前')
+    A:serverRpc('Cmd_OfflineSpace_Finish_CS',
+      {{typeId = 1004, modeId = 1, level = 1}})
+    TimerManager.addTimer(3, function()
+      pcall(function() dump('结算后3秒') end)
+    end)
+  end)
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1433,6 +1498,7 @@ OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改�
 OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
 OO_PROBE_STREET = false -- 街区切换探针（会主动发切街区 RPC）
 OO_PROBE_STORY_ADV = false -- 剧情推进探针（会模拟副本结算）
+OO_PROBE_STORY_NPC = false -- 剧情 NPC 探针（结算前后数街上 actor）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1835,6 +1901,9 @@ local function install_cb_wrappers()
           end
           if OO_PROBE_STORY_ADV then
             if (pc.frames % 30) == 28 then pcall(probe_story_advance) end
+          end
+          if OO_PROBE_STORY_NPC then
+            if (pc.frames % 30) == 29 then pcall(probe_story_npc) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
