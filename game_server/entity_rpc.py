@@ -49,6 +49,14 @@ from . import ms as msmod
 # 出处：entities/avatarcomponent/avatarcharactercomp.lua / avatarbagcomp.lua /
 #       avataruserdatacomp.lua 里所有 serverRpc("...") 调用点。
 RPC_INDEX = {
+    # --- 编队 avatarformationcomp（4 条，2026-10-20 用 genRpcIndex 现算） ---
+    # 切换角色走 SetChoosenIndex_CS / SetChoosenChar_CS；
+    # 以前它们不在索引表里，落进通用 ACK（只回 status=true 不改数据），
+    # 所以「切换之后还是导演模型」。
+    "SetChoosenIndex_CS": 1556161069,
+    "SetChoosenChar_CS": 524477307,
+    "SetCharacterList_CS": 811745113,
+    "SetCharacterListName_CS": 414235078,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -214,6 +222,77 @@ def _upgrade_character(rid, params, uid=None):
     return frames
 
 
+def _set_character_list(rid, params, uid=None):
+    """编队内容：SetCharacterList_CS {idx, characterList} / SetCharacterListName_CS {index, name}。
+
+    依据 entities/avatarcomponent/avatarformationcomp.lua:128-146：
+      SetCharacterList_CS(idx, characterList)   characterList 是角色 id 列表
+      SetCharacterListName_CS(index, name)
+
+    character_list 结构（initDict）：
+      {__tp__:"CharacterList", __id__:1340,
+       1:{__id__:1354, name:"", value:{__id__:1356, 1:9001, 2:0, 3:0}}}
+    改第 idx 队属于「改子属性」：propertyId = character_list 的 __id__，
+    name = 队伍下标，value = 整队对象。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    idx = vals[0]
+    st = _state(uid)
+    cl = st.get("character_list")
+    if not isinstance(cl, dict):
+        return frames
+    team = cl.get(idx)
+    if not isinstance(team, dict) and isinstance(idx, int):
+        team = cl.get(str(idx))
+    if not isinstance(team, dict):
+        return frames
+
+    lst = team.get("value")
+    if not isinstance(lst, dict):
+        lst = {"__id__": st.next_property_id()}
+        team["value"] = lst
+    for k in [k for k in lst if isinstance(k, int)]:
+        del lst[k]
+    if isinstance(vals[1], list):
+        for i, cid in enumerate(vals[1], 1):
+            try:
+                lst[i] = int(cid)
+            except Exception:
+                lst[i] = 0
+    st.set("character_list", cl)
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+    return frames
+
+
+def _set_character_list_name(rid, params, uid=None):
+    """SetCharacterListName_CS {index, name}。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    idx, name = vals[0], vals[1]
+    st = _state(uid)
+    cl = st.get("character_list")
+    if not isinstance(cl, dict):
+        return frames
+    team = cl.get(idx)
+    if not isinstance(team, dict) and isinstance(idx, int):
+        team = cl.get(str(idx))
+    if not isinstance(team, dict):
+        return frames
+    team["name"] = name if isinstance(name, str) else ""
+    st.set("character_list", cl)
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+    return frames
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -360,6 +439,14 @@ _SIMPLE_SETTERS = {
     "SetShownHonorWallCharId_CS": ("shown_honor_wall_char_id", 0),
     "SetSignature_CS": ("signature", 0),
     "UpgradePlayerStage_CS": ("player_stage_id", 0),
+    # 编队（entities/avatarcomponent/avatarformationcomp.lua:168-184）
+    # 切换角色靠这两条：改 character_choosen_char 后客户端
+    # on_character_choosen_char_changed -> EChoosingCharChanged
+    # -> stageLogic:switchRole(charId) 才会换模型。
+    # 以前这两条走通用 ACK（只回 status=true 不改数据），
+    # 所以「切换之后还是导演模型」。
+    "SetChoosenIndex_CS": ("choosen_index", 0),
+    "SetChoosenChar_CS": ("character_choosen_char", 0),
     "SetCharShown_CS": ("char_list", 0),
     "SetPlayerTitle_CS": ("shown_titles", 0),
 }
@@ -475,6 +562,12 @@ for _name, _spec in _SIMPLE_SETTERS.items():
 for _name, _spec in _CONST_SETTERS.items():
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
+
+# 编队内容（改的是 character_list 的子属性，不是根属性，单独处理）
+for _name, _fn in (("SetCharacterList_CS", _set_character_list),
+                   ("SetCharacterListName_CS", _set_character_list_name)):
+    if _name in RPC_INDEX:
+        _HANDLERS[RPC_INDEX[_name]] = _fn
 
 
 def handle(index, params, rid, uid=None):

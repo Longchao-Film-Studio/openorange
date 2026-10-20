@@ -54,7 +54,8 @@ def parse_response(pkt):
 
 def run():
     print("\n[1] 索引表完整性")
-    check("条目数 42", len(erpc.RPC_INDEX) == 42, len(erpc.RPC_INDEX))
+    # 42 = 1-1(9) + 1-2(4) + 1-3(22) + 登录链路(7)；再加编队 4 条 = 46
+    check("条目数 46", len(erpc.RPC_INDEX) == 46, len(erpc.RPC_INDEX))
     check("索引全不重复", len(set(erpc.RPC_INDEX.values())) == len(erpc.RPC_INDEX))
     check("索引全为正数", all(v > 0 for v in erpc.RPC_INDEX.values()))
     check("反查表一致",
@@ -69,12 +70,20 @@ def run():
     bag_keys = [k for k in erpc.RPC_INDEX
                 if k in ("UseItem_CS", "RecordItemObtain_CS",
                          "SubmitItem_CS", "RpcGiftCodeRedeem")]
-    user_keys = [k for k in erpc.RPC_INDEX if k.startswith("Set") or k in (
-        "RetSetHasScore_CS", "ForbidSelf_CS", "RpcSetTextHideState",
-        "RpcQueryExpiredFashions", "QueryExpiredItems_CS", "UpgradePlayerStage_CS")]
+    # 编队 RPC 也以 Set 开头，但属于 avatarformationcomp，不算进 1-3。
+    FORMATION = ("SetChoosenIndex_CS", "SetChoosenChar_CS",
+                 "SetCharacterList_CS", "SetCharacterListName_CS")
+    user_keys = [k for k in erpc.RPC_INDEX
+                 if (k.startswith("Set") or k in (
+                     "RetSetHasScore_CS", "ForbidSelf_CS", "RpcSetTextHideState",
+                     "RpcQueryExpiredFashions", "QueryExpiredItems_CS",
+                     "UpgradePlayerStage_CS"))
+                 and k not in FORMATION]
+    formation_keys = [k for k in erpc.RPC_INDEX if k in FORMATION]
     check("1-1 角色 9 条", len(char_keys) == 9, len(char_keys))
     check("1-2 背包 4 条", len(bag_keys) == 4, len(bag_keys))
     check("1-3 玩家数据 22 条", len(user_keys) == 22, len(user_keys))
+    check("编队 4 条", len(formation_keys) == 4, len(formation_keys))
 
     print("\n[3] 已知名字的索引（和 hash_rpc_names.py 算出来的一致）")
     check("UpgradeCharacter_CS", erpc.RPC_INDEX["UpgradeCharacter_CS"] == 732022161)

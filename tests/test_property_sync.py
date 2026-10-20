@@ -161,6 +161,43 @@ def run():
     check("char_list 保留 __id__", cl.get("__id__") == 1044, cl.get("__id__"))
     check("char_list 有 2 项", cl.get("#1") == 9001 and cl.get("#2") == 9002, cl)
 
+    print("\n[4g] 编队：切换角色 / 改编队内容")
+    # 切换角色的链路：
+    #   SetChoosenChar_CS -> character_choosen_char 变化
+    #   -> on_character_choosen_char_changed -> EChoosingCharChanged
+    #   -> StreetV2Panel:onChoosingCharChanged -> stageLogic:switchRole(charId)
+    # 以前这两个 RPC 不在索引表里，落进通用 ACK（只回 status=true 不改数据），
+    # 所以「切换之后还是导演模型」。
+    pstate.reset_state({"choosen_index": 1, "character_choosen_char": 9001,
+                        "character_list": {"__tp__": "CharacterList", "__id__": 1340,
+                                           1: {"__id__": 1354, "name": "",
+                                               "value": {"__id__": 1356, 1: 9001, 2: 0, 3: 0}}}})
+    check("SetChoosenIndex_CS 在索引表里", "SetChoosenIndex_CS" in erpc.RPC_INDEX)
+    check("SetChoosenChar_CS 在索引表里", "SetChoosenChar_CS" in erpc.RPC_INDEX)
+    fs10 = erpc.handle(erpc.RPC_INDEX["SetChoosenIndex_CS"], msmod.mp_arr([2]), 41)
+    check("choosen_index 1 -> 2", pstate.get_state().get("choosen_index") == 2,
+          pstate.get_state().get("choosen_index"))
+    d10 = parse_sync(fs10[1])
+    check("同步的是根属性 choosen_index",
+          d10.get("propertyid") == 0 and d10.get("name") == "choosen_index",
+          (d10.get("propertyid"), d10.get("name")))
+    fs11 = erpc.handle(erpc.RPC_INDEX["SetChoosenChar_CS"], msmod.mp_arr([1020]), 42)
+    check("character_choosen_char 9001 -> 1020",
+          pstate.get_state().get("character_choosen_char") == 1020,
+          pstate.get_state().get("character_choosen_char"))
+    d11 = parse_sync(fs11[1])
+    check("同步的是 character_choosen_char", d11.get("name") == "character_choosen_char",
+          d11.get("name"))
+
+    fs12 = erpc.handle(erpc.RPC_INDEX["SetCharacterList_CS"],
+                       msmod.mp_arr([1, [9001, 1020, 0]]), 43)
+    team = pstate.get_state().get("character_list")[1]
+    check("编队第 2 格变成 1020", team["value"].get(2) == 1020, team["value"])
+    d12 = parse_sync(fs12[1])
+    check("编队同步用子属性（propertyid = character_list 的 __id__）",
+          d12.get("propertyid") == 1340, d12.get("propertyid"))
+    check("编队同步 name = 队伍下标", d12.get("name") == "1", d12.get("name"))
+
     print("\n[5] 其它 RPC 仍然只有一帧")
     frames2 = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
     check("1 帧", len(frames2) == 1, len(frames2))

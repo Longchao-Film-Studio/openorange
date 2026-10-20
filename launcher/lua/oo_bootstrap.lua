@@ -1040,6 +1040,29 @@ local CB_NAMES = {
 -- 1-1 角色升级验证
 -- 系统入口解锁验证
 -- 地图面板验证：等价于按 M
+-- 角色背包验证
+local function probe_charbag()
+  if pc.charbag then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    pc.charbag = true
+    local ids = {}
+    pcall(function()
+      for k, v in pairs(A.characterBag) do
+        ids[#ids + 1] = tostring(k)
+      end
+    end)
+    table.sort(ids)
+    LOG('charbag| 拥有角色: ' .. table.concat(ids, ','))
+    local ok, lv = pcall(function() return A:getCharacterLevel(1020) end)
+    LOG('charbag| getCharacterLevel(1020) ok=' .. tostring(ok) .. ' -> ' .. tostring(lv))
+    local ok2, sk = pcall(function() return A:getUsingSkinId(1020) end)
+    LOG('charbag| getUsingSkinId(1020) ok=' .. tostring(ok2) .. ' -> ' .. tostring(sk))
+  end)
+end
 local function probe_openmap()
   if pc.mapopened then return end
   pcall(function()
@@ -1659,6 +1682,7 @@ local function install_cb_wrappers()
             if (pc.frames % 30) == 8 then pcall(probe_upgrade) end
           end
           if (pc.frames % 30) == 12 then pcall(probe_sysunlock) end
+          if (pc.frames % 30) == 18 then pcall(probe_charbag) end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
             if (pc.frames % 30) == 20 then pcall(probe_openmap) end
