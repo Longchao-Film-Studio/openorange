@@ -99,6 +99,31 @@ RPC_INDEX = {
     "RequestDispatchChar_CS": 358282292,
     "RequestFinishDispatch_CS": 538869841,
     "RequestCancelDispatchChar_CS": 515348959,
+    # --- 剩余街景（3 条，另外 3 条是单向） ---
+    "RequestUpgradeDungeonMainPower_CS": 1367222224,
+    "RequestGetStreetLevelAchieveAward_CS": 196124224,
+    "Street_CD_Update_CS": 338297034,
+    # --- 称号任务（2 条，凑满 task 组 7 条） ---
+    # avatartaskcomp.lua:208-226：两条 SC 都只看 ret.status，服务端回成功即可
+    "RequestRefreshTitleDailyTask_CS": 1068584076,
+    "RequestDoneTitleTask_CS": 719776379,
+    # --- 单向消息（serverMsg / CallServer，rid=0） ---
+    # 这些不带回调，服务端只改数据不回包，处理器在 _ONE_WAY_HANDLERS 里。
+    # 也登记进索引表，方便统计和覆盖率核对。
+    "RequestUpdateStreetPos_CS": 294469585,
+    "RpcEnterSpace": 1277075552,
+    "RpcOnSceneLoaded": 996547331,
+    "RpcEnterEden": 1588890197,
+    "RpcBackToEden": 1369842456,
+    "RpcOnClientMove": 1920167376,
+    "RpcChangeMicroState": 1517096639,
+    "RequestClearStreetTreasureActor_CS": 1675033651,
+    "RequestLeaveStreetSurface_CS": 2137482665,
+    "RequestTouchTreasure_CS": 1282426820,
+    "RpcPlayActEmoji": 2000707256,
+    "RpcEnterTargetSeq": 2099437863,
+    "Cmd_Avatar_StatEnterBattleFialed_CS": 2031265256,
+    "Cmd_LoadingProcessSync_CS": 790742624,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -1417,6 +1442,54 @@ def _play_act_emoji(params, uid=None):
     return []
 
 
+# ---------------------------------------------------------------------------
+# 剩余街景 / 空间 RPC（阶段 2 收尾）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua：
+#   Street_RequestUpgradeDungeonMainPower_CS -> RequestUpgradeDungeonMainPower_CS {}   :699-707
+#     SC 只看 ret.status
+#   RequestGetStreetLevelAchieveAward_CS {level_id, achieve_id}                       :765-778
+#     SC 只看 ret.status（失败弹「领取失败」）
+#   Street_CD_Update_CS {street_id, street_cd_id}                                     :149-154
+#     SC 回调 responseCb(status)
+#   avatarspacecomp.lua:60  RpcEnterTargetSeq(spaceno, seqno, info)                   单向
+#   Cmd_Avatar_StatEnterBattleFialed_CS                                               单向（战斗进入失败统计）
+#   Cmd_LoadingProcessSync_CS                                                         单向（加载进度）
+
+
+def _ack_only(rid, params, uid=None):
+    """只回 status=true 的 RPC。"""
+    return [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+
+
+def _street_cd_update(rid, params, uid=None):
+    """Street_CD_Update_CS {street_id, street_cd_id} —— 记录当前选的 CD 并回成功。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        street_id = int(vals[0] or 0)
+        cd_id = int(vals[1] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    si, entry = _street_info_of(st, street_id)
+    if entry is not None:
+        entry["cd_choose"] = cd_id
+        st.set("street_info", si)
+        st.save()
+        frames.append(msmod.build_property_sync(
+            "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry))
+    print("[street] CD 选择 street=%s cd=%s" % (street_id, cd_id), flush=True)
+    return frames
+
+
+def _noop_one_way(params, uid=None):
+    """单向无操作（RpcEnterTargetSeq / 战斗失败统计 / 加载进度）。"""
+    return []
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1715,7 +1788,12 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RequestGetPrestigeTaskAward_CS", _get_prestige_task_award),
                    ("RequestDispatchChar_CS", _dispatch_char),
                    ("RequestFinishDispatch_CS", _finish_dispatch),
-                   ("RequestCancelDispatchChar_CS", _cancel_dispatch)):
+                   ("RequestCancelDispatchChar_CS", _cancel_dispatch),
+                   ("RequestUpgradeDungeonMainPower_CS", _ack_only),
+                   ("RequestGetStreetLevelAchieveAward_CS", _ack_only),
+                   ("Street_CD_Update_CS", _street_cd_update),
+                   ("RequestRefreshTitleDailyTask_CS", _ack_only),
+                   ("RequestDoneTitleTask_CS", _ack_only)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -1790,6 +1868,9 @@ _ONE_WAY_HANDLERS = {
     2137482665: _leave_surface,         # RequestLeaveStreetSurface_CS
     1282426820: _touch_treasure,        # RequestTouchTreasure_CS
     2000707256: _play_act_emoji,        # RpcPlayActEmoji（AOI）
+    2099437863: _noop_one_way,          # RpcEnterTargetSeq
+    2031265256: _noop_one_way,          # Cmd_Avatar_StatEnterBattleFialed_CS
+    790742624: _noop_one_way,           # Cmd_LoadingProcessSync_CS
 }
 
 
