@@ -84,6 +84,9 @@ RPC_INDEX = {
     "Street_Actor_InteractID_Update_CS": 1693572640,
     "Street_Redpoint_Update_CS": 1315049093,
     "updateStreetTraceTask_CS": 1390116544,
+    # --- 阴阳界 / 宝箱（2 条，另外两条是单向） ---
+    "RequestEnterStreetSurface_CS": 743475140,
+    "RequestStreetTreasure_CS": 1398226462,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -999,6 +1002,94 @@ def _clear_treasure_actor(params, uid=None):
     return []
 
 
+# ---------------------------------------------------------------------------
+# 阴阳界切换 + 街景宝箱（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:433-448, 328-334：
+#   RequestEnterStreetSurface(worldId) -> serverRpc("RequestEnterStreetSurface_CS", {worldId})
+#   RequestLeaveStreetSurface()        -> serverMsg("RequestLeaveStreetSurface_CS", {})  单向
+#   RequestTouchTreasure_CS(treasure_id)  -> serverMsg（单向）
+#   RequestStreetTreasure_CS(treasure_id) -> serverRpc
+#
+# 阴阳界状态读的是 **StreetInfoDict.surface_enter_time**（不是每街区的）：
+#   avatarstreetcomp.lua:560-562
+#     function AvatarStreetComp:getCurStreetYinYangEnterTime()
+#       return self.street_info.surface_enter_time or 0
+#     end
+#   而 streetsystemmgrbase.lua:679-685 用它决定 worldIndex（0=阳界 1=阴界）。
+#
+# 宝箱状态在 StreetInfo.treasure_box_info（IntDictKeyInt），
+#   avatarstreetcomp.lua:353-363 checkTreasureIsComplete 读它（0 < state 即已开）。
+
+
+def _set_surface_time(st, value):
+    """改 street_info.surface_enter_time 并推同步。"""
+    si = st.props.get("street_info")
+    if not isinstance(si, dict):
+        return []
+    si["surface_enter_time"] = int(value)
+    st.set("street_info", si)
+    return [msmod.build_property_sync(
+        "", si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
+
+
+def _enter_surface(rid, params, uid=None):
+    """RequestEnterStreetSurface_CS {worldId} —— 进阴界。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    st = _state(uid)
+    frames.extend(_set_surface_time(st, int(time.time())))
+    st.save()
+    print("[street] 进入阴界", flush=True)
+    return frames
+
+
+def _leave_surface(params, uid=None):
+    """RequestLeaveStreetSurface_CS {} —— 回阳界（单向）。"""
+    st = _state(uid)
+    out = _set_surface_time(st, 0)
+    st.save()
+    print("[street] 离开阴界", flush=True)
+    return out
+
+
+def _touch_treasure(params, uid=None):
+    """RequestTouchTreasure_CS {treasure_id} / RequestStreetTreasure_CS {treasure_id}。
+
+    标记该宝箱已开：StreetInfo.treasure_box_info[treasure_id] = 1。
+    """
+    vals = params if isinstance(params, list) else decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return None
+    try:
+        tid = int(vals[0])
+    except Exception:
+        return None
+    st = _state(uid)
+    street_id = int(st.props.get("street_id") or 0)
+    si, entry = _street_info_of(st, street_id)
+    if entry is None:
+        return None
+    tb = entry.get("treasure_box_info")
+    if not isinstance(tb, dict):
+        tb = {"__id__": st.next_property_id()}
+        entry["treasure_box_info"] = tb
+    tb[tid] = 1
+    st.set("street_info", si)
+    st.save()
+    print("[street] 开宝箱 %s（街区 %s）" % (tid, street_id), flush=True)
+    return [msmod.build_property_sync(
+        "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
+
+
+def _street_treasure_rpc(rid, params, uid=None):
+    """RequestStreetTreasure_CS {treasure_id} —— 带回调版本。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    out = _touch_treasure(params, uid)
+    if out:
+        frames.extend(out)
+    return frames
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1286,7 +1377,9 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RpcLeaveSpace", _leave_space_rpc),
                    ("Street_Actor_InteractID_Update_CS", _actor_interact),
                    ("Street_Redpoint_Update_CS", _street_redpoint),
-                   ("updateStreetTraceTask_CS", _street_trace_task)):
+                   ("updateStreetTraceTask_CS", _street_trace_task),
+                   ("RequestEnterStreetSurface_CS", _enter_surface),
+                   ("RequestStreetTreasure_CS", _street_treasure_rpc)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -1358,6 +1451,8 @@ _ONE_WAY_HANDLERS = {
     1920167376: _client_move,        # RpcOnClientMove（AOI）
     1517096639: _change_micro_state, # RpcChangeMicroState
     1675033651: _clear_treasure_actor,  # RequestClearStreetTreasureActor_CS
+    2137482665: _leave_surface,         # RequestLeaveStreetSurface_CS
+    1282426820: _touch_treasure,        # RequestTouchTreasure_CS
 }
 
 

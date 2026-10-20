@@ -128,6 +128,32 @@ def run():
           st.props.get("street_trace_taskid") == 1003,
           st.props.get("street_trace_taskid"))
 
+    print("\n[7b] 阴阳界切换")
+    # 逆向：avatarstreetcomp.lua:560-562 getCurStreetYinYangEnterTime 读
+    #   StreetInfoDict.surface_enter_time；streetsystemmgrbase.lua:679-685 用它定 worldIndex。
+    frames = erpc.handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
+                         msmod.mp_arr([1]), 5, uid="pos_a")
+    si2 = st.props.get("street_info") or {}
+    t_enter = si2.get("surface_enter_time") or 0
+    check("进阴界 surface_enter_time > 0", t_enter > 0, t_enter)
+    check("返回同步帧", len(frames) >= 2, len(frames))
+    erpc.handle(2137482665, msmod.mp_arr([]), 0, uid="pos_a")
+    check("离开阴界归 0",
+          (st.props.get("street_info") or {}).get("surface_enter_time") == 0)
+
+    print("\n[7c] 街景宝箱")
+    # 逆向：StreetInfo.treasure_box_info（IntDictKeyInt），0 < state 即已开
+    frames = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+                         msmod.mp_arr([10157]), 6, uid="pos_a")
+    entry2 = (st.props.get("street_info") or {}).get(101) or {}
+    tb = entry2.get("treasure_box_info") or {}
+    check("treasure_box_info[10157] = 1", tb.get(10157) == 1, tb)
+    check("返回同步帧", len(frames) >= 2, len(frames))
+    erpc.handle(1282426820, msmod.mp_arr([10158]), 0, uid="pos_a")
+    entry3 = (st.props.get("street_info") or {}).get(101) or {}
+    tb3 = entry3.get("treasure_box_info") or {}
+    check("TouchTreasure 也记录", tb3.get(10158) == 1, tb3)
+
     print("\n[8] 清理宝箱 actor（单向）")
     erpc.handle(1675033651, msmod.mp_arr([101]), 0, uid="pos_a")
     check("不崩", True)
