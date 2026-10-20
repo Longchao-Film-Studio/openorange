@@ -1067,6 +1067,39 @@ local CB_NAMES = {
 -- 地图面板验证：等价于按 M
 -- 角色背包验证
 -- 剧情任务 / 街景 NPC 验证
+-- 街区切换实机验证：走客户端真实路径 AvatarStreet_SwitchStreet
+local function probe_street_switch()
+  if pc.streetswitched then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    if A:getStreetID() ~= 101 then return end
+    pc.streetswitched = true
+    local before = A:getStreetID()
+    local sd0 = DataTable('Common', 'StreetData')[before]
+    LOG('streetprobe| 切换前 street_id=' .. tostring(before)
+      .. ' 街区=' .. tostring(sd0 and sd0.blockName))
+    -- 注意：不能走 AvatarStreet_SwitchStreet —— 它里面先过 DLC 检查，
+    -- 火锅店(1011)的资源没下载时会走 JumpToDlcStage，根本不发 RPC。
+    -- 这里直接发同一条 RPC，验证服务端 + 属性同步 + 小地图。
+    local okc, errc = pcall(function()
+      A:serverRpc('RequestSwitchStreet_CS', {1011, nil})
+    end)
+    LOG('streetprobe| 发 RPC ok=' .. tostring(okc) .. ' err=' .. tostring(errc))
+    TimerManager.addTimer(4, function()
+      pcall(function()
+        local now = A:getStreetID()
+        local sd = DataTable('Common', 'StreetData')[now]
+        LOG('streetprobe| 4秒后 street_id=' .. tostring(now)
+          .. ' 街区=' .. tostring(sd and sd.blockName))
+        local cur = game.stageMgr:getCurStage()
+        LOG('streetprobe| 当前 stage=' .. tostring(cur and cur.name))
+      end)
+    end)
+  end)
+end
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1350,6 +1383,7 @@ end
 OO_PROBE_RPC = false    -- Set* 系列端到端探针（会改数据，默认关）
 OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
 OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
+OO_PROBE_STREET = false -- 街区切换探针（会主动发切街区 RPC）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1746,6 +1780,10 @@ local function install_cb_wrappers()
           if (pc.frames % 30) == 12 then pcall(probe_sysunlock) end
           if (pc.frames % 30) == 18 then pcall(probe_charbag) end
           if (pc.frames % 30) == 24 then pcall(probe_story) end
+          -- 街区切换探针默认关（会主动发 RPC 干扰正常流程）；排障时置 true
+          if OO_PROBE_STREET then
+            if (pc.frames % 30) == 27 then pcall(probe_street_switch) end
+          end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
             if (pc.frames % 30) == 20 then pcall(probe_openmap) end
