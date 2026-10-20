@@ -361,6 +361,10 @@ def _ensure_street_info(st, street_id):
         return si, cur
     entry = {"__tp__": "StreetInfo", "__id__": st.next_property_id()}
     entry.update(_STREET_INFO_DEFAULTS)
+    # 嵌套的自定义属性必须带 __id__（不带 __tp__），否则客户端 init 报错
+    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
+               "treasure_box_info", "inter_actor_info"):
+        entry[_k] = {"__id__": st.next_property_id()}
     si[street_id] = entry
     st.set("street_info", si)
     return si, entry

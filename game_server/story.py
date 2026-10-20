@@ -70,6 +70,15 @@ def _next_id(st):
 def make_story_task_item(st, task_id, state, now):
     item = {"__tp__": "StoryTaskItem", "__id__": _next_id(st)}
     item.update(_STORY_TASK_ITEM)
+    # ★ 嵌套的自定义属性（IntDictKeyInt / IntList）**必须带 __id__**，
+    #   但不带 __tp__（见 puppetpropertycomponent.lua:161-175：
+    #   _changeRootProperty 只对外层做 __tp__ 校验，嵌套对象靠 __id__ 定位）。
+    #   漏了 __id__ 客户端会报
+    #     class ClientAvatar function init must have a boolean return value
+    #   实测过（2026-10-20 阶段 2 实机验证）。
+    item["doing_targets"] = {"__id__": _next_id(st)}
+    item["finish_targets"] = {"__id__": _next_id(st)}
+    item["finish_parameter"] = {"__id__": _next_id(st)}
     item["id"] = int(task_id)
     item["state"] = int(state)
     item["get_time"] = int(now)

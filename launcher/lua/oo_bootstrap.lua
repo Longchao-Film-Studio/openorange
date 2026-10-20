@@ -1066,6 +1066,43 @@ local CB_NAMES = {
 -- 系统入口解锁验证
 -- 地图面板验证：等价于按 M
 -- 角色背包验证
+-- 剧情任务 / 街景 NPC 验证
+local function probe_story()
+  if pc.storyprobe then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil then return end
+    pc.storyprobe = true
+    LOG('storyprobe| getStoryTaskState(1000) = ' .. tostring(A:getStoryTaskState(1000)))
+    LOG('storyprobe| getStoryTaskState(1003) = ' .. tostring(A:getStoryTaskState(1003)))
+    LOG('storyprobe| isStoryTaskFinished(1000) = ' .. tostring(A:isStoryTaskFinished(1000)))
+    local ok, st = pcall(function() return A:getSystemTaskState(1) end)
+    LOG('storyprobe| getSystemTaskState(1) = ' .. tostring(ok) .. ' -> ' .. tostring(st))
+    LOG('storyprobe| street_id = ' .. tostring(A:getStreetID()))
+    -- 统计当前街区里 preTask 命中的 NPC
+    local total, shown = 0, 0
+    pcall(function()
+      local actorData = DataTable('Common', 'StreetActorInfoData')
+      for id, d in pairs(actorData) do
+        if d.preTask then
+          total = total + 1
+          for tid, tstate in pairs(d.preTask) do
+            if type(tid) == 'number' and A:getTaskStateByTaskID(tid) == tstate then
+              shown = shown + 1
+              if shown <= 5 then
+                LOG('storyprobe| NPC ' .. tostring(id) .. ' 命中 task ' .. tostring(tid) .. ' state ' .. tostring(tstate))
+              end
+              break
+            end
+          end
+        end
+      end
+    end)
+    LOG('storyprobe| 带 preTask 的 NPC ' .. total .. ' 个，条件命中 ' .. shown .. ' 个')
+  end)
+end
 local function probe_charbag()
   if pc.charbag then return end
   pcall(function()
@@ -1708,6 +1745,7 @@ local function install_cb_wrappers()
           end
           if (pc.frames % 30) == 12 then pcall(probe_sysunlock) end
           if (pc.frames % 30) == 18 then pcall(probe_charbag) end
+          if (pc.frames % 30) == 24 then pcall(probe_story) end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
             if (pc.frames % 30) == 20 then pcall(probe_openmap) end

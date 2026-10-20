@@ -59,6 +59,11 @@ def run():
     check("state = Doing(3)", it.get("state") == story.TASK_STATE_DOING, it.get("state"))
     check("__tp__ = StoryTaskItem", it.get("__tp__") == "StoryTaskItem", it.get("__tp__"))
     check("story_state() 读到 3", story.story_state(st.props, 1000) == 3)
+    # 嵌套的自定义属性必须带 __id__，否则客户端 init 报
+    #   class ClientAvatar function init must have a boolean return value
+    for f in ("doing_targets", "finish_targets", "finish_parameter"):
+        check("嵌套字段 %s 带 __id__" % f,
+              isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
 
     print("\n[4] 通过 RPC 完成 1000")
     frames = erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],

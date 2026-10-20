@@ -54,6 +54,11 @@ def task_type_of(task_id):
 def make_task_item(st, task_id, task_type, state, now):
     item = {"__tp__": "TaskItem", "__id__": st.next_property_id()}
     item.update(_TASK_ITEM)
+    # 嵌套的自定义属性必须带 __id__（不带 __tp__），否则客户端 init 会报
+    #   class ClientAvatar function init must have a boolean return value
+    item["doing_targets"] = {"__id__": st.next_property_id()}
+    item["finish_targets"] = {"__id__": st.next_property_id()}
+    item["cache"] = {"__id__": st.next_property_id()}
     item["id"] = int(task_id)
     item["type"] = int(task_type)
     item["state"] = int(state)

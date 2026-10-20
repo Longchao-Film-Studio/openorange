@@ -64,6 +64,9 @@ def run():
     it = slot.get(1) or {}
     check("TaskItem __tp__", it.get("__tp__") == "TaskItem", it.get("__tp__"))
     check("state = Doing(3)", it.get("state") == 3, it.get("state"))
+    for f in ("doing_targets", "finish_targets", "cache"):
+        check("嵌套字段 %s 带 __id__" % f,
+              isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
     check("task_state(1) = 3", tasks.task_state(st.props, 1) == 3)
 
     print("\n[4] 完成任务 1")
