@@ -73,7 +73,14 @@ def parse_server_only_msg():
 def scan_client_calls():
     """扫所有 Lua，收集 serverRpc/serverMsg 的名字和调用点。"""
     sites = collections.defaultdict(list)
-    pat = re.compile(r"server(Rpc|Msg)\(\s*\"([A-Za-z0-9_]+)\"")
+    # 客户端发消息到服务端的所有路径（2026-10-20 补全）：
+    #   serverRpc("X")      -> ServerProxy:serverRpc  -> dispatchRpc(sendEntityMessage, rid)
+    #   serverMsg("X")      -> ServerProxy:serverMsg  -> dispatchRpc(sendEntityMessage, 0)
+    #   CallServer("X")     -> ClientEntity:CallServer -> serverMsg   ★ 之前漏了这类
+    #   serverOtherMsg("X") -> ServerProxy:serverOtherMsg
+    # 另外兜一下直接调 stub:dispatchRpc("sendXxx") 的底层入口。
+    pat = re.compile(
+        r"(?:serverRpc|serverMsg|CallServer|serverOtherMsg)\(\s*\"([A-Za-z0-9_]+)\"")
     for dp, dn, fn in os.walk(LUA_SRC):
         for f in fn:
             if not f.endswith(".lua"):
@@ -85,7 +92,7 @@ def scan_client_calls():
                 continue
             for i, ln in enumerate(t.split("\n"), 1):
                 for m in pat.finditer(ln):
-                    name = m.group(2)
+                    name = m.group(1)
                     sites[name].append((os.path.relpath(p, LUA_SRC), i))
     return sites
 
@@ -195,6 +202,23 @@ def main():
     lines.append("- **客户端 → 服务端**：**没有任何声明**。名字只以字符串字面量出现在")
     lines.append("  `serverRpc(\"名字\", ...)` 的调用点，发给服务端时由原生层 `genRpcIndex(name)`")
     lines.append("  现算 32 位索引。所以只能靠扫调用点枚举 —— 这是唯一来源。")
+    lines.append("")
+    lines.append("**扫描覆盖的四条发送路径**（2026-10-20 补全，之前只扫了前两条）：")
+    lines.append("")
+    lines.append("| 路径 | 最终调用 |")
+    lines.append("|---|---|")
+    lines.append("| `serverRpc(\"X\")` | `ServerProxy:serverRpc` -> `dispatchRpc(sendEntityMessage, rid)` |")
+    lines.append("| `serverMsg(\"X\")` | `ServerProxy:serverMsg` -> `dispatchRpc(sendEntityMessage, 0)` |")
+    lines.append("| `CallServer(\"X\")` | `ClientEntity:CallServer` -> `serverMsg` ★ 之前漏了，补回 38 条 |")
+    lines.append("| `serverOtherMsg(\"X\")` | `ServerProxy:serverOtherMsg` |")
+    lines.append("")
+    lines.append("**已排除的其它来源**（都查过了，零命中）：")
+    lines.append("")
+    lines.append("- `Assembly-CSharp.dll`（C# 侧，5.4 MB）：没有任何 `Xxx_CS` 名字")
+    lines.append("- `xlua.dll` 解密镜像（24 MB）：没有 RPC 名字表，只有 `registerRpc`/`getRpcName` 机制")
+    lines.append("")
+    lines.append("**已知的另一层**：`Space_CallSpaceMethod_CS` / `Space_CallUnitMethod_CS` 这类是")
+    lines.append("嵌套 RPC —— 战斗/空间系统在消息体里再套一层方法名，属于另一套命名空间，未纳入本表。")
     lines.append("")
     lines.append("运行时 `phonestcore.registerRpc` 只登记**需要反查名字的**那些（即 S2C），")
     lines.append("加上实体类名；实测一次运行只登记 240 个名字，远少于静态扫描的 534 条 C2S。")
