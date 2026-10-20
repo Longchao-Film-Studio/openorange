@@ -47,6 +47,16 @@ def run():
     check("__tp__ = Pos", spi.get("__tp__") == "Pos", spi.get("__tp__"))
     check("带 x/y/z", all(k in spi for k in ("x", "y", "z")), spi)
 
+    print("\n[1b] 回归：initDict 里不能有服务端私有字段")
+    # 2026-10-20 踩过：_oo_street_pos 是普通 dict，被写进 initDict，
+    # 客户端 initProperty 对每个表值都 assert(__tp__ ~= nil)，
+    # 于是 ClientAvatar:init 抛错返回非布尔，表现是
+    #   自动进入游戏 -> 被踢回开始页 -> 再自动进 -> 再被踢 的死循环。
+    bad = [k for k in d if isinstance(k, str) and k.startswith("_oo_")]
+    check("initDict 里没有 _oo_ 私有字段", not bad, bad)
+    no_tp = [k for k, v in d.items() if isinstance(v, dict) and "__tp__" not in v]
+    check("每个表值都带 __tp__", not no_tp, no_tp[:5])
+
     print("\n[2] AOI 上报 -> 落盘 -> 重登恢复")
     st = pstate.get_state(uid="pos_a")
     erpc.handle(1920167376, msmod.mp_arr([12.5, -3.25, 88.75, 1.57]), 0,

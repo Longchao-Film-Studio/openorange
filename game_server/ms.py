@@ -485,7 +485,15 @@ def _live_init_dict(uid=None):
                           % (uid, _gained, st.props.get("tower_reward_keys")), flush=True)
         except Exception as e:
             print("[init] 体力处理失败: %s" % e, flush=True)
-    return {"__Properties__": st.props}
+    # ★ 服务端私有字段（以 _oo_ 开头，比如 _oo_street_pos / _oo_micro_state）
+    #   **绝不能进 initDict** —— 客户端 initProperty 对每个表值都要求带 __tp__
+    #   （core/propertysync/puppetpropertycomponent.lua:51-54 的 assert），
+    #   普通 dict 会让 ClientAvatar:init 抛错、返回非布尔，
+    #   表现为「自动进入游戏 -> 被踢回开始页 -> 再自动进 -> 再被踢」的死循环。
+    #   实测踩过（2026-10-20 阶段 2 第 2 轮）。
+    _public = {k: v for k, v in st.props.items()
+               if not (isinstance(k, str) and k.startswith("_oo_"))}
+    return {"__Properties__": _public}
 
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
