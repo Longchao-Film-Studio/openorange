@@ -1357,6 +1357,28 @@ local function probe_loadstep()
   end)
 end
 
+-- 给 ui.PreLoadPanelByName 打桩，记录每个面板的进入/回调
+local function install_preload_hook()
+  if pc.preloadhooked then return end
+  if ui == nil or ui.PreLoadPanelByName == nil then return end
+  pc.preloadhooked = true
+  local orig = ui.PreLoadPanelByName
+  ui.PreLoadPanelByName = function(name, cb)
+    LOG('preload| enter ' .. tostring(name))
+    local function wrapped(go)
+      LOG('preload| done  ' .. tostring(name) .. ' go=' .. tostring(go ~= nil))
+      if cb then return cb(go) end
+    end
+    local ok, err = pcall(function()
+      return orig(name, wrapped)
+    end)
+    if not ok then
+      LOG('preload| ERROR ' .. tostring(name) .. ' err=' .. tostring(err))
+    end
+  end
+  LOG('preload| 钩子已安装')
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1648,6 +1670,7 @@ OO_PROBE_ENTERHUB = false  -- 直接调 enterOnlineHub 探针
 OO_PROBE_HUBSTEPS = false  -- hub:init/getCopy 分步探针
 OO_PROBE_LOADSTATE = false -- LoadingStage 就绪标志探针
 OO_PROBE_LOADSTEP = false  -- 加载步骤探针
+OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -2014,6 +2037,11 @@ local function probe_cs_api()
         'sc_dgarea_feiyi_lv_01_plot',
         'sc_dgarea_jiang_lv_03',
         'sc_dgarea_qianxianghui_lv_01',
+        -- 战斗面板 prefab（panelmanager.lua:686 的路径格式）
+        'ui/panels/Battle_Main_Panel/Battle_Main_Panel',
+        'ui/panels/BattleHpPanel/BattleHpPanel',
+        'ui/panels/MessagePanel/MessagePanel',
+        'ui/panels/BlackPanel/BlackPanel',
       }) do
       local ok, v = pcall(function() return inst:IsAssetExist(nm) end)
       LOG('csapi| exist2 ' .. nm .. ' = ' .. tostring(ok and v))
@@ -2078,6 +2106,9 @@ local function install_cb_wrappers()
           end
           if OO_PROBE_LOADSTEP then
             if (pc.frames % 30) == 9 then pcall(probe_loadstep) end
+          end
+          if OO_PROBE_PRELOAD then
+            if (pc.frames % 30) == 11 then pcall(install_preload_hook) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
