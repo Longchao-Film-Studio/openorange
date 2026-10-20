@@ -1076,6 +1076,13 @@ local function probe_street_switch()
     local A = GlobalData.Avatar
     if A == nil then return end
     if A:getStreetID() ~= 101 then return end
+    -- ★ 必须等 server 代理就绪：gateclientrpchandler.lua:316-319 在断连时
+    --   会 serverProxy:destroy()，那会把 owner.server 清成 nil；
+    --   而 ClientEntity:serverRpc 在 isServerLost() 为 true 时**静默 return**，
+    --   所以 A.server == nil 时发 RPC 是无声失败（实测踩过）。
+    if A.server == nil or A:isServerLost() then
+      return   -- 下一轮再试
+    end
     pc.streetswitched = true
     local before = A:getStreetID()
     local sd0 = DataTable('Common', 'StreetData')[before]
@@ -1084,6 +1091,13 @@ local function probe_street_switch()
     -- 注意：不能走 AvatarStreet_SwitchStreet —— 它里面先过 DLC 检查，
     -- 火锅店(1011)的资源没下载时会走 JumpToDlcStage，根本不发 RPC。
     -- 这里直接发同一条 RPC，验证服务端 + 属性同步 + 小地图。
+    -- 诊断：serverRpc 里是 `if self.stub then dispatchRpc(...) end`，
+    -- stub 为 nil 时静默不发 —— 必须把这几个值打出来。
+    LOG('streetprobe| isServerLost=' .. tostring(A:isServerLost()))
+    LOG('streetprobe| A.server=' .. tostring(A.server))
+    if A.server then
+      LOG('streetprobe| A.server.stub=' .. tostring(A.server.stub))
+    end
     local okc, errc = pcall(function()
       A:serverRpc('RequestSwitchStreet_CS', {1011, nil})
     end)
