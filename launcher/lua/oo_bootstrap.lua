@@ -1413,6 +1413,32 @@ local function install_panel_timeout()
   LOG('paneltmo| 钩子已安装，超时 ' .. PANEL_TIMEOUT_SEC .. ' 秒')
 end
 
+-- 自动触发「进入下一关」，验证 Cmd_Avatar_EnterNext_CS 链路
+local function probe_next_level()
+  if pc.nextlv then return end
+  pcall(function()
+    local st = game.stageMgr:getCurStage()
+    if st == nil or st.name ~= GlobalConst.EGameStage.OfflineBattle then return end
+    local hp = GlobalData.hubPlayer
+    if hp == nil then return end
+    if pc.nextlvdone then return end
+    pc.nextlv = true
+    local ci = hp.nowCopyIndex
+    LOG('nextlv| 当前 copyIndex=' .. tostring(ci))
+    local ok, err = pcall(function()
+      hp:enterNextBattleLogic()
+    end)
+    LOG('nextlv| enterNextBattleLogic ok=' .. tostring(ok) .. ' err=' .. tostring(err))
+    TimerManager.addTimer(8, function()
+      pcall(function()
+        pc.nextlvdone = true
+        local hp2 = GlobalData.hubPlayer
+        LOG('nextlv| 8秒后 copyIndex=' .. tostring(hp2 and hp2.nowCopyIndex))
+      end)
+    end)
+  end)
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1706,6 +1732,7 @@ OO_PROBE_LOADSTATE = false -- LoadingStage 就绪标志探针
 OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
 OO_PANEL_TIMEOUT = true    -- 诊断：面板预加载超时放行（缺 HUD 但能验证流程）
+OO_PROBE_NEXTLEVEL = false -- 自动触发进入下一关
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -2147,6 +2174,9 @@ local function install_cb_wrappers()
           end
           if OO_PANEL_TIMEOUT then
             if (pc.frames % 30) == 12 then pcall(install_panel_timeout) end
+          end
+          if OO_PROBE_NEXTLEVEL then
+            if (pc.frames % 30) == 20 then pcall(probe_next_level) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then

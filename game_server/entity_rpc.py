@@ -144,6 +144,9 @@ RPC_INDEX = {
     "Cmd_OfflineSpace_Finish_CS": 2006240685,
     "Cmd_Avatar_StartGame_CS": 136701728,
     "Storyline_FinishGame": 855259445,
+    # --- 副本内关卡切换 ---
+    "Cmd_Avatar_EnterNext_CS": 43868592,
+    "Cmd_Avatar_FinishGame_CS": 1846356571,
     "Cmd_Dungeon_FinishInteract_CS": 1040600642,
     "Cmd_Infinite_FinishInteract_CS": 390634949,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
@@ -1785,6 +1788,96 @@ def _storyline_finish_game(rid, params, uid=None):
     return frames
 
 
+# ---------------------------------------------------------------------------
+# 副本内关卡切换（阶段 3）
+# ---------------------------------------------------------------------------
+# ★ 逆向依据 battlecontainer/dispatchhub/dispatchhubonline.lua:198-232：
+#
+#   DispatchHubOnline:sendEnterNextLevel(times, levelInfo, copyIndex, ...)
+#     if hubPlayer:isOfflineBattle() then
+#       GlobalData.Avatar:sendServerRpc("Cmd_Avatar_EnterNext_CS", {copyIndex},
+#         CallbackHandler(self, "enterNextLevelCallback", ...))
+#     end
+#
+#   DispatchHubOnline:enterNextLevelCallback(..., ret, response)
+#     if ret.status then callback(true, response.levelInfo) end   <-- ★ 需要 levelInfo
+#
+#   HubPlayer:enterOfflineBattleCallback(copy, copyIndex, playerCreateInfo, result, levelinfo)
+#     self.hub:initProgress(levelinfo.levelProgress)   <-- ★ levelinfo 为 nil 直接抛异常
+#     self.hub:setTowerLevelInfo(levelinfo.towerLevelInfo, copyIndex)
+#     SpaceUtils.fillLevelInitInfo(copy, self.hub.spaceInfo, playerCreateInfo, levelinfo)
+#     copy.battleInfo.randSeed = levelinfo.randSeed
+#     copy.battleInfo.runTime  = levelinfo.runTime
+#
+# 实测症状（2026-10-21）：第一关打完切第二关时
+#   [Lua] HubPlayer.lua:139: attempt to index local 'levelinfo' (a nil value)
+#   下一关的 ServerBattle 根本没建起来，角色在空场景里一直坠落。
+#
+# 另外 dispatchhubonline.lua:136-151 在离线副本里通关发的是
+#   Cmd_Avatar_FinishGame_CS {finishinfo}
+# （不是 Soul 上的 Cmd_OfflineSpace_Finish_CS），两条都要接。
+
+RPC_CMD_AVATAR_ENTER_NEXT = 43868592
+RPC_CMD_AVATAR_FINISH_GAME = 1846356571
+
+
+def _avatar_enter_next(rid, params, uid=None):
+    """Cmd_Avatar_EnterNext_CS {copyIndex} —— 回下一关的 levelInfo。
+
+    客户端 hubplayer.lua:116-121 会读：
+      levelinfo.levelProgress / towerLevelInfo / randSeed / runTime
+    少了就是 nil 索引异常，下一关建不起来。
+    """
+    vals = decode_params(params)
+    copy_index = 0
+    if isinstance(vals, list) and vals:
+        try:
+            copy_index = int(vals[0] or 0)
+        except Exception:
+            copy_index = 0
+    st = _state(uid)
+    level_info = {
+        "levelProgress": {},
+        "randSeed": int(time.time()) & 0x7FFFFFFF,
+        "runTime": 0,
+    }
+    print("[dungeon] 进入下一关 copyIndex=%s" % copy_index, flush=True)
+    return [msmod.build_entity_response(
+        rid, ret=dict(ACK_OK),
+        resp={"levelInfo": level_info})]
+
+
+def _avatar_finish_game(rid, params, uid=None):
+    """Cmd_Avatar_FinishGame_CS {finishinfo} —— 离线副本里「打完一关」。
+
+    finishinfo 结构没在 Lua 里找到构造点（在战斗层），
+    这里把所有整数键当事件参数喂给剧情引擎，命中就推进剧情。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    info = vals[0] if (isinstance(vals, list) and vals
+                      and isinstance(vals[0], dict)) else {}
+    if not isinstance(info, dict):
+        info = {}
+    ev = {}
+    for k, v in info.items():
+        if isinstance(k, str) and k.startswith("__"):
+            continue
+        if isinstance(v, bool):
+            ev[k] = 1 if v else 0
+        elif isinstance(v, (int, float)):
+            ev[k] = int(v)
+    st = _state(uid)
+    hits, _ch = story.evaluate_event(st, "FinishDungeon", ev)
+    if hits:
+        frames.extend(_finish_story_tasks(st, hits))
+    chain, _c2 = story.check_chain_tasks(st)
+    if chain:
+        frames.extend(_finish_story_tasks(st, chain))
+    print("[dungeon] FinishGame 参数 %s -> 剧情推进 %s" % (ev, hits), flush=True)
+    return frames
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -2094,7 +2187,9 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("Cmd_Dungeon_FinishInteract_CS", _ack_only),
                    ("Cmd_Infinite_FinishInteract_CS", _ack_only),
                    ("Cmd_Avatar_StartGame_CS", _avatar_start_game),
-                   ("Storyline_FinishGame", _storyline_finish_game)):
+                   ("Storyline_FinishGame", _storyline_finish_game),
+                   ("Cmd_Avatar_EnterNext_CS", _avatar_enter_next),
+                   ("Cmd_Avatar_FinishGame_CS", _avatar_finish_game)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
