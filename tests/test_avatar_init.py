@@ -40,7 +40,7 @@ def run():
     props = data["__Properties__"]
 
     print("\n[1] 整体规模")
-    check("属性数 218", len(props) == 218, len(props))
+    check("属性数 217", len(props) == 217, len(props))
     check("每个值都是 dict 或简单类型",
           all(isinstance(v, dict) or isinstance(v, (int, float, str, bool))
               for v in props.values()))

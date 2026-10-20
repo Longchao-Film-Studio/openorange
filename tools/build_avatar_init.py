@@ -122,7 +122,13 @@ REQUIRED = {
     #
     # 客户端没有任何类型同时带 x/y/z/dir（全表搜过），所以用 Pos（x/y/z, double）。
     # dir 为 nil 时 setRotation(x, nil, z) 会被 xlua 转成 0 —— 位置对了，朝向取默认。
-    "street_pos_info": "Pos",
+    # ★ 2026-10-20 试过但**回滚**了：给 street_pos_info 用 Pos 类型会破坏客户端。
+    #   加了之后实机必现：
+    #     class ClientAvatar function init must have a boolean return value
+    #     traceback -> AvatarBagComp:refreshLocalBagData
+    #   去掉就恢复正常。推测是它的 PropertyCallbacks 声明是 customDict，
+    #   而 Pos 不是 dict 类型，初始化时的回调注册对不上。
+    #   位置持久化暂时不做（_oo_street_pos 仍在服务端存着，等找到对的类型再说）。
     # --- 动态根属性：只出现在 PropertyCallbacks、AvatarProperties 里没有声明 ---
     # 证据：generated/config.lua:6370 的 Custom.SingleMatchInfo 定义了
     #   state(int) / match_id(string) / match_info(MatchInfo)；
