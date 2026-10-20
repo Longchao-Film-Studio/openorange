@@ -1794,6 +1794,29 @@ local SERVER_RPC_SC_NAMES = {
 local function register_gate_rpcs(ph)
   if pc.rpcreg or type(ph) ~= 'table' then return end
   pc.rpcreg = true
+
+  -- ★ 收集客户端注册的**全部** RPC 名。
+  --
+  --   phonestcore 内部维护「名字 <-> 32 位索引」双向表：
+  --     registerRpc(name)   客户端自己往里注册
+  --     getRpcName(index)   反查（实测 ClientAvatar -> 1292148699 反查=ClientAvatar）
+  --   所以 hook 住 registerRpc，就能把客户端认识的名字全收下来 ——
+  --   这是运行时的权威注册表，比扫源码调用点可靠（源码扫描漏了 _SC 回调名）。
+  --
+  --   日志前缀 rpcname| ，跑完去重即可。
+  if type(ph.registerRpc) == 'function' and not pc.rpcname_hooked then
+    pc.rpcname_hooked = true
+    local orig_reg = ph.registerRpc
+    ph.registerRpc = function(name, ...)
+      local r = orig_reg(name, ...)
+      if type(name) == 'string' then
+        LOG('rpcname| ' .. name)
+      end
+      return r
+    end
+    LOG('lua: phonestcore.registerRpc 已包裹（收集全部 RPC 名）')
+  end
+
   local ok_n, fail_n = 0, 0
   local all = {}
   for _, nm in ipairs(GATE_RPC_NAMES) do all[#all + 1] = nm end
