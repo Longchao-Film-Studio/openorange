@@ -1581,8 +1581,7 @@
   },
   "story_finished": {
    "__tp__": "BooleanDictKeyInt",
-   "__id__": 1330,
-   "#1": true
+   "__id__": 1330
   },
   "story_max_collect_num": {
    "__tp__": "IntDictKeyInt",

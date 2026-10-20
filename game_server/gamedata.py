@@ -150,6 +150,33 @@ def row(table_name, row_id):
     return v
 
 
+def story_line(story_id):
+    """StoryLineData[story_id] —— 剧情段落，含 dungeonId（对应 Level_CopyData 的 copyId）。"""
+    return row("StoryLineData", story_id)
+
+
+def level_copy(copy_id):
+    """Level_CopyData[copy_id] —— 副本配置，含 rootLevel（关卡 id 列表）。"""
+    return row("Level_CopyData", copy_id)
+
+
+def gameplay(type_id, mode_id=None):
+    """GameplayData 里按 typeId(+modeId) 找一条。序章是 typeId=1004, modeId=1。"""
+    d = table("GameplayData")
+    if not d:
+        return None
+    rows = d.values() if isinstance(d, dict) else d
+    for v in rows:
+        if not isinstance(v, dict):
+            continue
+        if v.get("typeId") != type_id:
+            continue
+        if mode_id is not None and v.get("modeId") != mode_id:
+            continue
+        return v
+    return None
+
+
 def task_data(task_id):
     """TaskData[task_id] —— 通用任务表，带 TriggerEventList（完成条件）。"""
     return row("TaskData", task_id)

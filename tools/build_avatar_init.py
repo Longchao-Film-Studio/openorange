@@ -303,10 +303,13 @@ SIMPLE_PROPS = {
 SEED = {
     # entities/clientavatar.lua:180 CheckEnterPrologue():
     #   if not self.story_finished[1] then <走序章 StartGame> else LoginSuccess end
-    # 序章要 Cmd_Avatar_StartGame_CS 返回 spaceInfo 才能进场景，
-    # 那是完整的匹配/进场流程。把 1 号剧情标记为已完成，
-    # 客户端就直接走 LoginSuccess -> JumpToHallStage，等价于"老玩家回流"。
-    "story_finished": {"#1": True},
+    #
+    # ★ 2026-10-21 改：以前这里是 {"#1": True}，为了绕过序章直接进街区。
+    #   现在序章副本（Cmd_Avatar_StartGame_CS + spaceInfo）已经实现了，
+    #   所以**默认留空**，让新号真的走序章副本。
+    #   想要「老玩家回流」直接进街区时，用脚手架（--unlock-all），
+    #   scaffold.py 会把 story_finished[1] 置真。
+    "story_finished": {},
 }
 
 # 初始角色（1-1 角色数据模型）。

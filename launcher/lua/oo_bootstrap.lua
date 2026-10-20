@@ -1213,6 +1213,49 @@ local function probe_story_npc()
   end)
 end
 
+-- 验证 Cmd_Avatar_StartGame_CS 的回调与应答
+local function probe_startgame()
+  if pc.sgcb then return end
+  local A = GlobalData.Avatar
+  if A == nil or A.server == nil or A:isServerLost() then return end
+  pc.sgcb = true
+  A.onProbeStartGame = function(self, ret, resp)
+    LOG('sgprobe| 回调 ret.status=' .. tostring(ret and ret.status)
+      .. ' resp非空=' .. tostring(resp ~= nil)
+      .. ' spaceInfo=' .. tostring(resp and resp.spaceInfo ~= nil))
+    if resp and resp.spaceInfo then
+      local d = resp.spaceInfo
+      LOG('sgprobe| data.spaceInfo=' .. tostring(d.spaceInfo ~= nil)
+        .. ' copyId=' .. tostring(d.spaceInfo and d.spaceInfo.copyId)
+        .. ' levelIndex=' .. tostring(d.spaceInfo and d.spaceInfo.levelIndex))
+    end
+  end
+  local CH = require('Core.Common.CallbackHandler')
+  A:serverRpc('Cmd_Avatar_StartGame_CS',
+    {{match_type = 3, system_type = 1004, modeId = 1, storyID = 1}},
+    CH(A, 'onProbeStartGame'))
+  LOG('sgprobe| 已发 StartGame')
+end
+
+-- 直接测 enterOnlineHub，把内部被 xpcall 吞掉的错误暴露出来
+local function probe_enter_hub()
+  if pc.ehub then return end
+  local A = GlobalData.Avatar
+  if A == nil or A.server == nil or A:isServerLost() then return end
+  pc.ehub = true
+  local okr, SpaceUtils = pcall(require, 'Entities.SpaceEntities.SpaceUtils')
+  if not okr or SpaceUtils == nil then
+    LOG('ehub| require SpaceUtils 失败: ' .. tostring(SpaceUtils))
+    return
+  end
+  local data = {spaceInfo = {copyId = 'guide_01', levelIndex = 1}}
+  LOG('ehub| 开始 enterOnlineHub copyId=guide_01 levelIndex=1')
+  local ok, err = pcall(function()
+    SpaceUtils.enterOnlineHub(GlobalConst.EGameStage.OfflineBattle, data, true)
+  end)
+  LOG('ehub| enterOnlineHub ok=' .. tostring(ok) .. ' err=' .. tostring(err))
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1499,6 +1542,8 @@ OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
 OO_PROBE_STREET = false -- 街区切换探针（会主动发切街区 RPC）
 OO_PROBE_STORY_ADV = false -- 剧情推进探针（会模拟副本结算）
 OO_PROBE_STORY_NPC = false -- 剧情 NPC 探针（结算前后数街上 actor）
+OO_PROBE_STARTGAME = false -- 副本入口探针（发 StartGame 并打回调）
+OO_PROBE_ENTERHUB = false  -- 直接调 enterOnlineHub 探针
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1904,6 +1949,12 @@ local function install_cb_wrappers()
           end
           if OO_PROBE_STORY_NPC then
             if (pc.frames % 30) == 29 then pcall(probe_story_npc) end
+          end
+          if OO_PROBE_STARTGAME then
+            if (pc.frames % 30) == 5 then pcall(probe_startgame) end
+          end
+          if OO_PROBE_ENTERHUB then
+            if (pc.frames % 30) == 6 then pcall(probe_enter_hub) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then

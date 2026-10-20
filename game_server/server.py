@@ -615,14 +615,10 @@ def _handle_gate_probe(conn, addr, cid):
                             print("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e), flush=True)
                         rpkt = msmod.build_net_check_ack(hb)
                         label = "networkCheckAfterChange_SC(%d)" % hb
-                    elif idx == msmod.RPC_CMD_AVATAR_STARTGAME_CS:
-                        # clientavatar.lua:180 序章 StartGame。已经把
-                        # story_finished[1] 置真，正常不会走到这里。
-                        print("[GATE] #%03d ★ 客户端仍在请求序章 StartGame "
-                              "(rid=%s)，说明 story_finished[1] 没生效" % (cid, rid),
-                              flush=True)
-                        label = None
-                    elif idx == msmod.RPC_INDEX_NOT_FOUND:
+                    # ★ 2026-10-21 删掉了 Cmd_Avatar_StartGame_CS 的特判。
+                    #   以前（绕过序章时期）这里直接丢弃，因为 story_finished[1] 被置真、
+                    #   正常不该走到。现在序章副本真做了，必须交给实体 RPC 层
+                    #   回 spaceInfo，否则客户端永远进不了副本。                    elif idx == msmod.RPC_INDEX_NOT_FOUND:
                         # __rpc_index_not_found__：客户端在说「你发了个我不认识的 rpc」
                         # 这是我们自己 echo 造成的，现在不再 echo，理论上不会再出现
                         label = None

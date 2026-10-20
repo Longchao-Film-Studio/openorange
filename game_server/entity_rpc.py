@@ -142,6 +142,8 @@ RPC_INDEX = {
     "RollbackSpaceTask_CS": 1803698937,
     # --- 副本结算（推进剧情 TaskType 3/7） ---
     "Cmd_OfflineSpace_Finish_CS": 2006240685,
+    "Cmd_Avatar_StartGame_CS": 136701728,
+    "Storyline_FinishGame": 855259445,
     "Cmd_Dungeon_FinishInteract_CS": 1040600642,
     "Cmd_Infinite_FinishInteract_CS": 390634949,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
@@ -1638,7 +1640,148 @@ def _offline_space_finish(rid, params, uid=None):
     chain, _c2 = story.check_chain_tasks(st)
     if chain:
         frames.extend(_finish_story_tasks(st, chain))
+    # 序章副本打完 -> story_finished[1] 置真，下次登录直接进街区
+    if ev_params.get("typeId") == _STORY_TYPE_MAINSTORY:
+        sf = st.props.get("story_finished")
+        if isinstance(sf, dict) and sf.get(1) is not True:
+            sf[1] = True
+            st.set("story_finished", sf)
+            st.save()
+            frames.append(msmod.build_property_sync(
+                "", sf.get("__id__") or 0,
+                msmod.OP_ADD if 1 not in sf else msmod.OP_CHANGE,
+                "1", True))
+            print("[dungeon] 序章完成，story_finished[1]=True", flush=True)
     print("[dungeon] 结算参数 %s -> 剧情推进 %s" % (ev_params, hits), flush=True)
+    return frames
+
+
+# ---------------------------------------------------------------------------
+# 副本入口（阶段 3）
+# ---------------------------------------------------------------------------
+# ★ 完整逆向链路（2026-10-21）：
+#
+# 1) 登录后 entities/clientavatar.lua:178-203 CheckEnterPrologue()：
+#      if not self.story_finished[1] then
+#        local data = {match_type=3, system_type=1004, customParam={modeId=1, storyId=1}}
+#        self:Storyline_StartGame_CS(data.system_type, data.customParam, successCb, failedCb)
+#      else
+#        G.loginmgr:LoginSuccess(true, false)   -- 直接进街区
+#      end
+#    successCb(spaceInfo) -> SpaceUtils.enterOnlineHub(OfflineBattle, spaceInfo, true)
+#
+# 2) avatarstorylinecomp.lua:46-75 Storyline_StartGame_CS：
+#      match_info = {match_type=3, system_type=1004, modeId=1, storyID=1}
+#      serverRpc("Cmd_Avatar_StartGame_CS", {match_info})
+#    SC 里取 resp.spaceInfo 交给 enterOnlineHub。
+#
+# 3) SpaceUtils.enterOnlineHub（spaceutils.lua:203-240）：
+#      copyId = data.spaceInfo.copyId       -- 例如 guide_01
+#      copyIndex = data.spaceInfo.levelIndex -- 1-based，getCopy 用
+#      hub = DispatchHubOnline(); hub:init(stage, spaceInfo, reconnect)
+#      copy = hub:getCopy(copyIndex)
+#      levelName = copy.levelDataInfo.levelData[1]
+#      enterOfflineBattle(...)
+#
+# 4) DispatchHubOnline:init（dispatchhubonline.lua:37-70）：
+#      copyData = Level_CopyData[spaceInfo.copyId]
+#      levelIds 为 nil 时调 LevelGenerateUtil.generateLevelByMode(...)
+#      -> modeRule == "main_plot" 走 _DungeonGenerateLevelList
+#      -> 直接用 copyData.rootLevel（guide_01 是 [50001,50002,50003]）
+#    **也就是说关卡列表完全由客户端从 BDD 生成，服务端只要给 copyId。**
+#
+# 5) 打完：avatarcomponent/avatardungeoncomp.lua:217 FinishDungeonSpace(finishInfo)
+#      -> Cmd_OfflineSpace_Finish_CS {finishInfo}
+#    服务端据此完成剧情任务（FinishDungeon 事件）并把 story_finished[storyId] 置真。
+
+_STORY_TYPE_MAINSTORY = 1004
+
+
+def _resolve_copy_id(match_info):
+    """按 match_info 解析出 Level_CopyData 的 copyId。"""
+    if not isinstance(match_info, dict):
+        return None
+    st = match_info.get("system_type")
+    # MainStory: StoryLineData[storyID].dungeonId
+    if st == _STORY_TYPE_MAINSTORY:
+        sid = match_info.get("storyID") or match_info.get("storyId")
+        line = gamedata.story_line(sid)
+        if isinstance(line, dict) and line.get("dungeonId"):
+            return line["dungeonId"]
+        return None
+    # 其它系统：先看调用方有没有直接给 copyId / dungeonId
+    for k in ("copyId", "dungeonid", "dungeonId"):
+        v = match_info.get(k)
+        if isinstance(v, str) and v:
+            return v
+    return None
+
+
+def _avatar_start_game(rid, params, uid=None):
+    """Cmd_Avatar_StartGame_CS {match_info} —— 副本入口，回 spaceInfo。"""
+    vals = decode_params(params)
+    match_info = vals[0] if (isinstance(vals, list) and vals
+                             and isinstance(vals[0], dict)) else {}
+    if not isinstance(match_info, dict):
+        match_info = {}
+    copy_id = _resolve_copy_id(match_info)
+    if not copy_id:
+        print("[dungeon] 解析不出 copyId，match_info=%s" % match_info, flush=True)
+        return [msmod.build_entity_response(
+            rid, ret={"status": False, "errorcode": 1})]
+    copy_cfg = gamedata.level_copy(copy_id) or {}
+    roots = copy_cfg.get("rootLevel") or []
+    # ★ 注意嵌套：客户端 SpaceUtils.enterOnlineHub(stage, data, offlineSpace)
+    #   读的是 data.spaceInfo.copyId / data.spaceInfo.levelIndex，
+    #   而 Storyline_StartGame_Callback 传进去的是 resp.spaceInfo。
+    #   所以 RPC 应答的 spaceInfo 字段里还要再套一层 spaceInfo。
+    #   踩过：只给一层时客户端报
+    #     SpaceUtils.lua:226 attempt to index field 'spaceInfo' (a nil value)
+    inner = {
+        "copyId": copy_id,
+        "levelIndex": 1,          # getCopy 是 1-based
+        "systemType": match_info.get("system_type"),
+        "match_info": match_info,
+    }
+    if roots:
+        inner["levelIds"] = [int(x) for x in roots if isinstance(x, int)]
+    space_info = {"spaceInfo": inner, "battleInfo": {}}
+    st = _state(uid)
+    st.props["_oo_cur_copy"] = copy_id
+    st.save()
+    print("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots), flush=True)
+    resp = {"status": True, "spaceInfo": space_info}
+    return [msmod.build_entity_response(rid, ret=dict(ACK_OK), resp=resp)]
+
+
+def _storyline_finish_game(rid, params, uid=None):
+    """Storyline_FinishGame {storyID, passed, useTime} —— 标记剧情段落完成。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        sid = int(vals[0] or 0)
+    except Exception:
+        return frames
+    passed = True
+    if len(vals) > 1:
+        passed = bool(vals[1])
+    if not passed:
+        return frames
+    st = _state(uid)
+    sf = st.props.get("story_finished")
+    if not isinstance(sf, dict):
+        return frames
+    if sf.get(sid) is not True:
+        sf[sid] = True
+        st.set("story_finished", sf)
+        st.save()
+        frames.append(msmod.build_property_sync(
+            "", sf.get("__id__") or 0,
+            msmod.OP_CHANGE if sid in sf else msmod.OP_ADD,
+            str(sid), True))
+    print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)
     return frames
 
 
@@ -1949,7 +2092,9 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RollbackSpaceTask_CS", _ack_only),
                    ("Cmd_OfflineSpace_Finish_CS", _offline_space_finish),
                    ("Cmd_Dungeon_FinishInteract_CS", _ack_only),
-                   ("Cmd_Infinite_FinishInteract_CS", _ack_only)):
+                   ("Cmd_Infinite_FinishInteract_CS", _ack_only),
+                   ("Cmd_Avatar_StartGame_CS", _avatar_start_game),
+                   ("Storyline_FinishGame", _storyline_finish_game)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 

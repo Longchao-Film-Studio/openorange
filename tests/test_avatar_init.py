@@ -77,7 +77,12 @@ def run():
     check("player_name 非空", isinstance(props.get("player_name"), str)
           and props["player_name"] != "", props.get("player_name"))
     check("gender = 1（男）", props.get("gender") == 1, props.get("gender"))
-    check("story_finished[1] 为真", props["story_finished"].get("#1") is True)
+    # ★ 2026-10-21 改：序章副本已实现，基础 initDict 里 story_finished 留空，
+    #   新号会真的走序章（clientavatar.lua:178-203 CheckEnterPrologue）。
+    #   想跳过序章用 --unlock-all，脚手架会把 story_finished[1] 置真。
+    check("story_finished 默认空（新号走序章）",
+          not [k for k in props["story_finished"] if k.startswith("#")],
+          props["story_finished"])
     # ★ street_id 必须是 101，不能是 0。
     # loginmanager.lua:118-135：street_id ~= 0 走 JumpToStreetStage，
     # 否则走 JumpToHallStage（大厅 sc_mainstage，这一版资源里没有）。
@@ -163,12 +168,12 @@ def run():
     check("嵌套也转换", 7 in conv["a"]["b"])
     check("普通键保留", "b" in conv["a"])
 
-    print("\n[7] 整体 msgpack 编码可解码且能还原 story_finished[1]")
+    print("\n[7] 整体 msgpack 编码可解码且能还原 characterBag 整数键")
     raw = msmod.mp_map(msmod._conv_int_keys(props))
     check("编码非空", len(raw) > 10000, len(raw))
     back, used = msmod.mp_decode(raw)
     check("解码消耗完整个缓冲区", used == len(raw), (used, len(raw)))
-    check("解码后 story_finished 有整数键 1", 1 in back["story_finished"])
+    check("解码后 story_finished 是空 dict", isinstance(back["story_finished"], dict))
     check("解码后 characterBag 有整数键 9001", 9001 in back["characterBag"])
 
     print("\n[8] 阶段 1 三个组件的属性覆盖（config.lua PropertyCallbacks 反查）")
