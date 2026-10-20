@@ -91,6 +91,14 @@ RPC_INDEX = {
     "Street_Mainline_Levelup_CS": 484169195,
     "finishStreetStoryline_CS": 1586165443,
     "RpcGetEdenChatHistory": 1469599847,
+    # --- 街景声望（3 条） ---
+    "RequestAddPrestigeExp_CS": 685191554,
+    "RequestGetPrestigeAward_CS": 980877859,
+    "RequestGetPrestigeTaskAward_CS": 285611839,
+    # --- 街景派遣（3 条） ---
+    "RequestDispatchChar_CS": 358282292,
+    "RequestFinishDispatch_CS": 538869841,
+    "RequestCancelDispatchChar_CS": 515348959,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -1165,6 +1173,250 @@ def _eden_chat_history(rid, params, uid=None):
     return frames
 
 
+# ---------------------------------------------------------------------------
+# 街景声望（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:
+#   getPrestigePrize_CS(streetId, level) -> RequestGetPrestigeAward_CS {streetId, level}  :137-139
+#   addPrestigeExp_CS(exp)               -> RequestAddPrestigeExp_CS {exp}               :141-143
+#   getPrestigeTaskAward_CS(streetId, prestigeTaskId)                                    :99-101
+#
+# 数据在 StreetInfo（generated/config.lua:6834）：
+#   prestige_street_id  声望归属街区
+#   prestige_level      当前声望等级
+#   prestige_exp        当前等级内的经验
+#   prestige_awarded    IntDictKeyInt，已领过的等级奖励标记为 1
+#   prestige_tasks      IntDictKeyInt，声望任务状态
+# 升级阈值在 BDD StreetPrestigeData[streetId]（每条有 needExpNum / level / levelAward）。
+
+
+def _prestige_info(st, street_id=None):
+    """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。"""
+    if street_id is None:
+        street_id = int(st.props.get("street_id") or 0)
+    si, entry = _street_info_of(st, street_id)
+    if entry is None:
+        return None, None, None
+    if not isinstance(entry.get("prestige_awarded"), dict):
+        entry["prestige_awarded"] = {"__id__": st.next_property_id()}
+    if not isinstance(entry.get("prestige_tasks"), dict):
+        entry["prestige_tasks"] = {"__id__": st.next_property_id()}
+    if not entry.get("prestige_street_id"):
+        entry["prestige_street_id"] = street_id
+    return si, entry, street_id
+
+
+def _prestige_push(st, si, street_id, entry):
+    return [msmod.build_property_sync(
+        "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
+
+
+def _add_prestige_exp(rid, params, uid=None):
+    """RequestAddPrestigeExp_CS {exp} —— 加声望经验，够了就升级。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        add = int(vals[0] or 0)
+    except Exception:
+        return frames
+    if add <= 0:
+        return frames
+    st = _state(uid)
+    si, entry, street_id = _prestige_info(st)
+    if entry is None:
+        return frames
+    entry["prestige_exp"] = int(entry.get("prestige_exp") or 0) + add
+    rows = gamedata.street_prestige(entry.get("prestige_street_id") or street_id)
+    by_level = {}
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("level"), int):
+            by_level[row["level"]] = int(row.get("needExpNum") or 0)
+    lv = int(entry.get("prestige_level") or 0)
+    exp = int(entry["prestige_exp"])
+    while True:
+        need = by_level.get(lv + 1)
+        if need is None or exp < need:
+            break
+        exp -= need
+        lv += 1
+    entry["prestige_level"] = lv
+    entry["prestige_exp"] = exp
+    st.set("street_info", si)
+    st.save()
+    print("[street] 声望 +%s -> level=%s exp=%s" % (add, lv, exp), flush=True)
+    frames.extend(_prestige_push(st, si, street_id, entry))
+    return frames
+
+
+def _get_prestige_award(rid, params, uid=None):
+    """RequestGetPrestigeAward_CS {streetId, level} —— 领声望等级奖励。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        street_id = int(vals[0] or 0)
+        level = int(vals[1] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    si, entry, sid = _prestige_info(st, street_id)
+    if entry is None:
+        return frames
+    entry["prestige_awarded"][level] = 1
+    st.set("street_info", si)
+    st.save()
+    print("[street] 领声望奖励 street=%s level=%s" % (street_id, level), flush=True)
+    frames.extend(_prestige_push(st, si, sid, entry))
+    return frames
+
+
+def _get_prestige_task_award(rid, params, uid=None):
+    """RequestGetPrestigeTaskAward_CS {streetId, prestigeTaskId} —— 领声望任务奖励。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        street_id = int(vals[0] or 0)
+        task_id = int(vals[1] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    si, entry, sid = _prestige_info(st, street_id)
+    if entry is None:
+        return frames
+    entry["prestige_tasks"][task_id] = 1
+    st.set("street_info", si)
+    st.save()
+    print("[street] 领声望任务奖励 street=%s task=%s" % (street_id, task_id), flush=True)
+    frames.extend(_prestige_push(st, si, sid, entry))
+    return frames
+
+
+# ---------------------------------------------------------------------------
+# 街景派遣（阶段 2）
+# ---------------------------------------------------------------------------
+# 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:277-300：
+#   RequestDispatchChar_CS {char_id, dip_id}    派角色去打工
+#   RequestFinishDispatch_CS {dip_id}           完成（领收益）
+#   RequestCancelDispatchChar_CS {dip_id}       取消
+#   getDispacthData(dip_id) = self.street_dispatch[dip_id]
+#
+# street_dispatch 是 StreetDispatchDict（Dict<int, StreetDispatchInfo>），
+# 客户端靠 entryAdded/entryDeleted/changed 三个回调刷新 UI，
+# 所以新增/删除都要推对应 optype：
+#   新增 -> OP_ADD（对应 entryAdded）
+#   删除 -> OP_DEL（对应 entryDeleted）
+#   修改 -> OP_CHANGE（对应 changed）
+#
+# StreetDispatchInfo（generated/config.lua）：
+#   street_id / dispatch_id / char_id / beg_time / end_time
+
+_DISPATCH_DEFAULT_DURATION = 3600
+
+
+def _dispatch_dict(st):
+    d = st.props.get("street_dispatch")
+    if not isinstance(d, dict):
+        return None
+    return d
+
+
+def _dispatch_char(rid, params, uid=None):
+    """RequestDispatchChar_CS {char_id, dip_id}。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        char_id = int(vals[0] or 0)
+        dip_id = int(vals[1] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    d = _dispatch_dict(st)
+    if d is None:
+        return frames
+    now = int(time.time())
+    entry = {
+        "__tp__": "StreetDispatchInfo",
+        "__id__": st.next_property_id(),
+        "street_id": int(st.props.get("street_id") or 0),
+        "dispatch_id": dip_id,
+        "char_id": char_id,
+        "beg_time": now,
+        "end_time": now + _DISPATCH_DEFAULT_DURATION,
+    }
+    d[dip_id] = entry
+    st.set("street_dispatch", d)
+    st.save()
+    print("[street] 派遣 char=%s dip=%s" % (char_id, dip_id), flush=True)
+    frames.append(msmod.build_property_sync(
+        "", d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
+    return frames
+
+
+def _finish_dispatch(rid, params, uid=None):
+    """RequestFinishDispatch_CS {dip_id} —— 完成派遣，把 end_time 提前到 now。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        dip_id = int(vals[0] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    d = _dispatch_dict(st)
+    if d is None or not isinstance(d.get(dip_id), dict):
+        return frames
+    entry = d[dip_id]
+    entry["end_time"] = int(time.time())
+    st.set("street_dispatch", d)
+    st.save()
+    print("[street] 完成派遣 dip=%s" % dip_id, flush=True)
+    frames.append(msmod.build_property_sync(
+        "", d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
+    return frames
+
+
+def _cancel_dispatch(rid, params, uid=None):
+    """RequestCancelDispatchChar_CS {dip_id} —— 取消派遣。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        dip_id = int(vals[0] or 0)
+    except Exception:
+        return frames
+    st = _state(uid)
+    d = _dispatch_dict(st)
+    if d is None or dip_id not in d:
+        return frames
+    del d[dip_id]
+    st.set("street_dispatch", d)
+    st.save()
+    print("[street] 取消派遣 dip=%s" % dip_id, flush=True)
+    frames.append(msmod.build_property_sync(
+        "", d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
+    return frames
+
+
+def _play_act_emoji(params, uid=None):
+    """RpcPlayActEmoji [emoji_id] —— AOI 表情广播，单机无别人，记录即可。"""
+    vals = decode_params(params)
+    if isinstance(vals, list) and vals:
+        try:
+            _state(uid).props["_oo_last_emoji"] = int(vals[0] or 0)
+        except Exception:
+            pass
+    return []
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1457,7 +1709,13 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RequestStreetTreasure_CS", _street_treasure_rpc),
                    ("Street_Mainline_Levelup_CS", _mainline_levelup),
                    ("finishStreetStoryline_CS", _finish_storyline),
-                   ("RpcGetEdenChatHistory", _eden_chat_history)):
+                   ("RpcGetEdenChatHistory", _eden_chat_history),
+                   ("RequestAddPrestigeExp_CS", _add_prestige_exp),
+                   ("RequestGetPrestigeAward_CS", _get_prestige_award),
+                   ("RequestGetPrestigeTaskAward_CS", _get_prestige_task_award),
+                   ("RequestDispatchChar_CS", _dispatch_char),
+                   ("RequestFinishDispatch_CS", _finish_dispatch),
+                   ("RequestCancelDispatchChar_CS", _cancel_dispatch)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -1531,6 +1789,7 @@ _ONE_WAY_HANDLERS = {
     1675033651: _clear_treasure_actor,  # RequestClearStreetTreasureActor_CS
     2137482665: _leave_surface,         # RequestLeaveStreetSurface_CS
     1282426820: _touch_treasure,        # RequestTouchTreasure_CS
+    2000707256: _play_act_emoji,        # RpcPlayActEmoji（AOI）
 }
 
 

@@ -56,7 +56,7 @@ def run():
     print("\n[1] 索引表完整性")
     # 42 = 1-1(9) + 1-2(4) + 1-3(22) + 登录链路(7)；再加编队 4 条 = 46
     # 42 = 1-1(9)+1-2(4)+1-3(22)+登录链路(7)；+编队 4=46；+街区 3=49；+剧情 3=52
-    check("条目数 66", len(erpc.RPC_INDEX) == 66, len(erpc.RPC_INDEX))
+    check("条目数 72", len(erpc.RPC_INDEX) == 72, len(erpc.RPC_INDEX))
     check("索引全不重复", len(set(erpc.RPC_INDEX.values())) == len(erpc.RPC_INDEX))
     check("索引全为正数", all(v > 0 for v in erpc.RPC_INDEX.values()))
     check("反查表一致",

@@ -139,6 +139,15 @@ def task(task_id):
     return v if isinstance(v, dict) else None
 
 
+def street_prestige(street_id):
+    """StreetPrestigeData[street_id] —— 该街区的声望等级表（list，含 needExpNum/level/levelAward）。"""
+    d = table("StreetPrestigeData")
+    if not d:
+        return []
+    v = d.get(str(street_id)) or d.get(street_id)
+    return v if isinstance(v, list) else []
+
+
 def all_system_catalogue():
     d = table("AllSystemCatalogueData")
     if not d:
