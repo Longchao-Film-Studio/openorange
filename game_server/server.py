@@ -694,14 +694,16 @@ def _handle_gate_probe(conn, addr, cid):
                     #   客户端就已经在实体层了（onBecomePlayer 随后触发）。
                     if label == "createChannelEntity" and shared_db is not None:
                         try:
+                            # username 用解析后的 uid（登录名），不是 ms query 里的
+                            # 原始 account_id（oo_+sha256）
+                            _uid = _uid_of(cid)
                             shared_db.set_game_online(
                                 session_id="gate-%03d" % cid,
-                                username=_last_username,
-                                uid=_uid_of(cid),
-                                entity_id="avatar_%s" % _uid_of(cid),
+                                username=_uid,
+                                uid=_uid,
+                                entity_id=ooconf.avatar_entity_id(_uid),
                                 addr="%s:%d" % (addr[0], addr[1]))
-                            print("[GATE] #%03d 在线登记 %s"
-                                  % (cid, _last_username or "(未知账号)"), flush=True)
+                            print("[GATE] #%03d 在线登记 %s" % (cid, _uid), flush=True)
                         except Exception as _e:
                             print("[GATE] #%03d 在线登记失败: %s" % (cid, _e), flush=True)
     except Exception as e:

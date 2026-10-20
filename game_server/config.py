@@ -84,12 +84,22 @@ ONLINE_STALE_SEC = 120
 #   （脚手架只在「首次为该账号建状态」时应用）。
 
 
+# --unlock-all 时默认把等级也拉到这个值。
+# AllSystemCatalogueData 里有一批系统是 unlockType=3(Level)，门槛 4/5/6/7；
+# 只解锁不拉等级的话这些入口还是会弹「暂未开放」。
+# 想保留真实等级用 --level 1。
+SCAFFOLD_LEVEL = 10
+
+
 class Scaffold(object):
     """脚手架开关。默认全关 —— 走和真实游戏一致的开局。"""
 
     def __init__(self, unlock_all=False, level=None, all_tasks_done=None):
         self.unlock_all = bool(unlock_all)
-        # 等级覆盖。None = 用 avatar_init.json 里的值。
+        # 等级覆盖。None = 用 avatar_init.json 里的值；
+        # unlock_all 时默认拉到 SCAFFOLD_LEVEL（和重构前一致）。
+        if level is None and self.unlock_all:
+            level = SCAFFOLD_LEVEL
         self.level = level
         # 任务全完成。None = 跟随 unlock_all。
         self.all_tasks_done = (self.unlock_all if all_tasks_done is None
