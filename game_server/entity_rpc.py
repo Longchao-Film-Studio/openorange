@@ -493,6 +493,18 @@ def _story_sync_frames(st, changes):
             _, name, value = ch
             frames.append(msmod.build_property_sync(
                 "", 0, msmod.OP_CHANGE, name, value))
+        elif kind == "add":
+            # ★ 给自定义 dict **加新键**必须用 OP_ADD（客户端 __OpAdd__），
+            #   用 OP_CHANGE 会走 __OpChange__，那里 oldVal 为 nil 直接报
+            #   "subproperty is nil" 并把这次变更丢掉。
+            #   实测症状：剧情任务完成后 story_task_bag 删掉了，
+            #   但 done_story_tasks 里没有 -> 客户端 getTaskStateByTaskID 返回 -1。
+            _, container, key, value = ch
+            c = st.props.get(container)
+            if not isinstance(c, dict):
+                continue
+            frames.append(msmod.build_property_sync(
+                "", c.get("__id__") or 0, msmod.OP_ADD, str(key), value))
         elif kind == "sub":
             _, container, key, value = ch
             c = st.props.get(container)
@@ -558,16 +570,18 @@ def _finish_story_tasks(st, task_ids):
             continue
         changes = story.finish_story_task(st, tid, now)
         frames.extend(_story_sync_frames(st, changes))
-        # 发奖励
-        for item_id, _cnt in story.story_award(st, tid):
+        # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
+        for award in story.story_award(st, tid):
+            _item_id, _cnt, grid_key, is_new = award
             bag = st.props.get("item_bag")
             if not isinstance(bag, dict):
                 break
-            for key, grid in bag.items():
-                if isinstance(grid, dict) and grid.get("itemId") == item_id:
-                    frames.append(msmod.build_property_sync(
-                        "", bag.get("__id__") or 0, msmod.OP_CHANGE, str(key), grid))
-                    break
+            grid = bag.get(grid_key)
+            if isinstance(grid, dict):
+                frames.append(msmod.build_property_sync(
+                    "", bag.get("__id__") or 0,
+                    msmod.OP_ADD if is_new else msmod.OP_CHANGE,
+                    str(grid_key), grid))
         print("[story] 完成剧情任务 %s" % tid, flush=True)
     frames.extend(_recalc_story_unlocks(st))
     st.save()

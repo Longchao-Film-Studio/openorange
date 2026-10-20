@@ -151,7 +151,7 @@ def start_story_task(st, task_id, now):
     item = make_story_task_item(st, task_id, TASK_STATE_DOING, now)
     bag[task_id] = item
     st.set("story_task_bag", bag)
-    return [("sub", "story_task_bag", task_id, item)]
+    return [("add", "story_task_bag", task_id, item)]
 
 
 def finish_story_task(st, task_id, now):
@@ -171,7 +171,7 @@ def finish_story_task(st, task_id, now):
     bag.pop(task_id, None)
     st.set("done_story_tasks", done)
     st.set("story_task_bag", bag)
-    out.append(("sub", "done_story_tasks", task_id, item))
+    out.append(("add", "done_story_tasks", task_id, item))
     out.append(("del", "story_task_bag", task_id, None))
 
     # 按 PostTasks 推进下一个
@@ -197,9 +197,10 @@ def story_award(st, task_id):
             continue
         if count <= 0:
             continue
-        newnum = add_item(st.props, item_id, count)
-        if newnum is not None:
-            out.append((item_id, newnum))
+        got = add_item(st.props, item_id, count)
+        if got is not None:
+            newnum, grid_key, is_new = got
+            out.append((item_id, newnum, grid_key, is_new))
     return out
 
 
@@ -338,7 +339,10 @@ def check_chain_tasks(st, now=None):
     return hits, []
 
 def add_item(props, item_id, count):
-    """往 item_bag 加道具（有则叠加，无则新建格子）。返回该道具的新数量。"""
+    """往 item_bag 加道具（有则叠加，无则新建格子）。
+
+    返回 (新数量, 格子键, 是否新建)。是否新建决定同步用 OP_ADD 还是 OP_CHANGE。
+    """
     bag = props.get("item_bag")
     if not isinstance(bag, dict):
         return None
@@ -347,7 +351,7 @@ def add_item(props, item_id, count):
             continue
         old = int(grid.get("num") or 0)
         grid["num"] = old + int(count)
-        return grid["num"]
+        return grid["num"], key, False
     # 新建格子：找一个没用的整数键
     used = {k for k in bag if isinstance(k, int)}
     new_key = (max(used) + 1) if used else 1
@@ -361,7 +365,7 @@ def add_item(props, item_id, count):
         "expireTime": 0.0,
         "getTime": 0.0,
     }
-    return int(count)
+    return int(count), new_key, True
 
 
 def _next_id_for_props(props):

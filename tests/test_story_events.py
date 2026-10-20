@@ -134,6 +134,27 @@ def run():
     check("返回列表", isinstance(hits5, list), hits5)
     check("不返回同步项（纯检测）", out5 == [], out5)
 
+    print("\n[10] 新增条目必须用 add（OP_ADD）")
+    # 2026-10-20 实机踩过：给自定义 dict 加新键用 OP_CHANGE，客户端
+    # __OpChange__ 里 oldVal 为 nil 直接报 "subproperty is nil" 并把变更丢掉。
+    # 症状：剧情任务完成后 story_task_bag 删掉了，但 done_story_tasks 里没有，
+    #       客户端 getTaskStateByTaskID 返回 -1（不是 6）。
+    st6 = fresh("se_e")
+    ch_start = story.start_story_task(st6, 1003, 1700000000)
+    check("start_story_task 用 add",
+          bool(ch_start) and ch_start[0][0] == "add", ch_start[:1])
+    st7 = fresh("se_f")
+    ch_fin = story.finish_story_task(st7, 1000, 1700000000)
+    kinds = [c[0] for c in ch_fin]
+    check("done_story_tasks 用 add", "add" in kinds, kinds)
+    check("story_task_bag 用 del", "del" in kinds, kinds)
+    # 新格子发奖也用 OP_ADD
+    got = story.add_item(st7.props, 99999, 3)
+    check("add_item 返回 (数量, 键, 是否新建)", isinstance(got, tuple) and len(got) == 3,
+          got)
+    if isinstance(got, tuple) and len(got) == 3:
+        check("新道具 is_new = True", got[2] is True, got)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

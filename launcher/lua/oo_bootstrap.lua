@@ -1114,6 +1114,40 @@ local function probe_street_switch()
     end)
   end)
 end
+-- 剧情推进实机验证：模拟副本结算 Cmd_OfflineSpace_Finish_CS
+-- 链条：StoryTask 1000 (TaskType=3, Parameter1=[1])
+--   -> TaskData[1] "完成序章" -> TaskEventData[4001]
+--   -> FinishDungeon{typeId:1004, modeId:1, level:1}
+local function probe_story_advance()
+  if pc.storyadvanced then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    local A = GlobalData.Avatar
+    if A == nil or A.server == nil or A:isServerLost() then return end
+    pc.storyadvanced = true
+    LOG('storyprobe2| 结算前 1000=' .. tostring(A:getTaskStateByTaskID(1000))
+      .. ' 1003=' .. tostring(A:getTaskStateByTaskID(1003)))
+    local ok, err = pcall(function()
+      A:serverRpc('Cmd_OfflineSpace_Finish_CS',
+        {{typeId = 1004, modeId = 1, level = 1}})
+    end)
+    LOG('storyprobe2| 发结算 ok=' .. tostring(ok) .. ' err=' .. tostring(err))
+    TimerManager.addTimer(3, function()
+      pcall(function()
+        LOG('storyprobe2| 结算后 1000=' .. tostring(A:getTaskStateByTaskID(1000))
+          .. ' 1003=' .. tostring(A:getTaskStateByTaskID(1003)))
+        local mgr = StreetSystemMgr.GetInstance()
+        local n = 0
+        if mgr and mgr._allActorByUniqueName then
+          for _ in pairs(mgr._allActorByUniqueName) do n = n + 1 end
+        end
+        LOG('storyprobe2| 街上 actor 数=' .. tostring(n))
+      end)
+    end)
+  end)
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1398,6 +1432,7 @@ OO_PROBE_RPC = false    -- Set* 系列端到端探针（会改数据，默认关
 OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
 OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
 OO_PROBE_STREET = false -- 街区切换探针（会主动发切街区 RPC）
+OO_PROBE_STORY_ADV = false -- 剧情推进探针（会模拟副本结算）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1797,6 +1832,9 @@ local function install_cb_wrappers()
           -- 街区切换探针默认关（会主动发 RPC 干扰正常流程）；排障时置 true
           if OO_PROBE_STREET then
             if (pc.frames % 30) == 27 then pcall(probe_street_switch) end
+          end
+          if OO_PROBE_STORY_ADV then
+            if (pc.frames % 30) == 28 then pcall(probe_story_advance) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
