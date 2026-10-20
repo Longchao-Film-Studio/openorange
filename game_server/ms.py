@@ -428,9 +428,24 @@ def _live_init_dict(uid=None):
     #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
     #   数据来源是 entity_rpc 的 _update_street_pos / _client_move
     #   存下的 _oo_street_pos。
-    # ★ 位置恢复暂时停用：street_pos_info 没有客户端可用的自定义类型，
-    #   用 Pos 会导致 ClientAvatar:init 抛错（实机验证过，见 build_avatar_init.py 注释）。
-    #   服务端仍然保存 _oo_street_pos，等找到对的类型再接回来。
+    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
+    #   street_pos_info 的类型是 DoubleDict（Dict<string,double>），
+    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点：
+    #     local posinfo = obj:getStreetPosInfo()
+    #     if posinfo and posinfo.x then remotePosInfo = copy(posinfo) end
+    #   :654 用 remotePosInfo.x/y/z 定位、.dir 定朝向。
+    _sp = st.props.get("_oo_street_pos")
+    if isinstance(_sp, dict):
+        _spi = st.props.get("street_pos_info")
+        if isinstance(_spi, dict):
+            try:
+                _spi["x"] = float(_sp.get("x") or 0)
+                _spi["y"] = float(_sp.get("y") or 0)
+                _spi["z"] = float(_sp.get("z") or 0)
+                _spi["dir"] = float(_sp.get("dir") or 0)
+                st.props["street_pos_info"] = _spi
+            except Exception:
+                pass
 
     # ★ 新号的剧情起点（正式路径，不是脚手架）：
     #   把 StoryTaskData[1000] 设为进行中。街景 NPC 的 preTask 命中

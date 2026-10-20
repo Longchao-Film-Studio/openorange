@@ -39,15 +39,21 @@ def check(name, cond, detail=None):
 
 
 def run():
-    print("\n[1] street_pos_info 不能进 initDict（会破坏客户端）")
-    # 2026-10-20 实机验证：给它 Pos 类型后客户端必现
-    #   class ClientAvatar function init must have a boolean return value
-    #   traceback -> AvatarBagComp:refreshLocalBagData
-    # 去掉就正常。所以位置持久化暂时只做服务端存储，不下发。
+    print("\n[1] street_pos_info 必须是 DoubleDict（不是 Pos）")
+    # 2026-10-20 实机验证：
+    #   用 Pos（结构体）-> 客户端必崩：
+    #     class ClientAvatar function init must have a boolean return value
+    #     traceback -> AvatarBagComp:refreshLocalBagData
+    #   用 DoubleDict（Dict<string,double>）-> 正常，且位置真的恢复。
+    #   依据：street_pos_info 在 PropertyCallbacks 里声明的是 customDict；
+    #   core/propertysync/customdict.lua:21-30 的 __index 直接读 _properties[k]，
+    #   所以客户端 streetsystemmgrbase.lua:562 的 posinfo.x 能正常工作。
     config.configure_scaffold()
     d = msmod._live_init_dict("pos_a")["__Properties__"]
-    check("initDict 里没有 street_pos_info", "street_pos_info" not in d,
-          d.get("street_pos_info"))
+    spi = d.get("street_pos_info") or {}
+    check("street_pos_info 存在", bool(spi))
+    check("__tp__ = DoubleDict", spi.get("__tp__") == "DoubleDict",
+          spi.get("__tp__"))
 
     print("\n[1b] 回归：initDict 里不能有服务端私有字段")
     # 2026-10-20 踩过：_oo_street_pos 是普通 dict，被写进 initDict，
@@ -71,10 +77,11 @@ def run():
           (st.props.get("_oo_street_pos") or {}).get("x") == 12.5,
           st.props.get("_oo_street_pos"))
     pstate._STATES.clear()
-    st2 = pstate.get_state(uid="pos_a")
-    saved = st2.props.get("_oo_street_pos") or {}
-    check("重登后服务端仍记得 x", abs(saved.get("x", 0) - 12.5) < 1e-6, saved)
-    check("重登后服务端仍记得 z", abs(saved.get("z", 0) - 88.75) < 1e-6, saved)
+    d2 = msmod._live_init_dict("pos_a")["__Properties__"]
+    spi2 = d2.get("street_pos_info") or {}
+    check("重登后 x 恢复", abs(spi2.get("x", 0) - 12.5) < 1e-6, spi2)
+    check("重登后 z 恢复", abs(spi2.get("z", 0) - 88.75) < 1e-6, spi2)
+    check("重登后 dir 也带上", abs(spi2.get("dir", 0) - 1.57) < 1e-6, spi2)
 
     print("\n[3] 节流：短时间内第二次上报不重复写盘")
     erpc._LAST_SAVE.clear()

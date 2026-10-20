@@ -122,6 +122,19 @@ REQUIRED = {
     #
     # 客户端没有任何类型同时带 x/y/z/dir（全表搜过），所以用 Pos（x/y/z, double）。
     # dir 为 nil 时 setRotation(x, nil, z) 会被 xlua 转成 0 —— 位置对了，朝向取默认。
+    # ★ 用 DoubleDict（Dict<string,double>）—— 不是 Pos。
+    #   踩过的坑：用 Pos（{x,y,z} 结构体）会让客户端
+    #     ClientAvatar function init must have a boolean return value
+    #   traceback -> AvatarBagComp:refreshLocalBagData，必现。
+    #   原因：street_pos_info 在 PropertyCallbacks 里声明的是 customDict，
+    #   而 Pos 不是 dict 类型，初始化时的回调注册对不上。
+    #
+    #   DoubleDict 才是对的：core/propertysync/customdict.lua:21-30 的 __index
+    #   直接读 _properties[k]，所以客户端 streetsystemmgrbase.lua:562 的
+    #     if posinfo and posinfo.x then ...
+    #     for key, value in pairs(posinfo) do remotePosInfo[key] = value end
+    #   两处都能正常工作，而且 dir 也能带上（Pos 没有 dir 字段）。
+    "street_pos_info": "DoubleDict",
     # ★ 2026-10-20 试过但**回滚**了：给 street_pos_info 用 Pos 类型会破坏客户端。
     #   加了之后实机必现：
     #     class ClientAvatar function init must have a boolean return value
