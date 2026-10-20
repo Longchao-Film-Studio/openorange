@@ -95,6 +95,30 @@ def _as_map(props, name, tp=None):
     return None
 
 
+# 主线第一环：StoryTaskData[1000]「好戏开拍」（main_01 笼律鸟）
+FIRST_STORY_TASK = 1000
+
+
+def init_new_player(st, now=None):
+    """新号的剧情起点：把第一环设为进行中。
+
+    这是**正式路径**，不是脚手架：真实玩家进游戏时，服务端本来就该
+    把第一个剧情任务放进 story_task_bag 并设为 Doing(3)。
+    街景 NPC 的 preTask 命中 Doing(3) 才会出现，所以这一步同时
+    决定了「街上有没有 NPC」。
+
+    返回启动的任务 id 列表。
+    """
+    import time as _t
+    now = int(now if now is not None else _t.time())
+    out = []
+    changes = start_story_task(st, FIRST_STORY_TASK, now)
+    if changes:
+        out.append(FIRST_STORY_TASK)
+        print("[story] 新号剧情起点：任务 %s 设为进行中" % FIRST_STORY_TASK, flush=True)
+    return out
+
+
 def story_state(props, task_id):
     bag = _as_map(props, "story_task_bag")
     if isinstance(bag, dict):

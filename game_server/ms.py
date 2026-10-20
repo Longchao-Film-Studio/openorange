@@ -424,6 +424,25 @@ def _live_init_dict(uid=None):
                 print("[init] 脚手架应用失败: %s" % e, flush=True)
         st._scaffold_applied = True
 
+    # ★ 新号的剧情起点（正式路径，不是脚手架）：
+    #   把 StoryTaskData[1000] 设为进行中。街景 NPC 的 preTask 命中
+    #   Doing(3) 才会出现，所以这一步决定「街上有没有 NPC」。
+    #   脚手架开了「任务全完成」时跳过，避免和假数据打架。
+    if getattr(st, "is_new", False):
+        try:
+            from . import story as story_mod
+        except Exception:
+            try:
+                import story as story_mod
+            except Exception:
+                story_mod = None
+        if story_mod is not None:
+            try:
+                if not ooconf.SCAFFOLD.all_tasks_done:
+                    story_mod.init_new_player(st)
+            except Exception as e:
+                print("[init] 剧情起点设置失败: %s" % e, flush=True)
+
     # ★ 体力：新号拉满；每次登录按离线时间补。
     #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
     #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。
