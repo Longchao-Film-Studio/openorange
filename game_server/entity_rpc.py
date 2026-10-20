@@ -57,6 +57,12 @@ RPC_INDEX = {
     "SetChoosenChar_CS": 524477307,
     "SetCharacterList_CS": 811745113,
     "SetCharacterListName_CS": 414235078,
+    # --- 街区切换 avatarstreetcomp（3 条） ---
+    # 客户端发完会自己 JumpToStreetStage 加载场景，但小地图按服务端
+    # street_id 取图，所以必须改属性并推同步（见 _switch_street 注释）。
+    "RequestSwitchStreet_CS": 87385605,
+    "RpcEnterStreet": 831308625,
+    "RequestLeaveStreet_CS": 1707898947,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -290,6 +296,94 @@ def _set_character_list_name(rid, params, uid=None):
     st.save()
     frames.append(msmod.build_property_sync(
         "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+    return frames
+
+
+# ---------------------------------------------------------------------------
+# 街区切换：RequestSwitchStreet_CS / RpcEnterStreet / RequestLeaveStreet_CS
+# ---------------------------------------------------------------------------
+# 逆向依据
+# --------
+# entities/avatarcomponent/avatarstreetcomp.lua:107-128, 651-668：
+#   enterStreet_CS(id)        -> serverRpc("RpcEnterStreet", {id, streetParams})
+#   AvatarStreet_SwitchStreet -> serverRpc("RequestSwitchStreet_CS", {streetId, streetParams})
+#   leaveStreet_CS(id)        -> serverRpc("RequestLeaveStreet_CS", {id})
+#
+# 客户端拿到 status=true 后会自己 JumpToStreetStage(StreetData, streetId) 加载场景，
+# **但小地图是按服务端属性取的**：
+#   ui/panel/mappanel/node_map_small/node_map_smallgroup.lua:30
+#     DataTable("Common", "StreetData")[GlobalData.Avatar:getStreetID()]
+#   entities/avatarcomponent/avatarstreetcomp.lua:24  getStreetID() -> self.street_id
+# 所以服务端必须改 street_id 并推同步，否则场景对了、地图还是旧街区。
+#
+# 另外 street_info 是 StreetInfoDict（generated/config.lua:6834/6928），
+# 客户端多处 getStreetInfo() 直接取 self.street_info[street_id]，nil 会崩，
+# 所以切换时要保证目标街区有条目。
+
+_STREET_INFO_DEFAULTS = {
+    "prestige_street_id": 0,
+    "prestige_level": 0,
+    "prestige_exp": 0,
+    "surface_switch_enter_time": 0,
+    "surface_switch_can_enter_time": 0,
+    "cd_choose": 0,
+}
+
+
+def _ensure_street_info(st, street_id):
+    """确保 street_info[street_id] 存在，返回 (street_info, entry)。
+
+    条目字段照 generated/config.lua:6834 的 StreetInfo 声明；
+    四个 IntDictKeyInt 子表（prestige_awarded / prestige_tasks /
+    treasure_box_info / inter_actor_info）和 exploration_info 留空即可 ——
+    客户端读它们时都做了 `or {}` 兜底。
+    """
+    si = st.get("street_info")
+    if not isinstance(si, dict):
+        return None, None
+    cur = si.get(street_id)
+    if isinstance(cur, dict):
+        return si, cur
+    entry = {"__tp__": "StreetInfo", "__id__": st.next_property_id()}
+    entry.update(_STREET_INFO_DEFAULTS)
+    si[street_id] = entry
+    st.set("street_info", si)
+    return si, entry
+
+
+def _switch_street(rid, params, uid=None):
+    """RequestSwitchStreet_CS {streetId, streetParams} / RpcEnterStreet {id, streetParams}。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        new_id = int(vals[0])
+    except Exception:
+        return frames
+    return _apply_street_change(frames, new_id, uid)
+
+
+def _leave_street(rid, params, uid=None):
+    """RequestLeaveStreet_CS {id} —— 离开街区，street_id 归 0。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    return _apply_street_change(frames, 0, uid)
+
+
+def _apply_street_change(frames, new_id, uid):
+    """改 street_id + 保证 street_info 有条目 + 推两条同步。"""
+    st = _state(uid)
+    old = st.props.get("street_id")
+    st.props["street_id"] = new_id
+    st.save()
+    frames.append(msmod.build_property_sync(
+        "", 0, msmod.OP_CHANGE, "street_id", new_id))
+    if new_id:
+        si, entry = _ensure_street_info(st, new_id)
+        if si is not None and entry is not None:
+            frames.append(msmod.build_property_sync(
+                "", si.get("__id__") or 0, msmod.OP_CHANGE, str(new_id), entry))
+    print("[street] %s -> %s" % (old, new_id), flush=True)
     return frames
 
 
@@ -565,7 +659,10 @@ for _name, _spec in _CONST_SETTERS.items():
 
 # 编队内容（改的是 character_list 的子属性，不是根属性，单独处理）
 for _name, _fn in (("SetCharacterList_CS", _set_character_list),
-                   ("SetCharacterListName_CS", _set_character_list_name)):
+                   ("SetCharacterListName_CS", _set_character_list_name),
+                   ("RequestSwitchStreet_CS", _switch_street),
+                   ("RpcEnterStreet", _switch_street),
+                   ("RequestLeaveStreet_CS", _leave_street)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 

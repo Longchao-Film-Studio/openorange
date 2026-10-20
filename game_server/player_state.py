@@ -95,6 +95,18 @@ class PlayerState(object):
             return value
 
     def next_property_id(self):
+        """分配一个新的属性对象 __id__。
+
+        ★ 必须避开 initDict 里已有的 __id__（那些是 1000+ 的值），
+          否则客户端 __CustomPropertiesCache__[id] 会撞车。
+          所以第一次分配时先把 property_seq 抬到「现有最大 __id__」之上。
+        """
+        if self.property_seq <= 0:
+            self.property_seq = _max_property_id(self.props)
+        self.property_seq += 1
+        return self.property_seq
+
+    def _unused_next_property_id(self):
         """属性同步的序号，客户端用来去重/排序。"""
         with _LOCK:
             self.property_seq += 1
@@ -133,6 +145,20 @@ class PlayerState(object):
             return True
         except Exception:
             return False
+
+
+def _max_property_id(obj, cur=0):
+    """递归找 props 里最大的 __id__。"""
+    if isinstance(obj, dict):
+        v = obj.get("__id__")
+        if isinstance(v, int) and v > cur:
+            cur = v
+        for v2 in obj.values():
+            cur = _max_property_id(v2, cur)
+    elif isinstance(obj, list):
+        for v in obj:
+            cur = _max_property_id(v, cur)
+    return cur
 
 
 def load(uid=DEFAULT_UID):
