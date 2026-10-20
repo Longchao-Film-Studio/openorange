@@ -1256,6 +1256,107 @@ local function probe_enter_hub()
   LOG('ehub| enterOnlineHub ok=' .. tostring(ok) .. ' err=' .. tostring(err))
 end
 
+-- 逐步验证 hub:init / getCopy，定位 enterOfflineBattle 在哪一步停住
+local function probe_hub_steps()
+  if pc.hubsteps then return end
+  local A = GlobalData.Avatar
+  if A == nil or A.server == nil or A:isServerLost() then return end
+  pc.hubsteps = true
+  local ok, err = pcall(function()
+    local HubOnline = require('BattleContainer.DispatchHub.DispatchHubOnline')
+    local hub = HubOnline()
+    local info = {copyId = 'guide_01', levelIndex = 1}
+    -- 真实路径里 enterOnlineHub 会先调 fillSpaceInitInfo（spaceutils.lua:208），
+    -- 补 userList/userTeamList/playerInfoDict/uid/spaceLevel/gameMode。
+    -- 不补的话 hub:init 会在 DispatchHubBase:initProgress 里 pairs(nil) 报错。
+    local SpaceUtils = require('Entities.SpaceEntities.SpaceUtils')
+    SpaceUtils.fillSpaceInitInfo(info, 'guide_01')
+    LOG('hubsteps| fillSpaceInitInfo 后 uid=' .. tostring(info.uid)
+      .. ' spaceLevel=' .. tostring(info.spaceLevel)
+      .. ' userList=' .. tostring(info.userList ~= nil))
+    local okinit, retinit = pcall(function()
+      return hub:init(GlobalConst.EGameStage.OfflineBattle, info, false)
+    end)
+    LOG('hubsteps| hub:init ok=' .. tostring(okinit) .. ' ret=' .. tostring(retinit))
+    local copy = nil
+    local okc, rc = pcall(function() return hub:getCopy(1) end)
+    if okc then copy = rc end
+    LOG('hubsteps| getCopy(1) ok=' .. tostring(okc) .. ' copy=' .. tostring(copy))
+    if copy ~= nil then
+      local ldi = copy.levelDataInfo
+      LOG('hubsteps| levelDataInfo=' .. tostring(ldi ~= nil)
+        .. ' levelId=' .. tostring(ldi and ldi.levelId)
+        .. ' levelData=' .. tostring(ldi and ldi.levelData and ldi.levelData[1]))
+      LOG('hubsteps| copy.battleInfo=' .. tostring(copy.battleInfo ~= nil))
+    end
+    LOG('hubsteps| hub.stage=' .. tostring(hub.stage))
+  end)
+  if not ok then LOG('hubsteps| 探针异常: ' .. tostring(err)) end
+end
+
+-- 观察 LoadingStage 的就绪标志，定位卡在哪个 flag
+local function probe_loading_state()
+  pcall(function()
+    local st = game.stageMgr:getCurStage()
+    if st == nil then return end
+    if st.name ~= GlobalConst.EGameStage.Loading then return end
+    if pc.lstatecnt == nil then pc.lstatecnt = 0 end
+    pc.lstatecnt = pc.lstatecnt + 1
+    if pc.lstatecnt > 20 then return end
+    local flags = {}
+    if st._readyFlagState then
+      for k, v in pairs(st._readyFlagState) do
+        table.insert(flags, tostring(k) .. '=' .. tostring(v))
+      end
+    end
+    LOG('lstate|#' .. tostring(pc.lstatecnt)
+      .. ' jump=' .. tostring(st.jump)
+      .. ' flags=' .. table.concat(flags, ',')
+      .. ' jumpStage=' .. tostring(st.data and st.data.jumpStage)
+      .. ' levelName=' .. tostring(st.data and st.data.levelName)
+      .. ' gpType=' .. tostring(st.gamePlayingType))
+  end)
+end
+
+-- 看 LoadStepManager 当前卡在哪个加载步骤
+local function probe_loadstep()
+  pcall(function()
+    local st = game.stageMgr:getCurStage()
+    if st == nil or st.name ~= GlobalConst.EGameStage.Loading then return end
+    if pc.lscnt == nil then pc.lscnt = 0 end
+    pc.lscnt = pc.lscnt + 1
+    if pc.lscnt > 15 then return end
+    local LSM = require('Stage.LoadStep.LoadStepManager')
+    local mgr = LSM.GetInstance()
+    if mgr == nil then
+      LOG('loadstep|#' .. tostring(pc.lscnt) .. ' LoadStepManager 为 nil')
+      return
+    end
+    local name = 'nil'
+    if mgr.curStep ~= nil then
+      local ok, n = pcall(function()
+        local ct = mgr.curStep.__ClassType
+        return ct and ct.typeName or tostring(mgr.curStep)
+      end)
+      name = tostring(n)
+    end
+    LOG('loadstep|#' .. tostring(pc.lscnt)
+      .. ' cur=' .. name
+      .. ' progress=' .. tostring(mgr.curProgress))
+    -- LoadStepUI 并行加载这 4 个面板，某个回调不回就永远卡住。
+    -- PanelNames / battle 都是全局变量（loadstepbuilder.lua 里直接用了）。
+    local bpm = 'ERR'
+    pcall(function() bpm = tostring(battle.battleUiMgr.battlePanelName) end)
+    local pn = 'ERR'
+    pcall(function()
+      pn = tostring(PanelNames.BattleHpPanel) .. '|'
+        .. tostring(PanelNames.MessagePanel) .. '|'
+        .. tostring(PanelNames.BlackPanel)
+    end)
+    LOG('loadstep|   battlePanelName=' .. bpm .. '  panels=' .. pn)
+  end)
+end
+
 local function probe_story()
   if pc.storyprobe then return end
   pcall(function()
@@ -1544,6 +1645,9 @@ OO_PROBE_STORY_ADV = false -- 剧情推进探针（会模拟副本结算）
 OO_PROBE_STORY_NPC = false -- 剧情 NPC 探针（结算前后数街上 actor）
 OO_PROBE_STARTGAME = false -- 副本入口探针（发 StartGame 并打回调）
 OO_PROBE_ENTERHUB = false  -- 直接调 enterOnlineHub 探针
+OO_PROBE_HUBSTEPS = false  -- hub:init/getCopy 分步探针
+OO_PROBE_LOADSTATE = false -- LoadingStage 就绪标志探针
+OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1898,9 +2002,19 @@ local function probe_cs_api()
 
   -- 再拿几个候选名直接问 IsAssetExist，看大厅到底叫什么
   pcall(function()
-    for _, nm in ipairs({ 'sc_mainstage', 'mainstage', 'sc_hall', 'hall',
-                          'sc_zhujiemian', 'sc_zhujiemianchengshi',
-                          'sc_maincity', 'sc_street_main', 'empty', 'login3' }) do
+    for _, nm in ipairs({
+        -- 对照组：已知存在 / 已知缺失
+        'sc_zhpmap_01', 'sc_mainstage',
+        -- 序章副本关卡（LevelData[50001].levelData[1]）
+        'sc_dgarea_prologue_zhp_lv_01',
+        'scenes/Level/prologue/sc_dgarea_prologue_zhp_lv_01',
+        'scenes/Level/sc_dgarea_prologue_zhp_lv_01',
+        'scenes/Level/zhp/sc_dgarea_prologue_zhp_lv_01',
+        -- 主线副本（MainlineData 里能查到的）
+        'sc_dgarea_feiyi_lv_01_plot',
+        'sc_dgarea_jiang_lv_03',
+        'sc_dgarea_qianxianghui_lv_01',
+      }) do
       local ok, v = pcall(function() return inst:IsAssetExist(nm) end)
       LOG('csapi| exist2 ' .. nm .. ' = ' .. tostring(ok and v))
     end
@@ -1955,6 +2069,15 @@ local function install_cb_wrappers()
           end
           if OO_PROBE_ENTERHUB then
             if (pc.frames % 30) == 6 then pcall(probe_enter_hub) end
+          end
+          if OO_PROBE_HUBSTEPS then
+            if (pc.frames % 30) == 7 then pcall(probe_hub_steps) end
+          end
+          if OO_PROBE_LOADSTATE then
+            if (pc.frames % 30) == 8 then pcall(probe_loading_state) end
+          end
+          if OO_PROBE_LOADSTEP then
+            if (pc.frames % 30) == 9 then pcall(probe_loadstep) end
           end
           -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
           if OO_PROBE_MAP then
