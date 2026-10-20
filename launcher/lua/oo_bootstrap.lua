@@ -374,11 +374,15 @@ local function install_instance_tracers(G)
 end
 
 -- ------------------------------------------------------------
--- 自动重连实验
+-- 自动点「开始游戏」（仅 --auto 启用）
 -- ------------------------------------------------------------
--- 目的：服务端会轮换不同的 connectResponse 应答变体，
--- 客户端每 8 秒自动重连一次，于是一次游戏运行就能把候选类型号试完，
--- 不用人工反复点击。
+-- 历史：这段原本是早期爆破阶段的「自动重连实验」——服务端会轮换不同的
+--   connectResponse 应答变体，客户端每 8 秒自动重连一次，一次运行就能把
+--   候选类型号试完，不用人工反复点击。
+-- 现在：它实际上就是「自动点开始游戏」——每 4 秒调一次
+--   G.loginmgr:LoginGameServer()（等价于登录面板的 _btn_login），
+--   最多 6 次。
+-- ★ 必须只在 --auto 时启动，否则不加 --auto 也会自动进游戏。
 -- 用游戏自带的 TimerManager（loginpanel.lua L425 同款），
 -- 不去劫持 GameTick，避免影响主循环。
 local function start_auto_retry(G)
@@ -695,7 +699,15 @@ local function install_server_list()
 
   local okI, errI = pcall(install_instance_tracers, G)
   if not okI then LOG('instance tracers failed: ' .. tostring(errI)) end
+  -- ★ 只有 --auto 才启动「自动点开始游戏」。
+--   无 --auto 时客户端会停在登录面板（LoginStage）等你手动点那个按钮。
+--   以前这个定时器无条件启动，所以不加 --auto 也会自动进游戏。
+if rawget(_G, 'OO_AUTO') == true then
   local okA, errA = pcall(start_auto_retry, G)
+  LOG('lua: --auto 自动点开始游戏 已启用 ok=' .. tostring(okA))
+else
+  LOG('lua: 未加 --auto，不自动点开始游戏（停在登录面板等你点）')
+end
   if not okA then LOG('auto retry failed: ' .. tostring(errA)) end
 
   -- 每 2 秒探一次，等 ms 连接建立后立即做编码探针
@@ -819,18 +831,31 @@ local function deliver(raw)
   end
 
   -- 交给游戏自己的账号处理：fpxaccount.lua M.onSdkLogin(bInitGame, result)
+  -- 与官方 modules/sdk/fpxsdkreceiver.lua:16 一致，传 pc.initialized。
+  --
+  -- ★ EnterGame() 不是「进入游戏世界」，而是 main.lua:74 的
+  --   「启动 patch 阶段 -> GameInit -> GameStart」，走完才到 LoginStage 的登录面板，
+  --   那里才有「开始游戏」按钮。所以它必须**永远**调用，
+  --   否则客户端根本到不了那个按钮（会卡在启动画面然后超时退出）。
+  --   --auto 控制的是「要不要替玩家点那个按钮」，见 require 里 loginpanel 的钩子。
+  local _auto = rawget(_G, 'OO_AUTO') == true
+  LOG('deliver: auto=' .. tostring(_auto))
   local ok2, err = pcall(function()
     FPXAccount.onSdkLogin(pc.initialized, result)
   end)
   if not ok2 then
     LOG('deliver: onSdkLogin failed: ' .. tostring(err))
+    -- ★ 手动模式：此刻 ui 全局还没建好（实测 FPXAccount.lua:57 报 ui 为 nil），
+    --   所以不能立刻发 ESdkLogin。改成：先把账号信息交给 FPXAccount（不触发事件），
+    --   这里不再做「等 ui 就绪后补发事件」的尝试：实测补发不会让登录面板出现按钮，
+    --   客户端会停在启动画面。正确做法是让 EnterGame() 正常跑完（见下）。
     return
   end
 
   LOG('account: sdk login delivered account_id='
     .. tostring(result.data and result.data.account_id))
 
-  -- 与官服 fpxsdkreceiver.lua 第 17-20 行同样的进入判据
+  -- 与官服 fpxsdkreceiver.lua:17-20 完全一致
   if not pc.initialized and not pc.entered then
     pc.entered = true
     EnterGame()
@@ -1809,12 +1834,10 @@ function require(name)
 
     a.Call = function(module, fn, payload)
       if module == 'platform' and fn == 'login' then
-        -- ★ 只有 --auto 才接管登录（自动进入游戏）。
-        --   不加 --auto 时走游戏原来的路径，会停在它自己的登录界面。
-        if rawget(_G, 'OO_AUTO') == false then
-          LOG('login: OO_AUTO=false，不接管 platform/login（停在游戏登录界面）')
-          return call(module, fn, payload)
-        end
+        -- ★ 劫持**永远**生效，不受 --auto 影响。
+        --   以前这里判了 OO_AUTO，不加 --auto 就 return call(...) 放行给原生 SDK，
+        --   结果客户端拿着原始参数直连原版服务器 —— 这是错的。
+        --   --auto 只控制「拿完凭证后要不要自动进入游戏」，见 deliver() 里的 EnterGame。
         return login()
       end
       if module == 'platform' and (fn == 'logout' or fn == 'unbindPlayer') then
@@ -1857,6 +1880,18 @@ function require(name)
     methods.onRefreshServerList = function(self)
       pcall(probe_dump, 'at-refresh-serverlist')
       pcall(install_server_list)
+      -- ★ 关键：loginpanel.lua:298-305 的 onRefreshServerList 在正式包里是
+      --     if GlobalConst.IsReleasePkg() then self:loginProd()   -- 直接进游戏
+      --     else self:openServerSelectPanel() end
+      --   实测 IsReleasePkg()=true，所以每次刷新服务器列表都会自动 loginProd()
+      --   -> LoginGameServer() -> 连网关 -> 自动进游戏。
+      --   这就是「不加 --auto 也会自动进游戏」的真正原因。
+      --
+      --   不加 --auto 时跳过它：面板停在「服务器 + 开始游戏」页，等玩家自己点。
+      if rawget(_G, 'OO_AUTO') ~= true then
+        LOG('panel: 未加 --auto，跳过 onRefreshServerList 的自动 loginProd（停在登录面板）')
+        return
+      end
       return orig_refresh(self)
     end
 
@@ -1875,6 +1910,7 @@ function require(name)
       end
       LOG('lua: loginpanel.setServerText 已包裹')
     end
+
 
     -- 追踪"开始游戏"按钮的完整路径
     for _, n in ipairs({ 'onLoginServer', 'loginProd', 'loginDev', 'onSelectServer' }) do

@@ -157,6 +157,23 @@ pub fn set_text(hwnd: HWND, s: &str) {
     }
 }
 
+/// 读取复选框勾选状态（BM_GETCHECK = 0x00F0）。
+pub fn get_check(hwnd: HWND) -> bool {
+    unsafe {
+        let r = SendMessageW(hwnd, 0x00F0, Some(WPARAM(0)), Some(LPARAM(0)));
+        r.0 == 1 // BST_CHECKED
+    }
+}
+
+/// 设置复选框勾选状态（BM_SETCHECK = 0x00F1）。
+pub fn set_check(hwnd: HWND, checked: bool) {
+    unsafe {
+        let _ = SendMessageW(hwnd, 0x00F1,
+                              Some(WPARAM(if checked { 1 } else { 0 })),
+                              Some(LPARAM(0)));
+    }
+}
+
 #[allow(dead_code)]
 pub fn get_text_msg(hwnd: HWND) -> String {
     unsafe {

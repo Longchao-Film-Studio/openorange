@@ -51,5 +51,10 @@ fn main() {
         std::process::exit(code);
     }
 
-    ui::run();
+    // 图形界面模式也支持 --auto：
+    //   OO_Launcher.exe             -> 劫持登录，停在客户端登录界面等玩家点
+    //   OO_Launcher.exe --auto      -> 劫持登录 + 自动进入游戏
+    // （GUI 里还有同名复选框，可以覆盖命令行给的默认值）
+    let gui_auto = args.iter().any(|a| a == "--auto");
+    ui::run(gui_auto);
 }

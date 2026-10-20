@@ -25,6 +25,7 @@ const ID_LOGIN: i32 = 1003;
 const ID_STATUS: i32 = 1004;
 const ID_SERVERINFO: i32 = 1005;
 const ID_REMEMBER: i32 = 1006;
+const ID_AUTO: i32 = 1007;
 
 // windows crate 未导出：禁用/启用窗口
 const WM_SETREDRAW: u32 = 0x000B;
@@ -43,6 +44,9 @@ struct AppState {
     h_status: HWND,
     h_serverinfo: HWND,
     h_remember: HWND,
+    h_auto: HWND,
+    /// 「自动进入游戏」的初始勾选状态（由命令行 --auto 传入）。
+    auto_enter: bool,
     busy: bool,
 }
 
@@ -99,13 +103,22 @@ fn init_shared(to_console: bool) {
             h_status: HWND::default(),
             h_serverinfo: HWND::default(),
             h_remember: HWND::default(),
+            h_auto: HWND::default(),
+            auto_enter: false,
             busy: false,
         });
     }
 }
 
-pub fn run() {
+/// 图形界面模式。
+///
+/// `auto` = 启动后是否自动进入游戏（等价于命令行模式的 --auto）：
+///   勾上 -> 注入 DLL 时 OO_AUTO=1，客户端拿到凭证后直接进街区；
+///   不勾 -> OO_AUTO=0，劫持照常（登录走我们后端），
+///           但停在客户端自己的登录界面，由玩家手动点「开始游戏」。
+pub fn run(auto: bool) {
     init_shared(false);
+    state().auto_enter = auto;
 
     // ---- 注册窗口类 ----
     let hinstance = unsafe { GetModuleHandleW(PCWSTR::null()).expect("GetModuleHandleW failed") };
@@ -197,7 +210,14 @@ fn on_create(hwnd: HWND) {
     c.label(hwnd, "密码", 0, 20, 66, 200, 18).unwrap();
     st.h_password = c.edit(hwnd, "", ID_PASSWORD, 20, 86, 406, 24, true).unwrap();
 
-    st.h_remember = c.checkbox(hwnd, "记住账号", ID_REMEMBER, 20, 118, 120, 22).unwrap();
+    st.h_remember = c.checkbox(hwnd, "记住账号", ID_REMEMBER, 20, 118, 110, 22).unwrap();
+
+    // ★ 自动进入游戏：
+    //   勾上 = 注入时 OO_AUTO=1，拿到凭证后直接 EnterGame()，一路进街区；
+    //   不勾 = OO_AUTO=0，登录照样劫持（走我们后端），
+    //          但停在客户端自己的登录界面，玩家手动点「开始游戏」。
+    st.h_auto = c.checkbox(hwnd, "自动进入游戏", ID_AUTO, 140, 118, 130, 22).unwrap();
+    win32::set_check(st.h_auto, st.auto_enter);
 
     st.h_login = c.button(hwnd, "登  录  并  启  动  游  戏", ID_LOGIN, 20, 148, 406, 34).unwrap();
 
@@ -411,6 +431,14 @@ fn on_login_clicked(hwnd: HWND) {
     }
 
     set_status("登录成功，正在启动游戏……");
+
+    // ★ 把「是否自动进入游戏」传给注入的 DLL（游戏进程继承父进程环境）。
+    //   勾上 -> OO_AUTO=1：DLL 在拿到凭证后调 EnterGame()，一路进街区；
+    //   不勾 -> OO_AUTO=0：凭证照样交付（登录劫持不受影响），
+    //           但停在客户端自己的登录界面，等玩家手动点「开始游戏」。
+    let auto_enter = win32::get_check(st.h_auto);
+    std::env::set_var("OO_AUTO", if auto_enter { "1" } else { "0" });
+    log_info!("auto enter game = {auto_enter}");
 
     // ---- 拉起游戏（挂起） ----
     let launched = match inject::spawn_suspended(&game, &st.cfg.game.game_args) {
