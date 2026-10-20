@@ -47,6 +47,17 @@ GROUPS = {
         "RequestDoneStoryTaskParamInt_CS", "RequestDoneStoryTaskParamStr_CS",
         "updateStreetTraceTask_CS",
     ],
+    "space": [
+        "Cmd_Avatar_StatEnterBattleFialed_CS", "Cmd_LoadingProcessSync_CS",
+        "Cmd_Property_ReliableSync_CS", "Cmd_Soul_WatchOtherPlayer_CS",
+        "RollbackSpaceTask_CS", "RpcEnterSpace", "RpcEnterTargetSeq",
+        "RpcGetEdenChatHistory", "RpcLeaveSpace", "RpcOnSceneLoaded",
+        "RpcSoulAckReliableMsg", "Space_CallSpaceMethod_CS",
+        "continueSendMsg_CS", "defineRpcMessageToLogic",
+        "earlyLeaveDDZ", "earlyLeaveMahjong", "sendDDZMessage",
+        "sendDungeonMsgToServer", "sendMahjongMessage", "soulHeartbeat_CS",
+        "spaceFrameMessage", "spaceRpcMessage",
+    ],
 }
 
 # account 三条确认不需要实现：全走 CallServer（单向），登录链在网关层完成

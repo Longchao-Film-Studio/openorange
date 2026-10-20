@@ -124,6 +124,22 @@ RPC_INDEX = {
     "RpcEnterTargetSeq": 2099437863,
     "Cmd_Avatar_StatEnterBattleFialed_CS": 2031265256,
     "Cmd_LoadingProcessSync_CS": 790742624,
+    "soulHeartbeat_CS": 1768525703,
+    "Cmd_Property_ReliableSync_CS": 1136123026,
+    "spaceFrameMessage": 1640580279,
+    "spaceRpcMessage": 577431259,
+    "defineRpcMessageToLogic": 780255370,
+    "sendDungeonMsgToServer": 670252998,
+    "Space_CallSpaceMethod_CS": 1740981687,
+    "continueSendMsg_CS": 1909403499,
+    "RpcSoulAckReliableMsg": 1062918872,
+    "Cmd_Soul_WatchOtherPlayer_CS": 531534451,
+    "sendDDZMessage": 1936154067,
+    "sendMahjongMessage": 739755462,
+    "earlyLeaveDDZ": 649611053,
+    "earlyLeaveMahjong": 404472060,
+    # 带回调的只剩这一条
+    "RollbackSpaceTask_CS": 1803698937,
     # --- 1-1 角色数据模型 avatarcharactercomp（9 条） ---
     "Cmd_Avatar_Skin_Scheme_CS": 621179191,
     "Cmd_Avatar_Skin_Scheme_Choose_CS": 449377134,
@@ -1490,6 +1506,75 @@ def _noop_one_way(params, uid=None):
     return []
 
 
+# ---------------------------------------------------------------------------
+# Soul / 战斗帧同步（阶段 2 收尾，Phase 3 才真正跑起来）
+# ---------------------------------------------------------------------------
+# 逆向依据（都是 spaceentities/soulcomponent 下的组件）：
+#   soulnet.lua:76              soulHeartbeat_CS {{reqMs}, pingInfo}  单向
+#     -> 服务端必须回 soulHeartbeat_SC {reqMs}，否则 15 秒后客户端判定超时并断 Soul
+#   soulpropertyreliablesync.lua:34  Cmd_Property_ReliableSync_CS {msgId, data}  单向
+#     -> 回 Cmd_Property_ReliableSync_SC(msgId) 停止重发
+#   onlinebattlespacenetcomponent.lua:138  spaceFrameMessage {view2LogicDataCache}
+#     -> 回 syncFrameFromServerToClient(帧数据)（单机时原样回传即可）
+#   spaceRpcMessage / defineRpcMessageToLogic / sendDungeonMsgToServer /
+#   Space_CallSpaceMethod_CS / continueSendMsg_CS / RpcSoulAckReliableMsg /
+#   Cmd_Soul_WatchOtherPlayer_CS / sendDDZMessage / sendMahjongMessage /
+#   earlyLeaveDDZ / earlyLeaveMahjong  —— 全是单向，服务端记录即可
+#   soulspacetask.lua:195/209  RollbackSpaceTask_CS  带回调
+#
+# ★ 这些消息都走 `localSoul:serverMsg(...)`，需要 Soul 实体已绑定；
+#   而 bindSoul 依赖副本入口（Phase 3）。现在先把 RPC 面补全。
+
+SOUL_HEARTBEAT_SC = 1531962635
+CMD_PROPERTY_RELIABLE_SYNC_SC = 66862165
+SYNC_FRAME_FROM_SERVER = 1791975984
+
+
+def _soul_heartbeat(params, uid=None):
+    """soulHeartbeat_CS {{reqMs}, pingInfo} -> soulHeartbeat_SC {reqMs}。
+
+    客户端 soulnet.lua:82-90 用 `now - info.reqMs` 算 ping，
+    并在 :82-89 里做 15 秒超时判定 —— 不回就会断 Soul 连接。
+    """
+    vals = decode_params(params)
+    req = 0
+    if isinstance(vals, list) and vals:
+        first = vals[0]
+        if isinstance(first, dict):
+            req = int(first.get("reqMs") or 0)
+        elif isinstance(first, (int, float)):
+            req = int(first)
+    return [_s2c_entity("soulHeartbeat_SC", SOUL_HEARTBEAT_SC,
+                        [{"reqMs": req}])]
+
+
+def _reliable_property_sync(params, uid=None):
+    """Cmd_Property_ReliableSync_CS {msgId, data} -> Cmd_Property_ReliableSync_SC(msgId)。"""
+    vals = decode_params(params)
+    msg_id = 0
+    if isinstance(vals, list) and vals:
+        try:
+            msg_id = int(vals[0] or 0)
+        except Exception:
+            msg_id = 0
+    return [_s2c_entity("Cmd_Property_ReliableSync_SC",
+                        CMD_PROPERTY_RELIABLE_SYNC_SC, [msg_id])]
+
+
+def _space_frame_message(params, uid=None):
+    """spaceFrameMessage {view2LogicDataCache} -> syncFrameFromServerToClient(帧)。
+
+    单机私服没有别的玩家，把客户端上行的帧原样回传，
+    让战斗逻辑走完「上行 -> 服务端确认 -> 下行」的闭环。
+    """
+    vals = decode_params(params)
+    payload = []
+    if isinstance(vals, list) and vals:
+        payload = vals[0]
+    return [_s2c_entity("syncFrameFromServerToClient", SYNC_FRAME_FROM_SERVER,
+                        [payload])]
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -1793,7 +1878,8 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("RequestGetStreetLevelAchieveAward_CS", _ack_only),
                    ("Street_CD_Update_CS", _street_cd_update),
                    ("RequestRefreshTitleDailyTask_CS", _ack_only),
-                   ("RequestDoneTitleTask_CS", _ack_only)):
+                   ("RequestDoneTitleTask_CS", _ack_only),
+                   ("RollbackSpaceTask_CS", _ack_only)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -1871,6 +1957,21 @@ _ONE_WAY_HANDLERS = {
     2099437863: _noop_one_way,          # RpcEnterTargetSeq
     2031265256: _noop_one_way,          # Cmd_Avatar_StatEnterBattleFialed_CS
     790742624: _noop_one_way,           # Cmd_LoadingProcessSync_CS
+    # --- Soul / 战斗（Phase 3 才真正跑起来，先把面补全） ---
+    1768525703: _soul_heartbeat,        # soulHeartbeat_CS
+    1136123026: _reliable_property_sync, # Cmd_Property_ReliableSync_CS
+    1640580279: _space_frame_message,   # spaceFrameMessage
+    577431259: _noop_one_way,           # spaceRpcMessage
+    780255370: _noop_one_way,           # defineRpcMessageToLogic
+    670252998: _noop_one_way,           # sendDungeonMsgToServer
+    1740981687: _noop_one_way,          # Space_CallSpaceMethod_CS
+    1909403499: _noop_one_way,          # continueSendMsg_CS
+    1062918872: _noop_one_way,          # RpcSoulAckReliableMsg
+    531534451: _noop_one_way,           # Cmd_Soul_WatchOtherPlayer_CS
+    1936154067: _noop_one_way,          # sendDDZMessage
+    739755462: _noop_one_way,           # sendMahjongMessage
+    649611053: _noop_one_way,           # earlyLeaveDDZ
+    404472060: _noop_one_way,           # earlyLeaveMahjong
 }
 
 
