@@ -114,6 +114,25 @@ REQUIRED = {
     # 真实服务端是用 _changeRootProperty 运行时建这个属性（带 __tp__），
     # 我们改从 initDict 建，等价。
     "singleMatchInfo": "SingleMatchInfo",
+    # --- 同样「只在 PropertyCallbacks 里声明」的属性 ---
+    # 扫描方法：从 generated/config.lua 的 PropertyCallbacks 块里抽出所有属性名，
+    # 和 initDict 对差 —— 得到 15 个缺失项。其中只有这两个在客户端有对应
+    # 自定义类型声明（config.lua:3012-3048 DungeonViewDict / EndlessCharacterList），
+    # 其余 10 个客户端连类型都没声明，塞进去会触发
+    #   puppetpropertycomponent.lua:53  assert(customType ~= nil)
+    # 直接崩，所以不能加。
+    #
+    # dungeonView 缺失的后果（实测）：按 M 打开地图时
+    #   MapV2Panel:initMap -> initAreaListRequire -> processingAreaMapTabList
+    #   -> AvatarDungeonComp:getDungeonAllCollectCoins(10101)
+    #   -> self.dungeonView[areaId]  (attempt to index a nil value)
+    #   面板被 closePanelEx 关掉，表现为「UI 闪一下又回来」。
+    "dungeonView": "DungeonViewDict",
+    "endless_character_list": "EndlessCharacterList",
+    # mainline_level：avatarstreetcomp.lua:266 的
+    #   local level = GlobalData.Avatar.mainline_level[area_id]
+    # 说明是 Dict<area_id, level(int)> —— 就是 IntDictKeyInt。
+    "mainline_level": "IntDictKeyInt",
     # --- AvatarFormationComp 的编队数据 ---
     # 依据 entities/avatarcomponent/avatarformationcomp.lua:32-37：
     #   function AvatarFormationComp:getFormationInfo(index)
@@ -182,6 +201,10 @@ STARTER_FORMATION = {
 # （number/string/boolean）分类。客户端访问这些属性时基本不判空，
 # 所以 initDict 里必须先给默认值。
 SIMPLE_PROPS = {
+    # PropertyCallbacks 里声明、但客户端没给自定义类型的两个简单属性。
+    # 简单值不会触发 __tp__ 断言，加上是安全的。
+    "msAuth": "",
+    "test_soul_count": 0,
     "avatarNowState": 0,
     "avatarTeamMatchState": 0,
     "battle_prop_choosen_index": 0,

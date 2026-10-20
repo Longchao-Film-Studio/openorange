@@ -1039,6 +1039,23 @@ local CB_NAMES = {
 -- 1-2 使用道具验证：扣数量 + 属性同步
 -- 1-1 角色升级验证
 -- 系统入口解锁验证
+-- 地图面板验证：等价于按 M
+local function probe_openmap()
+  if pc.mapopened then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    pc.mapopened = true
+    LOG('mapprobe| 打开 MapV2Panel')
+    ui.OpenPanel(PanelNames.MapV2Panel, function(panel)
+      local ok, err = pcall(function()
+        panel:initMap(1, GlobalData.Avatar:getStreetID(),
+                      SystemConst.MapPanelOpenType.fromSmallMap)
+      end)
+      LOG('mapprobe| initMap ok=' .. tostring(ok) .. ' err=' .. tostring(err))
+    end)
+  end)
+end
 local function probe_sysunlock()
   if pc.sysunlock then return end
   pcall(function()
@@ -1239,6 +1256,7 @@ end
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
 OO_PROBE_RPC = false    -- Set* 系列端到端探针（会改数据，默认关）
 OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
+OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
 
 local function probe_p1_setrpc()
   if pc.setrpc then return end
@@ -1633,6 +1651,10 @@ local function install_cb_wrappers()
             if (pc.frames % 30) == 8 then pcall(probe_upgrade) end
           end
           if (pc.frames % 30) == 12 then pcall(probe_sysunlock) end
+          -- 地图探针默认关（会自动弹地图，干扰操作）；排障时置 true
+          if OO_PROBE_MAP then
+            if (pc.frames % 30) == 20 then pcall(probe_openmap) end
+          end
           pcall(probe_sig_watch)
         end
         local n = select('#', ...)

@@ -40,7 +40,7 @@ def run():
     props = data["__Properties__"]
 
     print("\n[1] 整体规模")
-    check("属性数 212", len(props) == 212, len(props))
+    check("属性数 217", len(props) == 217, len(props))
     check("每个值都是 dict 或简单类型",
           all(isinstance(v, dict) or isinstance(v, (int, float, str, bool))
               for v in props.values()))
@@ -124,6 +124,33 @@ def run():
     check("level = 1（客户端声明默认值）", props.get("level") == 1, props.get("level"))
     check("done_tasks 是空的",
           len([k for k in (props.get("done_tasks") or {}) if k.startswith("#")]) == 0)
+
+    print("\n[5e] 只在 PropertyCallbacks 里声明的属性必须补齐")
+    # 从 generated/config.lua 的 PropertyCallbacks 块抽属性名、和 initDict 对差，
+    # 得到 15 个缺失项。其中只有 dungeonView / endless_character_list 在客户端
+    # 有对应自定义类型；其余 10 个客户端连类型都没声明，塞进去会触发
+    #   puppetpropertycomponent.lua:53  assert(customType ~= nil)
+    # 直接崩，所以不能加。
+    #
+    # dungeonView 缺失的后果（实测）：按 M 开地图时
+    #   MapV2Panel:initMap -> initAreaListRequire -> processingAreaMapTabList
+    #   -> AvatarDungeonComp:getDungeonAllCollectCoins(10101)
+    #   -> self.dungeonView[areaId]  attempt to index a nil value
+    #   面板被 closePanelEx 关掉 = 用户看到的「UI 闪一下又回来」。
+    dv = props.get("dungeonView") or {}
+    check("dungeonView 存在", isinstance(dv, dict), type(dv))
+    check("dungeonView 类型 = DungeonViewDict", dv.get("__tp__") == "DungeonViewDict",
+          dv.get("__tp__"))
+    check("dungeonView 带 __id__", isinstance(dv.get("__id__"), int), dv.get("__id__"))
+    ecl = props.get("endless_character_list") or {}
+    check("endless_character_list 类型 = EndlessCharacterList",
+          ecl.get("__tp__") == "EndlessCharacterList", ecl.get("__tp__"))
+    ml = props.get("mainline_level") or {}
+    check("mainline_level 类型 = IntDictKeyInt", ml.get("__tp__") == "IntDictKeyInt",
+          ml.get("__tp__"))
+    check("msAuth 是空串", props.get("msAuth") == "", props.get("msAuth"))
+    check("test_soul_count = 0", props.get("test_soul_count") == 0,
+          props.get("test_soul_count"))
     check("done_story_tasks 是空的",
           len([k for k in (props.get("done_story_tasks") or {}) if k.startswith("#")]) == 0)
     check("task_bag 是空的",
