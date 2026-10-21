@@ -185,6 +185,9 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
     done_bag = st.props.get("done_story_tasks")
     if not isinstance(done_bag, dict):
         done_bag = {}
+    if not isinstance(st.props.get("story_task_bag"), dict):
+        # 没有 story_task_bag 就什么都做不了（也别发奖）
+        return frames
     for tid in task_ids:
         # ★ 审计 P0-2：判「是否真完成」要看**有没有归档进 done**，不能只看 state==6。
         #   否则「标记完成 -> 发奖失败」留下的 bag-state-6 任务会被永远跳过，
@@ -195,6 +198,18 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
         #   1) →Finished(6)：一条 OP_CHANGE，客户端靠它触发场记板/章节提示/清红点
         #   2) 发奖：失败时任务仍在包里且状态 Finished，可重试（不会静默丢奖励）
         #   3) 归档 + 推进 PostTasks
+        # ★ 升级遗留窗口（审计 P1-新，已知并接受）：2bbc5c4 那版会留下
+        #   「bag 里 state=6、已经发过奖、但没归档」的存档，那种存档没有发奖账本，
+        #   新代码重试时会再发一遍奖。**无法可靠区分**「发奖失败」和「升级遗留」
+        #   （两者都是 bag-state-6 + 无账本），所以这里只告警、不猜：
+        #   - 若是发奖失败 -> 重试补发，正确；
+        #   - 若是升级遗留 -> 会多领一次，已知风险（分支从未发布，只影响本地测试存档）。
+        if (story.story_state(st.props, tid) == story.TASK_STATE_FINISHED
+                and story.has_award_items(tid)
+                and not story.already_awarded(st, tid)):
+            print("[story] 注意：任务 %s 是 bag-state-6 且无发奖账本，"
+                  "按「发奖失败重试」处理（若是升级遗留存档会多领一次）" % tid,
+                  flush=True)
         frames.extend(_story_sync_frames(
             st, story.mark_story_task_finished(st, tid, now)))
         # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
@@ -272,6 +287,18 @@ def _done_story_task(rid, params, uid=None):
     except Exception:
         return frames
     st = state(uid)
+    # ★ 审计 P1-既有：不校验 taskId 就能完成任意任务（伪造包可以完成 Type0/Type4
+    #   并领奖）。这里要求：任务必须在 story_task_bag 里，且 TaskType 属于客户端
+    #   会主动上报的那三种（1 剧情演出 / 2 NPC 交互 / 5 视频）。
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
+        print("[story] 忽略完成请求：任务 %s 不在 story_task_bag 里" % tid, flush=True)
+        return frames
+    ttype = (gamedata.story_task(tid) or {}).get("TaskType")
+    if ttype not in story.TASK_TYPE_CLIENT:
+        print("[story] 忽略完成请求：任务 %s 的 TaskType=%s 不是客户端可上报类型"
+              % (tid, ttype), flush=True)
+        return frames
     param = None
     if len(vals) > 1:
         try:

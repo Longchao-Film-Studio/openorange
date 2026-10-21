@@ -177,6 +177,41 @@ def mark_finish_parameter(st, task_id, param):
     return [("child", item, "finish_parameter", fp)]
 
 
+def has_award_items(task_id):
+    """这个任务的 AwardItemList 是不是非空。"""
+    cfg = gamedata.story_task(task_id) or {}
+    awards = cfg.get("AwardItemList") or {}
+    for k, v in awards.items():
+        if k in ("KeyList", "__bdd_metatype__"):
+            continue
+        try:
+            if int(v) > 0:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def already_awarded(st, task_id):
+    """发奖账本里有没有这个任务的记录（前缀匹配）。"""
+    log = st.props.get(_AWARD_LOG)
+    if not isinstance(log, dict):
+        return False
+    prefix = "%d:" % int(task_id)
+    return any(str(k).startswith(prefix) for k in log)
+
+
+def drop_award_log(st, task_id):
+    """把某任务的发奖账本清掉（GM 重置用）。"""
+    log = st.props.get(_AWARD_LOG)
+    if not isinstance(log, dict):
+        return
+    prefix = "%d:" % int(task_id)
+    for k in [k for k in log if str(k).startswith(prefix)]:
+        log.pop(k, None)
+    st.set(_AWARD_LOG, log)
+
+
 def finish_parameters_of(item):
     """读出 finish_parameter 里的值集合。"""
     fp = item.get("finish_parameter") if isinstance(item, dict) else None

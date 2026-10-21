@@ -168,12 +168,13 @@ def run():
                 "完成通用任务")
     check("完成通用任务帧安全", not errs, errs[:2])
 
-    # C3 剧情任务推进
+    # C3 剧情任务推进（1000 是 TaskType=3，走事件路径；RPC 只接受 1/2/5）
     st3 = fresh("sc_e")
     sc3 = new_cache("sc_e")
-    errs = feed(sc3, erpc.handle(
-        erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
-        msmod.mp_arr([1000, 0]), 1, uid="sc_e"), "剧情任务 1000")
+    from game_server.story import events as _sev3
+    _r3 = _sev3.apply_event(st3, _sev3.ev_dungeon_finish(1004, 1, 1))
+    errs = feed(sc3, erpc._finish_story_tasks(st3, list(_r3.hits)),
+                "剧情任务 1000")
     check("剧情任务帧安全", not errs, errs[:2])
     check("任务 1000 在客户端变成 Finished",
           story.story_state(st3.props, 1000) == story.TASK_STATE_FINISHED)

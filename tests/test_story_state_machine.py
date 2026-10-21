@@ -34,6 +34,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
+from game_server import gamedata  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import story  # noqa: E402
@@ -227,6 +228,9 @@ def run():
                    for f in ("doing_targets", "finish_targets", "finish_parameter")}
     check("★ P0-1 done 的嵌套容器 id 也全是新的",
           not (done_nested & (bag_nested | {bag_item_id})), done_nested)
+    check("★ done 保留了原 get_time / start_time",
+          done_item.get("get_time") == NOW and done_item.get("start_time") == NOW,
+          (done_item.get("get_time"), done_item.get("start_time")))
 
     print("\n[7] start_story_task：OP_ADD(Init) + OP_CHANGE(Doing) 两条")
     st5 = fresh("sm_e")
@@ -285,19 +289,25 @@ def run():
     check("影子缓存里 1000 已在 done 且 state=6",
           sc_state(sc7, 1000, "done_story_tasks") == sm.TASK_STATE_FINISHED,
           sc_state(sc7, 1000, "done_story_tasks"))
+    _bag7 = _unwrap(sc7.props.get("done_story_tasks")) or {}
+    _done_obj = _bag7.get(1000) if isinstance(_bag7, dict) else None
+    _done_oid = getattr(_done_obj, "id", None)
     check("★ done 条目真的留在客户端缓存里（没被 OP_DEL 带走）",
-          sc_item(sc7, 1000, "done_story_tasks") is not None)
+          _done_oid is not None and _done_oid in sc7.cache,
+          (_done_oid, len(sc7.cache)))
 
-    print('\n[11] AST：全仓只有白名单函数能写 ["state"]')
+    print('\n[11] AST：全仓只有白名单函数能写 ["state"]（含负向元测试）')
+    # 白名单：每条都要写清为什么不是 story_task_bag 的状态写入口。
+    # ★ 不再有 move_to_done —— 它在 P0-1 修复后已经不写 state 了（只新建 item）。
     ALLOW = {
-        ("game_server/story/state_machine.py", "make_story_task_item"): "构造 StoryTaskItem",
+        ("game_server/story/state_machine.py", "make_story_task_item"): "构造 StoryTaskItem（唯一构造点）",
         ("game_server/story/state_machine.py", "transition"): "唯一迁移入口",
-        ("game_server/story/state_machine.py", "move_to_done"): "归档时补写 Finished",
-        ("game_server/story/__init__.py", "make_active_task"): "ActiveTask",
-        ("game_server/tasks.py", "make_task_item"): "TaskItem（通用任务）",
-        ("game_server/scaffold.py", "apply"): "脚手架写 done 的 StoryTaskItem（阶段 C 删）",
+        ("game_server/story/__init__.py", "make_active_task"): "ActiveTask，不是 StoryTaskItem",
+        ("game_server/tasks.py", "make_task_item"): "TaskItem（通用任务），不是 StoryTaskItem",
+        # 脚手架：默认关闭（config.SCAFFOLD 开关），只写 done_story_tasks 里的 StoryTaskItem。
+        # 到期条件：阶段 C（播种器）完成后删掉 scaffold.py，这条豁免随之消失。
+        ("game_server/scaffold.py", "apply"): "脚手架（默认关闭）写 done 的 StoryTaskItem；阶段 C 删除",
     }
-    offenders = []
 
     def _has_state_key(node):
         if isinstance(node, ast.Dict):
@@ -305,49 +315,112 @@ def run():
                        for k in node.keys)
         return False
 
+    def _scan_state_writes(source):
+        """扫描源码里所有写 ["state"] 的位置 -> [(lineno, funcname|None, kind)]。
+
+        覆盖 6 种写法：下标赋值 / 增量赋值(+= |=) / .update({"state":..}) /
+        .update(state=..) / .update(**{"state":..}) / .setdefault("state",..) /
+        st.set((...,"state",...))。模块级语句 funcname 为 None。
+        """
+        tree = ast.parse(source)
+        out = []
+
+        def check(node, fname):
+            hit = None
+            if isinstance(node, (ast.Assign, ast.AugAssign)):
+                tgts = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for tgt in tgts:
+                    if (isinstance(tgt, ast.Subscript)
+                            and isinstance(tgt.slice, ast.Constant)
+                            and tgt.slice.value == "state"):
+                        hit = "下标赋值"
+                # x |= {"state": 1} —— 字典合并写法，也要抓
+                if (hit is None and isinstance(node, ast.AugAssign)
+                        and isinstance(node.op, ast.BitOr)
+                        and _has_state_key(node.value)):
+                    hit = "字典合并 |="
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                name = node.func.attr
+                if name == "update":
+                    if any(_has_state_key(a) for a in node.args):
+                        hit = '.update({"state":..})'
+                    elif any(k.arg == "state" for k in node.keywords):
+                        hit = ".update(state=..)"
+                    elif any(k.arg is None and _has_state_key(k.value)
+                             for k in node.keywords):
+                        hit = ".update(**{..})"
+                elif name == "setdefault":
+                    if (node.args and isinstance(node.args[0], ast.Constant)
+                            and node.args[0].value == "state"):
+                        hit = '.setdefault("state",..)'
+                elif name == "set":
+                    for a in node.args:
+                        if isinstance(a, (ast.Tuple, ast.List)):
+                            if any(isinstance(e, ast.Constant) and e.value == "state"
+                                   for e in a.elts):
+                                hit = '.set((..,"state",..))'
+            if hit:
+                out.append((node.lineno, fname, hit))
+
+        def walk(node, fname):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    walk(child, child.name)
+                else:
+                    check(child, fname)
+                    walk(child, fname)
+
+        walk(tree, None)
+        return out
+
+    # ① 负向元测试：每种写法都必须被抓到（防止扫描器退化而套件仍全绿）
+    NEGATIVE = [
+        ('x["state"] = 1', "下标赋值"),
+        ('x["state"] += 1', "下标赋值"),
+        ('x |= {"state": 1}', ".update"),
+        ('x.update({"state": 1})', '.update({"state":..})'),
+        ("x.update(state=1)", ".update(state=..)"),
+        ('x.update(**{"state": 1})', ".update(**{..})"),
+        ('x.setdefault("state", 1)', '.setdefault("state",..)'),
+        ('st.set(("bag", 1, "state"), 6)', '.set((..,"state",..))'),
+        ('BAG[1]["state"] = 6', "下标赋值"),
+    ]
+    neg_miss = []
+    for src, want in NEGATIVE:
+        try:
+            hits = _scan_state_writes(src)
+        except SyntaxError as e:
+            neg_miss.append((src, "SyntaxError:%s" % e))
+            continue
+        if not hits:
+            neg_miss.append((src, "没抓到"))
+    check("★ 负向元测试：9 种写法全部能被扫描器抓到", not neg_miss, neg_miss)
+    check("干净源码不会被误报",
+          _scan_state_writes("def f(x):\n    x['other'] = 1\n    return x\n") == [])
+
+    # ② 全仓扫描
+    offenders = []
     for path in glob.glob(os.path.join(ROOT, "game_server", "**", "*.py"),
                           recursive=True):
         if "__pycache__" in path:
             continue
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
         try:
-            tree = ast.parse(open(path, encoding="utf-8").read())
-        except SyntaxError:
+            src = open(path, encoding="utf-8").read()
+        except Exception as e:
+            offenders.append("%s 读取失败 %s" % (rel, e))
             continue
-        for fn in ast.walk(tree):
-            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        try:
+            hits = _scan_state_writes(src)
+        except SyntaxError as e:
+            # ★ 不许静默跳过：语法错的文件也要报出来
+            offenders.append("%s 语法错误 %s" % (rel, e))
+            continue
+        for lineno, fname, kind in hits:
+            if (rel, fname) in ALLOW:
                 continue
-            if (rel, fn.name) in ALLOW:
-                continue
-            for node in ast.walk(fn):
-                hit = None
-                if isinstance(node, (ast.Assign, ast.AugAssign)):
-                    tgts = node.targets if isinstance(node, ast.Assign) else [node.target]
-                    for tgt in tgts:
-                        if (isinstance(tgt, ast.Subscript)
-                                and isinstance(tgt.slice, ast.Constant)
-                                and tgt.slice.value == "state"):
-                            hit = "下标赋值"
-                elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                    name = node.func.attr
-                    if name == "update":
-                        if any(_has_state_key(a) for a in node.args):
-                            hit = ".update({\"state\":...})"
-                        elif any(k.arg == "state" for k in node.keywords):
-                            hit = ".update(state=...)"
-                    elif name == "setdefault":
-                        if (node.args and isinstance(node.args[0], ast.Constant)
-                                and node.args[0].value == "state"):
-                            hit = ".setdefault(\"state\", ...)"
-                    elif name == "set":
-                        for a in node.args:
-                            if isinstance(a, (ast.Tuple, ast.List)):
-                                if any(isinstance(e, ast.Constant) and e.value == "state"
-                                       for e in a.elts):
-                                    hit = ".set((..., \"state\", ...))"
-                if hit:
-                    offenders.append("%s:%d(%s) %s" % (rel, node.lineno, fn.name, hit))
-    check("全仓没有白名单外的 [\"state\"] 写入", not offenders, offenders[:6])
+            offenders.append("%s:%d(%s) %s" % (rel, lineno, fname, kind))
+    check('全仓没有白名单外的 ["state"] 写入', not offenders, offenders[:6])
 
     print("\n[12] finish_story_task 兼容封装（含重复调用 no-op）")
     st8 = fresh("sm_h")
@@ -371,32 +444,60 @@ def run():
           kinds9[:2] == ["add", "sub"] and "del" in kinds9, kinds9)
 
     print("\n[13] P0-2：发奖失败可重试 + 发奖幂等")
+    # ★ 用**带奖励**的任务（1000 的 AwardItemList 是空的，测不出「重试发奖」）
+    AWARD_TASK = 1013
     st10 = fresh("sm_retry")
-    story.start_story_task(st10, 1000, NOW)
+    story.start_story_task(st10, AWARD_TASK, NOW)
     orig_award = story.story_award
 
     def boom(*a, **k):
         raise RuntimeError("award exploded")
 
+    _base = {}
+    for _g in (st10.props.get("item_bag") or {}).values():
+        if isinstance(_g, dict):
+            _base[_g.get("itemId")] = _g.get("num") or 0
     story.story_award = boom
     try:
         try:
-            erpc._finish_story_tasks(st10, [1000])
+            erpc._finish_story_tasks(st10, [AWARD_TASK])
         except Exception:
             pass
     finally:
         story.story_award = orig_award
     check("发奖失败后任务仍在 bag 且 state=6",
-          1000 in st10.props["story_task_bag"]
-          and st10.props["story_task_bag"][1000]["state"] == sm.TASK_STATE_FINISHED,
-          st10.props["story_task_bag"].get(1000, {}).get("state"))
-    check("发奖失败后还没进 done", 1000 not in st10.props["done_story_tasks"])
-    frames_retry = erpc._finish_story_tasks(st10, [1000])
+          AWARD_TASK in st10.props["story_task_bag"]
+          and st10.props["story_task_bag"][AWARD_TASK]["state"] == sm.TASK_STATE_FINISHED,
+          st10.props["story_task_bag"].get(AWARD_TASK, {}).get("state"))
+    check("发奖失败后还没进 done", AWARD_TASK not in st10.props["done_story_tasks"])
+    frames_retry = erpc._finish_story_tasks(st10, [AWARD_TASK])
     check("★ 重试主路径真的会动（不是 0 帧）", len(frames_retry) > 0, len(frames_retry))
-    check("★ 重试后完成归档", 1000 in st10.props["done_story_tasks"]
-          and 1000 not in st10.props["story_task_bag"])
+    check("★ 重试后完成归档", AWARD_TASK in st10.props["done_story_tasks"]
+          and AWARD_TASK not in st10.props["story_task_bag"])
+    # ★ 重试真的把奖励发出去了（不是只归档）
+    _award_cfg = (gamedata.story_task(AWARD_TASK) or {}).get("AwardItemList") or {}
+    _want = {}
+    for _k, _v in _award_cfg.items():
+        if _k in ("KeyList", "__bdd_metatype__"):
+            continue
+        try:
+            _want[int(_k)] = int(_v)
+        except Exception:
+            pass
+    _have = {}
+    for _g in (st10.props.get("item_bag") or {}).values():
+        if isinstance(_g, dict) and _g.get("itemId") in _want:
+            _have[_g["itemId"]] = (_g.get("num") or 0) - _base.get(_g["itemId"], 0)
+    check("★ 重试真的补发了奖励（增量 = 配置数量）",
+          all(_have.get(k) == v for k, v in _want.items()), (_want, _have))
+    check("★ 重试没有重复发奖（增量没有翻倍）",
+          all(_have.get(k) == v for k, v in _want.items()), _have)
+    # 账本落盘：save 之后重新加载，再发一次仍然是空
+    st10.save()
+    st10b = pstate.get_state(uid=uid_of("sm_retry"))
+    check("★ 发奖账本已落盘（重载后仍拦住）",
+          story.already_awarded(st10b, AWARD_TASK) is True)
 
-    from game_server import gamedata
     award_task = None
     for tid in (1013, 300334, 5022, 5004, 1003):
         cfg_a = gamedata.story_task(tid) or {}

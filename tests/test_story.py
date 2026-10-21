@@ -65,9 +65,12 @@ def run():
         check("嵌套字段 %s 带 __id__" % f,
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
 
-    print("\n[4] 通过 RPC 完成 1000")
-    frames = guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
-                         msmod.mp_arr([1000, 10103]), 1, uid="story_test")
+    print("\n[4] 通过事件完成 1000（TaskType=3 是事件驱动，客户端不会为它发 RPC）")
+    # ★ P1 阶段 B 起，RequestDoneStoryTaskParamInt_CS 只接受 TaskType 1/2/5（防伪造），
+    #   1000 是 TaskType 3，必须走真实的事件路径（和 dungeon/settle.py 一样）。
+    from game_server.story import events as _sev
+    _res = _sev.apply_event(st, _sev.ev_dungeon_finish(1004, 1, 1))
+    frames = erpc._finish_story_tasks(st, list(_res.hits))
     check("返回多帧", len(frames) >= 3, len(frames))
     check("done_story_tasks 里有 1000", 1000 in st.props["done_story_tasks"])
     check("story_task_bag 里没有 1000", 1000 not in st.props["story_task_bag"])
