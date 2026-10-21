@@ -180,4 +180,19 @@ def apply(props, cfg=None):
                 dst[tid] = item
             changed.append("done_story_tasks %d 条" % len(DONE_STORY_TASK_IDS))
 
+        # story_finished：BooleanDictKeyInt（int 键 + bool 值）。
+        # 置 1 表示「序章已过」，客户端 entities/clientavatar.lua:180 的
+        #   if not self.story_finished[1] then <走序章> else <LoginSuccess> end
+        # 就会跳过序章直接进街区。
+        #
+        # ★ 为什么必须加：脚手架模式下 ms.py:464 会跳过 init_new_player
+        #   （`if not ooconf.SCAFFOLD.all_tasks_done`），但 story_finished
+        #   仍然是空的 —— 结果客户端照样进序章，而序章里没有活动剧情任务，
+        #   形成「进得去但打完什么也不推进」的怪状态。
+        #   脚手架语义就是「老号全解锁」，所以这里直接标序章已完成。
+        sf = props.get("story_finished")
+        if isinstance(sf, dict):
+            sf[1] = True
+            changed.append("story_finished[1]=true（跳过序章）")
+
     return changed

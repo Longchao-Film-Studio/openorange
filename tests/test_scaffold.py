@@ -137,6 +137,25 @@ def run():
         check("task_bag[%d] 有 __id__" % tt, isinstance(slot.get("__id__"), int), slot)
         check("task_bag[%d] 没有 __tp__" % tt, "__tp__" not in slot, slot.get("__tp__"))
 
+    print("\n[9] 脚手架要把 story_finished[1] 置真（跳过序章）")
+    # 2026-10-21：脚手架模式下 ms.py:464 会跳过 init_new_player，
+    # 但 story_finished 若仍为空，客户端照样进序章，而序章里没有活动剧情任务，
+    # 形成「进得去但打完什么也不推进」的怪状态。
+    # 脚手架语义 = 老号全解锁，所以直接标序章已完成。
+    p4 = base_props()
+    scaffold.apply(p4, config.Scaffold(unlock_all=True))
+    sf = p4.get("story_finished") or {}
+    check("story_finished 有整数键 1", 1 in sf, sorted([k for k in sf if isinstance(k, int)]))
+    check("story_finished[1] = True", sf.get(1) is True, sf.get(1))
+
+    # 默认（无脚手架）不能动它，否则新号看不到序章
+    p5 = base_props()
+    scaffold.apply(p5, config.Scaffold())
+    sf5 = p5.get("story_finished") or {}
+    check("无脚手架时 story_finished 仍为空",
+          not [k for k in sf5 if isinstance(k, int)],
+          sorted([k for k in sf5 if isinstance(k, int)]))
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:
