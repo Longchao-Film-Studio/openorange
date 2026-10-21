@@ -43,8 +43,8 @@
 任务状态（common/globalconst.lua:77）
     Idle=1 Init=2 Doing=3 WaitDone=4 Done=5 Finished=6
 """
-from . import gamedata
-from .property import ids as _ids
+from .. import gamedata
+from ..property import ids as _ids
 
 TASK_STATE_IDLE = 1
 TASK_STATE_INIT = 2

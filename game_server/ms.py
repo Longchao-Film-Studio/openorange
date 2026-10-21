@@ -377,6 +377,28 @@ _LEGACY_INIT_DICT = {
 DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") else _LEGACY_INIT_DICT
 
 
+def _login_tick(st):
+    """登录时跑一次事件总线：
+
+    1. 用当前等级发一条 AvatarAttr 事件（覆盖 6 条剧情任务）
+    2. 跑一次 tick() 检查链式任务，命中的记到 _oo_pending_chain，
+       等 entity_rpc 的第一条 RPC 来补完并推同步帧。
+
+    这样剧情推进就不再只依赖「又打一次副本」。
+    """
+    try:
+        from .story import events as _events
+        lv = st.props.get("level")
+        if isinstance(lv, int) and lv > 0:
+            _events.apply_event(st, _events.ev_avatar_attr("level", lv,
+                                                          source="login"))
+        res = _events.tick(st)
+        if res.chain_hits:
+            st.props["_oo_pending_chain"] = [int(x) for x in res.chain_hits]
+    except Exception as e:
+        print("[init] 登录事件 tick 失败: %s" % e, flush=True)
+
+
 def _live_init_dict(uid=None):
     """登录时的 initDict 用服务端可变状态（player_state）。
 
@@ -509,6 +531,8 @@ def _live_init_dict(uid=None):
     #
     #   _strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
     #   递归进去的值一律剥掉。
+    # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
+    _login_tick(st)
     from .property import sync as _syncmod
     _public = {}
     for k, v in st.props.items():

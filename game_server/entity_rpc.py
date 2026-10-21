@@ -51,6 +51,10 @@ from . import tasks
 from .property import ids as _ids
 from .property import sync as _sync
 from .property import tx as _tx
+from .story import events as _events
+
+# 事件链递归深度上限（防御外部数据里的环）
+_EVENT_MAX_DEPTH = 8
 
 # ---------------------------------------------------------------------------
 # 阶段 1 三个组件的 serverRpc 清单（名字 -> genRpcIndex）
@@ -317,6 +321,13 @@ def _upgrade_character(rid, params, uid=None):
     char["CharLevel"] = old_level + 1
     char.setdefault("CharExp", 0)
     st.set("characterBag", bag)
+    # ★ P0-D：角色等级变化发 CharData 事件（覆盖 1 条剧情任务）
+    res = _events.apply_event(
+        st, _events.ev_char_data(level=int(char["CharLevel"]),
+                                 char_id=key))
+    nxt = list(res.hits) + list(res.chain_hits)
+    if nxt:
+        frames.extend(_finish_story_tasks(st, nxt))
     st.save()
     frames.append(_sync_frame(
         "", bag_id, msmod.OP_CHANGE, str(key), char))
@@ -616,10 +627,16 @@ def _recalc_story_unlocks(st):
     return frames
 
 
-def _finish_story_tasks(st, task_ids):
-    """完成若干剧情任务，返回全部同步帧。"""
+def _finish_story_tasks(st, task_ids, depth=0):
+    """完成若干剧情任务，返回全部同步帧。
+
+    ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线，
+      让「完成 A 触发 B」这种剧情链自动往下走（之前完全没有）。
+      depth 是递归保护：任务图理论上无环，但外部数据不一定可靠。
+    """
     frames = []
     now = int(time.time())
+    finished_now = []
     for tid in task_ids:
         if story.story_state(st.props, tid) == story.TASK_STATE_FINISHED:
             continue
@@ -638,8 +655,18 @@ def _finish_story_tasks(st, task_ids):
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
         print("[story] 完成剧情任务 %s" % tid, flush=True)
+        finished_now.append(tid)
+    # ★ P0-D：把「完成了哪些任务」作为事件发出去，驱动后续剧情链
+    if finished_now and depth < _EVENT_MAX_DEPTH:
+        for tid in finished_now:
+            res = _events.apply_event(
+                st, _events.ev_finish_task(tid, source="internal"))
+            nxt = list(res.hits) + list(res.chain_hits)
+            if nxt:
+                frames.extend(_finish_story_tasks(st, nxt, depth + 1))
     frames.extend(_recalc_story_unlocks(st))
-    st.save()
+    if depth == 0:
+        st.save()
     return frames
 
 
@@ -1067,6 +1094,11 @@ def _actor_interact(rid, params, uid=None):
             tx.set(("street_info", street_id, "inter_actor_info"), ia)
         frames.extend(tx.frames())
     print("[street] NPC %s 交互 %s" % (actor_id, interact_id), flush=True)
+    # ★ P0-D：走事件总线发 StreetInteract（11 条剧情任务靠它推进）。
+    #   event_id 用 actor+interact 组合，重复交互不会重复走一遍。
+    res = _events.apply_event(
+        st, _events.ev_street_interact(actor_id, interact_id,
+                                        street_id=street_id))
     # 命中剧情任务就顺手完成
     if task_id:
         frames.extend(_finish_story_tasks(st, [task_id]))
@@ -1074,6 +1106,9 @@ def _actor_interact(rid, params, uid=None):
         hits = _find_story_tasks_by_param(st, interact_id, 2)
         if hits:
             frames.extend(_finish_story_tasks(st, hits))
+    nxt = list(res.hits) + list(res.chain_hits)
+    if nxt:
+        frames.extend(_finish_story_tasks(st, nxt))
     st.save()
     return frames
 
@@ -2266,7 +2301,11 @@ def _advance_story_on_finish(st, info=None, uid=None):
     first_pass = bool(lv) and lv_key not in cleared
     if first_pass:
         ev["first_pass"] = 1
-    hits, _ch = story.evaluate_event(st, "FinishDungeon", ev)
+    # ★ P0-D：走事件总线（唯一写入口），不再直接调 story.evaluate_event
+    result = _events.apply_event(
+        st, _events.GameEvent(_events.EV_FINISH_DUNGEON, ev,
+                              source="rpc:Cmd_Avatar_FinishGame_CS"))
+    hits = result.hits
     out = []
     if hits:
         out.extend(_finish_story_tasks(st, hits))
@@ -2283,9 +2322,11 @@ def _advance_story_on_finish(st, info=None, uid=None):
                 msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                 "1", True))
             print("[dungeon] 序章完成，story_finished[1]=True", flush=True)
-    chain, _c2 = story.check_chain_tasks(st)
-    if chain:
-        out.extend(_finish_story_tasks(st, chain))
+    # ★ P0-D：链式任务也走事件总线。这里用 tick() 而不是 apply_event()，
+    #   因为刚完成的任务可能让链式任务的前置条件满足了。
+    tick_res = _events.tick(st)
+    if tick_res.chain_hits:
+        out.extend(_finish_story_tasks(st, tick_res.chain_hits))
     # 首通记录（下次同关卡就不是 first_pass 了）
     if lv and win:
         cleared[lv_key] = 1
@@ -2660,6 +2701,85 @@ def _state(uid=None):
 
 
 # 索引 -> 处理函数。没列进来的走通用 ACK。
+def _submit_item(rid, params, uid=None):
+    """SubmitItem_CS —— 提交道具，发 SubmitItem 事件（覆盖 15 条剧情任务）。
+
+    实测 TaskEventData 里 SubmitItem 的 EventParam 是空的，
+    所以只要发了这个 RPC 就能命中 —— 客户端只在真的提交时才发。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    item_id, count = 0, 1
+    if isinstance(vals, list) and vals:
+        try:
+            item_id = int(vals[0] or 0)
+        except Exception:
+            item_id = 0
+        if len(vals) > 1:
+            try:
+                count = int(vals[1] or 1)
+            except Exception:
+                count = 1
+    st = _state(uid)
+    res = _events.apply_event(st, _events.ev_submit_item(item_id, count))
+    nxt = list(res.hits) + list(res.chain_hits)
+    if nxt:
+        frames.extend(_finish_story_tasks(st, nxt))
+    print("[story] 提交道具 %s x%s" % (item_id, count), flush=True)
+    st.save()
+    return frames
+
+
+def _record_item_obtain(rid, params, uid=None):
+    """RecordItemObtain_CS —— 记录获得道具，发 GetItem 事件（覆盖 4 条剧情任务）。
+
+    TaskEventData 里 GetItem 有两种 KeyList：
+      ["itemId"]                       -> 只要 itemId
+      ["itemType", "level", "grade"]   -> 道具类型/等级/品质
+    客户端上报的参数里可能带这些，能取到就一起发。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    item_id, count = 0, 1
+    item_type = level = grade = None
+    if isinstance(vals, list) and vals:
+        first = vals[0]
+        if isinstance(first, dict):
+            try:
+                item_id = int(first.get("itemId") or 0)
+                count = int(first.get("count") or first.get("num") or 1)
+            except Exception:
+                pass
+            for name, box in (("itemType", "item_type"), ("level", "level"),
+                              ("grade", "grade")):
+                v = first.get(name)
+                if isinstance(v, int):
+                    if box == "item_type":
+                        item_type = v
+                    elif box == "level":
+                        level = v
+                    else:
+                        grade = v
+        else:
+            try:
+                item_id = int(first or 0)
+            except Exception:
+                item_id = 0
+            if len(vals) > 1:
+                try:
+                    count = int(vals[1] or 1)
+                except Exception:
+                    count = 1
+    st = _state(uid)
+    res = _events.apply_event(
+        st, _events.ev_get_item(item_id, count, item_type, level, grade))
+    nxt = list(res.hits) + list(res.chain_hits)
+    if nxt:
+        frames.extend(_finish_story_tasks(st, nxt))
+    print("[story] 获得道具 %s x%s" % (item_id, count), flush=True)
+    st.save()
+    return frames
+
 _HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
@@ -2678,7 +2798,9 @@ for _name, _spec in _CONST_SETTERS.items():
         _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
 
 # 编队内容（改的是 character_list 的子属性，不是根属性，单独处理）
-for _name, _fn in (("SetCharacterList_CS", _set_character_list),
+for _name, _fn in (("SubmitItem_CS", _submit_item),
+                   ("RecordItemObtain_CS", _record_item_obtain),
+                   ("SetCharacterList_CS", _set_character_list),
                    ("SetCharacterListName_CS", _set_character_list_name),
                    ("RequestSwitchStreet_CS", _switch_street),
                    ("RpcEnterStreet", _switch_street),
@@ -2721,7 +2843,7 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("Cmd_Avatar_FinishGame_CS", _dungeon_finish),
                    ("SingleStartMatch_CS", _single_start_match),
                    ("BattleTeach_Activate_CS", _battle_teach_activate),
-                   ("RecordItemObtain_CS", _ack_only)):
+                   ("RecordItemObtain_CS", _record_item_obtain)):
     if _name in RPC_INDEX:
         _HANDLERS[RPC_INDEX[_name]] = _fn
 
@@ -2817,6 +2939,27 @@ _ONE_WAY_HANDLERS = {
 }
 
 
+def _drain_pending_chain(uid=None):
+    """把登录时事件总线攒下的「待完成链式任务」补完，返回同步帧。
+
+    为什么要攒：ms._live_init_dict 里跑 events.tick() 时还不知道要怎么发奖、
+    怎么推同步（那是 entity_rpc 的事）。所以只把命中的任务 id 记在
+    _oo_pending_chain 里，等第一条 RPC 进来时在这里补完。
+    """
+    try:
+        st = _state(uid)
+    except Exception:
+        return []
+    pending = st.props.pop("_oo_pending_chain", None)
+    if not pending:
+        return []
+    try:
+        return _finish_story_tasks(st, [int(x) for x in pending])
+    except Exception as e:
+        print("[story] 补完成链式任务失败: %s" % e, flush=True)
+        return []
+
+
 def handle(index, params, rid, uid=None):
     """处理一条实体 RPC，返回**帧列表**（可能为空）。
 
@@ -2848,14 +2991,19 @@ def handle(index, params, rid, uid=None):
             if isinstance(out, list):
                 return out
         return []
+    # ★ P0-D：把登录时事件总线攒下的「待完成链式任务」补上。
+    #   这是「服务端主动推进」的落地点：不依赖任何具体 RPC，
+    #   登录后第一条 RPC 就顺带把漏掉的剧情推进完并推同步帧。
+    _pending_frames = _drain_pending_chain(uid)
     fn = _HANDLERS.get(index)
     if fn is not None:
         out = fn(rid, params, uid)
         if out is None:
-            return []
-        return out if isinstance(out, list) else [out]
+            return _pending_frames
+        frames = out if isinstance(out, list) else [out]
+        return _pending_frames + frames
     # 通用成功应答：所有 _SC 处理函数都只看 retstatus.status。
-    return [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    return _pending_frames + [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
 
 
 def decode_params(params):
