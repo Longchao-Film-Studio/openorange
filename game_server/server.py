@@ -923,6 +923,16 @@ def main():
     _sc = ooconf.configure_scaffold(unlock_all=_unlock_all, level=_level,
                                     all_tasks_done=_tasks_done)
     print("[cfg] 脚手架: %s" % _sc.describe(), flush=True)
+
+    # ---- 副本调试开关：只下发最后一关 ----
+    # 序章有 3 关（50001 天台 / 50002 千相会 / 50003 千手Boss战），
+    # 测试结算时没必要每次打三关。打开后 spaceInfo.levelIds 只给最后一关。
+    _last_only = "--dungeon-last-only" in argv
+    if os.environ.get("OO_DUNGEON_LAST_ONLY", "") not in ("", "0"):
+        _last_only = True
+    ooconf.configure_dungeon_last_only(_last_only)
+    if _last_only:
+        print("[cfg] 副本: 只下发最后一关（一关直达 Boss）", flush=True)
     if MS_MODE:
         os.makedirs(CAPTURE_DIR, exist_ok=True)
         db.init()

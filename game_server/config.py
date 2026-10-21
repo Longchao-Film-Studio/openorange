@@ -135,6 +135,27 @@ def configure_scaffold(unlock_all=False, level=None, all_tasks_done=None):
     return SCAFFOLD
 
 
+# ------------------------------------------------------------------ 副本调试
+#
+# DUNGEON_LAST_ONLY = True 时，进副本只把**最后一关**下发给客户端
+# （`Cmd_Avatar_StartGame_CS` 的 spaceInfo.levelIds 只给最后一个）。
+#
+# 依据：客户端 battlecontainer/dispatchhub/dispatchhubonline.lua:49-59
+#   local levelIds = spaceInfo.levelIds
+#   if nil == levelIds then <客户端按 Level_CopyData.rootLevel 自己生成> end
+# 也就是说服务端给了 levelIds 就完全按服务端给的走。
+#
+# 用途：序章有 3 关（50001 天台 / 50002 千相会 / 50003 千手Boss战），
+# 测试结算时没必要每次打三关 —— 打开这个开关就一关直达 Boss。
+DUNGEON_LAST_ONLY = False
+
+
+def configure_dungeon_last_only(on=True):
+    global DUNGEON_LAST_ONLY
+    DUNGEON_LAST_ONLY = bool(on)
+    return DUNGEON_LAST_ONLY
+
+
 def avatar_entity_id(uid):
     return AVATAR_ENTITY_PREFIX + str(uid)
 

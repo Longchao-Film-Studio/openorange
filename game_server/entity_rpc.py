@@ -44,6 +44,7 @@ import struct
 import time
 
 from . import ms as msmod
+from . import config as ooconf
 from . import gamedata
 from . import story
 from . import tasks
@@ -1750,7 +1751,14 @@ def _avatar_start_game(rid, params, uid=None):
         "match_info": match_info,
     }
     if roots:
-        inner["levelIds"] = [int(x) for x in roots if isinstance(x, int)]
+        ids = [int(x) for x in roots if isinstance(x, int)]
+        # --dungeon-last-only：只下发最后一关，测试时一关直达 Boss
+        # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 levelIds
+        if getattr(ooconf, "DUNGEON_LAST_ONLY", False) and len(ids) > 1:
+            ids = ids[-1:]
+            print("[dungeon] --dungeon-last-only：只下发最后一关 %s" % ids,
+                  flush=True)
+        inner["levelIds"] = ids
     space_info = {"spaceInfo": inner, "battleInfo": {}}
     st = _state(uid)
     st.props["_oo_cur_copy"] = copy_id

@@ -183,6 +183,44 @@ def run():
     check("返回 1 帧", len(frames4) == 1, len(frames4))
     check("是应答帧", b"__rpc_response__" in frames4[0])
 
+    print("\n[9] --dungeon-last-only：只下发最后一关")
+    # 序章 rootLevel = [50001, 50002, 50003]（50003 是千手Boss战）
+    # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 spaceInfo.levelIds
+    def start_levels(flag, uid):
+        config.configure_dungeon_last_only(flag)
+        fresh(uid)
+        fs = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                         msmod.mp_arr([{"match_type": 3, "system_type": 1004,
+                                       "modeId": 1, "storyID": 1}]),
+                         1, uid=uid)
+        for f in fs:
+            if not isinstance(f, (bytes, bytearray)):
+                continue
+            body = bytes(f[6:])
+            fields = msmod.pb_parse(body)
+            params = fields.get(4, [b""])[0]
+            if not params:
+                continue
+            try:
+                decoded, _u = msmod.mp_decode(params)
+            except Exception:
+                continue
+            if not (isinstance(decoded, list) and len(decoded) == 2):
+                continue
+            sp = (decoded[1] or {}).get("spaceInfo") or {}
+            inner = sp.get("spaceInfo") or {}
+            if "levelIds" in inner:
+                return inner["levelIds"]
+        return None
+
+    lv_off = start_levels(False, "dlo_off")
+    check("默认下发三关 [50001,50002,50003]",
+          lv_off == [50001, 50002, 50003], lv_off)
+    lv_on = start_levels(True, "dlo_on")
+    check("--dungeon-last-only 只下发 [50003]（千手Boss战）",
+          lv_on == [50003], lv_on)
+    config.configure_dungeon_last_only(False)   # 复位，别影响别的测试
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:
