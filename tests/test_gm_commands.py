@@ -179,6 +179,42 @@ def run():
         check("登录后才有任务 1000", isinstance(bag_q.get(1000), dict),
               list(bag_q.keys())[:5])
 
+        print("\n[12] Target 抽象")
+        from shared.commands import Target, resolve_target
+        c_admin = cmds.Context("aixiaoji", cmds.PERM_ADMIN)
+        c_gm = cmds.Context("gm1", cmds.PERM_GM)
+
+        t_self, e = resolve_target(c_admin, "@")
+        check("@ 解析成自己", t_self is not None and t_self.is_self, t_self)
+        check("Target 是 str 子类", isinstance(t_self, str), type(t_self))
+        check("值就是账号名", str(t_self) == "aixiaoji", str(t_self))
+        check("uid 等于账号名", t_self.uid == "aixiaoji", t_self.uid)
+        check("能和字符串直接比较", t_self == "aixiaoji")
+
+        t_other, e = resolve_target(c_admin, "cmd_a")
+        check("账号名解析成功", t_other is not None, e)
+        check("不是自己", t_other.is_self is False, t_other)
+        check("require_admin 通过（管理员）",
+              t_other.require_admin() is None, t_other.require_admin())
+
+        t_gm, e = resolve_target(c_gm, "cmd_a")
+        check("GM 跨账号被 require_admin 拒",
+              t_gm.require_admin() is not None, t_gm.require_admin())
+
+        t_self_gm, e = resolve_target(c_gm, "@")
+        check("GM 操作自己不需要管理员",
+              t_self_gm.require_admin() is None)
+
+        t_bad, e = resolve_target(c_admin, "no_such_account")
+        check("不存在的账号返回错误", t_bad is None and e is not None, e)
+
+        check("account 属性拿到记录",
+              isinstance(t_other.account, dict), t_other.account)
+
+        p, pe = t_other.player("dungeon")
+        check("player() 能读到游戏服状态",
+              pe is None and isinstance(p, dict), (p, pe))
+
         print("\n[11] 游戏服没在跑时给友好错误")
         old = cmds.ADMIN_URL
         cmds.ADMIN_URL = "http://127.0.0.1:1"

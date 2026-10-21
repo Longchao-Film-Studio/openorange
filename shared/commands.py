@@ -148,20 +148,117 @@ def split_tokens(text):
     return out
 
 
+class Target(str):
+    """命令目标 —— 把「目标账号」这件事收成一个抽象。
+
+    为什么继承 str：
+      Target 的值就是账号名，所以现有命令里所有 `"%s" % target`、
+      `db.get_account_by_username(target)`、`target != ctx.actor` 全都不用改。
+      需要富行为时再用下面这些属性和方法。
+
+    以前每个命令都在重复做：
+      - str(target) 转换
+      - 判断是不是自己
+      - 自己判断管理员权限（和 execute() 里的重复）
+      - 手拼 /player/<uid>/xxx 去调游戏服管理接口
+    现在统一收进这里。
+
+    用法：
+      def cmd_xxx(ctx, target, *args):
+          target.uid                      # 游戏内 uid（本项目复用账号名）
+          target.is_self                  # 是不是 @ 自己
+          target.account                  # 账号记录（dict 或 None）
+          target.require_admin()          # 跨账号操作校验，返回 err 或 None
+          player, e = target.player("story")   # 读游戏服状态，返回 (dict, err)
+    """
+
+    __slots__ = ("_ctx", "_is_self")
+
+    def __new__(cls, username, ctx=None, is_self=False):
+        obj = super().__new__(cls, username or "")
+        obj._ctx = ctx
+        obj._is_self = bool(is_self)
+        return obj
+
+    @property
+    def uid(self):
+        """游戏内 uid。本项目 uid 直接复用账号名。"""
+        return str(self)
+
+    @property
+    def is_self(self):
+        """是不是 @ 自己。"""
+        return self._is_self
+
+    @property
+    def perm(self):
+        """目标账号的权限等级。"""
+        try:
+            return db.get_perm_level(str(self))
+        except Exception:
+            return PERM_PLAYER
+
+    @property
+    def account(self):
+        """目标账号记录（dict 或 None）。"""
+        try:
+            return db.get_account_by_username(str(self))
+        except Exception:
+            return None
+
+    def require_admin(self):
+        """跨账号操作需要管理员。返回 err 或 None。
+
+        注意：execute() 在派发前已经统一校验过一次；这里是给
+        「即使目标是自己、但操作有额外风险」的命令做二次校验用的。
+        """
+        if self._is_self:
+            return None
+        if self._ctx is None or self._ctx.perm >= PERM_ADMIN:
+            return None
+        return err("只有管理员才能对别的账号操作",
+                   chat="✗ 需要管理员权限")
+
+    def player(self, kind):
+        """读游戏服上该账号的状态（走管理接口）。
+
+        kind: "story" | "dungeon"
+        返回 (player_dict, err)。
+        """
+        info, e = _admin("GET", "/player/%s/%s" % (self.uid, kind))
+        if e:
+            return None, _ADMIN_DOWN
+        if not info or not info.get("ok"):
+            return None, "查询失败: %s" % (info,)
+        return (info.get("player") or {}), None
+
+    def call(self, method, path, payload=None):
+        """以该账号为目标调游戏服管理接口。
+
+        自动把 uid 塞进 payload（如果 payload 是 dict）。
+        """
+        body = dict(payload or {})
+        body.setdefault("uid", self.uid)
+        return _admin(method, path, body)
+
+    def __repr__(self):
+        return "Target(%r%s)" % (str(self), ", self" if self._is_self else "")
+
+
 def resolve_target(ctx, token):
-    """解析 target。返回 (username, error_result)。"""
+    """解析 target。返回 (Target, error_result)。"""
     token = (token or "").strip()
     # 只保留 "@" 作为"自己"：它不可能成为账号名（注册规则只允许字母/数字/下划线）。
     # 之前还接受 "self"/"自己"/"我"，但 "self" 恰好是合法账号名，
     # 会把这个账号永久遮蔽成"自己"，导致管理员无法对它执行任何命令。
-    if token == "@":
-        return ctx.actor, None
-    if not token:
-        return ctx.actor, None
+    if token == "@" or not token:
+        return Target(ctx.actor, ctx, True), None
     if db.get_account_by_username(token) is None:
         return None, err("找不到账号「%s」" % token,
                          chat="✗ 找不到账号 %s" % token)
-    return token, None
+    return Target(token, ctx, token == ctx.actor), None
+
+
 
 
 def execute(text, ctx):
@@ -731,13 +828,10 @@ def cmd_dungeon(ctx, target, *args):
     spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。
     适用于**所有副本**：关卡 id 属于该副本 rootLevel 才生效，否则忽略并打日志。
     """
-    uid = str(target)
-
-    info, e = _admin("GET", "/player/%s/dungeon" % uid)
-    if e or not info or not info.get("ok"):
-        return err(_ADMIN_DOWN if e else "查询失败: %s" % (info,),
-                   chat="✗ 连不上游戏服")
-    p = info.get("player") or {}
+    uid = target.uid
+    p, e = target.player("dungeon")
+    if e:
+        return err(e, chat="✗ 连不上游戏服")
     cur = p.get("force_level") or 0
 
     # 无参数：显示当前状态
@@ -767,10 +861,9 @@ def cmd_dungeon(ctx, target, *args):
 
     raw = (args[0] or "").strip().lower()
     if raw in ("off", "0", "关", "取消", "clear"):
-        res, e = _admin("POST", "/dungeon/level", {"uid": uid, "level": 0})
+        res, e = target.call("POST", "/dungeon/level", {"level": 0})
         if e or not res or not res.get("ok"):
-            return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
-                       chat="✗ 设置失败")
+            return err(e or ("设置失败: %s" % (res,)), chat="✗ 设置失败")
         return ok(["✔ 已取消副本关卡覆盖",
                    "  账号    %s" % uid, "",
                    "  进副本会按 Level_CopyData.rootLevel 正常下发全部关卡。"],
@@ -797,10 +890,9 @@ def cmd_dungeon(ctx, target, *args):
     scene = (entry or {}).get("scene") or "-"
     nxt = (entry or {}).get("nextLevel") or "无"
 
-    res, e = _admin("POST", "/dungeon/level", {"uid": uid, "level": level})
+    res, e = target.call("POST", "/dungeon/level", {"level": level})
     if e or not res or not res.get("ok"):
-        return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
-                   chat="✗ 设置失败")
+        return err(e or ("设置失败: %s" % (res,)), chat="✗ 设置失败")
     got = res.get("force_level") or 0
     lines = [
         "✔ 已设置副本关卡覆盖",
@@ -834,14 +926,12 @@ def cmd_prologue(ctx, target, *args):
     跳过通过游戏服管理接口**立刻**改服务端状态：
       StoryTask 1000 -> Finished、1003 -> Doing、story_finished[1] = True
     """
-    uid = str(target)
+    uid = target.uid
 
     if not args:
-        info, e = _admin("GET", "/player/%s/story" % uid)
-        if e or not info or not info.get("ok"):
-            return err(_ADMIN_DOWN if e else "查询失败: %s" % (info,),
-                       chat="✗ 连不上游戏服")
-        p = info.get("player") or {}
+        p, e = target.player("story")
+        if e:
+            return err(e, chat="✗ 连不上游戏服")
         if not p.get("exists", True):
             return ok(["序章状态    账号 %s" % uid,
                        "  该账号还没有存档（从没登录过）。",
@@ -873,10 +963,9 @@ def cmd_prologue(ctx, target, *args):
         return err("未知子命令「%s」，用法：/prologue <target> [skip]" % args[0],
                    chat="✗ 用法: /prologue <target> [skip]")
 
-    res, e = _admin("POST", "/player/skip-prologue", {"uid": uid})
+    res, e = target.call("POST", "/player/skip-prologue")
     if e or not res or not res.get("ok"):
-        return err(_ADMIN_DOWN if e else "跳过失败: %s" % (res,),
-                   chat="✗ 跳过失败")
+        return err(e or ("跳过失败: %s" % (res,)), chat="✗ 跳过失败")
     r = res.get("result") or {}
     lines = [
         "✔ 序章已跳过（立即生效）",
