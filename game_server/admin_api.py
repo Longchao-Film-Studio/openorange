@@ -195,7 +195,13 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True,
                                         "started_at": runtime.STARTED_AT})
             if path == "/state":
-                return self._send(200, {"ok": True, "state": runtime.snapshot()})
+                from . import config as ooconf
+                state = runtime.snapshot()
+                # 命令行 --dungeon-last-only 的开关在 config 里（不是 runtime），
+                # 之前 /state 报的是 runtime 那份没人写的镜像，恒为 False。
+                state["cli_dungeon_last_only"] = bool(
+                    ooconf.DUNGEON_LAST_ONLY)
+                return self._send(200, {"ok": True, "state": state})
             if path.startswith("/player/") and path.endswith("/dungeon"):
                 uid = path[len("/player/"):-len("/dungeon")]
                 return self._send(200, {"ok": True,

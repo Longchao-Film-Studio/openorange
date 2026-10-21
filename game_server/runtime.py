@@ -17,19 +17,12 @@
 # 管理接口启动时间（/health 用）
 STARTED_AT = None
 
-# 启动时确定、运行中不变的副本默认行为（命令行 --dungeon-last-only）
-CLI_DUNGEON_LAST_ONLY = False
-
-
-def set_cli_dungeon_last_only(on):
-    global CLI_DUNGEON_LAST_ONLY
-    CLI_DUNGEON_LAST_ONLY = bool(on)
-    return CLI_DUNGEON_LAST_ONLY
-
-
 def snapshot():
-    """给管理接口 /state 用的快照。"""
+    """给管理接口 /state 用的快照。
+
+    注意：命令行 --dungeon-last-only 的开关在 config.DUNGEON_LAST_ONLY 里，
+    不在这个模块 —— 之前这里有一份没人写的镜像变量，导致 /state 恒报 False。
+    """
     return {
-        "cli_dungeon_last_only": CLI_DUNGEON_LAST_ONLY,
         "started_at": STARTED_AT,
     }

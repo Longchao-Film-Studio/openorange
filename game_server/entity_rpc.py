@@ -148,6 +148,8 @@ RPC_INDEX = {
     # --- 副本内关卡切换 ---
     "Cmd_Avatar_EnterNext_CS": 43868592,
     "Cmd_Avatar_FinishGame_CS": 1846356571,
+    # 普通副本入口（审计发现之前完全没接，导致 321/322 个副本进不去）
+    "SingleStartMatch_CS": 1996394131,
     # --- P0.5：副本里高频出现、之前回「未知索引」的 ---
     "BattleTeach_Activate_CS": 842596900,
     "RecordItemObtain_CS": 638405549,
@@ -1716,10 +1718,20 @@ def _resolve_copy_id(match_info):
         if isinstance(line, dict) and line.get("dungeonId"):
             return line["dungeonId"]
         return None
-    # 其它系统：先看调用方有没有直接给 copyId / dungeonId
+    # 主线副本（system_type == Mainline）：match_info.dungeonId 是 MainlineData 的
+    # **整数 ID**，copyId 要从表里取 dungeonid。
+    # 依据：客户端 AvatarMatch:GetSpaceLevel（avatarmatch.lua:29-31）
+    #   local config = DataLoader:getMainlineData()[match_info.dungeonId]
+    #   return config.dungeonid
+    did = match_info.get("dungeonId")
+    if isinstance(did, int) or (isinstance(did, str) and did.isdigit()):
+        ml = gamedata.mainline(did)
+        if isinstance(ml, dict) and ml.get("dungeonid"):
+            return ml["dungeonid"]
+    # 其它系统：先看调用方有没有直接给 copyId / dungeonId（字符串形式）
     for k in ("copyId", "dungeonid", "dungeonId"):
         v = match_info.get(k)
-        if isinstance(v, str) and v:
+        if isinstance(v, str) and v and not v.isdigit():
             return v
     return None
 
@@ -1782,13 +1794,61 @@ def _avatar_start_game(rid, params, uid=None):
     st.props["_oo_cur_match"] = match_info
     # ★ 结算时喂给剧情引擎的额外事件参数：FinishDungeon 事件里有 57 个带
     #   areaid、4 个带 levelId，不给就永远匹配不上（event_matches 要求全字段）。
-    _remember_level(st, (inner.get("levelIds") or [None])[0])
+    _remember_dungeon(st, copy_id, (inner.get("levelIds") or [None])[0])
     st.props.pop("_oo_cur_teach", None)   # 新副本，清掉上一轮的教学记录
     st.save()
     print("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots), flush=True)
     resp = {"status": True, "spaceInfo": space_info}
     return [msmod.build_entity_response(rid, ret=dict(ACK_OK), resp=resp)]
 
+
+def _single_start_match(rid, params, uid=None):
+    """SingleStartMatch_CS {match_info} —— 普通副本入口（主线/挑战/塔…）。
+
+    ★ 之前完全没接，所以除序章外 321 个副本进不去（审计发现）。
+
+    客户端 avatarteamcomp.lua:269-315 发这个 RPC；回调 SignleStartMatch_SC
+    （:321-331）**只读 ret.status / ret.errorcode**，copyId 是客户端自己算的：
+      local copyId = self:GetSpaceLevel(match_info)   -- AvatarMatch:GetSpaceLevel
+      SpaceUtils.showLoadingPanel(EGameStage.OfflineBattle, copyId, false)
+    所以服务端只需要两件事：
+      1. 记下本次副本上下文（结算时要用）
+      2. 回 {status: true}
+
+    match_info 的 shape 见 avatarteamcomp.lua:271-312，关键字段：
+      system_type / modeId / dungeonId / levelId / storyID / match_type ...
+    system_type == Mainline 时 dungeonId 是 MainlineData 的整数 ID。
+    """
+    frames = []
+    st = _state(uid)
+    vals = decode_params(params)
+    match_info = vals[0] if (isinstance(vals, list) and vals
+                             and isinstance(vals[0], dict)) else {}
+    if not isinstance(match_info, dict):
+        match_info = {}
+    copy_id = _resolve_copy_id(match_info)
+    if not copy_id:
+        print("[dungeon] SingleStartMatch 解析不出 copyId，match_info=%s"
+              % match_info, flush=True)
+        return [msmod.build_entity_response(
+            rid, ret={"status": False, "errorcode": 1})]
+    cfg = gamedata.level_copy(copy_id) or {}
+    roots = cfg.get("rootLevel") or []
+    st.props["_oo_cur_copy"] = copy_id
+    st.props["_oo_cur_match"] = match_info
+    # 客户端请求里带了具体关卡就用它，否则用副本首关
+    want_level = match_info.get("levelId")
+    if not isinstance(want_level, int):
+        want_level = roots[0] if roots else None
+    _remember_dungeon(st, copy_id, want_level)
+    st.props.pop("_oo_cur_teach", None)
+    st.save()
+    print("[dungeon] SingleStartMatch copyId=%s level=%s area=%s"
+          % (copy_id, st.props.get("_oo_cur_level"),
+             st.props.get("_oo_cur_area")), flush=True)
+    # 客户端只读 status，不需要 spaceInfo
+    return [msmod.build_entity_response(rid, ret=dict(ACK_OK),
+                                        resp={"status": True})]
 
 def _storyline_finish_game(rid, params, uid=None):
     """Storyline_FinishGame {storyID, passed, useTime} —— 标记剧情段落完成。"""
@@ -1878,7 +1938,7 @@ def _avatar_enter_next(rid, params, uid=None):
     copy_id = st.props.get("_oo_cur_copy")
     roots = (gamedata.level_copy(copy_id) or {}).get("rootLevel") or []
     if 1 <= copy_index <= len(roots):
-        _remember_level(st, roots[copy_index - 1])
+        _remember_dungeon(st, copy_id, roots[copy_index - 1])
         st.save()
     print("[dungeon] 进入下一关 copyIndex=%s 关卡=%s"
           % (copy_index, st.props.get("_oo_cur_level")), flush=True)
@@ -1898,7 +1958,11 @@ def _avatar_enter_next(rid, params, uid=None):
 #   ② 服务端算奖励
 #   ③ 服务端下发 AvatarSpace_SpaceFinish_SC（index 1634212414）  ← 关键缺口
 #   ④ 客户端 AvatarSettlementComp:AvatarSpace_SpaceFinish_SC -> OnReceiveEndMsg
-#        -> SettleFactory.createSettle() -> normalSettle() -> 结算面板
+#        -> SettleFactory.createSettle() -> 按 match_info.system_type 分派
+#             ★ 1004(StoryLine) -> storyLineSettle()，只调 directLeaveBattle()，
+#               **不弹结算面板**（settlefactory.lua:305 / :249-251）；
+#               1000(Dungeon) -> dungeonChallengeSettle() 才弹面板（:303）。
+#               序章是 1004，所以打完是「直接回街区」而不是弹面板 —— 这是正常的。
 #   ⑤ 玩家点退出 -> directLeaveBattle -> GoBackToWhere -> 用 toStreetId/toStreetPosId
 #        -> JumpToStreetStage 回街区
 #
@@ -1980,7 +2044,9 @@ def _settlement_table(st, uid, info, reward_list):
       avatarsettlementcomp.lua:154-178 GoBackToWhere
         -> data.toStreetId / data.toStreetPosId
       modules/battlesettle/settlefactory.lua:327-335 createSettle
-        -> resultData.match_info.system_type（1004 走 normalSettle）
+        -> resultData.match_info.system_type
+           1004(StoryLine) -> storyLineSettle（不弹面板，直接回街区）
+           1000(Dungeon)  -> dungeonChallengeSettle（弹面板）
     """
     me = _finish_info_of(info, uid)
     to_street = info.get("toStreetId") if isinstance(info, dict) else None
@@ -2021,29 +2087,31 @@ def _settlement_table(st, uid, info, reward_list):
     return settle
 
 
-def _remember_level(st, level_id):
-    """记住「当前在打哪一关」，结算时喂 levelId / areaid 给剧情引擎。
+def _remember_dungeon(st, copy_id, level_id=None):
+    """记住「当前副本 / 关卡 / 区域」，结算时喂给剧情引擎。
 
-    为什么需要：FinishDungeon 的 77 个事件里，
-      - 57 个带 areaid（副本区域 id）
-      - 4 个带 levelId（具体关卡 id）
+    为什么需要：FinishDungeon 的事件里，
+      - 57 个带 areaid（区域 id）
+      - 4 个带 levelId（关卡 id）
     而 story.event_matches 要求事件配置里的**每个**参数都出现在我们给的
-    params 里，否则不匹配。所以这两个值必须提前记下来。
+    params 里，否则不匹配。所以这些值必须提前记下来。
+
+    ★ areaid 用 copyId 查 MainlineData（不是按关卡反查 —— 一个关卡可能被多个
+      副本共用，按关卡反查会张冠李戴，详见 gamedata.area_of_copy 的注释）。
     """
-    try:
-        lv = int(level_id) if level_id else 0
-    except (TypeError, ValueError):
-        lv = 0
-    if not lv:
-        st.props.pop("_oo_cur_level", None)
-        st.props.pop("_oo_cur_area", None)
-        return
-    st.props["_oo_cur_level"] = lv
-    area = gamedata.area_of_level(lv)
+    area = gamedata.area_of_copy(copy_id)
     if area:
         st.props["_oo_cur_area"] = int(area)
     else:
         st.props.pop("_oo_cur_area", None)
+    try:
+        lv = int(level_id) if level_id else 0
+    except (TypeError, ValueError):
+        lv = 0
+    if lv:
+        st.props["_oo_cur_level"] = lv
+    else:
+        st.props.pop("_oo_cur_level", None)
 
 
 def _advance_story_on_finish(st, info=None, uid=None):
@@ -2076,11 +2144,9 @@ def _advance_story_on_finish(st, info=None, uid=None):
                 type_id = 0
     if not type_id:
         return []
-    if not type_id:
-        return []
     # ★ 把能拿到的参数都给上。event_matches 要求事件配置里的每个键都在
     #   params 里，所以参数越全，能匹配上的事件越多：
-    #     areaid        57 个事件需要（副本区域 id，从当前关卡反查）
+    #     areaid        57 个事件需要（区域 id，用 copyId 查 MainlineData）
     #     levelId        4 个事件需要（具体关卡 id）
     #     instructionid  6 个事件需要（战斗教学指令 id）
     #     first_pass     6 个事件需要（首通标记）
@@ -2202,7 +2268,6 @@ def _battle_teach_activate(rid, params, uid=None):
     if not isinstance(bts, dict):
         return frames
     # 记下本次副本激活过的教学指令 —— 结算时喂 instructionid（6 个事件需要）
-    st.props["_oo_cur_teach"] = iid
     st.set("_oo_cur_teach", iid)
     if iid not in bts:
         bts[iid] = 0
@@ -2526,6 +2591,7 @@ for _name, _fn in (("SetCharacterList_CS", _set_character_list),
                    ("Storyline_FinishGame", _storyline_finish_game),
                    ("Cmd_Avatar_EnterNext_CS", _avatar_enter_next),
                    ("Cmd_Avatar_FinishGame_CS", _dungeon_finish),
+                   ("SingleStartMatch_CS", _single_start_match),
                    ("BattleTeach_Activate_CS", _battle_teach_activate),
                    ("RecordItemObtain_CS", _ack_only)):
     if _name in RPC_INDEX:

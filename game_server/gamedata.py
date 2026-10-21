@@ -160,33 +160,56 @@ def level(level_id):
     return row("LevelData", level_id)
 
 
-_AREA_BY_LEVEL = None
+_AREA_BY_COPY = None
 
 
-def area_of_level(level_id):
-    """LevelData id -> DungeonId（区域 id）。
+def area_of_copy(copy_id):
+    """copyId -> 区域 id（FinishDungeon 事件里的 areaid）。
 
-    依据：EnterDungeonData 是 {id: {DungeonId, StageId, BirthPoint}}，
-    其中 StageId 就是 LevelData 的 id（实测 108/109 对得上）。
-    反向索引一次建好缓存。
+    ★ 必须用 MainlineData，不能用 EnterDungeonData 按关卡反查。
 
-    用途：FinishDungeon 事件里有 57 个带 areaid 参数，
-    结算时必须能给出 areaid 才匹配得上（见 story.event_matches）。
+    依据（2026-10-21 审计修正）：
+      MainlineData 每行 = {ID: 区域id, dungeonid: copyId, sectionname, ...}
+      125 行 / 125 个不同 copyId，是 copyId -> areaid 的**直接**映射。
+
+    为什么不用 EnterDungeonData（{DungeonId, StageId}）：
+      StageId 确实等于 LevelData 的 id（108/109 对得上），但一个关卡可能被
+      多个副本共用，按关卡反查会张冠李戴。实测 3 个副本会给出错误 areaid：
+        dgarea_arcade_11  关卡 52108 -> 10304（错，应为 10311）
+        dgarea_arcade_12  关卡 52109 -> 10309（错，应为 10312）
+        dgarea_arcade_13  关卡 52123 -> 10310（错，应为 10313）
+      错 areaid 会导致**误完成别人的剧情任务**（10304/10309/10310 各挂着
+      事件 5009/5014/5015），比拿不到更糟。所以宁可不给，也不给错的。
+
+    覆盖：125/322 个副本。其余 197 个在 MainlineData 里没有记录，返回 None，
+    对应事件就不匹配（这是正确行为，等 P1 副本入口映射一起解决）。
     """
-    global _AREA_BY_LEVEL
-    if _AREA_BY_LEVEL is None:
-        _AREA_BY_LEVEL = {}
-        for row in (table("EnterDungeonData") or {}).values():
+    global _AREA_BY_COPY
+    if _AREA_BY_COPY is None:
+        _AREA_BY_COPY = {}
+        for row in (table("MainlineData") or {}).values():
             if not isinstance(row, dict):
                 continue
-            sid = row.get("StageId")
-            did = row.get("DungeonId")
-            if isinstance(sid, int) and isinstance(did, int):
-                _AREA_BY_LEVEL.setdefault(sid, did)
-    try:
-        return _AREA_BY_LEVEL.get(int(level_id))
-    except (TypeError, ValueError):
+            cid = row.get("dungeonid")
+            aid = row.get("ID")
+            if isinstance(cid, str) and isinstance(aid, int):
+                _AREA_BY_COPY.setdefault(cid, aid)
+    if not isinstance(copy_id, str):
         return None
+    return _AREA_BY_COPY.get(copy_id)
+
+
+def mainline(dungeon_id):
+    """MainlineData[dungeon_id] —— 主线副本配置。
+
+    字段：{ID: 区域id(=FinishDungeon 的 areaid), dungeonid: copyId,
+           sectionname, dungeonType, awardItemList, ...}
+
+    客户端 AvatarMatch:GetSpaceLevel（avatarmatch.lua:29-31）：
+      system_type == Mainline 时，match_info.dungeonId 就是这张表的 ID，
+      copyId = MainlineData[dungeonId].dungeonid。
+    """
+    return row("MainlineData", dungeon_id)
 
 
 def level_copy(copy_id):

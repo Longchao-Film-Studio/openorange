@@ -16,7 +16,7 @@
     isWin          1 个事件需要
     modeId/level   原有
 
-  验证用真实数据：副本 dgarea_arcade_04 的关卡 52108 -> areaid 10304，
+  验证用真实数据：副本 dgarea_arcade_04 在 MainlineData 里 ID=10304（areaid），
   对应事件 5009 = FinishDungeon{typeId:1000, areaid:10304}，
   该事件属于剧情任务 5031（TaskType 3, Parameter1=[500014]）。
 """
@@ -60,9 +60,9 @@ EVENT = 5009
 def run():
     print("\n[0] BDD 前提校验")
     check("副本 %s 存在" % COPY, bool(gamedata.level_copy(COPY)))
-    check("关卡 %d -> areaid %d" % (LEVEL, AREA),
-          gamedata.area_of_level(LEVEL) == AREA,
-          gamedata.area_of_level(LEVEL))
+    check("副本 %s -> areaid %d（MainlineData）" % (COPY, AREA),
+          gamedata.area_of_copy(COPY) == AREA,
+          gamedata.area_of_copy(COPY))
     ev = gamedata.task_event(EVENT) or {}
     check("事件 %d 是 FinishDungeon{typeId:1000, areaid:%d}" % (EVENT, AREA),
           ev.get("EventType") == "FinishDungeon"
@@ -180,6 +180,63 @@ def run():
     finally:
         story.evaluate_event = orig3
     check("失败 -> isWin = 0", ev4.get("isWin") == 0, ev4)
+
+    print("\n[9] SingleStartMatch_CS —— 普通副本入口（审计发现之前完全没接）")
+    from game_server import gamedata as _gd2
+    check("RPC_INDEX 里有 SingleStartMatch_CS",
+          erpc.RPC_INDEX.get("SingleStartMatch_CS") == 1996394131,
+          erpc.RPC_INDEX.get("SingleStartMatch_CS"))
+    check("_HANDLERS 里注册了", 1996394131 in erpc._HANDLERS)
+
+    # 用 MainlineData 的一条真实数据：dungeonId 是整数 ID，copyId 从表里取
+    md = _gd2.table("MainlineData") or {}
+    area_id = None
+    for _k, _v in md.items():
+        if isinstance(_v, dict) and _v.get("dungeonid") and _v.get("ID"):
+            area_id = _v["ID"]
+            want_copy = _v["dungeonid"]
+            break
+    check("找到 MainlineData 样例", area_id is not None, area_id)
+
+    st5 = fresh("dgev_ssm")
+    frames5 = erpc.handle(1996394131,
+                          msmod.mp_arr([{"match_type": 1, "system_type": 1005,
+                                         "modeId": 1, "dungeonId": area_id}]),
+                          7, uid="dgev_ssm")
+    check("返回 1 帧", len(frames5) == 1, len(frames5))
+    check("是应答帧", b"__rpc_response__" in frames5[0])
+    check("copyId 从 MainlineData 取到 %s" % want_copy,
+          st5.props.get("_oo_cur_copy") == want_copy,
+          st5.props.get("_oo_cur_copy"))
+    check("areaid = %s" % area_id, st5.props.get("_oo_cur_area") == area_id,
+          st5.props.get("_oo_cur_area"))
+    check("level 用副本首关",
+          st5.props.get("_oo_cur_level") ==
+          ((_gd2.level_copy(want_copy) or {}).get("rootLevel") or [None])[0],
+          st5.props.get("_oo_cur_level"))
+
+    # 反例：解析不出 copyId 时回 status=False
+    st6 = fresh("dgev_ssm2")
+    frames6 = erpc.handle(1996394131,
+                          msmod.mp_arr([{"match_type": 1, "system_type": 9999}]),
+                          8, uid="dgev_ssm2")
+    check("解析不出 copyId 时不记录上下文",
+          "_oo_cur_copy" not in st6.props, st6.props.get("_oo_cur_copy"))
+
+    print("\n[8] ★ 回归：按关卡反查会张冠李戴，必须用 copyId 查 MainlineData")
+    # 审计发现：arcade_11/12/13 的关卡分别和 arcade_04/09/10 共用，
+    # 按关卡反查会得到别人的 areaid，从而误完成别人的剧情任务。
+    from game_server import gamedata as _gd
+    for cid, want in (("dgarea_arcade_11", 10311),
+                      ("dgarea_arcade_12", 10312),
+                      ("dgarea_arcade_13", 10313)):
+        got = _gd.area_of_copy(cid)
+        check("%s -> areaid %d（不是别人的）" % (cid, want),
+              got == want, got)
+    check("arcade_04 仍是 10304", _gd.area_of_copy("dgarea_arcade_04") == 10304)
+    check("MainlineData 里没有的副本返回 None",
+          _gd.area_of_copy("guide_01") is None,
+          _gd.area_of_copy("guide_01"))
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

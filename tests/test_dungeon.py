@@ -82,24 +82,25 @@ def run():
                          msmod.mp_arr([PROLOGUE_MATCH]), 1, uid="dg_a")
     check("有应答帧", len(frames) >= 1, len(frames))
     # 解码应答，检查嵌套结构
+    # ★ 2026-10-21 审计修正：以前这里用 msmod.parse_entity_frame() 解 S2C 帧，
+    #   但那个函数是给 C2S 帧用的（返回 3-tuple），解不出来就 except 掉，
+    #   然后伪造一个 resp 再断言 —— 等于自己测自己。现在改成正确解码：
+    #   去掉 6 字节帧头 -> pb_parse -> field4 是 msgpack 参数。
     resp = None
     for f in frames:
-        try:
-            parsed = msmod.parse_entity_frame(f)
-        except Exception:
+        if not isinstance(f, (bytes, bytearray)):
             continue
-        if isinstance(parsed, dict) and parsed.get("method") == "__rpc_response__":
-            params = parsed.get("params")
-            if isinstance(params, (list, tuple)) and len(params) == 2:
-                resp = params[1]
-            break
-    if resp is None:
-        # parse_entity_frame 的返回格式可能不同，退化为直接调内部函数
-        from game_server.entity_rpc import _avatar_start_game
-        out = _avatar_start_game(1, msmod.mp_arr([PROLOGUE_MATCH]), uid="dg_a")
-        check("内部函数返回帧", len(out) >= 1)
-        resp = {"spaceInfo": {"spaceInfo": {"copyId": "guide_01", "levelIndex": 1}}}
-        check("（用结构断言代替解码）", True)
+        fields = msmod.pb_parse(bytes(f[6:]))
+        if fields.get(2, [b""])[0] != b"__rpc_response__":
+            continue
+        params = fields.get(4, [b""])[0]
+        if not params:
+            continue
+        decoded, _used = msmod.mp_decode(params)
+        if isinstance(decoded, (list, tuple)) and len(decoded) == 2:
+            resp = decoded[1]
+        break
+    check("能解出真实应答（不是伪造的）", isinstance(resp, dict), type(resp))
     sp = (resp or {}).get("spaceInfo") or {}
     inner = sp.get("spaceInfo") or {}
     check("resp.spaceInfo 存在（嵌套第一层）", bool(sp), sp)
@@ -149,8 +150,7 @@ def run():
     check("story_finished[1] = True",
           (st4.props.get("story_finished") or {}).get(1) is True,
           (st4.props.get("story_finished") or {}).get(1))
-    check("未通关（passed=False）不置真",
-          True)
+    # （原来这里有个 check(..., True) 恒真断言，删掉 —— 下面的 st5 才是真检验）
     st5 = fresh("dg_e")
     erpc.handle(erpc.RPC_INDEX["Storyline_FinishGame"],
                 msmod.mp_arr([1, False, 5]), 5, uid="dg_e")
