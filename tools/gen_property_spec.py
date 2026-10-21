@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""生成 game_server/property/spec_data.json —— 属性声明表（P0 地基 B1）。
+
+数据来源：客户端 generated/config.lua（**权威声明表**）
+
+  Custom = { <TypeName> = { Properties = {...}, __ValueType__, __IntTypeKey__ } }
+  AvatarProperties = { Properties = { <propName> = {type, default, aoiscope, persist} } }
+
+为什么要生成而不是手写：
+  属性名、类型、键类型、默认值全部在客户端有权威声明。
+  之前服务端只用了生成期快照 avatar_init.json，属性名/类型判断全靠手写特例
+  （REQUIRED / SIMPLE_PROPS 那 45 条注释），加一个字段要改两处。
+
+输出结构：
+  {
+    "generated_from": "<config.lua 路径>",
+    "custom_types": {
+      "<TypeName>": {
+        "props": {"<field>": ["<type>", "<default>"], ...},   # 结构体字段
+        "value_type": "<TypeName>" | null,                    # 字典/列表的元素类型
+        "int_key": true/false                                 # 字典的键是否整数
+      }
+    },
+    "avatar_properties": {
+      "<propName>": {"type": "...", "default": ..., "scope": "...", "persist": "..."}
+    }
+  }
+
+用法：
+    python tools/gen_property_spec.py            # 生成
+    python tools/gen_property_spec.py --check    # 只统计不写
+"""
+import argparse
+import json
+import os
+import re
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+LUA_SRC = os.environ.get("OO_LUA_SRC") or r"F:\haowancheng\archive\game_data\LuaFull\src"
+CONFIG_LUA = os.path.join(LUA_SRC, "generated", "config.lua")
+OUT_JSON = os.path.join(_ROOT, "game_server", "property", "spec_data.json")
+
+
+# ---------------------------------------------------------------- Lua 解析
+def extract_block(s, start):
+    """从 s[start] 的 '{' 开始配平，返回整块（含花括号）。"""
+    depth = 0
+    for i in range(start, len(s)):
+        c = s[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return s[start:i + 1]
+    return s[start:]
+
+
+def split_top(inner):
+    """按顶层逗号切分（忽略嵌套括号内的逗号）。"""
+    parts, depth, cur = [], 0, ""
+    for c in inner:
+        if c in "{[":
+            depth += 1
+        elif c in "}]":
+            depth -= 1
+        if c == "," and depth == 0:
+            parts.append(cur.strip())
+            cur = ""
+        else:
+            cur += c
+    if cur.strip():
+        parts.append(cur.strip())
+    return parts
+
+
+def lua_value(tok):
+    """把一个 Lua 字面量转成 Python 值。只处理 config.lua 里出现的子集。"""
+    tok = (tok or "").strip()
+    if not tok:
+        return None
+    if tok.startswith('"') and tok.endswith('"'):
+        return tok[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+    if tok == "true":
+        return True
+    if tok == "false":
+        return False
+    if tok == "nil":
+        return None
+    if tok.startswith("{"):
+        return {}          # 默认值只关心「是不是表」，不展开
+    try:
+        if re.match(r"^-?\d+$", tok):
+            return int(tok)
+        return float(tok)
+    except ValueError:
+        return tok
+
+
+def parse_custom_types(txt):
+    """解析 Custom 段：name -> {props, value_type, int_key}。"""
+    i = txt.find("  Custom = {")
+    if i < 0:
+        raise RuntimeError("config.lua 里找不到 Custom 段")
+    cblk = extract_block(txt, txt.find("{", i))
+    types = {}
+    for m in re.finditer(r"^    (\w+) = \{", cblk, re.M):
+        name = m.group(1)
+        blk = extract_block(cblk, cblk.find("{", m.start()))
+        props = {}
+        pm = blk.find("Properties = {")
+        if pm >= 0:
+            pb = extract_block(blk, blk.find("{", pm))
+            for pm2 in re.finditer(r"^        (\w+) = \{", pb, re.M):
+                k = pm2.group(1)
+                eb = extract_block(pb, pb.find("{", pm2.start()))
+                parts = split_top(eb[1:-1])
+                typ = parts[0].strip().strip('"') if parts else "?"
+                dflt = lua_value(parts[1]) if len(parts) > 1 else None
+                props[k] = [typ, dflt]
+        vm = re.search(r'__ValueType__\s*=\s*"([^"]+)"', blk)
+        im = re.search(r"__IntTypeKey__\s*=\s*(\w+)", blk)
+        types[name] = {
+            "props": props,
+            "value_type": vm.group(1) if vm else None,
+            "int_key": bool(im and im.group(1) == "true"),
+        }
+    return types
+
+
+def parse_avatar_properties(txt):
+    """解析 AvatarProperties.Properties：name -> {type, default, scope, persist}。"""
+    i = txt.find("    AvatarProperties = {")
+    if i < 0:
+        raise RuntimeError("config.lua 里找不到 AvatarProperties 段")
+    blk = extract_block(txt, txt.find("{", i))
+    pm = blk.find("Properties = {")
+    if pm < 0:
+        raise RuntimeError("AvatarProperties 里没有 Properties")
+    pb = extract_block(blk, blk.find("{", pm))
+    out = {}
+    for m in re.finditer(r"^        (\w+) = \{", pb, re.M):
+        name = m.group(1)
+        eb = extract_block(pb, pb.find("{", m.start()))
+        parts = split_top(eb[1:-1])
+        out[name] = {
+            "type": parts[0].strip().strip('"') if parts else "?",
+            "default": lua_value(parts[1]) if len(parts) > 1 else None,
+            "scope": parts[2].strip().strip('"') if len(parts) > 2 else "",
+            "persist": parts[3].strip().strip('"') if len(parts) > 3 else "",
+        }
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true", help="只统计不写文件")
+    args = ap.parse_args()
+
+    if not os.path.exists(CONFIG_LUA):
+        raise SystemExit("找不到 config.lua: %s" % CONFIG_LUA)
+    txt = open(CONFIG_LUA, encoding="utf-8", errors="replace").read()
+
+    types = parse_custom_types(txt)
+    props = parse_avatar_properties(txt)
+
+    structs = sum(1 for t in types.values() if t["props"])
+    dicts = sum(1 for t in types.values()
+                if not t["props"] and t["value_type"])
+    print("config.lua: %d 行" % txt.count("\n"))
+    print("  自定义类型 %d（结构体 %d / 字典或列表 %d / 其它 %d）"
+          % (len(types), structs, dicts, len(types) - structs - dicts))
+    print("  AvatarProperties 属性 %d" % len(props))
+
+    simple = [p for p in props.values()
+              if p["type"] in ("int", "double", "string", "boolean")]
+    print("    简单类型 %d / 自定义类型 %d"
+          % (len(simple), len(props) - len(simple)))
+
+    # 自检：属性里引用的自定义类型必须都在 Custom 里
+    missing = sorted({p["type"] for p in props.values()
+                      if p["type"] not in ("int", "double", "string", "boolean")
+                      and p["type"] not in types})
+    if missing:
+        print("  ⚠ 属性引用了但 Custom 里没有的类型: %s" % missing)
+    else:
+        print("  ✅ 属性引用的自定义类型全部存在")
+
+    # 自检：结构体字段引用的类型也必须存在
+    bad_fields = []
+    for tn, t in types.items():
+        for f, (ft, _dv) in t["props"].items():
+            if ft not in ("int", "double", "string", "boolean") and ft not in types:
+                bad_fields.append("%s.%s -> %s" % (tn, f, ft))
+    if bad_fields:
+        print("  ⚠ 结构体字段引用了不存在的类型: %s" % bad_fields[:8])
+    else:
+        print("  ✅ 结构体字段类型全部存在")
+
+    if args.check:
+        return
+
+    os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
+    data = {
+        "generated_from": CONFIG_LUA,
+        "custom_types": types,
+        "avatar_properties": props,
+    }
+    with open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
+    print("写出 %s（%.1f KB）"
+          % (OUT_JSON, os.path.getsize(OUT_JSON) / 1024.0))
+
+
+if __name__ == "__main__":
+    main()

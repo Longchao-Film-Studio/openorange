@@ -353,19 +353,28 @@ def add_item(props, item_id, count):
         old = int(grid.get("num") or 0)
         grid["num"] = old + int(count)
         return grid["num"], key, False
-    # 新建格子：找一个没用的整数键
-    used = {k for k in bag if isinstance(k, int)}
-    new_key = (max(used) + 1) if used else 1
-    while new_key in used:
-        new_key += 1
+    # ★ 新建格子用**字符串键**。
+    #   依据：ItemBag 的 __IntTypeKey__ = false（config.lua Custom.ItemBag），
+    #   客户端 avatarbagcomp.lua:223 是 item_bag[gridId] 字符串查询。
+    #   之前用整数键 -> 同步时 str(gkey) 把客户端已有的 "1" 原地覆盖，
+    #   发奖把背包第 1 格顶掉；重登后新道具用字符串键查不到，等于消失。
+    #   （审计实锤：剧情发奖 / 宝箱 / 副本结算三条路径全部走这里）
+    used = {int(k) for k in bag if isinstance(k, int)}
+    used |= {int(k[1:]) for k in bag
+             if isinstance(k, str) and k.startswith("#") and k[1:].isdigit()}
+    used |= {int(k) for k in bag if isinstance(k, str) and k.isdigit()}
+    n = (max(used) + 1) if used else 1
+    while str(n) in bag:
+        n += 1
+    new_key = str(n)
     bag[new_key] = {
         "__id__": _ids.alloc_id(props),
-        "id": str(new_key),
+        "id": new_key,
         "itemId": int(item_id),
         "num": int(count),
         "expireTime": 0.0,
         "getTime": 0.0,
     }
-    return int(count), new_key, True
+    return int(count), new_key, True   # new_key 现在是字符串
 
 

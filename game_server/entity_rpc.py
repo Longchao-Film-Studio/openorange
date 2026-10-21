@@ -48,6 +48,8 @@ from . import config as ooconf
 from . import gamedata
 from . import story
 from . import tasks
+from .property import ids as _ids
+from .property import tx as _tx
 
 # ---------------------------------------------------------------------------
 # 阶段 1 三个组件的 serverRpc 清单（名字 -> genRpcIndex）
@@ -422,13 +424,52 @@ _STREET_INFO_DEFAULTS = {
 }
 
 
-def _ensure_street_info(st, street_id):
-    """确保 street_info[street_id] 存在，返回 (street_info, entry)。
+def _street_tx_begin(st, street_id):
+    """开始一个街区变更：返回 (tx, si, entry, is_new)。
+
+    如果 street_info[street_id] 不存在，用 Tx 建（自动 OP_ADD），
+    避免审计里「新建条目用 OP_CHANGE -> 客户端 oldVal nil 崩」的坑。
+
+    is_new=True 时，调用方**只需改 entry 的内容**，不要再对 entry 的字段
+    单独 tx.set —— 因为那条 OP_ADD 帧里带的就是改完的 entry。
+    """
+    tx = _tx.Tx(st.props)
+    si = st.props.get("street_info")
+    if not isinstance(si, dict):
+        return tx, None, None, False
+    if not isinstance(si.get(street_id), dict):
+        tx.set(("street_info", street_id), _make_street_info_entry(st))
+        si = st.props.get("street_info")
+        return tx, si, si.get(street_id), True
+    return tx, si, si.get(street_id), False
+
+def _make_street_info_entry(st):
+    """构造一个 StreetInfo 条目（**不插入** props）。
 
     条目字段照 generated/config.lua:6834 的 StreetInfo 声明；
     四个 IntDictKeyInt 子表（prestige_awarded / prestige_tasks /
     treasure_box_info / inter_actor_info）和 exploration_info 留空即可 ——
-    客户端读它们时都做了 `or {}` 兜底。
+    客户端读它们时都做了 or {} 兜底。
+
+    为什么要拆出「只构造不插入」：
+      Tx.set 靠「键在不在父容器里」判断 OP_ADD / OP_CHANGE。
+      如果先插入再交给 Tx，Tx 会以为键已存在 -> 发 OP_CHANGE ->
+      客户端 oldVal:customTypeName() 索引 nil -> 同步被丢（审计实锤）。
+    """
+    entry = {"__tp__": "StreetInfo", "__id__": _ids.alloc_id(st.props)}
+    entry.update(_STREET_INFO_DEFAULTS)
+    # 嵌套的自定义属性必须带 __id__（不带 __tp__），否则客户端 init 报错
+    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
+               "treasure_box_info", "inter_actor_info"):
+        entry[_k] = {"__id__": _ids.alloc_id(st.props)}
+    return entry
+
+
+def _ensure_street_info(st, street_id):
+    """确保 street_info[street_id] 存在，返回 (street_info, entry)。
+
+    注意：这个函数会**直接插入** props。需要发同步帧的地方应该用
+    _make_street_info_entry() + Tx，让 Tx 自己判断 OP_ADD。
     """
     si = st.get("street_info")
     if not isinstance(si, dict):
@@ -436,12 +477,7 @@ def _ensure_street_info(st, street_id):
     cur = si.get(street_id)
     if isinstance(cur, dict):
         return si, cur
-    entry = {"__tp__": "StreetInfo", "__id__": st.next_property_id()}
-    entry.update(_STREET_INFO_DEFAULTS)
-    # 嵌套的自定义属性必须带 __id__（不带 __tp__），否则客户端 init 报错
-    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
-               "treasure_box_info", "inter_actor_info"):
-        entry[_k] = {"__id__": st.next_property_id()}
+    entry = _make_street_info_entry(st)
     si[street_id] = entry
     st.set("street_info", si)
     return si, entry
@@ -467,18 +503,25 @@ def _leave_street(rid, params, uid=None):
 
 
 def _apply_street_change(frames, new_id, uid):
-    """改 street_id + 保证 street_info 有条目 + 推两条同步。"""
+    """改 street_id + 保证 street_info 有条目 + 推同步。
+
+    ★ 2026-10-21 审计修正：这里之前手写 OP_CHANGE 打**新建的** street_info 键，
+      客户端 _changeSubProperty 里 oldVal 为 nil -> oldVal:customTypeName()
+      索引 nil -> 抛错 -> 整条同步被丢弃。
+      表现：切街区后小地图/宝箱/交互状态全不同步。
+      现在交给 Tx，新键自动用 OP_ADD。
+    """
     st = _state(uid)
     old = st.props.get("street_id")
-    st.props["street_id"] = new_id
-    st.save()
-    frames.append(msmod.build_property_sync(
-        "", 0, msmod.OP_CHANGE, "street_id", new_id))
+    tx = _tx.Tx(st.props)
+    tx.set(("street_id",), new_id)
     if new_id:
-        si, entry = _ensure_street_info(st, new_id)
-        if si is not None and entry is not None:
-            frames.append(msmod.build_property_sync(
-                "", si.get("__id__") or 0, msmod.OP_CHANGE, str(new_id), entry))
+        si = st.props.get("street_info")
+        if isinstance(si, dict) and not isinstance(si.get(new_id), dict):
+            # 新街区：先构造（不插入），让 Tx 判定为 OP_ADD
+            tx.set(("street_info", new_id), _make_street_info_entry(st))
+    st.save()
+    frames.extend(tx.frames())
     print("[street] %s -> %s" % (old, new_id), flush=True)
     return frames
 
@@ -675,7 +718,15 @@ def _task_sync_frames(st, changes):
     frames = []
     for ch in changes:
         kind = ch[0]
-        if kind in ("sub2", "del2"):
+        if kind == "sync":
+            # ★ tasks 模块自己给出 (propertyId, optype, name, value)，
+            #   不再由这里猜 —— 之前一律用 OP_CHANGE，新建的槽位/任务项都发错。
+            _, pid, optype, name, value = ch
+            frames.append(msmod.build_property_sync(
+                "", pid, optype, name,
+                None if optype == msmod.OP_DEL else value))
+        elif kind in ("sub2", "del2"):
+            # 兼容旧格式（story 那边还在用）
             _, container, type_key, key, value = ch
             c = st.props.get(container)
             if not isinstance(c, dict):
@@ -996,16 +1047,18 @@ def _actor_interact(rid, params, uid=None):
             task_id = None
     st = _state(uid)
     street_id = int(st.props.get("street_id") or 0)
-    si, entry = _street_info_of(st, street_id)
+    # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD（审计实锤的崩溃点）
+    tx, si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is not None:
         ia = entry.get("inter_actor_info")
         if not isinstance(ia, dict):
-            ia = {"__id__": st.next_property_id()}
+            ia = {"__id__": _ids.alloc_id(st.props)}
             entry["inter_actor_info"] = ia
         ia[actor_id] = interact_id
         st.set("street_info", si)
-        frames.append(msmod.build_property_sync(
-            "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry))
+        if not is_new:
+            tx.set(("street_info", street_id, "inter_actor_info"), ia)
+        frames.extend(tx.frames())
     print("[street] NPC %s 交互 %s" % (actor_id, interact_id), flush=True)
     # 命中剧情任务就顺手完成
     if task_id:
@@ -1030,18 +1083,21 @@ def _street_redpoint(rid, params, uid=None):
     except Exception:
         return frames
     st = _state(uid)
+    # street_redpoint 是 StreetInfoDict 自身的字段（混合类型的「结构体」那一半），
+    # 所以 propertyId 是 street_info 的 __id__，name 是字段名。
     si = st.props.get("street_info")
     if not isinstance(si, dict):
         return frames
     rp = si.get("street_redpoint")
     if not isinstance(rp, dict):
-        rp = {"__id__": st.next_property_id()}
+        rp = {"__id__": _ids.alloc_id(st.props)}
         si["street_redpoint"] = rp
     rp[key] = value
     st.set("street_info", si)
     st.save()
-    frames.append(msmod.build_property_sync(
-        "", si.get("__id__") or 0, msmod.OP_CHANGE, "street_redpoint", rp))
+    tx = _tx.Tx(st.props)
+    tx.set(("street_info", "street_redpoint"), rp)
+    frames.extend(tx.frames())
     return frames
 
 
@@ -1208,20 +1264,22 @@ def _touch_treasure(params, uid=None):
         return None
     st = _state(uid)
     street_id = int(st.props.get("street_id") or 0)
-    si, entry = _street_info_of(st, street_id)
+    # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
+    tx, si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is None:
         return None
     tb = entry.get("treasure_box_info")
     if not isinstance(tb, dict):
-        tb = {"__id__": st.next_property_id()}
+        tb = {"__id__": _ids.alloc_id(st.props)}
         entry["treasure_box_info"] = tb
     already = tb.get(tid) == 1
     tb[tid] = 1
     st.set("street_info", si)
     print("[street] 开宝箱 %s（街区 %s）%s"
           % (tid, street_id, "重复开启，不再发奖" if already else ""), flush=True)
-    frames = [msmod.build_property_sync(
-        "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
+    if not is_new:
+        tx.set(("street_info", street_id, "treasure_box_info"), tb)
+    frames = list(tx.frames())
     if not already:
         frames.extend(_grant_treasure_reward(st, tid))
     st.save()
@@ -1326,24 +1384,42 @@ def _eden_chat_history(rid, params, uid=None):
 
 
 def _prestige_info(st, street_id=None):
-    """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。"""
+    """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。
+
+    如果条目是**这次新建**的，会在 entry 上打一个 _oo_is_new 标记，
+    让 _prestige_push 知道该用 OP_ADD 而不是 OP_CHANGE
+    （_oo_ 前缀，sync 层会剥离，不会发给客户端）。
+    """
     if street_id is None:
         street_id = int(st.props.get("street_id") or 0)
+    si = st.props.get("street_info")
+    is_new = not (isinstance(si, dict) and isinstance(si.get(street_id), dict))
     si, entry = _street_info_of(st, street_id)
     if entry is None:
         return None, None, None
     if not isinstance(entry.get("prestige_awarded"), dict):
-        entry["prestige_awarded"] = {"__id__": st.next_property_id()}
+        entry["prestige_awarded"] = {"__id__": _ids.alloc_id(st.props)}
     if not isinstance(entry.get("prestige_tasks"), dict):
-        entry["prestige_tasks"] = {"__id__": st.next_property_id()}
+        entry["prestige_tasks"] = {"__id__": _ids.alloc_id(st.props)}
     if not entry.get("prestige_street_id"):
         entry["prestige_street_id"] = street_id
+    if is_new:
+        entry["_oo_is_new"] = True
     return si, entry, street_id
 
 
 def _prestige_push(st, si, street_id, entry):
-    return [msmod.build_property_sync(
-        "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
+    """推 StreetInfo 条目。新建的用 OP_ADD（否则客户端 oldVal nil 崩）。"""
+    is_new = entry.pop("_oo_is_new", False)
+    tx = _tx.Tx(st.props)
+    tx.set(("street_info", street_id), entry)
+    frames = tx.frames()
+    if is_new:
+        # Tx 会按「键在不在父容器里」判断，但 _street_info_of 已经把 entry 插进去了，
+        # 所以这里显式纠正为 OP_ADD。
+        frames = [msmod.build_property_sync(
+            "", (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), entry)]
+    return frames
 
 
 def _apply_prestige_exp(st, si, entry, street_id, add, save=True):
@@ -1599,13 +1675,15 @@ def _street_cd_update(rid, params, uid=None):
     except Exception:
         return frames
     st = _state(uid)
-    si, entry = _street_info_of(st, street_id)
+    # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
+    tx, si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is not None:
         entry["cd_choose"] = cd_id
         st.set("street_info", si)
+        if not is_new:
+            tx.set(("street_info", street_id, "cd_choose"), cd_id)
         st.save()
-        frames.append(msmod.build_property_sync(
-            "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry))
+        frames.extend(tx.frames())
     print("[street] CD 选择 street=%s cd=%s" % (street_id, cd_id), flush=True)
     return frames
 
@@ -1870,12 +1948,16 @@ def _storyline_finish_game(rid, params, uid=None):
     if not isinstance(sf, dict):
         return frames
     if sf.get(sid) is not True:
+        # ★ is_new 必须在赋值**之前**判断。
+        #   审计发现：之前写成 `sf[sid] = True` 之后再判 `sid in sf`，
+        #   恒为 True -> 新键永远发 OP_CHANGE -> 客户端 oldVal nil 报错、同步被丢。
+        is_new = sid not in sf
         sf[sid] = True
         st.set("story_finished", sf)
         st.save()
         frames.append(msmod.build_property_sync(
             "", sf.get("__id__") or 0,
-            msmod.OP_CHANGE if sid in sf else msmod.OP_ADD,
+            msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
     print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)
     return frames
@@ -2485,7 +2567,11 @@ def _const_setter(rid, params, spec, uid=None):
     """无参数 setter：把属性置成常量 + 推同步。"""
     prop_name, const_value = spec
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
-    applied = _apply_property(prop_name, const_value)
+    # ★ 必须把 uid 传下去。审计发现：之前漏传 -> _apply_property 内部
+    #   _state(None) 落到 DEFAULT_UID（OO00000001），
+    #   真实用户的属性没改，却给他推了 value=1 的同步帧。
+    #   canScore / hasScore 四个 RPC 全部中招。
+    applied = _apply_property(prop_name, const_value, uid)
     frames.append(msmod.build_property_sync(
         "", 0, msmod.OP_CHANGE, prop_name, applied))
     return frames

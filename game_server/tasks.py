@@ -37,6 +37,18 @@ from . import gamedata
 TASK_STATE_DOING = 3
 TASK_STATE_FINISHED = 6
 
+# 同步描述里的 optype（和客户端 puppetpropertycomponent.lua 一致）
+# 由本模块自己决定，不让上层猜 —— 审计发现上层一律用 OP_CHANGE，
+# 新建的 task_bag[type] 槽位 / 任务项都发错了。
+OP_CHANGE = 1
+OP_ADD = 2
+OP_DEL = 3
+
+
+def _sync(property_id, optype, name, value):
+    """一条属性同步描述。entity_rpc._task_sync_frames 直接照着编帧。"""
+    return ("sync", int(property_id or 0), int(optype), str(name), value)
+
 # generated/config.lua:7128 TaskItem
 _TASK_ITEM = {
     "id": 0, "type": 0, "state": 0, "get_time": 0, "start_time": 0,
@@ -68,17 +80,22 @@ def make_task_item(st, task_id, task_type, state, now):
 
 
 def ensure_type_slot(st, task_type):
-    """保证 task_bag[taskType] 这个 TaskBag 存在，返回它。"""
+    """保证 task_bag[taskType] 这个 TaskBag 存在，返回 (slot, is_new)。
+
+    ★ is_new 很重要：客户端 getSystemTaskState 会先看 task_bag[taskType]
+      是否存在，为空直接返回 -1。所以新建槽位必须**单独发一条 OP_ADD**，
+      否则客户端永远看不到这个槽位，任务状态恒 -1。
+    """
     bag = st.props.get("task_bag")
     if not isinstance(bag, dict):
-        return None
+        return None, False
     slot = bag.get(task_type)
     if isinstance(slot, dict):
-        return slot
+        return slot, False
     slot = {"__tp__": "TaskBag", "__id__": st.next_property_id()}
     bag[task_type] = slot
     st.set("task_bag", bag)
-    return slot
+    return slot, True
 
 
 def task_state(props, task_id):
@@ -113,13 +130,21 @@ def start_task(st, task_id, now=None):
         return []
     if task_state(st.props, task_id) in (TASK_STATE_DOING, TASK_STATE_FINISHED):
         return []
-    slot = ensure_type_slot(st, t)
+    slot, slot_is_new = ensure_type_slot(st, t)
     if slot is None:
         return []
+    bag = st.props.get("task_bag") or {}
+    out = []
+    if slot_is_new:
+        # 新槽位：先让客户端建出 task_bag[t]
+        out.append(_sync(bag.get("__id__"), OP_ADD, t, slot))
+    item_is_new = task_id not in slot
     item = make_task_item(st, task_id, t, TASK_STATE_DOING, now)
     slot[task_id] = item
     st.set("task_bag", st.props.get("task_bag"))
-    return [("sub2", "task_bag", t, task_id, item)]
+    out.append(_sync(slot.get("__id__"),
+                     OP_ADD if item_is_new else OP_CHANGE, task_id, item))
+    return out
 
 
 def finish_task(st, task_id, now=None):
@@ -135,16 +160,22 @@ def finish_task(st, task_id, now=None):
         if isinstance(slot, dict) and task_id in slot:
             del slot[task_id]
             st.set("task_bag", bag)
-            out.append(("del2", "task_bag", t, task_id, None))
+            out.append(_sync(slot.get("__id__"), OP_DEL, task_id, None))
     done = st.props.get("done_tasks")
     if isinstance(done, dict):
         dslot = done.get(t)
-        if not isinstance(dslot, dict):
+        dslot_is_new = not isinstance(dslot, dict)
+        if dslot_is_new:
             dslot = {"__id__": st.next_property_id()}
             done[t] = dslot
+        item_is_new = task_id not in dslot
         dslot[task_id] = now
         st.set("done_tasks", done)
-        out.append(("sub2", "done_tasks", t, task_id, now))
+        if dslot_is_new:
+            out.append(_sync(done.get("__id__"), OP_ADD, t, dslot))
+        out.append(_sync(dslot.get("__id__"),
+                         OP_ADD if item_is_new else OP_CHANGE,
+                         task_id, now))
     return out
 
 

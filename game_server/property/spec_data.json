@@ -1,0 +1,6692 @@
+{
+ "avatar_properties": {
+  "account_create_time": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "double"
+  },
+  "accu_charge_gacha_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "AccuChargeGachaSetProp"
+  },
+  "achieve_type_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "AchieveTypeBag"
+  },
+  "act_type_task_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ActTypeTaskProp"
+  },
+  "all_exp": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "amusement_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "AmusementProp"
+  },
+  "arena_task_active_point_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ArenaTaskActivePointProp"
+  },
+  "arena_task_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ArenaTypeTaskProp"
+  },
+  "background_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "background_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "base_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BaseProp"
+  },
+  "battle_2v2_data": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "Battle2v2Data"
+  },
+  "battle_teach_state": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "boss_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BossActProp"
+  },
+  "bp_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BpInfo"
+  },
+  "calendar_signin_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CalendarSignInActProp"
+  },
+  "canScore": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "card_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CardDictProp"
+  },
+  "challenge_boss_cycle_task_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChallengeBossCycleTask"
+  },
+  "challenge_boss_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChallengeBossData"
+  },
+  "challenge_boss_task_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChallengeBossTask"
+  },
+  "challenge_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChallengeTowerInfo"
+  },
+  "challenge_multi_boss_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChallengeMultiBossData"
+  },
+  "championship_data": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChampionshipData"
+  },
+  "char_list": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntList"
+  },
+  "char_star_act_mgr_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CharStarActMgrProp"
+  },
+  "character_2v2_data": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "Character2v2Data"
+  },
+  "charge_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChargeProp"
+  },
+  "chat_bubble_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "chat_bubble_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "chat_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ChatProp"
+  },
+  "climbtower_highest_floor": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "climbtower_last_player_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ClimbTowerPlayerInfo"
+  },
+  "climbtower_weekday": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "consume_vit": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "contribution_award_record": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BooleanDictKeyInt"
+  },
+  "contribution_player_cycle": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ContributionPlayerInfoRecord"
+  },
+  "contribution_player_daily": {
+   "default": {},
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "ContributionPlayerInfoRecord"
+  },
+  "contribution_player_total": {
+   "default": {},
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "ContributionPlayerInfoRecord"
+  },
+  "countdown_gift_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CountdownGiftProp"
+  },
+  "create_account_step": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "createdTime": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "crystal": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "cur_activity_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ActivityProp"
+  },
+  "cycle_charge_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CycleChargeActProp"
+  },
+  "cycle_infinite_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "CycleInfiniteProp"
+  },
+  "dex_type_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DexTypeProp"
+  },
+  "donate_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DonateProp"
+  },
+  "dragon_charm_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DragonCharmActProp"
+  },
+  "dungeon_challenge_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DungeonChallengeData"
+  },
+  "emergency_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "EmergencyData"
+  },
+  "emoji_act_shortcut_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictDictKeyInt"
+  },
+  "emoji_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "enable_being_recommended": {
+   "default": 1,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "enable_being_searched": {
+   "default": 1,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "entityType": {
+   "default": "Avatar",
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "string"
+  },
+  "exp": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "expired_fashions": {
+   "default": {},
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "IntDictDictKeyInt"
+  },
+  "fan_card_exp_buffer": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "fan_card_exp_for_today": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "fan_card_exp_record": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "fan_card_unlock_record": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BooleanDictKeyInt"
+  },
+  "fansclub_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FansClubProp"
+  },
+  "favor_award_record": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BooleanDictKeyInt"
+  },
+  "favor_exp_for_today": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "favor_exp_map": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "favor_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FavorProp"
+  },
+  "fishing_miner_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FishingMinerActProp"
+  },
+  "follow_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FollowActProp"
+  },
+  "gacha_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "GachaDrawActProp"
+  },
+  "gacha_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "GachaProp"
+  },
+  "gender": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "global_bless_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "GlobalBlessActProp"
+  },
+  "gm_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "GMProp"
+  },
+  "grade_fund_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "GradeFundProp"
+  },
+  "hasScore": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "has_unlocked_season_tower": {
+   "default": false,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "boolean"
+  },
+  "honor_wall_dict": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "HonorWallDict"
+  },
+  "infinite_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "InfiniteProp"
+  },
+  "is_account_create_time_hidden": {
+   "default": false,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "boolean"
+  },
+  "is_char_list_shown": {
+   "default": false,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "boolean"
+  },
+  "is_honor_wall_shown": {
+   "default": false,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "boolean"
+  },
+  "itemObtainRecord": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BooleanDictKeyInt"
+  },
+  "level": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "levelup_awards": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "like_char_list": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntList"
+  },
+  "mall_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MallProp"
+  },
+  "milk_tea_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MilkTeaActProp"
+  },
+  "mirage_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MirageProp"
+  },
+  "misc_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MiscProp"
+  },
+  "month_card_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MonthlyPassProp"
+  },
+  "multitower_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "MultiTowerProp"
+  },
+  "multitower_task_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ActiveTaskBag"
+  },
+  "new_player_floor": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "next_key_recover_timestamp": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "non_replacement_gacha_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "NonReplacementGachaSetProp"
+  },
+  "npc_chat_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "NpcChatProp"
+  },
+  "partygame_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PartyGameProp"
+  },
+  "pay_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PayProp"
+  },
+  "pet_skin_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PetSkinBag"
+  },
+  "physical_power_bp_act_mgr_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PhysicalPowerBpActMgrProp"
+  },
+  "platforms_login_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PlatformsLoginActProp"
+  },
+  "player_card_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "player_card_frame_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "player_card_frame_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "player_card_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "player_id": {
+   "default": "",
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "string"
+  },
+  "player_name": {
+   "default": "",
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "string"
+  },
+  "player_stage_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "player_title_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "player_value_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PlayerValueInfo"
+  },
+  "popularity_map": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "popup_gift_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PopupGiftProp"
+  },
+  "portrait_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "portrait_frame_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionBag"
+  },
+  "portrait_frame_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "portrait_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "pos": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "Pos"
+  },
+  "pupil_skill_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PupilSkillDictProp"
+  },
+  "puzzle_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PuzzleActProp"
+  },
+  "puzzle_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "PuzzleProp"
+  },
+  "rankScores": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "RankScores"
+  },
+  "recast_cache_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionEquipRecastCache"
+  },
+  "redeem_type_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "RedeemActTypeProp"
+  },
+  "refine_cache_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "FashionEquipRefineCache"
+  },
+  "resource_tower_extra_reward_record": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ResourceTowerExtraRewardRecord"
+  },
+  "resourcetower_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ResourceTowerInfo"
+  },
+  "returning_player_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ReturningPlayerActProp"
+  },
+  "reward_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "RewardProp"
+  },
+  "rogue_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "RogueProp"
+  },
+  "rouge_dex_type_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DexTypeProp"
+  },
+  "rtm_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "RTMInfo"
+  },
+  "season_floor": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "season_floor_min_time": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "season_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SeasonProp"
+  },
+  "season_type_task_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SeasonTypeTaskProp"
+  },
+  "serverId": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "seven_day_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SevenDayActProp"
+  },
+  "share_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ShareProp"
+  },
+  "shown_honor_wall_char_id": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "shown_titles": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntList"
+  },
+  "sign_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SigninProp"
+  },
+  "signature": {
+   "default": "",
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "string"
+  },
+  "space_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SpaceProp"
+  },
+  "springfes_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SpringFesActProp"
+  },
+  "stage_bag": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "BooleanDictKeyInt"
+  },
+  "story_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "StoryActProp"
+  },
+  "street_info_2d": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "StreetInfoDict2D"
+  },
+  "street_take_photo_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "StreetTakePhotoActProp"
+  },
+  "sunact_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SunActProp"
+  },
+  "system_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "SystemProp"
+  },
+  "take_photo_act_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TakePhotoActProp"
+  },
+  "teach_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TeachProp"
+  },
+  "teamMateRecord": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "DoubleDict"
+  },
+  "team_boss_data": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TeamBossData"
+  },
+  "team_pupil_skill_type_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TeamPupilSkillTypeProp"
+  },
+  "text_hide_state": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "IntDictKeyInt"
+  },
+  "today_consume_vit_count": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "today_consume_vit_time": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "total_key_recover_timestamp": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "tower_reward_keys": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "tower_score": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "int"
+  },
+  "tower_snapshot_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TowerSnapshotInfo"
+  },
+  "train_p": {
+   "default": {},
+   "persist": "NPER",
+   "scope": "OwnClient",
+   "type": "TrainProp"
+  },
+  "trialchar_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "TrialCharProp"
+  },
+  "uid": {
+   "default": "0",
+   "persist": "PER",
+   "scope": "AllClients",
+   "type": "string"
+  },
+  "username": {
+   "default": "",
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "string"
+  },
+  "version": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "ServerOnly",
+   "type": "int"
+  },
+  "weekchallenge_info": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "WeekChallengeInfo"
+  },
+  "weekly_act_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "WeeklyActProp"
+  },
+  "weekly_infinite_task_prop": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "ActiveTaskBag"
+  },
+  "weekly_play_bp_p": {
+   "default": {},
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "WeeklyPlayBPProp"
+  },
+  "yaw": {
+   "default": 0,
+   "persist": "PER",
+   "scope": "OwnClient",
+   "type": "double"
+  }
+ },
+ "custom_types": {
+  "AccuChargeGachaProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "all_gained": [
+     "int",
+     0
+    ],
+    "draw_cnt": [
+     "int",
+     0
+    ],
+    "first_pool_cnt": [
+     "int",
+     0
+    ],
+    "record": [
+     "GachaRecord",
+     {}
+    ],
+    "second_pool_grt_progress": [
+     "int",
+     0
+    ],
+    "token_progress": [
+     "AccuChargeGachaTokenProgress",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "AccuChargeGachaSetProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "AccuChargeGachaProp"
+  },
+  "AccuChargeGachaTokenProgress": {
+   "int_key": false,
+   "props": {
+    "accu_charge": [
+     "int",
+     0
+    ],
+    "last_refresh_stamp": [
+     "int",
+     0
+    ],
+    "reward_states": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "AchieveBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "AchieveItem"
+  },
+  "AchieveItem": {
+   "int_key": false,
+   "props": {
+    "cache": [
+     "StringList",
+     {}
+    ],
+    "doing_goals": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "finish_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "AchieveTypeBag": {
+   "int_key": true,
+   "props": {
+    "has_open": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "AchieveBag"
+  },
+  "ActTaskDict": {
+   "int_key": false,
+   "props": {
+    "act_begin_time": [
+     "int",
+     0
+    ],
+    "act_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "finish_task_count": [
+     "int",
+     0
+    ],
+    "is_progress_all_done": [
+     "int",
+     0
+    ],
+    "is_task_all_done": [
+     "int",
+     0
+    ],
+    "progress_awards": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ActTypeTaskProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActTaskDict"
+  },
+  "ActiveTask": {
+   "int_key": false,
+   "props": {
+    "cache": [
+     "StringList",
+     {}
+    ],
+    "complete_count": [
+     "int",
+     0
+    ],
+    "get_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ActiveTaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActiveTask"
+  },
+  "ActivityCheckinRecords": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CheckinRecordInfo"
+  },
+  "ActivityInfo": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ActivityProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActivityInfo"
+  },
+  "AmusementProp": {
+   "int_key": false,
+   "props": {
+    "chicken_parkour_level_id": [
+     "int",
+     0
+    ],
+    "day_buy_coin_number": [
+     "int",
+     0
+    ],
+    "day_free_coin_number": [
+     "int",
+     0
+    ],
+    "day_reward_improve_game": [
+     "int",
+     0
+    ],
+    "enter_catchdoll_timestamp": [
+     "int",
+     0
+    ],
+    "enter_chicken_parkour_timestamp": [
+     "int",
+     0
+    ],
+    "enter_music_game_timestamp": [
+     "int",
+     0
+    ],
+    "fetch_park_ticket_timestamp": [
+     "int",
+     0
+    ],
+    "lottery_count": [
+     "int",
+     0
+    ],
+    "lottery_non_special_reward_count": [
+     "int",
+     0
+    ],
+    "lottery_oper_flag": [
+     "int",
+     0
+    ],
+    "lottery_pool_id": [
+     "int",
+     0
+    ],
+    "lottery_reward_id": [
+     "int",
+     0
+    ],
+    "music_game_level_id": [
+     "int",
+     0
+    ],
+    "pass_music_game_level": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "play_lottery_timestamp": [
+     "int",
+     0
+    ],
+    "total_turntable_count": [
+     "int",
+     0
+    ],
+    "turntable_count": [
+     "int",
+     0
+    ],
+    "turntable_cur_reward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "turntable_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "turntable_state": [
+     "int",
+     0
+    ],
+    "weekly_coupon_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ArenaTaskActivePointProp": {
+   "int_key": false,
+   "props": {
+    "active_point": [
+     "int",
+     0
+    ],
+    "active_point_reward_states": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "cycle": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ArenaTaskDict": {
+   "int_key": false,
+   "props": {
+    "taskbag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ArenaTypeTaskProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ArenaTaskDict"
+  },
+  "BaseProp": {
+   "int_key": false,
+   "props": {
+    "con_login_cnt": [
+     "int",
+     1
+    ],
+    "create_hostnum": [
+     "int",
+     0
+    ],
+    "create_time": [
+     "int",
+     0
+    ],
+    "free_change_count": [
+     "int",
+     0
+    ],
+    "last_change_time": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     1
+    ],
+    "login_time": [
+     "int",
+     0
+    ],
+    "logout_time": [
+     "int",
+     0
+    ],
+    "name": [
+     "string",
+     "0"
+    ],
+    "new_role": [
+     "int",
+     1
+    ],
+    "ol_time": [
+     "int",
+     0
+    ],
+    "total_login_cnt": [
+     "int",
+     1
+    ]
+   },
+   "value_type": null
+  },
+  "Battle1v1Data": {
+   "int_key": false,
+   "props": {
+    "available_raising_star_count": [
+     "int",
+     25
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "cur_rank": [
+     "int",
+     1
+    ],
+    "cur_rank_point": [
+     "int",
+     0
+    ],
+    "historical_highest_rank": [
+     "int",
+     1
+    ],
+    "rank_rank_id": [
+     "string",
+     ""
+    ],
+    "rank_season": [
+     "int",
+     0
+    ],
+    "rank_star": [
+     "int",
+     0
+    ],
+    "season_highest_rank": [
+     "int",
+     1
+    ],
+    "total_count": [
+     "int",
+     0
+    ],
+    "win_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "Battle2v2Data": {
+   "int_key": false,
+   "props": {
+    "all_season_match_total_count": [
+     "int",
+     0
+    ],
+    "all_season_match_win_count": [
+     "int",
+     0
+    ],
+    "all_season_rank_total_count": [
+     "int",
+     0
+    ],
+    "all_season_rank_win_count": [
+     "int",
+     0
+    ],
+    "available_raising_star_count": [
+     "int",
+     25
+    ],
+    "battle_1v1_data": [
+     "Battle1v1Data",
+     {}
+    ],
+    "char_battle_highest_score_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "char_battle_rank_record": [
+     "CharBattleRankSeasonRecord",
+     {}
+    ],
+    "char_battle_reward_record": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "cur_rank": [
+     "int",
+     1
+    ],
+    "cur_rank_point": [
+     "int",
+     0
+    ],
+    "earlyout_list": [
+     "IntList",
+     {}
+    ],
+    "has_finished_guide_level": [
+     "boolean",
+     false
+    ],
+    "historical_highest_rank": [
+     "int",
+     1
+    ],
+    "match_season": [
+     "int",
+     0
+    ],
+    "match_total_count": [
+     "int",
+     0
+    ],
+    "match_win_count": [
+     "int",
+     0
+    ],
+    "punishment_end_time": [
+     "int",
+     0
+    ],
+    "rank_rank_id": [
+     "string",
+     ""
+    ],
+    "rank_season": [
+     "int",
+     0
+    ],
+    "rank_star": [
+     "int",
+     0
+    ],
+    "rank_total_count": [
+     "int",
+     0
+    ],
+    "rank_win_count": [
+     "int",
+     0
+    ],
+    "refresh_cycle": [
+     "int",
+     0
+    ],
+    "refresh_season": [
+     "int",
+     0
+    ],
+    "season_highest_rank": [
+     "int",
+     1
+    ],
+    "version": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "BooleanDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "boolean"
+  },
+  "BooleanDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "boolean"
+  },
+  "BossActProp": {
+   "int_key": false,
+   "props": {
+    "boss_unlock_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "buff": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "cur_activity_id": [
+     "int",
+     0
+    ],
+    "equip_buff": [
+     "IntList",
+     {}
+    ],
+    "reward_detail": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "BossGroupRecord": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "BossGroupRecordDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "BossGroupRecord"
+  },
+  "BossRecord": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "BossRecordDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "BossRecord"
+  },
+  "BossUnlockDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "int"
+  },
+  "BpInfo": {
+   "int_key": false,
+   "props": {
+    "all_bp_exp": [
+     "int",
+     0
+    ],
+    "bp_daily_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "bp_exp": [
+     "int",
+     0
+    ],
+    "bp_exp_time": [
+     "int",
+     0
+    ],
+    "bp_level": [
+     "int",
+     0
+    ],
+    "bp_normal_awards": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "bp_prime_awards": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "bp_season_id": [
+     "int",
+     0
+    ],
+    "bp_season_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "bp_task_update_time": [
+     "int",
+     0
+    ],
+    "bp_weekly_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "enter_bp_season": [
+     "int",
+     0
+    ],
+    "fulllevel_award_count": [
+     "int",
+     0
+    ],
+    "fulllevel_upgrade_count": [
+     "int",
+     0
+    ],
+    "in_bp_season": [
+     "int",
+     0
+    ],
+    "is_prime_vip": [
+     "int",
+     0
+    ],
+    "next_bp_season_stage_time": [
+     "int",
+     0
+    ],
+    "vip_bp_season": [
+     "int",
+     0
+    ],
+    "week_bp_exp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CalendarSignInActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "signin_day": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CardDictProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CardInfoProp"
+  },
+  "CardInfoProp": {
+   "int_key": false,
+   "props": {
+    "card_count": [
+     "int",
+     0
+    ],
+    "card_id": [
+     "int",
+     0
+    ],
+    "card_level": [
+     "int",
+     0
+    ],
+    "card_type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeBossCycleTask": {
+   "int_key": false,
+   "props": {
+    "cycle_id": [
+     "int",
+     0
+    ],
+    "once_task_bag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "once_task_bag_init": [
+     "int",
+     0
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeBossData": {
+   "int_key": false,
+   "props": {
+    "activity_id": [
+     "int",
+     0
+    ],
+    "boss_unlock_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "character_list_record": [
+     "IntListDictKeyInt",
+     {}
+    ],
+    "highest_score_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rank_activity_id": [
+     "int",
+     0
+    ],
+    "reward_rank_id": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeBossFuzzy": {
+   "int_key": false,
+   "props": {
+    "boss_1": [
+     "int",
+     0
+    ],
+    "boss_2": [
+     "int",
+     0
+    ],
+    "boss_3": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "total": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeBossTask": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeMultiBossData": {
+   "int_key": false,
+   "props": {
+    "boss_group": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "boss_group_record": [
+     "BossGroupRecordDict",
+     {}
+    ],
+    "boss_rank_record": [
+     "BossRecordDict",
+     {}
+    ],
+    "boss_unlock_record": [
+     "BossUnlockDict",
+     {}
+    ],
+    "character_list": [
+     "IntListDictKeyInt",
+     {}
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "total_rank_id": [
+     "string",
+     ""
+    ],
+    "total_score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeTowerActiveTaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActiveTaskBag"
+  },
+  "ChallengeTowerInfo": {
+   "int_key": false,
+   "props": {
+    "challenge_pass_rank_character": [
+     "IntList",
+     {}
+    ],
+    "hard_character": [
+     "IntList",
+     {}
+    ],
+    "levelInfo": [
+     "ChallengeTowerLevelInfo",
+     {}
+    ],
+    "max_pass_hard_level": [
+     "int",
+     0
+    ],
+    "min_pass_use_time": [
+     "int",
+     0
+    ],
+    "normal_character": [
+     "IntList",
+     {}
+    ],
+    "rewardstarnum": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "season_max_level_id": [
+     "int",
+     0
+    ],
+    "seasonlevelInfo": [
+     "ChallengeTowerLevelInfo",
+     {}
+    ],
+    "seasonrewardstarnum": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "task_bag": [
+     "ChallengeTowerActiveTaskBag",
+     {}
+    ],
+    "typeid": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChallengeTowerLevelInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "BooleanDictKeyInt"
+  },
+  "ChampionshipBattleInfo": {
+   "int_key": false,
+   "props": {
+    "battle_result": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "room_mailbox": [
+     "string",
+     ""
+    ],
+    "user_list": [
+     "StringDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipData": {
+   "int_key": false,
+   "props": {
+    "audition_count": [
+     "int",
+     0
+    ],
+    "easy_char_list": [
+     "IntList",
+     {}
+    ],
+    "guess_data": [
+     "ChampionshipGuessRecord",
+     {}
+    ],
+    "hard_char_list": [
+     "IntList",
+     {}
+    ],
+    "lose_count": [
+     "int",
+     0
+    ],
+    "player_info": [
+     "ChampionshipPlayerInfoRecord",
+     {}
+    ],
+    "reward_data": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "schedule_list": [
+     "ChampionshipScheduleInfoList",
+     {}
+    ],
+    "score": [
+     "int",
+     0
+    ],
+    "selection_count": [
+     "int",
+     0
+    ],
+    "statistics_data": [
+     "ChampionshipStatisticsData",
+     {}
+    ],
+    "win_count": [
+     "int",
+     0
+    ],
+    "win_count_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipGroupInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipRoundInfo"
+  },
+  "ChampionshipGuessData": {
+   "int_key": false,
+   "props": {
+    "count": [
+     "int",
+     0
+    ],
+    "guess_params": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "result": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipGuessRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipGuessData"
+  },
+  "ChampionshipGuessStatisticsData": {
+   "int_key": false,
+   "props": {
+    "char_count": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "shortest_pass_time": [
+     "double",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipGuessStatisticsRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipGuessStatisticsData"
+  },
+  "ChampionshipHonorRank": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipHonorRankData"
+  },
+  "ChampionshipHonorRankData": {
+   "int_key": false,
+   "props": {
+    "actId": [
+     "int",
+     0
+    ],
+    "statistics_data": [
+     "ChampionshipStatisticsRecord",
+     {}
+    ],
+    "uids": [
+     "StringDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipPlayerInfo": {
+   "int_key": false,
+   "props": {},
+   "value_type": "ChampionshipPlayerInfoDetail"
+  },
+  "ChampionshipPlayerInfoDetail": {
+   "int_key": false,
+   "props": {
+    "battleIndex": [
+     "int",
+     0
+    ],
+    "bo_count": [
+     "int",
+     0
+    ],
+    "mailBox": [
+     "string",
+     ""
+    ],
+    "roundIndex": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipPlayerInfoRecord": {
+   "int_key": false,
+   "props": {
+    "battleIndex": [
+     "int",
+     0
+    ],
+    "battle_result": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "cur_user_list": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "roundIndex": [
+     "int",
+     0
+    ],
+    "user_list": [
+     "StringDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipRoomInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipGroupInfo"
+  },
+  "ChampionshipRoundInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipBattleInfo"
+  },
+  "ChampionshipScheduleInfo": {
+   "int_key": false,
+   "props": {
+    "battleIndex": [
+     "int",
+     0
+    ],
+    "bo_count": [
+     "int",
+     0
+    ],
+    "result": [
+     "int",
+     0
+    ],
+    "roundIndex": [
+     "int",
+     0
+    ],
+    "uids": [
+     "StringDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipScheduleInfoList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipScheduleRoundInfo"
+  },
+  "ChampionshipScheduleRoundInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ChampionshipScheduleInfo"
+  },
+  "ChampionshipStatisticsData": {
+   "int_key": false,
+   "props": {
+    "avg_act_score": [
+     "double",
+     0
+    ],
+    "avg_coin": [
+     "double",
+     0
+    ],
+    "avg_cost_time": [
+     "double",
+     0
+    ],
+    "avg_damage": [
+     "double",
+     0
+    ],
+    "game_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChampionshipStatisticsRecord": {
+   "int_key": false,
+   "props": {},
+   "value_type": "ChampionshipStatisticsData"
+  },
+  "CharBattleRankInfo": {
+   "int_key": false,
+   "props": {
+    "act_score": [
+     "int",
+     0
+    ],
+    "active_rate": [
+     "int",
+     0
+    ],
+    "win_count_score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CharBattleRankRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharBattleRankInfo"
+  },
+  "CharBattleRankSeasonRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharBattleRankRecord"
+  },
+  "CharBattleScore": {
+   "int_key": false,
+   "props": {
+    "battle_count": [
+     "int",
+     0
+    ],
+    "battle_score": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "win_ratio": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CharBattleScores": {
+   "int_key": false,
+   "props": {},
+   "value_type": "CharBattleScore"
+  },
+  "CharEquipDesign": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharEquipDesignInfoRecord"
+  },
+  "CharEquipDesignInfo": {
+   "int_key": false,
+   "props": {
+    "create_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "string",
+     ""
+    ],
+    "main_entry_record": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "name": [
+     "string",
+     ""
+    ],
+    "sub_entry_record": [
+     "IntDict",
+     {}
+    ],
+    "suit_id_list": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CharEquipDesignInfoRecord": {
+   "int_key": false,
+   "props": {},
+   "value_type": "CharEquipDesignInfo"
+  },
+  "CharEquipDesignUseInfo": {
+   "int_key": false,
+   "props": {
+    "custom_key": [
+     "string",
+     ""
+    ],
+    "type": [
+     "int",
+     1
+    ]
+   },
+   "value_type": null
+  },
+  "CharEquipDesignUseRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharEquipDesignUseInfo"
+  },
+  "CharShownInfo": {
+   "int_key": false,
+   "props": {
+    "index": [
+     "int",
+     1
+    ]
+   },
+   "value_type": null
+  },
+  "CharShownList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharShownInfo"
+  },
+  "CharStarActMgrProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharStarActProp"
+  },
+  "CharStarActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "char_id": [
+     "int",
+     0
+    ],
+    "rewards_state": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CharUseRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharUseRecordInfo"
+  },
+  "CharUseRecordInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharUseRecordInfoDict"
+  },
+  "CharUseRecordInfoDict": {
+   "int_key": false,
+   "props": {
+    "total_count": [
+     "int",
+     0
+    ],
+    "win_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "Character": {
+   "int_key": false,
+   "props": {
+    "name": [
+     "string",
+     ""
+    ],
+    "value": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "Character2v2Data": {
+   "int_key": false,
+   "props": {
+    "char_equip_design": [
+     "CharEquipDesign",
+     {}
+    ],
+    "char_equip_design_use_record": [
+     "CharEquipDesignUseRecord",
+     {}
+    ],
+    "char_list": [
+     "CharacterList",
+     {}
+    ],
+    "char_use_record": [
+     "CharUseRecord",
+     {}
+    ],
+    "choosen_index": [
+     "int",
+     1
+    ]
+   },
+   "value_type": null
+  },
+  "CharacterInfo": {
+   "int_key": false,
+   "props": {
+    "RuneId": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "biography_read": [
+     "int",
+     0
+    ],
+    "breakAward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "charValue": [
+     "int",
+     0
+    ],
+    "charValueType": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "dragon_charm_all_levelup": [
+     "int",
+     0
+    ],
+    "dragon_charm_infos": [
+     "DragonCharmDict",
+     {}
+    ],
+    "equip_bag": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "equip_suit_infos": [
+     "EquipSuitDict",
+     {}
+    ],
+    "fashion_equip_bag": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "fashion_equip_save_scheme": [
+     "FashionEquipSaveScheme",
+     {}
+    ],
+    "fashion_equip_suit_infos": [
+     "FashionEquipSuitDict",
+     {}
+    ],
+    "fetch_time": [
+     "int",
+     0
+    ],
+    "has_unlock_sheme": [
+     "int",
+     0
+    ],
+    "sigil_bag": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "skins": [
+     "SkinInfoDict",
+     {}
+    ],
+    "stamp_bag": [
+     "StringDictKeyInt",
+     {}
+    ],
+    "useSkinId": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "int"
+  },
+  "CharacterList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "Character"
+  },
+  "CharacterPersistentDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CharacterInfo"
+  },
+  "ChargeProp": {
+   "int_key": false,
+   "props": {
+    "charge_score": [
+     "int",
+     0
+    ],
+    "first_charge_reward_status": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rebate": [
+     "ChargeRebateProp",
+     {}
+    ],
+    "rebate1": [
+     "ChargeRebatePropPublic",
+     {}
+    ],
+    "rebate2": [
+     "ChargeRebatePropPublic",
+     {}
+    ],
+    "rebate_stage": [
+     "int",
+     0
+    ],
+    "total_charge": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChargeRebateProp": {
+   "int_key": false,
+   "props": {
+    "bp_vip": [
+     "int",
+     0
+    ],
+    "charge_score": [
+     "int",
+     0
+    ],
+    "monthcard_count": [
+     "int",
+     0
+    ],
+    "rd_items": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "total_charge": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChargeRebatePropPublic": {
+   "int_key": false,
+   "props": {
+    "rd_items": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rd_status": [
+     "int",
+     0
+    ],
+    "total_charge": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChatBanInfo": {
+   "int_key": false,
+   "props": {
+    "ban_type": [
+     "IntDict",
+     {}
+    ],
+    "reason": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ChatProp": {
+   "int_key": false,
+   "props": {
+    "chat_ban_info": [
+     "ChatBanInfo",
+     {}
+    ],
+    "group_record": [
+     "BooleanDict",
+     {}
+    ],
+    "private_chat_record": [
+     "BooleanDict",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CheckinRecordInfo": {
+   "int_key": false,
+   "props": {
+    "claimed": [
+     "boolean",
+     false
+    ],
+    "time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CheckinRecords": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActivityCheckinRecords"
+  },
+  "ClimbTowerPlayerInfo": {
+   "int_key": false,
+   "props": {
+    "is_new_tower": [
+     "boolean",
+     false
+    ],
+    "is_weekly_challenge": [
+     "boolean",
+     false
+    ],
+    "target_floor_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CommonMvpScore": {
+   "int_key": false,
+   "props": {
+    "match_total_count": [
+     "int",
+     0
+    ],
+    "mvp_count": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CommonWinCountScore": {
+   "int_key": false,
+   "props": {
+    "match_total_count": [
+     "int",
+     0
+    ],
+    "match_win_count": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ContributionPlayerInfo": {
+   "int_key": false,
+   "props": {
+    "contributionValue": [
+     "int",
+     0
+    ],
+    "cycle": [
+     "int",
+     0
+    ],
+    "rankId": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "ContributionPlayerInfoRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ContributionPlayerInfo"
+  },
+  "ContributionRankAward": {
+   "int_key": false,
+   "props": {
+    "rankId": [
+     "string",
+     "0"
+    ],
+    "startIndex": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ContributionRanksCycleAward": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ContributionRankAward"
+  },
+  "CountdownGift": {
+   "int_key": false,
+   "props": {
+    "id": [
+     "int",
+     0
+    ],
+    "start_time": [
+     "int",
+     0
+    ],
+    "status": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CountdownGiftProp": {
+   "int_key": false,
+   "props": {
+    "gifts": [
+     "CountdownGifts",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CountdownGifts": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CountdownGift"
+  },
+  "CycleChargeAct": {
+   "int_key": false,
+   "props": {
+    "id": [
+     "int",
+     0
+    ],
+    "rewards": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "CycleChargeActProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CycleChargeAct"
+  },
+  "CycleInfiniteActiveTaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ActiveTaskBag"
+  },
+  "CycleInfiniteProp": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "highest_floor": [
+     "int",
+     0
+    ],
+    "infinite_rank_character": [
+     "IntList",
+     {}
+    ],
+    "max_floor": [
+     "int",
+     0
+    ],
+    "max_score": [
+     "int",
+     0
+    ],
+    "snapshot": [
+     "InfiniteSnapshot",
+     {}
+    ],
+    "task_bag": [
+     "CycleInfiniteActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CycleInfo": {
+   "int_key": false,
+   "props": {
+    "cycle_id": [
+     "int",
+     0
+    ],
+    "cycle_ranks": [
+     "IntDict",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "CycleInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "CycleInfo"
+  },
+  "DailyChatInfo": {
+   "int_key": false,
+   "props": {
+    "finish_daily_topics": [
+     "IntListDictKeyInt",
+     {}
+    ],
+    "last_offer_topic_time": [
+     "int",
+     0
+    ],
+    "library_id": [
+     "int",
+     0
+    ],
+    "ongoing_topic": [
+     "IntList",
+     {}
+    ],
+    "today_offer_topic_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DailySign": {
+   "int_key": false,
+   "props": {
+    "ctime": [
+     "int",
+     0
+    ],
+    "day": [
+     "int",
+     0
+    ],
+    "rewarded": [
+     "boolean",
+     false
+    ],
+    "rtime": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DexInfoProp": {
+   "int_key": false,
+   "props": {
+    "dex_infos": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "DexTypeProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DexInfoProp"
+  },
+  "Donate": {
+   "int_key": false,
+   "props": {
+    "icon": [
+     "int",
+     0
+    ],
+    "no": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "uid": [
+     "string",
+     "0"
+    ],
+    "wish": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "DonateProp": {
+   "int_key": false,
+   "props": {
+    "obtains": [
+     "DonateRecords",
+     {}
+    ],
+    "sends": [
+     "DonateRecords",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "DonateRecords": {
+   "int_key": false,
+   "props": {},
+   "value_type": "Donate"
+  },
+  "DoneTaskTypeBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "DoubleDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "double"
+  },
+  "DoubleDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "double"
+  },
+  "DoubleList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "double"
+  },
+  "DragonCharmActBPProp": {
+   "int_key": false,
+   "props": {
+    "exp": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "pay_reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rotate_state": [
+     "int",
+     0
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DragonCharmActProp": {
+   "int_key": true,
+   "props": {
+    "bp_info": [
+     "DragonCharmActBPProp",
+     {}
+    ],
+    "cur_activity_id": [
+     "int",
+     0
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": "DragonCharmProp"
+  },
+  "DragonCharmDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DragonCharmInfo"
+  },
+  "DragonCharmInfo": {
+   "int_key": false,
+   "props": {
+    "level": [
+     "int",
+     0
+    ],
+    "locked": [
+     "int",
+     0
+    ],
+    "pos": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DragonCharmLevelProp": {
+   "int_key": false,
+   "props": {
+    "left_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DragonCharmProp": {
+   "int_key": true,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": "DragonCharmLevelProp"
+  },
+  "DrawInfo": {
+   "int_key": false,
+   "props": {
+    "grt_time": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "total": [
+     "int",
+     0
+    ],
+    "tp": [
+     "int",
+     0
+    ],
+    "up_only_time": [
+     "int",
+     0
+    ],
+    "up_time": [
+     "int",
+     0
+    ],
+    "wish_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DrawProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DrawInfo"
+  },
+  "DungeonChallengeData": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "DungeonData": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DungeonLevelData"
+  },
+  "DungeonDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DungeonData"
+  },
+  "DungeonLevelData": {
+   "int_key": false,
+   "props": {
+    "npc": [
+     "DungeonLevelNpcDict",
+     {}
+    ],
+    "timeline": [
+     "IntDict",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "DungeonLevelNpcData": {
+   "int_key": false,
+   "props": {
+    "drop": [
+     "IntList",
+     {}
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DungeonLevelNpcDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "DungeonLevelNpcData"
+  },
+  "DungeonLevelViewData": {
+   "int_key": true,
+   "props": {
+    "is_reward": [
+     "boolean",
+     false
+    ],
+    "television": [
+     "StringList",
+     {}
+    ]
+   },
+   "value_type": "int"
+  },
+  "DungeonSettlementInfo": {
+   "int_key": false,
+   "props": {
+    "battleItems": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "duration": [
+     "int",
+     0
+    ],
+    "historyEvent": [
+     "IntListList",
+     {}
+    ],
+    "openLevelId": [
+     "IntList",
+     {}
+    ],
+    "progressType": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "DungeonSwitchInfo": {
+   "int_key": false,
+   "props": {
+    "bronId": [
+     "int",
+     0
+    ],
+    "dungeonId": [
+     "int",
+     0
+    ],
+    "levelId": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "DungeonViewData": {
+   "int_key": true,
+   "props": {
+    "duration": [
+     "int",
+     0
+    ],
+    "finishNum": [
+     "int",
+     0
+    ],
+    "is_reward": [
+     "boolean",
+     false
+    ],
+    "rebirthCount": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "DungeonLevelViewData"
+  },
+  "DungeonViewDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DungeonViewData"
+  },
+  "ERank": {
+   "int_key": false,
+   "props": {
+    "grade": [
+     "int",
+     0
+    ],
+    "num": [
+     "int",
+     0
+    ],
+    "rank": [
+     "int",
+     0
+    ],
+    "rid": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "ERankProp": {
+   "int_key": false,
+   "props": {},
+   "value_type": "ERank"
+  },
+  "EmergencyData": {
+   "int_key": false,
+   "props": {},
+   "value_type": "string"
+  },
+  "EndlessCharacter": {
+   "int_key": false,
+   "props": {
+    "name": [
+     "string",
+     ""
+    ],
+    "value": [
+     "IntListList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "EndlessCharacterList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "EndlessCharacter"
+  },
+  "EndlessDailyRewardDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "EndlessDailyRewardList"
+  },
+  "EndlessDailyRewardList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "EndlessRankInfo": {
+   "int_key": false,
+   "props": {
+    "num": [
+     "int",
+     0
+    ],
+    "rankId": [
+     "string",
+     ""
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "EndlessRankInfoRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "EndlessRankInfo"
+  },
+  "EndlessRankInfoRecordList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "EndlessRankInfoRecord"
+  },
+  "EndlessRewardDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "EndlessRewardInfo"
+  },
+  "EndlessRewardInfo": {
+   "int_key": false,
+   "props": {
+    "lastSettleTime": [
+     "double",
+     0
+    ],
+    "weeklyReward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "weeklyScoreChange": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "EquipSaveSchemeDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StringDictKeyInt"
+  },
+  "EquipSuitDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "EquipSuitInfo"
+  },
+  "EquipSuitInfo": {
+   "int_key": false,
+   "props": {
+    "rune_ids": [
+     "IntList",
+     {}
+    ],
+    "suit_num": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubApplication": {
+   "int_key": false,
+   "props": {
+    "id": [
+     "string",
+     ""
+    ],
+    "name": [
+     "string",
+     ""
+    ],
+    "ts": [
+     "int",
+     0
+    ],
+    "uid": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubApplication2": {
+   "int_key": false,
+   "props": {
+    "id": [
+     "string",
+     ""
+    ],
+    "name": [
+     "string",
+     ""
+    ],
+    "ts": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubApplications": {
+   "int_key": false,
+   "props": {},
+   "value_type": "FansClubApplication"
+  },
+  "FansClubApplications2": {
+   "int_key": false,
+   "props": {},
+   "value_type": "FansClubApplication2"
+  },
+  "FansClubFlagData": {
+   "int_key": false,
+   "props": {
+    "bg_id": [
+     "int",
+     0
+    ],
+    "icon_id": [
+     "int",
+     0
+    ],
+    "items": [
+     "FansClubFlagItems",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubFlagItem": {
+   "int_key": false,
+   "props": {
+    "gridID": [
+     "string",
+     ""
+    ],
+    "itemID": [
+     "int",
+     0
+    ],
+    "layer": [
+     "int",
+     0
+    ],
+    "posX": [
+     "double",
+     0
+    ],
+    "posY": [
+     "double",
+     0
+    ],
+    "rotate": [
+     "double",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubFlagItems": {
+   "int_key": true,
+   "props": {},
+   "value_type": "FansClubFlagItem"
+  },
+  "FansClubInfo": {
+   "int_key": false,
+   "props": {
+    "character": [
+     "int",
+     0
+    ],
+    "id": [
+     "string",
+     ""
+    ],
+    "name": [
+     "string",
+     ""
+    ],
+    "position": [
+     "int",
+     0
+    ],
+    "uid": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubInfos": {
+   "int_key": false,
+   "props": {},
+   "value_type": "FansClubInfo"
+  },
+  "FansClubMember": {
+   "int_key": false,
+   "props": {
+    "active_time": [
+     "int",
+     0
+    ],
+    "contribution": [
+     "int",
+     0
+    ],
+    "contribution_week": [
+     "int",
+     0
+    ],
+    "contribution_week_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "string",
+     ""
+    ],
+    "join_time": [
+     "int",
+     0
+    ],
+    "name": [
+     "string",
+     ""
+    ],
+    "position": [
+     "int",
+     0
+    ],
+    "uid": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubMembers": {
+   "int_key": false,
+   "props": {},
+   "value_type": "FansClubMember"
+  },
+  "FansClubProp": {
+   "int_key": false,
+   "props": {
+    "applications": [
+     "FansClubApplications2",
+     {}
+    ],
+    "fansclubs": [
+     "FansClubInfos",
+     {}
+    ],
+    "leave_ts": [
+     "int",
+     0
+    ],
+    "version": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FansClubRankValue": {
+   "int_key": false,
+   "props": {
+    "period": [
+     "int",
+     0
+    ],
+    "time": [
+     "int",
+     0
+    ],
+    "value": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "Fashion": {
+   "int_key": false,
+   "props": {
+    "expiration_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FashionBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "Fashion"
+  },
+  "FashionEquipRecastCache": {
+   "int_key": false,
+   "props": {
+    "entry_cache": [
+     "int",
+     0
+    ],
+    "fashion_equip_id": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "FashionEquipRefineCache": {
+   "int_key": false,
+   "props": {
+    "fashion_equip_id": [
+     "string",
+     ""
+    ],
+    "sub_attr_cache": [
+     "DoubleDictKeyInt",
+     {}
+    ],
+    "sub_attr_upgrade": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "FashionEquipSaveScheme": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StringDictKeyInt"
+  },
+  "FashionEquipSuitDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "FashionEquipSuitInfo"
+  },
+  "FashionEquipSuitInfo": {
+   "int_key": false,
+   "props": {
+    "rune_ids": [
+     "IntList",
+     {}
+    ],
+    "suit_num": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FavorProp": {
+   "int_key": false,
+   "props": {
+    "cycle_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FishingMinerActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "act_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "cur_level_id": [
+     "int",
+     0
+    ],
+    "cur_level_in_shop": [
+     "int",
+     0
+    ],
+    "cur_level_info": [
+     "IntList",
+     {}
+    ],
+    "cur_level_score": [
+     "int",
+     0
+    ],
+    "fish_log": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "level_score": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "open_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "FollowActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "complete_medias": [
+     "IntList",
+     {}
+    ],
+    "gained_medias": [
+     "IntList",
+     {}
+    ],
+    "open_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "GMProp": {
+   "int_key": false,
+   "props": {
+    "activity_switch": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "gift_code_status": [
+     "boolean",
+     false
+    ],
+    "ios_pay_status": [
+     "int",
+     0
+    ],
+    "text_modify_cd": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "GachaDrawAct": {
+   "int_key": false,
+   "props": {
+    "draw_cnt": [
+     "int",
+     0
+    ],
+    "no": [
+     "int",
+     0
+    ],
+    "reward_p": [
+     "GachaDrawRewards",
+     {}
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "GachaDrawActProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "GachaDrawAct"
+  },
+  "GachaDrawReward": {
+   "int_key": false,
+   "props": {
+    "state": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "GachaDrawRewards": {
+   "int_key": true,
+   "props": {},
+   "value_type": "GachaDrawReward"
+  },
+  "GachaProp": {
+   "int_key": false,
+   "props": {
+    "ban_char": [
+     "int",
+     0
+    ],
+    "choose_p": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "draw_cnt": [
+     "int",
+     0
+    ],
+    "draw_p": [
+     "DrawProp",
+     {}
+    ],
+    "fst_draw": [
+     "boolean",
+     true
+    ],
+    "newbie_close": [
+     "boolean",
+     false
+    ],
+    "normal_reward": [
+     "int",
+     0
+    ],
+    "record": [
+     "GachaRecord",
+     {}
+    ],
+    "up_reward": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "wish_char": [
+     "int",
+     0
+    ],
+    "wish_p": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "GachaRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "GachaRecordInfo"
+  },
+  "GachaRecordInfo": {
+   "int_key": false,
+   "props": {
+    "drawTime": [
+     "double",
+     0
+    ],
+    "poolID": [
+     "int",
+     0
+    ],
+    "rewards": [
+     "GachaRewards",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "GachaReward": {
+   "int_key": false,
+   "props": {
+    "count": [
+     "int",
+     0
+    ],
+    "no": [
+     "int",
+     0
+    ],
+    "real": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rtype": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "GachaRewards": {
+   "int_key": true,
+   "props": {},
+   "value_type": "GachaReward"
+  },
+  "GlobalBlessActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "bless_reward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "make_wish_time": [
+     "int",
+     0
+    ],
+    "open_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "GradeFundProp": {
+   "int_key": false,
+   "props": {
+    "is_all_done": [
+     "int",
+     0
+    ],
+    "is_open": [
+     "int",
+     0
+    ],
+    "is_vip": [
+     "int",
+     0
+    ],
+    "normal_awards": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "prime_awards": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "HonorWallData": {
+   "int_key": false,
+   "props": {
+    "itemId": [
+     "int",
+     0
+    ],
+    "layer": [
+     "int",
+     0
+    ],
+    "pos_x": [
+     "double",
+     0
+    ],
+    "pos_y": [
+     "double",
+     0
+    ],
+    "rotate": [
+     "double",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "HonorWallDataDict": {
+   "int_key": false,
+   "props": {
+    "bg_item_id": [
+     "int",
+     0
+    ],
+    "object_info": [
+     "HonorWallObjectInfo",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "HonorWallDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "HonorWallDataDict"
+  },
+  "HonorWallObjectInfo": {
+   "int_key": false,
+   "props": {},
+   "value_type": "HonorWallData"
+  },
+  "InfiniteDailySettlementRecord": {
+   "int_key": false,
+   "props": {
+    "award_timestamp": [
+     "int",
+     0
+    ],
+    "is_new": [
+     "boolean",
+     true
+    ],
+    "rank": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "week_rank_score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "InfiniteProp": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "choosen_index": [
+     "int",
+     1
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "daily_settlement_record": [
+     "InfiniteDailySettlementRecord",
+     {}
+    ],
+    "highest_floor": [
+     "int",
+     1
+    ],
+    "highest_score": [
+     "int",
+     0
+    ],
+    "highest_score_infloor": [
+     "int",
+     0
+    ],
+    "hightest_try_floor": [
+     "boolean",
+     false
+    ],
+    "rank_award_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "score_rank_id": [
+     "string",
+     ""
+    ],
+    "week_highest_score": [
+     "int",
+     0
+    ],
+    "week_highest_score_character_list": [
+     "IntList",
+     {}
+    ],
+    "week_highest_score_timestamp": [
+     "int",
+     0
+    ],
+    "week_rank_id": [
+     "string",
+     ""
+    ],
+    "week_rank_score": [
+     "int",
+     0
+    ],
+    "week_settlement_record": [
+     "InfiniteWeekSettlementRecord",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "InfiniteScore": {
+   "int_key": false,
+   "props": {
+    "finish_count": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "week_highest_score": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "InfiniteSnapshot": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "energy_info": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "floor": [
+     "int",
+     0
+    ],
+    "settlement_floor": [
+     "int",
+     0
+    ],
+    "use_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "InfiniteWeekSettlementRecord": {
+   "int_key": false,
+   "props": {
+    "dispatch_once_reward": [
+     "boolean",
+     false
+    ],
+    "is_new": [
+     "boolean",
+     false
+    ],
+    "score_change": [
+     "int",
+     0
+    ],
+    "weekly_reward": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "IntDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "int"
+  },
+  "IntDictDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "IntDictDictKeyStr": {
+   "int_key": false,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "IntDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "int"
+  },
+  "IntList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "int"
+  },
+  "IntListDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "IntList"
+  },
+  "IntListDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntList"
+  },
+  "IntListList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntList"
+  },
+  "ItemAttr": {
+   "int_key": false,
+   "props": {
+    "i": [
+     "double",
+     0
+    ],
+    "s": [
+     "string",
+     ""
+    ],
+    "t": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "ItemAttrs": {
+   "int_key": false,
+   "props": {},
+   "value_type": "int"
+  },
+  "ItemBag": {
+   "int_key": false,
+   "props": {},
+   "value_type": "ItemInfo"
+  },
+  "ItemInfo": {
+   "int_key": false,
+   "props": {
+    "expireTime": [
+     "double",
+     0
+    ],
+    "ext": [
+     "ItemAttrs",
+     {}
+    ],
+    "getTime": [
+     "double",
+     0
+    ],
+    "id": [
+     "string",
+     ""
+    ],
+    "itemId": [
+     "int",
+     0
+    ],
+    "num": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ItemInfoList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ItemInfo"
+  },
+  "Lock": {
+   "int_key": false,
+   "props": {
+    "ctime": [
+     "int",
+     0
+    ],
+    "expire": [
+     "int",
+     0
+    ],
+    "sysid": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "LockProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "Lock"
+  },
+  "MallProp": {
+   "int_key": false,
+   "props": {
+    "records": [
+     "MallRecords",
+     {}
+    ],
+    "rt": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MallRecord": {
+   "int_key": false,
+   "props": {
+    "btime": [
+     "int",
+     0
+    ],
+    "lcount": [
+     "int",
+     0
+    ],
+    "tcount": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MallRecords": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MallRecord"
+  },
+  "MatchInfo": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "match_type": [
+     "int",
+     0
+    ],
+    "modeId": [
+     "int",
+     0
+    ],
+    "system_type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MilkTeaActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "level_reward_list": [
+     "IntListDictKeyInt",
+     {}
+    ],
+    "level_score": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "unlock_milktea": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "MirageActProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MirageDungeonProp"
+  },
+  "MirageDungeonProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MirageLevelProp"
+  },
+  "MirageLevelProp": {
+   "int_key": false,
+   "props": {
+    "rewardstars": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "star": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MirageProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MirageActProp"
+  },
+  "MiscProp": {
+   "int_key": false,
+   "props": {
+    "download_reward": [
+     "int",
+     0
+    ],
+    "exp_compensation_145": [
+     "int",
+     0
+    ],
+    "h5_gacha_ship": [
+     "int",
+     0
+    ],
+    "login_ui_hide": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "ui_hide": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "web_bundle": [
+     "IntDict",
+     {}
+    ],
+    "wjx": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "MonthCard": {
+   "int_key": false,
+   "props": {
+    "end_ts": [
+     "int",
+     0
+    ],
+    "no": [
+     "int",
+     0
+    ],
+    "rd_items": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rd_status": [
+     "int",
+     0
+    ],
+    "rd_time": [
+     "int",
+     0
+    ],
+    "renewal_notified": [
+     "int",
+     0
+    ],
+    "start_ts": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MonthVip": {
+   "int_key": false,
+   "props": {
+    "is_vip": [
+     "boolean",
+     false
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "vtime": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MonthlyPassProp": {
+   "int_key": true,
+   "props": {
+    "vip_p": [
+     "MonthVip",
+     {}
+    ]
+   },
+   "value_type": "MonthCard"
+  },
+  "MultiTowerCharInfo": {
+   "int_key": false,
+   "props": {
+    "charId": [
+     "int",
+     0
+    ],
+    "charLevel": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MultiTowerLevelInfo": {
+   "int_key": false,
+   "props": {
+    "lineup": [
+     "MultiTowerLineupInfo",
+     {}
+    ],
+    "pass": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "MultiTowerLevelInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MultiTowerLevelInfo"
+  },
+  "MultiTowerLineupInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "MultiTowerCharInfo"
+  },
+  "MultiTowerProp": {
+   "int_key": false,
+   "props": {
+    "challenge_character_list": [
+     "IntList",
+     {}
+    ],
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "daily_challenge_num": [
+     "int",
+     1
+    ],
+    "daily_challenge_use_time": [
+     "int",
+     0
+    ],
+    "hang_reward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "hang_reward_num": [
+     "int",
+     0
+    ],
+    "last_receive_hang_reward_time": [
+     "int",
+     0
+    ],
+    "level_prop": [
+     "MultiTowerLevelInfoDict",
+     {}
+    ],
+    "next_hang_reward_time": [
+     "int",
+     0
+    ],
+    "pass_tower_level_time": [
+     "int",
+     0
+    ],
+    "pass_tower_max_level_id": [
+     "int",
+     0
+    ],
+    "quick_profit_num": [
+     "int",
+     0
+    ],
+    "tower_reward": [
+     "BooleanDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "MvpScore": {
+   "int_key": false,
+   "props": {
+    "mvp_count": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "rank_total_count": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "NonReplacementGachaProp": {
+   "int_key": false,
+   "props": {
+    "accumulated_rewards_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "act_end_warning_mail_state": [
+     "int",
+     0
+    ],
+    "act_id": [
+     "int",
+     0
+    ],
+    "draw_cnt": [
+     "int",
+     0
+    ],
+    "grand_prize_grt_progress": [
+     "int",
+     0
+    ],
+    "record": [
+     "GachaRecord",
+     {}
+    ],
+    "target_grand_prize_grt_progress": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "NonReplacementGachaSetProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "NonReplacementGachaProp"
+  },
+  "NpcChatCollect": {
+   "int_key": true,
+   "props": {},
+   "value_type": "NpcChatRecord"
+  },
+  "NpcChatInfo": {
+   "int_key": false,
+   "props": {
+    "chat_type": [
+     "int",
+     0
+    ],
+    "group_npc_ids": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "is_over": [
+     "int",
+     0
+    ],
+    "npc_id": [
+     "int",
+     0
+    ],
+    "topic_infos": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "update_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "NpcChatProp": {
+   "int_key": false,
+   "props": {
+    "address_list": [
+     "NpcChatCollect",
+     {}
+    ],
+    "call_records": [
+     "NpcChatCollect",
+     {}
+    ],
+    "daily_topics": [
+     "DailyChatInfo",
+     {}
+    ],
+    "resident_topic_ids": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "NpcChatRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "NpcChatInfo"
+  },
+  "Order": {
+   "int_key": false,
+   "props": {
+    "ctime": [
+     "int",
+     0
+    ],
+    "key": [
+     "string",
+     ""
+    ],
+    "no": [
+     "int",
+     0
+    ],
+    "oid": [
+     "string",
+     ""
+    ],
+    "params": [
+     "Params",
+     {}
+    ],
+    "product_id": [
+     "string",
+     ""
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "track_key": [
+     "string",
+     ""
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "Orders": {
+   "int_key": false,
+   "props": {},
+   "value_type": "Order"
+  },
+  "Params": {
+   "int_key": false,
+   "props": {
+    "donate": [
+     "PayDonate",
+     {}
+    ],
+    "gift_selection": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "PartyGameProp": {
+   "int_key": false,
+   "props": {
+    "chars_unlock_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "choose_char_id": [
+     "int",
+     0
+    ],
+    "cur_week_id": [
+     "int",
+     0
+    ],
+    "show_win": [
+     "boolean",
+     true
+    ],
+    "task_info": [
+     "PartyGameTaskProp",
+     {}
+    ],
+    "total_win_num": [
+     "int",
+     0
+    ],
+    "week_win_num": [
+     "int",
+     0
+    ],
+    "win_streak_num": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PartyGameTaskProp": {
+   "int_key": false,
+   "props": {
+    "active_point": [
+     "int",
+     0
+    ],
+    "active_point_reward_states": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "cycle_id": [
+     "int",
+     0
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "PayDonate": {
+   "int_key": false,
+   "props": {
+    "icon": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "uid": [
+     "string",
+     "0"
+    ],
+    "wish": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "PayProp": {
+   "int_key": false,
+   "props": {
+    "first_charge": [
+     "boolean",
+     false
+    ],
+    "orders": [
+     "Orders",
+     {}
+    ],
+    "records": [
+     "MallRecords",
+     {}
+    ],
+    "rt": [
+     "int",
+     0
+    ],
+    "sns": [
+     "IntDict",
+     {}
+    ],
+    "web_notifications": [
+     "StringStringDict",
+     {}
+    ],
+    "web_retry_timer": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "PetSkinBag": {
+   "int_key": false,
+   "props": {
+    "curr_skin": [
+     "int",
+     0
+    ],
+    "skins": [
+     "PetSkinInfoDict",
+     {}
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "task_bag_init": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PetSkinInfo": {
+   "int_key": false,
+   "props": {
+    "gain_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PetSkinInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "PetSkinInfo"
+  },
+  "PhysicalPowerBpActMgrProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "PhysicalPowerBpActProp"
+  },
+  "PhysicalPowerBpActProp": {
+   "int_key": false,
+   "props": {
+    "exp": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "pay_reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PlatformsLoginActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "rewards_state": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "PlayerValue": {
+   "int_key": false,
+   "props": {
+    "char_id": [
+     "int",
+     0
+    ],
+    "value": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PlayerValueInfo": {
+   "int_key": false,
+   "props": {
+    "char_values": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "player_value": [
+     "int",
+     0
+    ],
+    "player_value_list": [
+     "PlayerValueList",
+     {}
+    ],
+    "top_player_favor_value": [
+     "int",
+     0
+    ],
+    "top_rank_char_value": [
+     "int",
+     0
+    ],
+    "top_skin_value": [
+     "int",
+     0
+    ],
+    "top_space_favor_value": [
+     "int",
+     0
+    ],
+    "total_value": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PlayerValueList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "PlayerValue"
+  },
+  "PlayerValueScore": {
+   "int_key": false,
+   "props": {
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "timestamp": [
+     "int",
+     0
+    ],
+    "total_value": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PopupGift": {
+   "int_key": false,
+   "props": {
+    "expire": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "rd_idx": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PopupGiftProp": {
+   "int_key": false,
+   "props": {
+    "gifts": [
+     "PopupGifts",
+     {}
+    ],
+    "vit_times": [
+     "int",
+     0
+    ],
+    "vit_ts": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PopupGifts": {
+   "int_key": true,
+   "props": {},
+   "value_type": "PopupGift"
+  },
+  "Pos": {
+   "int_key": false,
+   "props": {
+    "x": [
+     "double",
+     0
+    ],
+    "y": [
+     "double",
+     0
+    ],
+    "z": [
+     "double",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PupilSkillDictProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "PupilSkillInfoProp"
+  },
+  "PupilSkillInfoProp": {
+   "int_key": false,
+   "props": {
+    "is_unlock": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "pupil_skill_id": [
+     "int",
+     0
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PurchaseInfo": {
+   "int_key": false,
+   "props": {
+    "last_time": [
+     "double",
+     0
+    ],
+    "num": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PuzzleActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "daily_level": [
+     "IntDictDictKeyInt",
+     {}
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "pass_all_level_award": [
+     "int",
+     0
+    ],
+    "pass_level_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "PuzzleLevelProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "boolean"
+  },
+  "PuzzleProp": {
+   "int_key": false,
+   "props": {
+    "cur_activity_id": [
+     "int",
+     0
+    ],
+    "least_use_time": [
+     "int",
+     0
+    ],
+    "level_info": [
+     "PuzzleLevelProp",
+     {}
+    ],
+    "pass_max_level": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "RTMInfo": {
+   "int_key": false,
+   "props": {
+    "token": [
+     "string",
+     ""
+    ],
+    "token_acquire_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "RankScores": {
+   "int_key": false,
+   "props": {
+    "challenge_boss_fuzzy": [
+     "ChallengeBossFuzzy",
+     {}
+    ],
+    "challenge_multi_boss_fuzzy": [
+     "ChallengeBossFuzzy",
+     {}
+    ],
+    "char_battles": [
+     "CharBattleScores",
+     {}
+    ],
+    "common_mvp": [
+     "CommonMvpScore",
+     {}
+    ],
+    "common_win_count": [
+     "CommonWinCountScore",
+     {}
+    ],
+    "infinite": [
+     "InfiniteScore",
+     {}
+    ],
+    "mvp": [
+     "MvpScore",
+     {}
+    ],
+    "player_value": [
+     "PlayerValueScore",
+     {}
+    ],
+    "ranking": [
+     "RankingScore",
+     {}
+    ],
+    "ranking_1v1": [
+     "RankingScore",
+     {}
+    ],
+    "win_count": [
+     "WinCountScore",
+     {}
+    ],
+    "win_count_1v1": [
+     "WinCountScore",
+     {}
+    ]
+   },
+   "value_type": "IntList"
+  },
+  "RankingScore": {
+   "int_key": false,
+   "props": {
+    "cur_rank": [
+     "int",
+     0
+    ],
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "rank_star": [
+     "int",
+     0
+    ],
+    "rank_total_count": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "RedeemActInfo": {
+   "int_key": false,
+   "props": {
+    "act_begin_time": [
+     "int",
+     0
+    ],
+    "act_token": [
+     "int",
+     0
+    ],
+    "daily_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "finish_task_count": [
+     "int",
+     0
+    ],
+    "period_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "token_buy_limit": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "RedeemActTypeProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "RedeemActInfo"
+  },
+  "RegProp": {
+   "int_key": false,
+   "props": {
+    "channel_p": [
+     "IntDict",
+     {}
+    ],
+    "ctime": [
+     "int",
+     0
+    ],
+    "limit": [
+     "int",
+     0
+    ],
+    "status": [
+     "int",
+     0
+    ],
+    "whites": [
+     "BooleanDict",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ResourceSubTypeInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "int"
+  },
+  "ResourceTowerExtraRewardRecord": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ResourceTowerExtraRewardTypeRecord"
+  },
+  "ResourceTowerExtraRewardTypeRecord": {
+   "int_key": false,
+   "props": {
+    "cnt": [
+     "int",
+     0
+    ],
+    "last_use_stamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ResourceTowerInfo": {
+   "int_key": true,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": "ResourceTypeInfo"
+  },
+  "ResourceTypeInfo": {
+   "int_key": true,
+   "props": {},
+   "value_type": "ResourceSubTypeInfo"
+  },
+  "ReturningPlayerActBPProp": {
+   "int_key": false,
+   "props": {
+    "exp": [
+     "int",
+     0
+    ],
+    "latest_login_day": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "login_days": [
+     "int",
+     0
+    ],
+    "pay_reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ReturningPlayerActCommodityProp": {
+   "int_key": false,
+   "props": {
+    "commodity_buy_cnt": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "ReturningPlayerActDoubleRewardProp": {
+   "int_key": false,
+   "props": {
+    "cnt": [
+     "int",
+     0
+    ],
+    "curr_day": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ReturningPlayerActProp": {
+   "int_key": false,
+   "props": {
+    "bp_info": [
+     "ReturningPlayerActBPProp",
+     {}
+    ],
+    "commodity_info": [
+     "ReturningPlayerActCommodityProp",
+     {}
+    ],
+    "curr_act_id": [
+     "int",
+     0
+    ],
+    "double_reward_info": [
+     "ReturningPlayerActDoubleRewardProp",
+     {}
+    ],
+    "gift_state": [
+     "int",
+     0
+    ],
+    "latest_trigger_login_stamp": [
+     "int",
+     0
+    ],
+    "latest_trigger_logout_stamp": [
+     "int",
+     0
+    ],
+    "latest_trigger_stamp": [
+     "int",
+     0
+    ],
+    "signin_info": [
+     "ReturningPlayerActSigninProp",
+     {}
+    ],
+    "triggering_act_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ReturningPlayerActSigninProp": {
+   "int_key": false,
+   "props": {
+    "latest_login_day": [
+     "int",
+     0
+    ],
+    "rewards_state": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "RewardProp": {
+   "int_key": false,
+   "props": {
+    "daily_times": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "grt_times": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "whole_times": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "RogueBpInfo": {
+   "int_key": false,
+   "props": {
+    "bp_exp": [
+     "int",
+     0
+    ],
+    "bp_season_id": [
+     "int",
+     0
+    ],
+    "is_prime_vip": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "pay_reward_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "reward_state": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "RogueLevelInfo": {
+   "int_key": false,
+   "props": {
+    "max_score": [
+     "int",
+     0
+    ],
+    "pass": [
+     "boolean",
+     false
+    ]
+   },
+   "value_type": null
+  },
+  "RogueLevelInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "RogueLevelInfo"
+  },
+  "RogueProp": {
+   "int_key": false,
+   "props": {
+    "bp_info": [
+     "RogueBpInfo",
+     {}
+    ],
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "cur_cycle_id": [
+     "int",
+     0
+    ],
+    "cur_skill_point": [
+     "int",
+     0
+    ],
+    "illustration_task_bag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "level_prop": [
+     "RogueLevelInfoDict",
+     {}
+    ],
+    "max_score": [
+     "int",
+     0
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "unlock_heat_level_id": [
+     "int",
+     0
+    ],
+    "unlock_skill": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "use_skill_point": [
+     "int",
+     0
+    ],
+    "week_bp_exp": [
+     "int",
+     0
+    ],
+    "week_bp_reward": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "SeasonProp": {
+   "int_key": false,
+   "props": {
+    "season": [
+     "int",
+     0
+    ],
+    "weekday": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SeasonTaskDict": {
+   "int_key": false,
+   "props": {
+    "act_taskbag": [
+     "ActiveTaskBag",
+     {}
+    ],
+    "finish_task_count": [
+     "int",
+     0
+    ],
+    "is_over": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SeasonTypeTaskProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SeasonTaskDict"
+  },
+  "SevenDayActProp": {
+   "int_key": false,
+   "props": {
+    "cur_activity_id": [
+     "int",
+     0
+    ],
+    "dungeon": [
+     "SevenDayDungeonProp",
+     {}
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "SevenDayDifficultyProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SevenDayLevelProp"
+  },
+  "SevenDayDungeonProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SevenDayDifficultyProp"
+  },
+  "SevenDayLevelProp": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "use_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "ShareProp": {
+   "int_key": false,
+   "props": {
+    "share_award_time": [
+     "int",
+     0
+    ],
+    "share_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SigninProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "Signs"
+  },
+  "Signs": {
+   "int_key": true,
+   "props": {},
+   "value_type": "DailySign"
+  },
+  "SingleMatchInfo": {
+   "int_key": false,
+   "props": {
+    "match_id": [
+     "string",
+     ""
+    ],
+    "match_info": [
+     "MatchInfo",
+     {}
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SkinInfo": {
+   "int_key": false,
+   "props": {
+    "color_part": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "color_part_new": [
+     "IntDictDictKeyStr",
+     {}
+    ],
+    "gainTime": [
+     "int",
+     0
+    ],
+    "skin_scheme": [
+     "SkinScheme",
+     {}
+    ],
+    "unlock_color": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "SkinInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SkinInfo"
+  },
+  "SkinScheme": {
+   "int_key": true,
+   "props": {
+    "choose_scheme": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "IntDictDictKeyStr"
+  },
+  "SmartTimerDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SmartTimerItem"
+  },
+  "SmartTimerItem": {
+   "int_key": false,
+   "props": {
+    "callback_args": [
+     "IntDict",
+     {}
+    ],
+    "callback_id": [
+     "string",
+     ""
+    ],
+    "callback_name": [
+     "string",
+     ""
+    ],
+    "fit_time": [
+     "int",
+     0
+    ],
+    "next_time": [
+     "int",
+     0
+    ],
+    "timer_args": [
+     "IntList",
+     {}
+    ],
+    "timer_type": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "SoulTaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SoulTaskItem"
+  },
+  "SoulTaskItem": {
+   "int_key": false,
+   "props": {
+    "finish_actor": [
+     "IntDict",
+     {}
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SpaceData": {
+   "int_key": false,
+   "props": {
+    "no": [
+     "int",
+     0
+    ],
+    "pos": [
+     "IntList",
+     {}
+    ],
+    "yaw": [
+     "double",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SpaceDatas": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SpaceData"
+  },
+  "SpaceProp": {
+   "int_key": false,
+   "props": {
+    "ld_spaceno": [
+     "int",
+     0
+    ],
+    "loading": [
+     "boolean",
+     false
+    ],
+    "ltime": [
+     "int",
+     0
+    ],
+    "seqno": [
+     "int",
+     0
+    ],
+    "spaceid": [
+     "string",
+     ""
+    ],
+    "spaceno": [
+     "int",
+     0
+    ],
+    "spaces": [
+     "SpaceDatas",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "SpringFesActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "guess_riddles": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "mini_game_state": [
+     "IntDictDictKeyInt",
+     {}
+    ],
+    "open_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StoryActLevelInfo": {
+   "int_key": false,
+   "props": {
+    "pass": [
+     "boolean",
+     false
+    ],
+    "use_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StoryActLevelInfoDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StoryActLevelInfo"
+  },
+  "StoryActProp": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ],
+    "cur_activity_id": [
+     "int",
+     0
+    ],
+    "jump_pre_task": [
+     "boolean",
+     false
+    ],
+    "special_level": [
+     "StoryActLevelInfoDict",
+     {}
+    ],
+    "task_bag": [
+     "ActiveTaskBag",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "StoryTaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StoryTaskItem"
+  },
+  "StoryTaskItem": {
+   "int_key": false,
+   "props": {
+    "doing_targets": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "finish_parameter": [
+     "IntList",
+     {}
+    ],
+    "finish_targets": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "get_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "start_time": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StreetDispatchDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StreetDispatchInfo"
+  },
+  "StreetDispatchInfo": {
+   "int_key": false,
+   "props": {
+    "beg_time": [
+     "int",
+     0
+    ],
+    "char_id": [
+     "int",
+     0
+    ],
+    "dispatch_id": [
+     "int",
+     0
+    ],
+    "end_time": [
+     "int",
+     0
+    ],
+    "street_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StreetExplorationDict": {
+   "int_key": true,
+   "props": {
+    "all_done": [
+     "int",
+     0
+    ],
+    "get_rewards": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "StreetExplorationInfo"
+  },
+  "StreetExplorationGroups": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StreetExplorationDict"
+  },
+  "StreetExplorationInfo": {
+   "int_key": false,
+   "props": {
+    "explore_id": [
+     "int",
+     0
+    ],
+    "finish_conds": [
+     "IntListDict",
+     {}
+    ],
+    "state": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StreetInfo": {
+   "int_key": false,
+   "props": {
+    "cd_choose": [
+     "int",
+     0
+    ],
+    "exploration_info": [
+     "StreetExplorationGroups",
+     {}
+    ],
+    "inter_actor_info": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "prestige_awarded": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "prestige_exp": [
+     "int",
+     0
+    ],
+    "prestige_level": [
+     "int",
+     0
+    ],
+    "prestige_street_id": [
+     "int",
+     0
+    ],
+    "prestige_tasks": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "surface_switch_can_enter_time": [
+     "int",
+     0
+    ],
+    "surface_switch_enter_time": [
+     "int",
+     0
+    ],
+    "treasure_box_info": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "StreetInfo2D": {
+   "int_key": false,
+   "props": {
+    "level_pass": [
+     "IntDictDictKeyInt",
+     {}
+    ],
+    "story_data": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "street_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StreetInfoDict": {
+   "int_key": true,
+   "props": {
+    "all_prestige_exp": [
+     "int",
+     0
+    ],
+    "street_redpoint": [
+     "IntDict",
+     {}
+    ],
+    "surface_enter_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "StreetInfo"
+  },
+  "StreetInfoDict2D": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StreetInfo2D"
+  },
+  "StreetLevelDict": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StreetLevelInfo"
+  },
+  "StreetLevelInfo": {
+   "int_key": false,
+   "props": {
+    "finish_achieve_reward": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "level_id": [
+     "int",
+     0
+    ],
+    "max_use_time": [
+     "int",
+     0
+    ],
+    "min_use_time": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "StreetTakePhotoActInfo": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "take_photo_awards": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "StreetTakePhotoActProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "StreetTakePhotoActInfo"
+  },
+  "StringDictKeyInt": {
+   "int_key": true,
+   "props": {},
+   "value_type": "string"
+  },
+  "StringList": {
+   "int_key": true,
+   "props": {},
+   "value_type": "string"
+  },
+  "StringStringDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "string"
+  },
+  "SunActProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SunDungeonProp"
+  },
+  "SunDailyLevelProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "SunLevelProp"
+  },
+  "SunDungeonProp": {
+   "int_key": true,
+   "props": {
+    "dailyLevelProp": [
+     "SunDailyLevelProp",
+     {}
+    ]
+   },
+   "value_type": "SunLevelProp"
+  },
+  "SunLevelProp": {
+   "int_key": false,
+   "props": {
+    "reward": [
+     "boolean",
+     false
+    ],
+    "star": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "SystemProp": {
+   "int_key": false,
+   "props": {
+    "unlocked_system": [
+     "BooleanDictKeyInt",
+     {}
+    ],
+    "upload_rank_sys_banned": [
+     "BooleanDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "TakePhotoActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "open_time": [
+     "int",
+     0
+    ],
+    "take_photo_awards": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "TaskBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "TaskItem"
+  },
+  "TaskItem": {
+   "int_key": false,
+   "props": {
+    "cache": [
+     "StringList",
+     {}
+    ],
+    "doing_targets": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "finish_targets": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "get_time": [
+     "int",
+     0
+    ],
+    "id": [
+     "int",
+     0
+    ],
+    "start_time": [
+     "int",
+     0
+    ],
+    "state": [
+     "int",
+     0
+    ],
+    "type": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "TaskTypeBag": {
+   "int_key": true,
+   "props": {},
+   "value_type": "TaskBag"
+  },
+  "TeachProp": {
+   "int_key": false,
+   "props": {
+    "battle_teach_state": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "unlockType": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "TeamBossData": {
+   "int_key": false,
+   "props": {
+    "bossId": [
+     "int",
+     0
+    ],
+    "bossRewardCount": [
+     "int",
+     0
+    ],
+    "boss_finish_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "boss_unlock_record": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "like_count": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "TeamPupilSkillTypeProp": {
+   "int_key": true,
+   "props": {
+    "unlock_eyetrace_fst": [
+     "int",
+     0
+    ],
+    "unlock_eyetrace_sed": [
+     "int",
+     0
+    ]
+   },
+   "value_type": "IntDictDictKeyInt"
+  },
+  "TitleDailyTaskCache": {
+   "int_key": false,
+   "props": {
+    "fst_task": [
+     "int",
+     0
+    ],
+    "fst_type_tasks": [
+     "IntList",
+     {}
+    ],
+    "is_first_day": [
+     "int",
+     1
+    ],
+    "sed_task": [
+     "int",
+     0
+    ],
+    "sed_type_tasks": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "TowerSnapshotInfo": {
+   "int_key": false,
+   "props": {
+    "characterList": [
+     "IntList",
+     {}
+    ],
+    "score": [
+     "int",
+     0
+    ],
+    "staticsInfo": [
+     "IntDict",
+     {}
+    ],
+    "tower_snapshot": [
+     "string",
+     ""
+    ],
+    "tower_snapshot_floor_id": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "TrainProp": {
+   "int_key": false,
+   "props": {
+    "character_list": [
+     "IntList",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "TrialCharProp": {
+   "int_key": true,
+   "props": {},
+   "value_type": "IntDictKeyInt"
+  },
+  "WeekChallengeInfo": {
+   "int_key": false,
+   "props": {
+    "levelInfo": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "rankId": [
+     "string",
+     ""
+    ]
+   },
+   "value_type": null
+  },
+  "WeeklyActProp": {
+   "int_key": false,
+   "props": {
+    "act_id": [
+     "int",
+     0
+    ],
+    "cur_week": [
+     "int",
+     0
+    ],
+    "week_awards": [
+     "IntDictKeyInt",
+     {}
+    ],
+    "week_finish": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "WeeklyPlayBPProp": {
+   "int_key": false,
+   "props": {
+    "bp_exp": [
+     "int",
+     0
+    ],
+    "bp_season_id": [
+     "int",
+     0
+    ],
+    "level": [
+     "int",
+     0
+    ],
+    "reward_state": [
+     "IntDictKeyInt",
+     {}
+    ]
+   },
+   "value_type": null
+  },
+  "WinCountScore": {
+   "int_key": false,
+   "props": {
+    "rank_id": [
+     "string",
+     ""
+    ],
+    "rank_total_count": [
+     "int",
+     0
+    ],
+    "rank_win_count": [
+     "int",
+     0
+    ],
+    "timestamp": [
+     "int",
+     0
+    ]
+   },
+   "value_type": null
+  },
+  "_Engine_PushAckDict": {
+   "int_key": false,
+   "props": {},
+   "value_type": "int"
+  }
+ },
+ "generated_from": "F:\\haowancheng\\archive\\game_data\\LuaFull\\src\\generated\\config.lua"
+}
