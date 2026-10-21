@@ -16,6 +16,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_cmd_")
+# ★ 也要隔离账号库，否则会往真实的 shared/data.db 里读写
+os.environ["OO_DB_PATH"] = os.path.join(
+    tempfile.mkdtemp(prefix="oo_test_cmd_db_"), "data.db")
 _TEST_PORT = 33197
 _TEST_TOKEN = "testtok"
 os.environ["OO_ADMIN_PORT"] = str(_TEST_PORT)
@@ -25,7 +28,7 @@ os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % _TEST_PORT
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import admin_api, runtime
+from game_server import admin_api
 from shared import commands as cmds
 from game_server import ms as msmod, entity_rpc as erpc, config
 
@@ -73,41 +76,64 @@ def start_levels(uid):
 
 def run():
     config.configure_scaffold(unlock_all=False)
-    runtime.set_dungeon_force_level(0)
+    # 测试库是空的，先注册几个账号（/dungeon <账号> 会校验账号存在）
+    from shared import db as _db
+    _db.init()
+    for u in ("cmd_a", "cmd_b", "cmd_c", "cmd_d", "cmd_e", "cmd_p", "cmd_q",
+              "gm1", "aixiaoji"):
+        try:
+            if not _db.get_account_by_username(u):
+                _db.register_account(u, "pw", "acc_" + u, "fp_" + u, "sk_" + u)
+        except Exception as e:
+            print("  注册账号 %s 失败: %s" % (u, e))
     srv, _th = admin_api.start(port=_TEST_PORT)
     time.sleep(0.3)
 
     try:
         print("\n[1] /dungeon 查看（默认不覆盖）")
-        r = cmds.execute("/dungeon", ctx())
+        r = cmds.execute("/dungeon", ctx(actor="cmd_a"))
         check("成功", r.ok, r.chat)
         check("force_level = 0", r.data.get("force_level") == 0, r.data)
 
-        print("\n[2] /dungeon 50003 -> 只打千手Boss战")
-        r = cmds.execute("/dungeon 50003", ctx())
+        print("\n[2] /dungeon 50003 -> 只打千手Boss战（按账号）")
+        r = cmds.execute("/dungeon 50003", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
-        check("运行时状态已改", runtime.dungeon_force_level() == 50003,
-              runtime.dungeon_force_level())
+        check("设置到 cmd_a", r.data.get("uid") == "cmd_a", r.data)
         lv = start_levels("cmd_a")
-        check("副本只下发 [50003]", lv == [50003], lv)
+        check("cmd_a 只下发 [50003]", lv == [50003], lv)
 
-        print("\n[3] /dungeon 50001 -> 换一关")
-        r = cmds.execute("/dungeon 50001", ctx())
+        print("\n[3] ★ 按账号隔离：cmd_b 不受影响")
+        lv_b = start_levels("cmd_b")
+        check("cmd_b 仍下发三关", lv_b == [50001, 50002, 50003], lv_b)
+
+        print("\n[4] /dungeon 50001 -> 换一关")
+        r = cmds.execute("/dungeon 50001", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
-        lv2 = start_levels("cmd_b")
-        check("副本只下发 [50001]", lv2 == [50001], lv2)
+        lv2 = start_levels("cmd_a")
+        check("cmd_a 只下发 [50001]", lv2 == [50001], lv2)
 
-        print("\n[4] /dungeon off -> 恢复全部关卡")
-        r = cmds.execute("/dungeon off", ctx())
+        print("\n[5] /dungeon off -> 恢复全部关卡")
+        r = cmds.execute("/dungeon off", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
-        check("运行时已清零", runtime.dungeon_force_level() == 0)
-        lv3 = start_levels("cmd_c")
-        check("下发三关", lv3 == [50001, 50002, 50003], lv3)
+        lv3 = start_levels("cmd_a")
+        check("cmd_a 恢复三关", lv3 == [50001, 50002, 50003], lv3)
 
-        print("\n[5] 参数校验")
-        r = cmds.execute("/dungeon abc", ctx())
+        print("\n[6] 管理员给别的账号设：/dungeon cmd_d 50002")
+        r = cmds.execute("/dungeon cmd_d 50002", ctx(actor="aixiaoji"))
+        check("命令成功", r.ok, r.chat)
+        check("设置到 cmd_d", r.data.get("uid") == "cmd_d", r.data)
+        lv_d = start_levels("cmd_d")
+        check("cmd_d 只下发 [50002]", lv_d == [50002], lv_d)
+
+        print("\n[7] 普通 GM 不能给别的账号设")
+        r = cmds.execute("/dungeon cmd_e 50002",
+                         ctx(perm=cmds.PERM_GM, actor="gm1"))
+        check("GM 被拒", not r.ok, r.chat)
+
+        print("\n[8] 参数校验")
+        r = cmds.execute("/dungeon abc", ctx(actor="cmd_a"))
         check("非数字报错", not r.ok, r.chat)
-        r = cmds.execute("/dungeon 999999", ctx())
+        r = cmds.execute("/dungeon 999999", ctx(actor="cmd_a"))
         check("不存在的关卡报错", not r.ok, r.chat)
         r = cmds.execute("/dungeon 50003", ctx(perm=cmds.PERM_PLAYER))
         check("玩家被拒", not r.ok, r.chat)

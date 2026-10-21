@@ -105,6 +105,52 @@ def _player_story(uid):
     }
 
 
+def _player_dungeon(uid):
+    """查某个账号的副本关卡覆盖。"""
+    from . import player_state
+    st = player_state.peek(uid)
+    if st is None:
+        return {"uid": uid, "exists": False, "force_level": 0}
+    try:
+        lv = int(st.props.get("_oo_dungeon_force_level") or 0)
+    except (TypeError, ValueError):
+        lv = 0
+    return {"uid": uid, "exists": True, "force_level": lv}
+
+
+def _set_player_force_level(uid, level):
+    """设置某个账号的副本关卡覆盖。level=0 表示取消。
+
+    ★ 按账号存，不是全局。存在玩家存档的 _oo_ 私有字段里：
+      - _oo_ 前缀在 ms._live_init_dict 里会被过滤，客户端看不到
+      - 重启游戏服不丢
+      - 多开/换号互不影响
+    """
+    from . import ms as msmod, player_state
+    try:
+        v = int(level or 0)
+    except (TypeError, ValueError):
+        v = 0
+    v = v if v > 0 else 0
+    # 没有存档就先建一份完整的（别留空壳，否则会毁掉新号初始化）
+    st = player_state.peek(uid)
+    if st is None or not isinstance(st.props.get("story_task_bag"), dict):
+        player_state.reset_state(
+            msmod._conv_int_keys(
+                msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+            uid=uid)
+        player_state.peek(uid).is_new = True
+        msmod._live_init_dict(uid)
+    st = player_state.get_state(uid=uid)
+    if v:
+        st.props["_oo_dungeon_force_level"] = v
+    else:
+        st.props.pop("_oo_dungeon_force_level", None)
+    st.save()
+    print("[admin] %s 的副本关卡覆盖设为 %s" % (uid, v or "无"), flush=True)
+    return v
+
+
 # ---------------------------------------------------------------- HTTP 层
 class _Handler(BaseHTTPRequestHandler):
     server_version = "OOAdmin/1.0"
@@ -150,6 +196,10 @@ class _Handler(BaseHTTPRequestHandler):
                                         "started_at": runtime.STARTED_AT})
             if path == "/state":
                 return self._send(200, {"ok": True, "state": runtime.snapshot()})
+            if path.startswith("/player/") and path.endswith("/dungeon"):
+                uid = path[len("/player/"):-len("/dungeon")]
+                return self._send(200, {"ok": True,
+                                        "player": _player_dungeon(uid)})
             if path.startswith("/player/") and path.endswith("/story"):
                 uid = path[len("/player/"):-len("/story")]
                 return self._send(200, {"ok": True,
@@ -167,8 +217,12 @@ class _Handler(BaseHTTPRequestHandler):
         payload = self._body()
         try:
             if path == "/dungeon/level":
-                lv = runtime.set_dungeon_force_level(payload.get("level"))
-                return self._send(200, {"ok": True, "dungeon_force_level": lv})
+                uid = str(payload.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "missing uid"})
+                lv = _set_player_force_level(uid, payload.get("level"))
+                return self._send(200, {"ok": True, "uid": uid,
+                                         "force_level": lv})
             if path == "/player/skip-prologue":
                 uid = str(payload.get("uid") or "").strip()
                 if not uid:

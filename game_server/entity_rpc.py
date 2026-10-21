@@ -46,7 +46,6 @@ import time
 from . import ms as msmod
 from . import config as ooconf
 from . import gamedata
-from . import runtime as oo_runtime
 from . import story
 from . import tasks
 
@@ -1727,6 +1726,7 @@ def _resolve_copy_id(match_info):
 
 def _avatar_start_game(rid, params, uid=None):
     """Cmd_Avatar_StartGame_CS {match_info} —— 副本入口，回 spaceInfo。"""
+    st = _state(uid)
     vals = decode_params(params)
     match_info = vals[0] if (isinstance(vals, list) and vals
                              and isinstance(vals[0], dict)) else {}
@@ -1755,11 +1755,17 @@ def _avatar_start_game(rid, params, uid=None):
         ids = [int(x) for x in roots if isinstance(x, int)]
         # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 levelIds，
         # 所以覆盖关卡列表就能直接进指定关卡（跳过前面的关卡）。
-        force = oo_runtime.dungeon_force_level()
+        # ★ 按账号的关卡覆盖（存玩家存档的 _oo_ 私有字段，客户端看不到）。
+        #   之前是全局的，多开/换号时所有人都会被塞进同一关 —— 那是错的。
+        force = 0
+        try:
+            force = int(st.props.get("_oo_dungeon_force_level") or 0)
+        except (TypeError, ValueError):
+            force = 0
         if force:
             if force in ids:
                 ids = [force]
-                print("[dungeon] 强制关卡 %s（管理接口设置）" % force,
+                print("[dungeon] 强制关卡 %s（%s 的账号设置）" % (force, uid),
                       flush=True)
             else:
                 print("[dungeon] ⚠ 强制关卡 %s 不属于本副本（%s），忽略"
@@ -1771,7 +1777,6 @@ def _avatar_start_game(rid, params, uid=None):
                   flush=True)
         inner["levelIds"] = ids
     space_info = {"spaceInfo": inner, "battleInfo": {}}
-    st = _state(uid)
     st.props["_oo_cur_copy"] = copy_id
     # 结算时要用它反查 typeId/modeId 推进剧情（客户端 finishInfo 里没有）
     st.props["_oo_cur_match"] = match_info

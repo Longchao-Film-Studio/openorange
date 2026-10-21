@@ -1,47 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""game_server.runtime —— 运行时可变状态（进程内，管理接口改）。
+"""game_server.runtime —— 运行时可变状态（进程内）。
 
 和 config.py 的区别：
   config.py  启动时确定的配置（命令行/环境变量）
   runtime.py 运行中可以被管理接口改的状态
 
-目前只有副本关卡覆盖：
-  0          = 不覆盖，按 Level_CopyData.rootLevel 正常下发
-  <levelId>  = 进副本时只下发这一关（该关卡必须属于这个副本的 rootLevel）
+注意：副本关卡覆盖**不在这里**。
+它是**按账号**的，存在玩家存档的 _oo_dungeon_force_level 私有字段里
+（_oo_ 前缀的字段在 ms._live_init_dict 里会被过滤掉，客户端看不到）。
+放存档里而不是进程内存里，好处：
+  - 按账号隔离，多开互不影响
+  - 重启游戏服不丢
 """
-import threading
-
-_LOCK = threading.RLock()
-
-# 0 = 不覆盖
-_DUNGEON_FORCE_LEVEL = 0
 
 # 管理接口启动时间（/health 用）
 STARTED_AT = None
 
-
-def set_dungeon_force_level(level):
-    """设置副本强制关卡。level=0 表示取消。返回实际生效的值。"""
-    global _DUNGEON_FORCE_LEVEL
-    try:
-        v = int(level or 0)
-    except (TypeError, ValueError):
-        v = 0
-    with _LOCK:
-        _DUNGEON_FORCE_LEVEL = v if v > 0 else 0
-        return _DUNGEON_FORCE_LEVEL
+# 启动时确定、运行中不变的副本默认行为（命令行 --dungeon-last-only）
+CLI_DUNGEON_LAST_ONLY = False
 
 
-def dungeon_force_level():
-    with _LOCK:
-        return _DUNGEON_FORCE_LEVEL
+def set_cli_dungeon_last_only(on):
+    global CLI_DUNGEON_LAST_ONLY
+    CLI_DUNGEON_LAST_ONLY = bool(on)
+    return CLI_DUNGEON_LAST_ONLY
 
 
 def snapshot():
     """给管理接口 /state 用的快照。"""
-    with _LOCK:
-        return {
-            "dungeon_force_level": _DUNGEON_FORCE_LEVEL,
-            "started_at": STARTED_AT,
-        }
+    return {
+        "cli_dungeon_last_only": CLI_DUNGEON_LAST_ONLY,
+        "started_at": STARTED_AT,
+    }

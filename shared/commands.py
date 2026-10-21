@@ -711,31 +711,69 @@ _GUIDE01_LEVELS = [
 ]
 
 
-@register("dungeon", aliases=("副本",), args="[<关卡ID> | off]",
-          desc="副本关卡覆盖：进副本时只打指定关卡（例：/dungeon 50003 直达Boss）",
+@register("dungeon", aliases=("副本",), args="[<账号>] [<关卡ID> | off]",
+          desc="副本关卡覆盖（按账号）：进副本时只打指定关卡，例 /dungeon 50003",
           perm=PERM_GM, needs_target=False, group="GM")
 def cmd_dungeon(ctx, target, *args):
-    """副本关卡覆盖。
+    """副本关卡覆盖 —— **按账号**，不是全局。
 
-    原理：客户端 battlecontainer/dispatchhub/dispatchhubonline.lua:49-59
-    优先用服务端下发的 spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。
+    用法：
+      /dungeon                    看自己的设置
+      /dungeon 50003              把自己设成只打 50003
+      /dungeon off                取消自己的覆盖
+      /dungeon <账号> 50003       给别的账号设（需要管理员）
+      /dungeon <账号> off         取消别的账号的覆盖
 
-    适用于**所有副本**（不限序章）：只要那个关卡属于该副本的 rootLevel 就生效，
-    不属于就忽略并打日志。参数是**关卡 id（数字）**，不是布尔开关。
+    为什么按账号：之前是全局的，多开/换号时所有人都会被塞进同一关 —— 那是错的。
+    存法：玩家存档的 _oo_dungeon_force_level 私有字段（_oo_ 前缀会被
+    ms._live_init_dict 过滤掉，客户端看不到），重启游戏服也不丢。
+
+    原理：客户端 dispatchhubonline.lua:49-59 优先用服务端给的
+    spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。
+    适用于**所有副本**：关卡 id 属于该副本 rootLevel 才生效，否则忽略并打日志。
     """
-    state, e = _admin("GET", "/state")
-    if e or not state or not state.get("ok"):
-        return err(_ADMIN_DOWN if e else "游戏服返回异常: %s" % (state,),
-                   chat="✗ 连不上游戏服")
-    cur = (state.get("state") or {}).get("dungeon_force_level") or 0
+    # 解析参数：第一个 token 是数字/off -> 对自己操作；否则当账号名
+    uid = str(target)
+    rest = list(args)
+    if rest:
+        head = (rest[0] or "").strip()
+        if head.lower() not in ("off", "0", "关", "取消", "clear"):
+            try:
+                int(head)
+            except (TypeError, ValueError):
+                # 不是数字 -> 当作账号名，但必须是真实存在的账号
+                # （否则把 /dungeon 5000O 这种笔误当成账号查询，很难发现）
+                try:
+                    acc = db.get_account_by_username(head)
+                except Exception:
+                    acc = None
+                if not acc:
+                    return err(
+                        "关卡 id 必须是数字，或 off（账号 %s 也不存在）" % head,
+                        chat="✗ 用法: /dungeon <关卡ID>|off")
+                if ctx.perm < PERM_ADMIN:
+                    return err("只有管理员才能给别的账号设置",
+                               chat="✗ 需要管理员权限")
+                uid = head
+                rest = rest[1:]
 
-    if not args:
+    info, e = _admin("GET", "/player/%s/dungeon" % uid)
+    if e or not info or not info.get("ok"):
+        return err(_ADMIN_DOWN if e else "查询失败: %s" % (info,),
+                   chat="✗ 连不上游戏服")
+    p = info.get("player") or {}
+    cur = p.get("force_level") or 0
+
+    # 无参数：显示当前状态
+    if not rest:
         lines = [
-            "副本关卡覆盖    %s" % ("关闭" if not cur else "只打 %d" % cur),
+            "副本关卡覆盖    账号 %s" % uid,
+            "  当前            %s" % ("不覆盖" if not cur else "只打 %d" % cur),
             "",
             "  用法：",
-            "    /dungeon <关卡ID>    只打这一关（例 /dungeon 50003）",
-            "    /dungeon off         取消覆盖",
+            "    /dungeon <关卡ID>        只打这一关（例 /dungeon 50003）",
+            "    /dungeon off             取消覆盖",
+            "    /dungeon <账号> <关卡ID> 给别的账号设（需管理员）",
             "",
             "  序章 guide_01 的关卡：",
         ]
@@ -744,24 +782,25 @@ def cmd_dungeon(ctx, target, *args):
             lines.append("    %-7s %s%s" % (lid, nm, mark))
         lines += [
             "",
-            "  适用于所有副本：关卡 id 只要属于该副本的 rootLevel 就生效。",
-            "  立即生效（游戏服每次进副本都读运行时状态，不用重启）。",
+            "  按账号生效，多开互不影响；重启游戏服不丢。",
+            "  适用于所有副本：关卡 id 属于该副本 rootLevel 才生效。",
         ]
         return ok(lines,
-                  chat="副本: %s" % ("只打 %d" % cur if cur else "不覆盖"),
-                  data={"action": "dungeon_show",
+                  chat="%s 副本: %s" % (uid, ("只打 %d" % cur) if cur else "不覆盖"),
+                  data={"action": "dungeon_show", "uid": uid,
                         "force_level": cur, "levels": _GUIDE01_LEVELS})
 
-    raw = (args[0] or "").strip().lower()
+    raw = (rest[0] or "").strip().lower()
     if raw in ("off", "0", "关", "取消", "clear"):
-        res, e = _admin("POST", "/dungeon/level", {"level": 0})
+        res, e = _admin("POST", "/dungeon/level", {"uid": uid, "level": 0})
         if e or not res or not res.get("ok"):
             return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
                        chat="✗ 设置失败")
-        return ok(["✔ 已取消副本关卡覆盖", "",
+        return ok(["✔ 已取消副本关卡覆盖",
+                   "  账号    %s" % uid, "",
                    "  进副本会按 Level_CopyData.rootLevel 正常下发全部关卡。"],
-                  chat="✔ 副本: 已取消覆盖",
-                  data={"action": "dungeon_set", "force_level": 0})
+                  chat="✔ %s 副本: 已取消覆盖" % uid,
+                  data={"action": "dungeon_set", "uid": uid, "force_level": 0})
 
     try:
         level = int(raw)
@@ -769,8 +808,7 @@ def cmd_dungeon(ctx, target, *args):
         return err("关卡 id 必须是数字，或 off。用法：/dungeon 50003",
                    chat="✗ 用法: /dungeon <关卡ID>|off")
 
-    # 关卡校验：LevelData 在 game_server.gamedata 里（shared.gamedata 没导出这张表）。
-    # 懒加载 + 容错：网页进程拿不到就跳过校验，别把命令搞挂。
+    # 关卡校验：LevelData 在 game_server.gamedata 里
     entry = None
     _bdd_ok = False
     try:
@@ -786,25 +824,25 @@ def cmd_dungeon(ctx, target, *args):
     scene = (entry or {}).get("scene") or "-"
     nxt = (entry or {}).get("nextLevel") or "无"
 
-    res, e = _admin("POST", "/dungeon/level", {"level": level})
+    res, e = _admin("POST", "/dungeon/level", {"uid": uid, "level": level})
     if e or not res or not res.get("ok"):
         return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
                    chat="✗ 设置失败")
-    got = res.get("dungeon_force_level") or 0
+    got = res.get("force_level") or 0
     lines = [
         "✔ 已设置副本关卡覆盖",
+        "  账号    %s" % uid,
         "  关卡    %d  %s" % (level, name),
         "  场景    %s" % scene,
         "  下一关  %s" % nxt,
         "",
-        "  立即生效：下次进副本只打这一关。",
+        "  按账号生效：只有 %s 进副本会只打这一关，其它账号不受影响。" % uid,
         "  如果该关卡不属于当前副本的 rootLevel，会被忽略并在服务端打日志。",
     ]
     return ok(lines,
-              chat="✔ 副本: 只打 %d（%s）" % (level, name),
-              data={"action": "dungeon_set", "force_level": got,
+              chat="✔ %s 副本: 只打 %d（%s）" % (uid, level, name),
+              data={"action": "dungeon_set", "uid": uid, "force_level": got,
                     "level": entry})
-
 
 # ---------------------------------------------------------------- 序章跳过
 
