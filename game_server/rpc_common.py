@@ -49,13 +49,9 @@ def state(uid=None):
     return pstate.get_state(props, uid=uid or pstate.DEFAULT_UID)
 
 
-# 属性同步帧里的 ownerid 语义（客户端 core/client/gateclientrpchandler.lua:269-288）：
-#   onSyncProperty(ownerid, propertyid, optype, name, value)
-#     -> owner:__syncProperty__(...)
-#   只有 ownerid ~= "" 时客户端才去 getRealOwner(ownerid) 找「别人的对象」。
-# 私服是一连接一账号，服务端推的永远是**收帧这个人自己**的属性，
-# 所以 ownerid 一律用 SYNC_SELF；非空值只在「把别人的属性推给你」时才用。
-SYNC_SELF = ""
+# 属性同步帧里的 ownerid 语义见 property/sync.py 的 SYNC_SELF 注释。
+# 这里 re-export，业务模块从 rpc_common 或 property.sync 取都可以。
+from .property.sync import SYNC_SELF  # noqa: F401  (re-export)
 
 
 def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):

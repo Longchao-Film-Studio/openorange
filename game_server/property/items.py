@@ -77,7 +77,7 @@ def _use_item(rid, params, uid=None):
     frames.append(sync_frame(
         # ★ name 必须是字符串（ms.pb_bytes_field 里对 int 会 len() 抛 TypeError）
         #   审计 P0-5：旧存档的整数键会让这条 RPC 无应答 -> 客户端弱网转圈。
-        "", bag_id, msmod.OP_CHANGE, str(grid_key), grid))
+        SYNC_SELF, bag_id, msmod.OP_CHANGE, str(grid_key), grid))
     for prop, value in changed_props:
         frames.append(sync_frame(
             SYNC_SELF, 0, msmod.OP_CHANGE, prop, value))

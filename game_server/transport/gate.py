@@ -124,9 +124,9 @@ def _bind_account(cid, proto_req, fields):
       必须在回 ConnectServerResp 之前领，后面整条链路都要用这个 uid。
       绑定链的后续连接（reqType 2/3/4）是新 cid，从 auth 里的 mailbox 名字还原。
     """
-    if proto_req == 0 and not accounts.is_bound(cid):
-        claimed = accounts.claim_username()
-        accounts.bind(cid, claimed)
+    if proto_req == 0:
+        # claim + bind 在 accounts 内部同一把锁里完成（check-then-act 原子）
+        claimed = accounts.claim_and_bind(cid)
         print("[GATE] #%03d 关联账号 %s"
               % (cid, claimed or "(队列为空，回退 %s)" % accounts.DEFAULT_UID),
               flush=True)

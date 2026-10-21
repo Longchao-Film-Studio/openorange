@@ -25,7 +25,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(_HERE)
 
 WORK_DIR = os.path.join(ROOT_DIR, "work")
-CAPTURE_DIR = os.path.join(WORK_DIR, "captures")
+# 抓包目录：默认 work/captures，可用 OO_CAPTURE_DIR 覆盖。
+# ★ 测试必须覆盖它，否则每跑一次测试就往真实 work/captures 里写 conn_*.bin。
+CAPTURE_DIR = os.environ.get("OO_CAPTURE_DIR") or os.path.join(WORK_DIR, "captures")
 
 # 玩家存档目录。设 OO_STATE_DIR 可换（测试必须换，否则覆盖真实存档）。
 STATE_DIR = os.environ.get("OO_STATE_DIR") or os.path.join(WORK_DIR, "player_state")

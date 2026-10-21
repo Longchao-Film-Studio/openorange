@@ -29,6 +29,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_transport_")
+# ★ 抓包目录也要隔离：否则跑一次测试就往 work/captures 里写 conn_*.bin / ms_*.bin
+os.environ["OO_CAPTURE_DIR"] = tempfile.mkdtemp(prefix="oo_test_captures_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -91,6 +93,14 @@ def run_handler(fn, payloads, wait=0.35, cid=1):
     return data, err
 
 
+def run_ok(fn, payloads, wait=0.35, cid=1, label=""):
+    """run_handler + 断言 handler 没抛异常（审计 H：以前 handler 崩了也会得到 b"" 而 PASS）。"""
+    data, err = run_handler(fn, payloads, wait=wait, cid=cid)
+    check((label + " handler 没抛异常") if label else "handler 没抛异常", not err,
+          err[:1])
+    return data, err
+
+
 def frames_of(data):
     """把字节流切成帧，返回 [(msg_type, body)]。"""
     out = []
@@ -127,7 +137,7 @@ def entity_frame(index, params, rid=0, entity_id=1):
 def run():
     print("\n[1] gate 绑定链 reqType=0 -> bindAccount")
     accounts.bind(1, None)
-    data, err = run_handler(handle_gate, [connect_frame(0)], cid=1)
+    data, err = run_ok(handle_gate, [connect_frame(0)], cid=1, label="reqType=0")
     fs = frames_of(data)
     types = [t for t, _ in fs]
     check("handler 没抛异常", not err, err[:1])
@@ -136,7 +146,7 @@ def run():
 
     print("\n[2] gate reqType=4（auth 里带 account_ 名字）-> bindAvatar")
     auth = msmod.pb_bytes_field(1, b"account_transport_u")
-    data, _err = run_handler(handle_gate, [connect_frame(4, auth=auth)], cid=2)
+    data, _err = run_ok(handle_gate, [connect_frame(4, auth=auth)], cid=2, label="reqType=4")
     fs = frames_of(data)
     types = [t for t, _ in fs]
     check("reqType=4 回 ConnectServerResp", 1 in types, types)
@@ -154,7 +164,7 @@ def run():
 
     print("\n[3] gate reqType=3（auth 里带 avatar_ 名字）-> createChannelEntity")
     auth3 = msmod.pb_bytes_field(1, b"avatar_transport_u")
-    data, _err = run_handler(handle_gate, [connect_frame(3, auth=auth3)], cid=3)
+    data, _err = run_ok(handle_gate, [connect_frame(3, auth=auth3)], cid=3, label="reqType=3")
     fs = frames_of(data)
     types = [t for t, _ in fs]
     check("reqType=3 回 createChannelEntity(type=4)", 4 in types, types)
@@ -170,29 +180,29 @@ def run():
     print("\n[4] gate 心跳 type=6 不回包")
     accounts.bind(4, "transport_u")
     hb = msmod.frame(6, msmod.pb_varint_field(1, 1234567890))
-    data, _err = run_handler(handle_gate, [hb], cid=4)
+    data, _err = run_ok(handle_gate, [hb], cid=4, label="心跳")
     check("心跳不回任何帧", data == b"", data[:20])
 
     print("\n[5] gate 实体 RPC：networkCheck / timeSync 必须回")
     nc = entity_frame(msmod.RPC_NETWORK_CHECK, msmod.mp_arr([7]), rid=0)
-    data, _err = run_handler(handle_gate, [nc], cid=4)
+    data, _err = run_ok(handle_gate, [nc], cid=4, label="networkCheck")
     fs = frames_of(data)
     check("networkCheckAfterChange_CS 有应答", len(fs) >= 1, len(fs))
     check("应答是 entityMessage(type=2)", fs and fs[0][0] == 2,
           [t for t, _ in fs])
     ts = entity_frame(msmod.RPC_SYNC_SERVER_TIME, msmod.mp_arr([111]), rid=0)
-    data, _err = run_handler(handle_gate, [ts], cid=4)
+    data, _err = run_ok(handle_gate, [ts], cid=4, label="timeSync")
     fs = frames_of(data)
     check("RpcSyncServerTime 有应答", len(fs) >= 1, len(fs))
 
     print("\n[6] gate __rpc_index_not_found__ 必须不回（审计 P1-1）")
     nf = entity_frame(msmod.RPC_INDEX_NOT_FOUND, msmod.mp_arr([1]), rid=99)
-    data, _err = run_handler(handle_gate, [nf], cid=4)
+    data, _err = run_ok(handle_gate, [nf], cid=4, label="index_not_found")
     check("__rpc_index_not_found__(rid>0) 不回包", data == b"", data[:24])
 
     print("\n[7] gate 粘包：两条帧一次 send 都要处理")
     two = nc + ts
-    data, _err = run_handler(handle_gate, [two], cid=4)
+    data, _err = run_ok(handle_gate, [two], cid=4, label="粘包")
     fs = frames_of(data)
     check("一次 send 两帧 -> 回两帧", len(fs) >= 2, len(fs))
 
@@ -208,7 +218,7 @@ def run():
 
     q = ms_req(1, "GameLoadService", "query",
                msmod.mp_map({"Username": "transport_ms"}))
-    data, _err = run_handler(handle_ms, [q], cid=11)
+    data, _err = run_ok(handle_ms, [q], cid=11, label="ms query")
     fs = frames_of(data)
     check("query 有 MsResponse(type=3)", fs and fs[0][0] == 3,
           [t for t, _ in fs])
@@ -220,7 +230,7 @@ def run():
 
     b = ms_req(2, "UserDataService", "batchGetAttribute",
                msmod.mp_arr([["transport_u", ["level", "signature"]]]))
-    data, _err = run_handler(handle_ms, [b], cid=12)
+    data, _err = run_ok(handle_ms, [b], cid=12, label="ms batch")
     fs = frames_of(data)
     if fs:
         f = msmod.pb_parse(fs[0][1])
@@ -232,7 +242,7 @@ def run():
         check("batchGetAttribute 回 Results", False, "没有应答帧")
 
     u = ms_req(3, "GameLoadService", "noSuchMethod")
-    data, _err = run_handler(handle_ms, [u], cid=13)
+    data, _err = run_ok(handle_ms, [u], cid=13, label="ms 未知方法")
     fs = frames_of(data)
     check("未知方法也回 MsResponse（不晾着客户端）", bool(fs), len(fs))
 

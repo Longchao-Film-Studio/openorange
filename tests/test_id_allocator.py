@@ -111,6 +111,20 @@ def run():
     _frames += erpc._finish_story_tasks(st2, [1003])
     st2.save()
     check("真实发奖路径产生了属性帧", bool(_frames), len(_frames or []))
+    # ★ 审计 P2-10：只断言「有帧」不够 —— 任务帧也会让这条绿。
+    #   必须锁住「确实推了背包格子的 OP_ADD 帧」，否则发奖不推背包（客户端看不到道具）也测不出来。
+    _bag_pid = st2.props["item_bag"]["__id__"]
+    _bag_add = 0
+    for _f in (_frames or []):
+        if not isinstance(_f, (bytes, bytearray)) or len(_f) < 6:
+            continue
+        try:
+            _fl = msmod.pb_parse(bytes(_f[6:]))
+        except Exception:
+            continue
+        if _fl.get(2, [None])[0] == _bag_pid and _fl.get(3, [None])[0] == msmod.OP_ADD:
+            _bag_add += 1
+    check("发奖推了背包格子的 OP_ADD 帧", _bag_add > 0, _bag_add)
     try:
         check_frames(_pre, _frames, "真实发奖")
         check("真实发奖的帧在客户端不会崩", True)

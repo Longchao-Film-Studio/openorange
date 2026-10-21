@@ -20,6 +20,11 @@
 """
 from .tx import OP_ADD, OP_DEL, OP_INSERT, OP_REMOVE
 
+# 属性同步帧里 ownerid 的取值（客户端 core/client/gateclientrpchandler.lua:269-288）：
+#   空串 = 「就是收帧的这个玩家自己」；非空 = 别人的 uid（客户端会 getRealOwner）。
+# 私服一连接一账号，服务端推的永远是自己，所以这里只有 SYNC_SELF。
+SYNC_SELF = ""
+
 
 def _strip_private(value, is_root=False):
     """递归剥掉私有键。返回新对象（不改原值）。
@@ -188,5 +193,5 @@ def ops_to_frames(ops, strict=False):
             is_root = len(op.path or ()) == 1
             value = _strip_private(op.value, is_root=is_root)
         frames.append(_ms.build_property_sync(
-            "", op.property_id, op.optype, op.name, value))
+            SYNC_SELF, op.property_id, op.optype, op.name, value))
     return frames

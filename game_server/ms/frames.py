@@ -61,11 +61,21 @@ def split_frames(buf):
     while n - off >= 6:
         plen = struct.unpack_from("<I", buf, off)[0]
         total = 4 + plen
-        if total < 6 or n - off < total:
+        if total < 6 or plen > MAX_FRAME_LEN:
+            # ★ 非法帧头（plen 为 0/1 或超过上限）：丢掉 1 字节重同步。
+            #   以前这里是 break，off 永远不前进 -> buf 只增不减、后续合法帧
+            #   永远处理不到，单连接彻底卡死（畸形客户端/端口扫描即可触发）。
+            off += 1
+            continue
+        if n - off < total:
             break
         frames.append(bytes(buf[off:off + total]))
         off += total
     return frames, bytes(buf[off:])
+
+# 单帧载荷上限（1 MiB）：超过就当成畸形帧头，丢字节重同步。
+# 和 transport/ms_service.py 里读 ms 帧时的上限保持一致。
+MAX_FRAME_LEN = 1 << 20
 
 CONNECT_RESP_TYPE = 1
 

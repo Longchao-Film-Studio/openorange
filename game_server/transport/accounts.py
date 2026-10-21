@@ -80,6 +80,28 @@ def claim_username():
         return None
 
 
+def claim_and_bind(cid):
+    """reqType=0 的连接：领一个账号并绑定，**在同一把锁里完成**。
+
+    ★ 审计指出：以前 gate 里是 is_bound(cid) + claim_username() + bind(cid, ...)
+      三次独立调用，check-then-act 不是原子的；文档却写「在同一把锁里」。
+      现在合成一个函数，锁内完成「已绑就不动 / 否则领一个（可能 None）并落键」。
+    """
+    with _UID_LOCK:
+        if cid in _gate_uid:
+            return _gate_uid[cid]
+        now = time.time()
+        claimed = None
+        with _LOCK:
+            while _pending:
+                ts, name = _pending.pop(0)
+                if now - ts <= USERNAME_MATCH_WINDOW:
+                    claimed = name
+                    break
+        _gate_uid[cid] = claimed
+        return claimed
+
+
 def bind(cid, uid):
     """把 cid 和 uid 绑起来（新连接领号 / 从 auth 还原 都走这里）。
 
