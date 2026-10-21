@@ -79,11 +79,15 @@ mod tests {
     fn script_has_all_fragments() {
         for needle in [
             "-- ===== 01_util.lua =====",
-            "-- ===== 02_protocol.lua =====",
+            "-- ===== 02a_protocol.lua =====",
+            "-- ===== 02b_protocol.lua =====",
             "-- ===== 03_command.lua =====",
             "-- ===== 04_login.lua =====",
-            "-- ===== 05_probe.lua =====",
-            "-- ===== 06_hooks.lua =====",
+            "-- ===== 05a_probe.lua =====",
+            "-- ===== 05b_probe.lua =====",
+            "-- ===== 05c_probe.lua =====",
+            "-- ===== 06a_hooks.lua =====",
+            "-- ===== 06b_hooks.lua =====",
             "OO_Internal_Require",
         ] {
             assert!(BOOTSTRAP_LUA.contains(needle), "fragment missing: {needle}");

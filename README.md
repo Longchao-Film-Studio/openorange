@@ -65,7 +65,7 @@ OpenOrange/
 │   │   ├── oo_selfcheck/    自检工具
 │   │   ├── oo_injector/     独立注入器
 │   │   └── oo_hosttest/     宿主测试器（不开游戏验证脚本）
-│   ├── lua/oo_bootstrap.lua 注入到游戏里的引导脚本
+│   ├── lua/oo/*.lua（由 oo_bootstrap.lua 装配清单说明，build.rs 拼接） 注入到游戏里的引导脚本
 │   └── dist/                运行目录（编译产物 + OpenOrange.ini）
 │
 ├── web/                     账号门户 + 接口                   :8399

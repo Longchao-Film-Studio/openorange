@@ -10,14 +10,8 @@
   initDict 里是 {__tp__, __id__} 这种占位表示，不是客户端要的真实结构，
   硬塞会喂错数据，所以跳过 —— 客户端对缺失属性本来就是容忍的。
 """
+from .defaults import _DEF_UID
 from .protocol import mp_map
-
-try:
-    from .. import config as ooconf
-except Exception:  # 允许脱离包单独跑（历史脚本这么用过）
-    import config as ooconf  # type: ignore
-
-_DEF_UID = ooconf.FALLBACK_UID
 
 # 能直接塞进 msgpack 的属性值类型
 _SIMPLE_TYPES = (str, int, float, bool)

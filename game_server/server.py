@@ -259,7 +259,7 @@ def _recv_exact(conn, n):
     return buf
 
 def _handle_ms(conn, addr, cid):
-    """微服务连接：解析请求帧并回候选应答。"""
+    """微服务连接：解析请求帧并回 MsResponse（协议已解出，见 game_server/ms/ 头注释）。"""
     t0 = time.time()
     cap_path = os.path.join(CAPTURE_DIR, "ms_%03d_%s.bin" % (cid, addr[1]))
     print("[ms] #%03d OPEN from %s:%d" % (cid, addr[0], addr[1]), flush=True)
@@ -314,10 +314,8 @@ def _handle_ms(conn, addr, cid):
                   % (cid, mtype, seq, service, method, len(payload)), flush=True)
             print(_hexdump(payload, limit=256), flush=True)
 
-            # 按"请求"轮换类型号（而不是按连接），
-            # 这样客户端的重试风暴会自动把全部类型号试一遍。
-            # ms 层被拒绝时客户端只会重试，不会崩溃，因此全量爆破是安全的。
             # ★ 正确应答：MsResponse {1: rid, 2: msgpack params, 4: service_id}
+            #   （早期协议未知时这里做过帧类型爆破，已删；现在只有这一条路径）
             #   type 号 3 来自 EnumG2C 顺序（ResponseEncryptToken/ConfirmEncryptKeyAck/MicroResponse/...）
             #
             # 注意：按方法名区分负载。
@@ -822,8 +820,11 @@ def main():
     if "--gate-ok" in argv:
         GATE_OK = True
     if "--ms-ok" in argv:
-        # ms 协议已完全解出（见 ms.py 头注释），监听一律走正确应答；
+        # ms 协议已完全解出（见 game_server/ms/ 头注释），监听一律走正确应答；
         # --ms-ok 保留成兼容参数，不再有「实验模式」。
+        MS_MODE = True
+    # --ms 是 --ms-ok 的旧别名：外部脚本可能还在用，静默兼容。
+    if "--ms" in argv:
         MS_MODE = True
     for i, a in enumerate(argv):
         if a == "--proxy" and i + 1 < len(argv):

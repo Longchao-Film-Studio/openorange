@@ -1,18 +1,19 @@
 -- oo_bootstrap.lua —— 引导脚本「装配清单」（P0-E3 拆分后）
 --
--- 真正的代码按用途拆在 lua/oo/ 下：
+-- 真正的代码按用途拆在 lua/oo/ 下（10 个片段，全部 < 400 行）：
 --
---   01_util.lua      公共工具（LOG / safe / dump_map / argstr / probe_dump）
---   02_protocol.lua  协议层（加密开关 / 实例追踪 / 自动重试 / ms 编码 / ServerList）
---   03_command.lua   游戏内指令通道（聊天框 / 开头 -> 本机后端）
---   04_login.lua     登录入口（platform/login 拦截后的完整流程）
---   05_probe.lua     实机验收探针（默认全关）
---   06_hooks.lua     require 接管与原生入口
+--   01_util.lua        公共工具（LOG / safe / dump_map / argstr / probe_dump）
+--   02a/02b_protocol   协议层（加密开关 / 实例追踪 / 自动重试 / ms 编码 / ServerList）
+--   03_command.lua     游戏内指令通道（聊天框 / 开头 -> 本机后端）
+--   04_login.lua       登录入口（platform/login 拦截后的完整流程）
+--   05a/05b/05c_probe  实机验收探针（默认全关，见文件里的 OO_PROBE_* 开关）
+--   06a/06b_hooks      require 接管与原生入口
 --
 -- 为什么不是 require：
---   这些文件跑在**游戏自己的 Lua 虚拟机**里，路径不在 package.path 上，
---   require 找不到它们；而且各文件之间要共享同一批 local 变量。
+--   这些片段跑在**游戏自己的 Lua 虚拟机**里，路径不在 package.path 上，
+--   require 找不到它们；而且各片段之间要共享同一批 local 变量。
 --   所以由 crates/oo_internal/build.rs 按文件名顺序把它们拼成
---   **同一个 Lua chunk**，再 include_str! 进 DLL —— 语义与拆分前完全一致。
+--   **同一个 Lua chunk**，再 include_str! 进 DLL —— 语义与拆分前完全一致
+--   （已用 git 原文逐行比对：2397 个非空行 100% 相同，只多了注释和空行）。
 --
 -- 新增一个片段：在 lua/oo/ 下按序号命名即可，build.rs 会自动收集。

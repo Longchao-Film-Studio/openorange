@@ -9,7 +9,7 @@
   字符串表有 __rpc_response__ 这个魔数。
 """
 from .frames import frame
-from .protocol import (mp_arr, mp_decode, mp_map, pb_bytes_field, pb_parse,
+from .protocol import (mp_arr, mp_decode, pb_bytes_field, pb_parse,
                        pb_varint_field)
 # server -> client 的应答帧类型。
 # ★ 逆向确定：应答不是独立帧类型，而是 entityMessage(type=2) 带 methodName=__rpc_response__。

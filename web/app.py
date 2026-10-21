@@ -59,8 +59,6 @@ def _fmt_ts(ts):
 # ---------------------------------------------------------------- 登录限速
 # 失败计数与判定在 web/ratelimit.py（P0-E3 抽出），这里只做名字兼容。
 from web.ratelimit import (  # noqa: E402
-    LOGIN_MAX_FAIL,
-    LOGIN_WINDOW,
     blocked as _login_blocked,
     note_fail as _note_login_fail,
     note_ok as _note_login_ok,
@@ -71,17 +69,13 @@ from web.ratelimit import (  # noqa: E402
 # 由 web/assets.py 统一加载；这里只做名字兼容，保持既有调用点不变。
 from web.assets import (  # noqa: E402
     ADMIN_BODY,
-    ADMIN_CSS,
     ADMIN_SCRIPT,
     BODY,
     BRAND,
-    CSS,
     OVERLAY,
     SCRIPT,
     STATIC_DIR as _STATIC_DIR,
     STATIC_TYPES as _STATIC_TYPES,
-    read_static as _read_static,
-    read_template as _read_template,
 )
 
 def _page(body):
@@ -154,12 +148,20 @@ class WebHandler(BaseHTTPRequestHandler):
             return {}
 
     def _serve_static(self, name):
-        """下发 web/static 下的静态文件。只认白名单后缀，且不允许带路径分隔符。"""
-        if (not name or "/" in name or "\\" in name
+        """下发 web/static 下的静态文件。
+
+        三重校验（审计 P2-7：只查 "/" 和 "\\" 不够，Windows 下
+        os.path.join(dir, "C:app.css") 会变成 C:app.css）：
+          1. 只认白名单后缀；
+          2. basename(name) 必须等于 name（挡掉任何目录成分和盘符）；
+          3. realpath 必须仍在 static 目录下。
+        """
+        if (not name or os.path.basename(name) != name or ":" in name
                 or os.path.splitext(name)[1].lower() not in _STATIC_TYPES):
             return self._send("not found", "text/plain; charset=utf-8", 404)
-        fp = os.path.join(_STATIC_DIR, name)
-        if not os.path.isfile(fp):
+        root = os.path.realpath(_STATIC_DIR)
+        fp = os.path.realpath(os.path.join(root, name))
+        if not fp.startswith(root + os.sep) or not os.path.isfile(fp):
             return self._send("not found", "text/plain; charset=utf-8", 404)
         with open(fp, "rb") as f:
             self._send(f.read(), _STATIC_TYPES[os.path.splitext(name)[1].lower()])

@@ -14,17 +14,14 @@
     8 (len)    选项      msgpack 编码的二进制块
 
 本模块提供:
-    * 极简 protobuf 解析/编码
-    * 极简 msgpack 编码（只需 map/str/int）
-    * 应答候选轮换，用于确定应答格式（唯一剩余未知项）
+    * 极简 protobuf 解析/编码（protocol.py）
+    * 极简 msgpack 编码（protocol.py）
+    * 帧封装 / 实体 / 属性同步 / 绑定链 / userdata（各自模块，这里只 re-export）
 
 成功判据（无歧义）：客户端收到正确应答后，会去连 ServerList 里 clusters.addrs
 指定的网关端口。因此我们让网关监听 33101，ms 监听 33100 ——
 **只要 33101 上出现连接，就说明 ms 应答格式对了。**
 """
-import json
-import os
-import struct
 
 # pb / msgpack 编解码已拆到 protocol.py；userdata 应答在 userdata.py。
 # 这里 re-export，保持 msmod.pb_parse / msmod.mp_arr 等既有调用点不变。
@@ -107,11 +104,6 @@ from .bind import (  # noqa: F401  (re-export)
     frame_bind_avatar,
     frame_bind_soul,
 )
-
-try:
-    from .. import config as ooconf
-except Exception:
-    import config as ooconf  # type: ignore
 
 # ★ 默认值统一从 config 取，不要在这里写死端口/uid/实体 id。
 
@@ -217,7 +209,7 @@ RPC_CMD_AVATAR_STARTGAME_CS = 136701728
 #                 serverRpc 带内联回调，不回也是 2 秒弱网）
 RPC_GET_MATCH_DURATION = 1795313897
 # 应答名游戏里没有对应方法（_CS 用的是内联闭包），按 _CS/_SC 约定补一个，
-# 并在 launcher/lua/oo_bootstrap.lua 的 SERVER_RPC_SC_NAMES 里注册，
+# 并在 launcher/lua/oo/06a_hooks.lua 的 SERVER_RPC_SC_NAMES 里注册，
 # 否则原生 RpcIndex::getRpcName 查不到名字，应答派发不下去。
 RPC_GET_MATCH_DURATION_SC = 520324610
 #   1674960337 -> QueryMyTeamInfo_CS（entities/avatarcomponent/avatarteamcomp.lua:684
@@ -261,7 +253,7 @@ def build_net_check_ack(index):
 #   response.Results = { { Uid = <字符串>, AttributesMap = { 属性名 = 值 } }, ... }
 #   if uid == Uid then ... setOneAttributeData(key, attrs[key])
 # 注意 Uid 是严格比较，请求里是 tostring(uid)，所以必须回字符串。
-_SIMPLE_TYPES = (str, int, float, bool)
+# （应答构造在 userdata.py）
 
 # ---------------------------------------------------------------------------
 # propertySync2Client（s->c 方法 13）

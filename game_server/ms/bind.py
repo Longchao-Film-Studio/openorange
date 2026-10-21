@@ -7,7 +7,7 @@
 """
 from .frames import frame
 from .defaults import _DEF_ACCOUNT_EID
-from .protocol import mp_arr, mp_map, pb_bytes_field, pb_varint_field
+from .protocol import pb_bytes_field, pb_varint_field
 BIND_ACCOUNT_TYPE = 6
 
 def build_entity_mailbox(entity_id=None, server_ip="127.0.0.1",
