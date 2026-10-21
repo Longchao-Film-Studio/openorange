@@ -30,7 +30,7 @@ import ctypes
 import os
 import re
 import sys
-from ctypes import POINTER, c_char_p, c_int, c_size_t, c_void_p
+from ctypes import c_char_p, c_int, c_void_p
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)

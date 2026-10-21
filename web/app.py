@@ -14,7 +14,6 @@
 import json
 import os
 import sys
-import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 

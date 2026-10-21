@@ -19,7 +19,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate
-from game_server import config, tasks, gamedata
+from game_server import config, tasks
 
 passed, failed = [], []
 

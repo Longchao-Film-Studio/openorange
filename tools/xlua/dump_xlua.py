@@ -7,7 +7,7 @@
 
 用法: python dump_xlua.py <xlua.dll 路径> <输出 .bin>
 """
-import ctypes, struct, sys, os
+import ctypes, struct, sys
 from ctypes import wintypes
 
 if hasattr(sys.stdout, 'reconfigure'):
