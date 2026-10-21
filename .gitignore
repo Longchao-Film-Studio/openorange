@@ -48,3 +48,7 @@ my_scripts/
 *.swp
 Thumbs.db
 desktop.ini
+
+# 构建/测试日志（本地排查用，不进仓库）
+launcher/*.log
+

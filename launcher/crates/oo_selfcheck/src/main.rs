@@ -155,14 +155,34 @@ fn check_bridge() -> i32 {
     }
 }
 
+/// 把 lua/oo/*.lua 按文件名顺序拼起来 —— 与 crates/oo_internal/build.rs 的拼法一致。
+/// 引导脚本 P0-E3 拆成多个片段后，单看 oo_bootstrap.lua 是查不到钩子的。
+fn load_bootstrap_lua() -> Option<(String, usize)> {
+    let dir = std::path::Path::new("../../lua/oo");
+    let dir = if dir.is_dir() { dir.to_path_buf() } else {
+        let alt = std::path::PathBuf::from("lua/oo");
+        if !alt.is_dir() { return None; }
+        alt
+    };
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir).ok()?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("lua"))
+        .collect();
+    files.sort();
+    if files.is_empty() { return None; }
+    let n = files.len();
+    let mut buf = String::new();
+    for p in &files {
+        buf.push_str(&std::fs::read_to_string(p).ok()?);
+        if !buf.ends_with('\n') { buf.push('\n'); }
+    }
+    Some((buf, n))
+}
+
 fn check_lua_source() -> i32 {
     println!("\n[3] 引导脚本");
-    let cands = ["../../lua/oo_bootstrap.lua", "lua/oo_bootstrap.lua"];
-    for c in cands {
-        let p = std::path::Path::new(c);
-        if p.exists() {
-            let s = std::fs::read_to_string(p).unwrap();
-            println!("    {} ({} 字节)", p.display(), s.len());
+    if let Some((s, n)) = load_bootstrap_lua() {
+        println!("    lua/oo/*.lua 共 {} 个片段，合计 {} 字节", n, s.len());
             let mut bad = 0;
             for k in ["OO_Internal_RequestLogin", "OO_Internal_Result", "onSdkLogin", "EnterGame",
                       "openServerSelectPanel", "BindGameTickFunc", "platform", "fpxsdkapi",
@@ -170,11 +190,10 @@ fn check_lua_source() -> i32 {
                 if !s.contains(k) { println!("    FAIL: 缺少 {k}"); bad += 1; }
             }
             if s.contains("52luansha") { println!("    FAIL: 残留第三方服务器地址"); bad += 1; }
-            if bad == 0 { println!("    必需钩子齐全 OK"); }
-            return bad;
-        }
+        if bad == 0 { println!("    必需钩子齐全 OK"); }
+        return bad;
     }
-    println!("    FAIL: 找不到 oo_bootstrap.lua");
+    println!("    FAIL: 找不到 lua/oo/*.lua");
     1
 }
 

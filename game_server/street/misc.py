@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""主线等级 / 街区剧情线 / CD 选择（P0-E2 第 4 步）。
+
+逆向依据 entities/avatarcomponent/avatarstreetcomp.lua：
+  Street_Mainline_Levelup_CS(area_id) -> serverRpc({area_id})   :261-263
+    读侧 getMainLineLevel(area_id) = self.mainline_level[area_id]  :265-268
+  finishStreetStoryline_CS {eventId}                             :752-757
+  Street_CD_Update_CS {street_id, street_cd_id}                  :149-154
+    SC 回调 responseCb(status)
+"""
+from .. import ms as msmod
+from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_index import ACK_OK
+from .info import _street_tx_begin
+def _mainline_levelup(rid, params, uid=None):
+    """Street_Mainline_Levelup_CS {area_id} —— 主线关卡等级 +1。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        area_id = int(vals[0])
+    except Exception:
+        return frames
+    st = state(uid)
+    ml = st.props.get("mainline_level")
+    if not isinstance(ml, dict):
+        return frames
+    cur = int(ml.get(area_id) or 0)
+    ml[area_id] = cur + 1
+    st.set("mainline_level", ml)
+    st.save()
+    print("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1), flush=True)
+    frames.append(sync_frame(
+        "", ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
+    return frames
+
+def _finish_storyline(rid, params, uid=None):
+    """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        event_id = int(vals[0])
+    except Exception:
+        return frames
+    st = state(uid)
+    done = st.props.get("_oo_storyline_done")
+    if not isinstance(done, list):
+        done = []
+    if event_id not in done:
+        done.append(event_id)
+    st.props["_oo_storyline_done"] = done
+    st.save()
+    print("[street] 街区剧情线完成 event=%s" % event_id, flush=True)
+    return frames
+
+def _street_cd_update(rid, params, uid=None):
+    """Street_CD_Update_CS {street_id, street_cd_id} —— 记录当前选的 CD 并回成功。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2):
+        return frames
+    try:
+        street_id = int(vals[0] or 0)
+        cd_id = int(vals[1] or 0)
+    except Exception:
+        return frames
+    st = state(uid)
+    # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
+    tx, si, entry, is_new = _street_tx_begin(st, street_id)
+    if entry is not None:
+        entry["cd_choose"] = cd_id
+        st.set("street_info", si)
+        if not is_new:
+            tx.set(("street_info", street_id, "cd_choose"), cd_id)
+        st.save()
+        frames.extend(tx.frames())
+    print("[street] CD 选择 street=%s cd=%s" % (street_id, cd_id), flush=True)
+    return frames

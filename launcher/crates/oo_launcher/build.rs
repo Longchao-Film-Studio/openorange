@@ -4,5 +4,6 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../dist/OpenOrange.ini");
-    println!("cargo:rerun-if-changed=../../lua/oo_bootstrap.lua");
+    // 引导脚本已拆成 lua/oo/*.lua（P0-E3），目录里任何片段变了都要重建。
+    println!("cargo:rerun-if-changed=../../lua/oo");
 }

@@ -1,0 +1,36 @@
+<!-- 弹窗遮罩（P0-E3 从 web/app.py 抽出） -->
+<div class="overlay" id="overlay" hidden onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalPw" hidden>
+    <h3>修改密码</h3>
+    <p class="modal-desc">需要先验证当前密码。改完后其它设备上的登录会被踢下线。</p>
+    <div class="field">
+      <input id="pwOld" type="password" placeholder=" " autocomplete="current-password">
+      <label for="pwOld">当前密码</label>
+    </div>
+    <div class="field">
+      <input id="pwNew" type="password" placeholder=" " autocomplete="new-password">
+      <label for="pwNew">新密码</label>
+    </div>
+    <div class="field">
+      <input id="pwNew2" type="password" placeholder=" " autocomplete="new-password">
+      <label for="pwNew2">确认新密码</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn-primary" id="pwBtn" style="width:auto;margin-top:0;padding:0 22px;height:36px;font-size:13.5px" onclick="doChangePass()">保存</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modalDel" hidden>
+    <h3>删除账号</h3>
+    <p class="modal-desc">账号、登录票据与网页会话会一并清除，<b>无法恢复</b>。</p>
+    <div class="field">
+      <input id="delPass" type="password" placeholder=" " autocomplete="current-password">
+      <label for="delPass">输入密码确认</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn-danger" id="delBtn" onclick="doDelete()">删除账号</button>
+    </div>
+  </div>
+</div>

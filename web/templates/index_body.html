@@ -1,0 +1,74 @@
+<!-- 账号中心页面主体（P0-E3 从 web/app.py 抽出） -->
+<section id="authView" class="auth-card">
+  <div class="seg">
+    <div class="seg-pill" id="segPill"></div>
+    <button class="seg-btn active" data-tab="login" onclick="switchTab('login')">登录</button>
+    <button class="seg-btn" data-tab="reg" onclick="switchTab('reg')">注册</button>
+  </div>
+
+  <form id="loginForm" onsubmit="return doLogin(event)">
+    <div class="field">
+      <input id="loginUser" placeholder=" " autocomplete="username" spellcheck="false">
+      <label for="loginUser">账号</label>
+    </div>
+    <div class="field">
+      <input id="loginPass" type="password" placeholder=" " autocomplete="current-password">
+      <label for="loginPass">密码</label>
+    </div>
+    <button class="btn-primary" id="loginBtn" type="submit">登录</button>
+  </form>
+
+  <form id="regForm" hidden onsubmit="return doRegister(event)">
+    <div class="field">
+      <input id="regUser" placeholder=" " autocomplete="username" spellcheck="false" maxlength="20">
+      <label for="regUser">账号名</label>
+    </div>
+    <div class="field">
+      <input id="regPass" type="password" placeholder=" " autocomplete="new-password">
+      <label for="regPass">密码</label>
+    </div>
+    <div class="field">
+      <input id="regPass2" type="password" placeholder=" " autocomplete="new-password">
+      <label for="regPass2">确认密码</label>
+    </div>
+    <button class="btn-primary" id="regBtn" type="submit">创建账号</button>
+  </form>
+
+  <p class="foot-hint" id="hintLogin">账号名 4~20 位，字母 / 数字 / 下划线</p>
+  <p class="foot-hint" id="hintReg" hidden>密码至少 6 位 · 注册后自动登录</p>
+</section>
+
+<section id="acctView" class="acct" hidden>
+  <div class="acct-head">
+    <div class="avatar" id="avatar">O</div>
+    <div class="acct-id">
+      <div class="acct-name" id="acctName"></div>
+      <div class="acct-sub">已登录</div>
+    </div>
+    <button class="btn-ghost" onclick="doLogout()">退出</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-k">账号 ID</span><span class="stat-v mono" id="iAccount"></span></div>
+    <div class="stat"><span class="stat-k">玩家 UID</span><span class="stat-v mono" id="iUid"></span></div>
+    <div class="stat"><span class="stat-k">注册时间</span><span class="stat-v" id="iCreated"></span></div>
+    <div class="stat"><span class="stat-k">登录次数</span><span class="stat-v" id="iCount"></span></div>
+  </div>
+
+  <div class="rows">
+    <button class="row" onclick="openModal('pw')">
+      <span class="row-main">
+        <span class="row-t">修改密码</span>
+        <span class="row-d">定期更换密码，账号更安全</span>
+      </span>
+      <span class="chev">&#8250;</span>
+    </button>
+    <button class="row" onclick="openModal('del')">
+      <span class="row-main">
+        <span class="row-t danger">删除账号</span>
+        <span class="row-d">账号与登录票据一并清除，不可恢复</span>
+      </span>
+      <span class="chev">&#8250;</span>
+    </button>
+  </div>
+</section>

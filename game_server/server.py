@@ -57,7 +57,6 @@ _pending_usernames = []          # [(ts, username)]
 _gate_uid = {}                   # cid -> username（= 游戏内 uid）
 USERNAME_MATCH_WINDOW = 30       # 秒
 
-
 def _resolve_display_uid(raw):
     """把 ms query 里的 Username 还原成玩家看得懂的 uid。
 
@@ -86,7 +85,6 @@ def _resolve_display_uid(raw):
     # ★ 不用数字兜底：uid 必须是登录名。查不到才退回原始串（正常不会走到）。
     return raw
 
-
 def _remember_username(username):
     """ms query 里看到的账号，还原成 uid 后放进待关联队列。"""
     if not username:
@@ -101,7 +99,6 @@ def _remember_username(username):
         while _pending_usernames and now - _pending_usernames[0][0] > USERNAME_MATCH_WINDOW * 4:
             _pending_usernames.pop(0)
 
-
 def _claim_username():
     """给一条新 gate 连接领一个账号名（最早的、窗口内的）。领不到返回 None。"""
     now = time.time()
@@ -112,11 +109,9 @@ def _claim_username():
                 return name
         return None
 
-
 def _uid_of(cid):
     """这条 gate 连接对应的 uid（= 账号名）。没有就回退默认值。"""
     return _gate_uid.get(cid) or "OO00000001"
-
 
 def _uid_from_auth(fields):
     """从 connectServer 的 auth 字段里还原账号 uid。
@@ -170,18 +165,10 @@ UPSTREAM = None          # (host, port)
 MS_MODE = False
 MS_PORT = ooconf.MS_PORT
 GATE_PORT = ooconf.GATE_PORT
-MS_BRUTE = False       # 全量爆破类型号
-MS_BRUTE_MAX = 256
-# 语义探针：始终回 ERR_CONN_NEED_BIND。
-# 若客户端收到后改发 ClientGate.bind，说明应答的"类型号+字段布局"是对的，
-# 只是语义不对 —— 这样就能把类型号锁定。
-MS_BIND_PROBE = False
 # 网关应答模式：对网关连接回正确的 ConnectServerResp
 GATE_OK = False
 # 微服务正确应答模式：回 MsResponse{rid, params(msgpack), service_id}
-MS_OK = False
 _ms_seq = 0
-_ms_type_cursor = 0
 _ms_lock = threading.Lock()
 
 RESPOND_CYCLE = False
@@ -192,7 +179,6 @@ RESPOND_CYCLE = False
 _CR_HASH_LE = "034b527e"
 RESPOND_VARIANTS = [(t, _CR_HASH_LE + "0801") for t in (4, 3, 2, 5, 0, 1)]
 
-
 def _build_response(idx):
     """按序号构造应答字节：[u32 长度][u16 类型][protobuf body]"""
     typ, body_hex = RESPOND_VARIANTS[idx % len(RESPOND_VARIANTS)]
@@ -202,13 +188,11 @@ def _build_response(idx):
 _conn_seq = 0
 _seq_lock = threading.Lock()
 
-
 def _next_id():
     global _conn_seq
     with _seq_lock:
         _conn_seq += 1
         return _conn_seq
-
 
 def _hexdump(data, width=16, limit=None):
     n = len(data) if limit is None else min(limit, len(data))
@@ -222,7 +206,6 @@ def _hexdump(data, width=16, limit=None):
         out.append("      ... (共 %d 字节，其余见 .bin)" % len(data))
     return "\n".join(out)
 
-
 def _log_packet(cid, direction, data, t0, f):
     dt = int((time.time() - t0) * 1000)
     print("[game] #%03d %s +%dms  %d B" % (cid, direction, dt, len(data)), flush=True)
@@ -234,7 +217,6 @@ def _log_packet(cid, direction, data, t0, f):
             f.flush()
         except Exception:
             pass
-
 
 def _pump(src, dst, direction, cid, t0, f, done_evt):
     """单向转发 + 记录。"""
@@ -261,13 +243,11 @@ def _pump(src, dst, direction, cid, t0, f, done_evt):
             pass
         done_evt.set()
 
-
 def _next_ms_seq():
     global _ms_seq
     with _ms_lock:
         _ms_seq += 1
         return _ms_seq
-
 
 def _recv_exact(conn, n):
     buf = b""
@@ -277,7 +257,6 @@ def _recv_exact(conn, n):
             return None
         buf += chunk
     return buf
-
 
 def _handle_ms(conn, addr, cid):
     """微服务连接：解析请求帧并回候选应答。"""
@@ -338,78 +317,51 @@ def _handle_ms(conn, addr, cid):
             # 按"请求"轮换类型号（而不是按连接），
             # 这样客户端的重试风暴会自动把全部类型号试一遍。
             # ms 层被拒绝时客户端只会重试，不会崩溃，因此全量爆破是安全的。
-            if MS_OK:
-                # ★ 正确应答：MsResponse {1: rid, 2: msgpack params, 4: service_id}
-                #   type 号 3 来自 EnumG2C 顺序（ResponseEncryptToken/ConfirmEncryptKeyAck/MicroResponse/...）
-                #
-                # 注意：按方法名区分负载。
-                #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，
-                #     给它塞 ServerList 属于多余数据，可能引起解析侧异常；
-                #   query 的 onGetServerGates 才需要 ServerList + ClusterId。
-                if method == "query":
-                    # 从 query 参数里抓账号名（field 4 是 msgpack，含 Username）
-                    global _last_username
-                    if 4 in fields:
-                        try:
-                            _q = msmod.mp_decode(fields[4][0])[0]
-                            if isinstance(_q, dict) and _q.get("Username"):
-                                _last_username = _q["Username"]
-                                _remember_username(_last_username)
-                                print("[ms] #%03d 账号 %s" % (cid, _last_username), flush=True)
-                        except Exception:
-                            pass
-                    params = msmod.build_load_service_params(GATE_PORT)
-                elif method == "batchGetAttribute":
-                    # ★ 1-3 玩家数据的主通道（avataruserdatacomp.lua:151）
-                    _req = []
-                    if 4 in fields:
-                        try:
-                            _req = msmod.mp_decode(fields[4][0])[0]
-                        except Exception as _e:
-                            print("[ms] #%03d batchGetAttribute 参数解析失败: %s"
-                                  % (cid, _e), flush=True)
-                            _req = []
-                    params = msmod.build_userdata_batch_params(_req)
-                    print("[ms] #%03d    -> 回 %d 条 Results"
-                          % (cid, len(msmod.mp_decode(params)[0].get("Results", []))),
-                          flush=True)
-                else:
-                    params = msmod.mp_map({"Ret": [True, 0]})
-                pkt = msmod.frame_ms_response(seq, params, service)
-                try:
-                    conn.sendall(pkt)
-                    print("[ms] #%03d TX MsResponse type=3 rid=%s service=%s method=%s (%d B)"
-                          % (cid, seq, service, method, len(pkt)), flush=True)
-                except Exception as e:
-                    print("[ms] #%03d send failed: %s" % (cid, e), flush=True)
-                continue
-
-            if MS_BRUTE:
-                global _ms_type_cursor
-                with _ms_lock:
-                    typ = _ms_type_cursor % MS_BRUTE_MAX
-                    _ms_type_cursor += 1
-                rtype = typ
-                if MS_BIND_PROBE:
-                    rbody = msmod.build_by_type(typ, seq, GATE_PORT,
-                                                ret_status=False,
-                                                ret_err="ERR_CONN_NEED_BIND")
-                    name = "bindprobe-t%d" % typ
-                else:
-                    rbody = msmod.build_by_type(typ, seq, GATE_PORT)
-                    name = "brute-t%d" % typ
+            # ★ 正确应答：MsResponse {1: rid, 2: msgpack params, 4: service_id}
+            #   type 号 3 来自 EnumG2C 顺序（ResponseEncryptToken/ConfirmEncryptKeyAck/MicroResponse/...）
+            #
+            # 注意：按方法名区分负载。
+            #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，
+            #     给它塞 ServerList 属于多余数据，可能引起解析侧异常；
+            #   query 的 onGetServerGates 才需要 ServerList + ClusterId。
+            if method == "query":
+                # 从 query 参数里抓账号名（field 4 是 msgpack，含 Username）
+                global _last_username
+                if 4 in fields:
+                    try:
+                        _q = msmod.mp_decode(fields[4][0])[0]
+                        if isinstance(_q, dict) and _q.get("Username"):
+                            _last_username = _q["Username"]
+                            _remember_username(_last_username)
+                            print("[ms] #%03d 账号 %s" % (cid, _last_username), flush=True)
+                    except Exception:
+                        pass
+                params = msmod.build_load_service_params(GATE_PORT)
+            elif method == "batchGetAttribute":
+                # ★ 1-3 玩家数据的主通道（avataruserdatacomp.lua:151）
+                _req = []
+                if 4 in fields:
+                    try:
+                        _req = msmod.mp_decode(fields[4][0])[0]
+                    except Exception as _e:
+                        print("[ms] #%03d batchGetAttribute 参数解析失败: %s"
+                              % (cid, _e), flush=True)
+                        _req = []
+                params = msmod.build_userdata_batch_params(_req)
+                print("[ms] #%03d    -> 回 %d 条 Results"
+                      % (cid, len(msmod.mp_decode(params)[0].get("Results", []))),
+                      flush=True)
             else:
-                cands = msmod.build_candidates(seq, GATE_PORT)
-                idx = (cid - 1) % len(cands)
-                name, rtype, rbody = cands[idx]
-            pkt = msmod.frame(rtype, rbody)
+                params = msmod.mp_map({"Ret": [True, 0]})
+            pkt = msmod.frame_ms_response(seq, params, service)
             try:
                 conn.sendall(pkt)
-                print("[ms] #%03d TX %s type=%d  (%d B)"
-                      % (cid, name, rtype, len(pkt)), flush=True)
+                print("[ms] #%03d TX MsResponse type=3 rid=%s service=%s method=%s (%d B)"
+                      % (cid, seq, service, method, len(pkt)), flush=True)
             except Exception as e:
                 print("[ms] #%03d send failed: %s" % (cid, e), flush=True)
-                break
+            continue
+
     except Exception as e:
         print("[ms] #%03d error: %s" % (cid, e), flush=True)
     finally:
@@ -423,7 +375,6 @@ def _handle_ms(conn, addr, cid):
             except Exception:
                 pass
         print("[ms] #%03d CLOSE after %dms" % (cid, int((time.time() - t0) * 1000)), flush=True)
-
 
 # 网关应答变体：看哪个能让连接活过 4 秒
 _bind_push_count = 0
@@ -439,7 +390,6 @@ GATE_VARIANTS = [
            + msmod.pb_varint_field(5, 0))),
 ]
 _gate_var_cursor = 0
-
 
 def _handle_gate_probe(conn, addr, cid):
     """游戏网关：接受 connectServer，回 ConnectServerResp(Connected)。
@@ -747,7 +697,6 @@ def _handle_gate_probe(conn, addr, cid):
         except Exception:
             pass
 
-
 def _handle(conn, addr, cid):
     t0 = time.time()
     cap_path = os.path.join(CAPTURE_DIR, "conn_%03d_%s.bin" % (cid, addr[1]))
@@ -792,16 +741,6 @@ def _handle(conn, addr, cid):
                 print("[game] #%03d peer closed" % cid, flush=True)
                 break
             _log_packet(cid, "RX", data, t0, f)
-            if MS_OK:
-                # 正确应答：MsResponse，type=3，params 是 msgpack
-                params = msmod.build_load_service_params(GATE_PORT)
-                pkt = msmod.frame_ms_response(seq, params, service)
-                try:
-                    conn.sendall(pkt)
-                    print("[ms] #%03d TX MsResponse type=3 rid=%s service_id=%s (%d B)"
-                          % (cid, seq, service, len(pkt)), flush=True)
-                except Exception as e:
-                    print("[ms] #%03d send failed: %s" % (cid, e), flush=True)
             if GATE_OK:
                 # 解析请求类型号，只对 connectServer(3) 回 ConnectServerResp
                 if len(data) >= 6:
@@ -846,7 +785,6 @@ def _handle(conn, addr, cid):
         print("[game] #%03d CLOSE after %dms -> %s"
               % (cid, dur, os.path.basename(cap_path)), flush=True)
 
-
 def serve(host=None, port=None):
     db.init()
     os.makedirs(CAPTURE_DIR, exist_ok=True)
@@ -866,7 +804,6 @@ def serve(host=None, port=None):
     print("[game] captures -> %s" % CAPTURE_DIR, flush=True)
     return srv
 
-
 def main():
     global ECHO, UPSTREAM
     # 控制台编码：抓包里可能出现任意字节，避免 print 因编码异常中断服务
@@ -881,22 +818,13 @@ def main():
         ECHO = True
     if "--respond-cycle" in argv:
         RESPOND_CYCLE = True
-    global MS_BRUTE, MS_BIND_PROBE
-    if "--ms" in argv:
-        MS_MODE = True
-    if "--ms-brute" in argv:
-        MS_MODE = True
-        MS_BRUTE = True
-    if "--ms-bind" in argv:
-        MS_MODE = True
-        MS_BRUTE = True
-        MS_BIND_PROBE = True
-    global GATE_OK, MS_OK
+    global GATE_OK
     if "--gate-ok" in argv:
         GATE_OK = True
     if "--ms-ok" in argv:
+        # ms 协议已完全解出（见 ms.py 头注释），监听一律走正确应答；
+        # --ms-ok 保留成兼容参数，不再有「实验模式」。
         MS_MODE = True
-        MS_OK = True
     for i, a in enumerate(argv):
         if a == "--proxy" and i + 1 < len(argv):
             hp = argv[i + 1]
@@ -990,7 +918,6 @@ def main():
         print("[game] shutting down", flush=True)
     finally:
         srv.close()
-
 
 if __name__ == "__main__":
     main()

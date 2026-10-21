@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""ClientAvatar 的 initDict（登录快照）与 createChannelEntity（P0-E3 拆出）。
+
+三个要点：
+  1. AVATAR_INIT_DICT 来自 avatar_init.json（property/spec 的序列化缓存），
+     登录时整包下发给客户端，客户端 initProperty 会逐项 assert。
+  2. _live_init_dict 是「登录那一刻的状态快照」：先跑一次 _login_tick（事件总线
+     主动推进），再按根属性剥掉 _oo_* 私有键和嵌套 __tp__。
+     ★ 嵌套 __tp__ 漏出去会让客户端 roinit 把字符串当子项 -> 崩（审计 P0-1）。
+  3. 新号的剧情起点（StoryTask 1000 设为 Doing）也在这里落，不在脚手架里 ——
+     街景 NPC 的 preTask 命中 Doing(3) 才会出现。
+"""
+import json
+import os
+
+from .defaults import _DEF_AVATAR_EID, _DEF_UID, ooconf
+from .frames import frame
+from .protocol import _conv_int_keys, mp_map
+
+#
+# ChannelEntityInfo 的字段 1 是 **string**，不是 uint32。
+#
+# 依据（实测，2026-10-19）：
+#   Lua 侧 GateClientRpcHandler:createChannelEntity(entityType, initDict, entityId)
+#   把 entityType 直接传给 EntityFactory.createEntity(name, entityId) —— 收的是类名字符串。
+#   把字段 1 按 varint 发（哪怕值正好是 genRpcIndex("ClientAvatar")=1292148699），
+#   客户端日志是：
+#       [GateClientRpcHandler] createChannelEntity (, avatar_2000) failed
+#       [EntityFactory] createEntity failed: can not find entity class
+#   第一个参数是**空字符串** —— 说明字段 1 被当成 string 解，varint 解不出来。
+#
+#   另外：RpcIndex 表确实能反查（registerRpc 之后 getRpcName(1292148699) 返回
+#   "ClientAvatar"），但客户端并不用它来还原这个名字，所以补注册实体类名是
+#   无害但也不是必需的。真正关键的是字段类型。
+#
+# 字段布局（推断）：
+#   string type = 1;  bytes info = 2;  string entityId = 3;  string sessionId = 4
+CLIENT_AVATAR_CLASS = "ClientAvatar"
+
+# msgpack 空 map —— 作为最小 initDict 先试水
+MSGPACK_EMPTY_MAP = b"\x80"
+
+# 玩家实体的最小 initDict。
+#
+# ★ 结构必须是这样（依据 Core/PropertySync/PuppetPropertyComponent.lua:initProperty）：
+#
+#     local properties = dict.__Properties__      -- 没有这层包裹就直接 return
+#     if properties == nil then return end
+#     for name, value in pairs(properties) do
+#       if type(value) == "table" then
+#         local customType = value.__tp__          -- table 类型必须带 __tp__
+#         assert(customType ~= nil)
+#         value.__tp__ = nil
+#         CustomTypeFactory.createReadonly(customType, name, value, self, nil, true)
+#
+#   而 customDict 的 roinit 又要求：
+#     local id = value.__id__
+#     value.__id__ = nil
+#     assert(id ~= nil)                            -- 必须带 __id__
+#
+#   所以自定义字典属性的写法是 { __tp__ = "customDict", __id__ = N }。
+#
+# 之前直接给 {"item_bag": []}，因为没有 __Properties__ 包裹，
+# initProperty 第一行就 return 了，属性一个都没设上 ——
+# 于是 AvatarBagComp:refreshLocalBagData 里 pairs(self.item_bag) 拿到 nil。
+#
+# 后续每补一个属性就能多过一关，按客户端报错逐个加。
+# item_bag 的类型是 config.lua Custom 段里的 ItemBag：
+#   ItemBag = { NameSpace = "CustomTypes.Bag.ItemBag",
+#               Properties = {}, __ValueType__ = "ItemInfo", __IntTypeKey__ = false }
+# __tp__ 必须填**注册名**（ItemBag），不能填 PropertyCallbacks 里的类型标签（customDict）——
+# 填 customDict 会报 "can not find custom class customDict"。
+# ★ 完整属性表从 config.lua 的 AvatarProperties 生成（tools: work/oo_analysis/gen_initdict.py）
+#
+# config.lua 里 AvatarProperties.Properties 是玩家实体属性的权威声明，
+# 每条形如 {propType, default, aoiscope, persist}。共 173 条：
+#   45 个简单类型（int/string/double/boolean）-> 直接给默认值
+#   128 个自定义类型 -> 给 { __tp__ = <类型名>, __id__ = <唯一整数> }
+#
+# 这份表由 game_server/avatar_init.json 提供，避免手写遗漏。
+_AVATAR_INIT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                 "avatar_init.json")
+
+def _load_avatar_init():
+    """读取 avatar_init.json。
+
+    ★ 必须响亮地失败：之前这个文件被写坏成 0 字节，
+      静默降级成空表，导致属性全是 nil，白白排查了很久。
+    """
+    try:
+        with open(_AVATAR_INIT_PATH, "r", encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception as e:
+        raise RuntimeError("avatar_init.json 读取失败: %s" % e)
+    props = d.get("__Properties__")
+    if not isinstance(props, dict) or len(props) < 10:
+        raise RuntimeError(
+            "avatar_init.json 内容异常：__Properties__ 只有 %s 项（文件 %s）"
+            % (len(props) if isinstance(props, dict) else props, _AVATAR_INIT_PATH))
+    return d
+
+AVATAR_INIT_DICT = _load_avatar_init()
+
+# 旧的手写最小表，保留作为参考/兜底
+_LEGACY_INIT_DICT = {
+    "__Properties__": {
+        "item_bag": {"__tp__": "ItemBag", "__id__": 1},
+        "task_bag": {"__tp__": "TaskBag", "__id__": 2},
+        "cur_activity_info": {"__tp__": "ActivityProp", "__id__": 3},
+    },
+}
+
+# 每个自定义字典属性都要给 { __tp__ = <注册名>, __id__ = <唯一整数> }。
+#
+# 逐条补的依据都是客户端异常（Player.log）：
+#   AvatarBagComp:refreshLocalBagData    -> pairs(self.item_bag)  nil
+#     => item_bag, 类型 ItemBag  (__ValueType__=ItemInfo,  __IntTypeKey__=false)
+#   AvatarTaskComp:getAllDoingDailyTaskItem -> self.task_bag.*  nil
+#     => task_bag, 类型 TaskBag  (__ValueType__=TaskItem,  __IntTypeKey__=true)
+# 实际使用的 initDict：优先用 AvatarProperties 生成的完整表
+DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") else _LEGACY_INIT_DICT
+
+def _login_tick(st):
+    """登录时跑一次事件总线：
+
+    1. 用当前等级发一条 AvatarAttr 事件
+    2. 跑一次 tick() 检查链式任务
+
+    命中的任务（**包括 hits 和 chain_hits**）都记到 _oo_pending_chain，
+    等 entity_rpc 的第一条 RPC 来补完并推同步帧。
+
+    ★ 2026-10-21 审计 P0-1：之前只记了 chain_hits，把 hits 直接丢了，
+      而 apply_event 内部已经把事件标成 seen —— 结果 AvatarAttr 命中的
+      6 条剧情任务永远完不成。现在 hits 一并记进去。
+    """
+    try:
+        from ..story import events as _events
+        hits = []
+        lv = st.props.get("level")
+        if isinstance(lv, int) and lv > 0:
+            res = _events.apply_event(
+                st, _events.ev_avatar_attr("level", lv, source="login"))
+            hits.extend(res.hits)
+            hits.extend(res.chain_hits)
+        res2 = _events.tick(st)
+        hits.extend(res2.chain_hits)
+        # 去重保序
+        hits = [int(x) for x in dict.fromkeys(hits)]
+        if hits:
+            st.props["_oo_pending_chain"] = hits
+            print("[init] 登录事件命中待完成剧情任务 %s" % hits, flush=True)
+    except Exception as e:
+        print("[init] 登录事件 tick 失败: %s" % e, flush=True)
+
+def _live_init_dict(uid=None):
+    """登录时的 initDict 用服务端可变状态（player_state）。
+
+    这样 Set* 改过的值、以及落盘后重启的存档，都会在下次登录时生效。
+    uid 不为空时把 initDict 里的 uid 覆盖成它 —— 多账号时每个账号用自己的 uid
+    （现在 uid 直接复用账号名，见 game_server/server.py 的在线账号关联）。
+    """
+    try:
+        from .. import player_state as pstate
+    except Exception:
+        try:
+            import player_state as pstate
+        except Exception:
+            return DEFAULT_INIT_DICT
+    try:
+        # ★ 服务端状态必须用整数键（和客户端一致）。
+        #   avatar_init.json 里是 "#9001" 这种写法，_conv_int_keys 之后才是 9001。
+        #   以前只有发包时才转换，导致 player_state 里存的是 "#9001"，
+        #   改数据、算同步的 name 时对不上。
+        st = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
+                              uid=uid)
+    except Exception:
+        return DEFAULT_INIT_DICT
+    # 账号 uid 写进状态本身（多账号时每个账号用自己的 uid）
+    if uid:
+        st.props["uid"] = uid
+    # ★ 脚手架覆盖层：只在「该账号首次建状态」时应用一次，默认关闭。
+    #   以前是烤进 avatar_init.json 的，生成后关不掉，见 scaffold.py 头部注释。
+    # 只有「新建存档」才应用脚手架（老存档里的进度不能被覆盖）
+    if getattr(st, "is_new", False) and not getattr(st, "_scaffold_applied", False):
+        try:
+            from .. import scaffold as scaffold_mod
+        except Exception:
+            try:
+                import scaffold as scaffold_mod
+            except Exception:
+                scaffold_mod = None
+        if scaffold_mod is not None:
+            try:
+                changed = scaffold_mod.apply(st.props)
+                if changed:
+                    print("[init] 脚手架已应用(uid=%s): %s"
+                          % (uid, "、".join(changed)), flush=True)
+            except Exception as e:
+                print("[init] 脚手架应用失败: %s" % e, flush=True)
+        st._scaffold_applied = True
+
+    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
+    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
+    #   数据来源是 entity_rpc 的 _update_street_pos / _client_move
+    #   存下的 _oo_street_pos。
+    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
+    #   street_pos_info 的类型是 DoubleDict（Dict<string,double>），
+    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点：
+    #     local posinfo = obj:getStreetPosInfo()
+    #     if posinfo and posinfo.x then remotePosInfo = copy(posinfo) end
+    #   :654 用 remotePosInfo.x/y/z 定位、.dir 定朝向。
+    _sp = st.props.get("_oo_street_pos")
+    if isinstance(_sp, dict):
+        _spi = st.props.get("street_pos_info")
+        if isinstance(_spi, dict):
+            try:
+                _spi["x"] = float(_sp.get("x") or 0)
+                _spi["y"] = float(_sp.get("y") or 0)
+                _spi["z"] = float(_sp.get("z") or 0)
+                _spi["dir"] = float(_sp.get("dir") or 0)
+                st.props["street_pos_info"] = _spi
+            except Exception:
+                pass
+
+    # ★ 新号的剧情起点（正式路径，不是脚手架）：
+    #   把 StoryTaskData[1000] 设为进行中。街景 NPC 的 preTask 命中
+    #   Doing(3) 才会出现，所以这一步决定「街上有没有 NPC」。
+    #   脚手架开了「任务全完成」时跳过，避免和假数据打架。
+    if getattr(st, "is_new", False):
+        try:
+            from .. import story as story_mod
+        except Exception:
+            try:
+                import story as story_mod
+            except Exception:
+                story_mod = None
+        if story_mod is not None:
+            try:
+                if not ooconf.SCAFFOLD.all_tasks_done:
+                    story_mod.init_new_player(st)
+            except Exception as e:
+                print("[init] 剧情起点设置失败: %s" % e, flush=True)
+
+    # ★ 体力：新号拉满；每次登录按离线时间补。
+    #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
+    #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。
+    try:
+        from .. import stamina as stamina_mod
+    except Exception:
+        try:
+            import stamina as stamina_mod
+        except Exception:
+            stamina_mod = None
+    if stamina_mod is not None:
+        try:
+            _lv = int(st.props.get("level") or 1)
+            if getattr(st, "is_new", False) and not getattr(st, "_stamina_inited", False):
+                stamina_mod.init_new(st.props, _lv)
+                st._stamina_inited = True
+                print("[init] 体力初始化(uid=%s): %s/%s"
+                      % (uid, st.props.get("tower_reward_keys"),
+                         stamina_mod.max_stamina(_lv)), flush=True)
+            else:
+                _gained, _ = stamina_mod.apply_recovery(st.props, _lv)
+                if _gained:
+                    print("[init] 离线恢复体力(uid=%s): +%s -> %s"
+                          % (uid, _gained, st.props.get("tower_reward_keys")), flush=True)
+        except Exception as e:
+            print("[init] 体力处理失败: %s" % e, flush=True)
+    # ★ 服务端私有字段（以 _oo_ 开头，比如 _oo_street_pos / _oo_micro_state）
+    #   **绝不能进 initDict** —— 客户端 initProperty 对每个表值都要求带 __tp__
+    #   （core/propertysync/puppetpropertycomponent.lua:51-54 的 assert），
+    #   普通 dict 会让 ClientAvatar:init 抛错、返回非布尔，
+    #   表现为「自动进入游戏 -> 被踢回开始页 -> 再自动进 -> 再被踢」的死循环。
+    #   实测踩过（2026-10-20 阶段 2 第 2 轮）。
+    # ★ 2026-10-21 审计 P0-1：**嵌套的 __tp__ 也必须剥掉**。
+    #   之前只过滤顶层 _oo_，嵌套的 __tp__ 会原样进 initDict：
+    #     task_bag[1] = {"__tp__": "TaskBag", "__id__": ..., 1: {...}}
+    #   客户端 initProperty -> TaskBag:roinit 遍历到 __tp__ 这个键 ->
+    #     declare = __ValueTypeDeclare__（TaskItem，自定义类型）->
+    #     createCustomObjRO("__tp__", "TaskBag") -> 对字符串执行
+    #     value.__id__ = nil（customdict.lua:449）-> 崩
+    #   实测：接一个通用任务后重新登录，客户端必崩。
+    #
+    #   _strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
+    #   递归进去的值一律剥掉。
+    # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
+    _login_tick(st)
+    from ..property import sync as _syncmod
+    _public = {}
+    for k, v in st.props.items():
+        if isinstance(k, str) and k.startswith("_oo_"):
+            continue
+        _public[k] = _syncmod._strip_private(v, is_root=True)
+    return {"__Properties__": _public}
+
+def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
+                         init_dict=None,
+                         entity_id=_DEF_AVATAR_EID,
+                         session_id=_DEF_UID,
+                         uid=None):
+    """构造 createChannelEntity（IGateClientService 第 4 个方法）。
+
+    字段 1 按 **string** 发类名（如 "ClientAvatar"）；
+    字段 2 是 msgpack 编码的 initDict。
+    """
+    if not isinstance(entity_type, bytes):
+        entity_type = str(entity_type).encode("utf-8")
+    if init_dict is None:
+        init_dict = _live_init_dict(uid)
+    info = mp_map(_conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
+    body = pb_bytes_field(1, entity_type)
+    body += pb_bytes_field(2, info)
+    body += pb_bytes_field(3, entity_id.encode("utf-8"))
+    body += pb_bytes_field(4, session_id.encode("utf-8"))
+    return frame(4, body)

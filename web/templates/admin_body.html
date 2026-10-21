@@ -1,0 +1,30 @@
+<!-- 管理控制台页面主体（P0-E3 从 web/app.py 抽出） -->
+<div class="shell">
+  <div class="top">
+    <div class="brand"><span class="mark">OO</span><span>管理控制台</span></div>
+    <div class="top-right">
+      <span>已登录 <b id="who">-</b></span>
+      <span class="badge player" id="perm">-</span>
+      <a class="ghost" href="/">返回门户</a>
+    </div>
+  </div>
+
+  <div class="body" id="body">
+    <div class="console">
+      <div class="out" id="out"></div>
+      <div class="input-row">
+        <span class="prompt">&gt;</span>
+        <input id="cmd" autocomplete="off" spellcheck="false" placeholder="输入 /help 开始">
+        <button id="send" onclick="submitCmd()">执行</button>
+      </div>
+    </div>
+    <aside class="quick" id="quick"></aside>
+  </div>
+
+  <div class="denied" id="denied" hidden>
+    <div>
+      <h2>没有访问权限</h2>
+      <p>这个页面需要 GM 及以上权限。<br>请让管理员执行 <code>/account 你的账号 perm 1</code>。</p>
+    </div>
+  </div>
+</div>

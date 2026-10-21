@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""副本结算（P0-E2 第 3 步）。
+
+完整五步链路（见 ROADMAP 2-4 节）：
+  ① 客户端上报 finishInfo（含 toStreetId / toStreetPosId / 每人 endResult）
+       Cmd_Avatar_FinishGame_CS   —— 离线/Avatar 路径（dispatchhubonline.lua:136-151）
+       Cmd_OfflineSpace_Finish_CS —— Soul 路径
+  ② 服务端算奖励
+  ③ 服务端下发 AvatarSpace_SpaceFinish_SC（index 1634212414）  ← 关键缺口
+  ④ 客户端按 match_info.system_type 分派：
+       1004(StoryLine) -> storyLineSettle()，只调 directLeaveBattle()，**不弹面板**
+       1000(Dungeon)   -> dungeonChallengeSettle() 才弹面板
+       序章是 1004，所以打完是「直接回街区」而不是弹面板 —— 这是正常的。
+  ⑤ 玩家退出 -> GoBackToWhere -> 用 toStreetId/toStreetPosId 回街区
+
+之前只回了个 ACK，客户端 onFinishGameSuccess(true) 什么都不做
+（offlinebattlespace.lua:217-221），于是卡在战斗空间、输入被锁。
+"""
+from .. import ms as msmod
+from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_index import ACK_OK
+from ..story import events as _events
+from ..story.rpc import _finish_story_tasks
+from .context import _STORY_TYPE_MAINSTORY
+from .reward import _grant_battle_items
+RPC_AVATAR_SPACE_FINISH_SC = 1634212414   # AvatarSpace_SpaceFinish_SC
+
+def _finish_info_of(info, uid):
+    """从 finishInfo 里取出「我」那一份 endResult。"""
+    if not isinstance(info, dict):
+        return {}
+    me = info.get(uid)
+    if isinstance(me, dict):
+        return me
+    for k, v in info.items():
+        if isinstance(v, dict) and ("battle_items" in v or "win" in v):
+            return v
+    return {}
+
+def _settlement_table(st, uid, info, reward_list):
+    """构造下发客户端的结算表（AvatarSpace_SpaceFinish_SC 的唯一参数）。
+
+    客户端读的地方：
+      avatarsettlementcomp.lua:54-76  remakeResultData
+        -> resultData[uid].reward_item_list / useTime / collectCount / win
+        -> resultData.userList（遍历找自己）
+      avatarsettlementcomp.lua:154-178 GoBackToWhere
+        -> data.toStreetId / data.toStreetPosId
+      modules/battlesettle/settlefactory.lua:327-335 createSettle
+        -> resultData.match_info.system_type
+           1004(StoryLine) -> storyLineSettle（不弹面板，直接回街区）
+           1000(Dungeon)  -> dungeonChallengeSettle（弹面板）
+    """
+    me = _finish_info_of(info, uid)
+    to_street = info.get("toStreetId") if isinstance(info, dict) else None
+    to_pos = info.get("toStreetPosId") if isinstance(info, dict) else None
+    try:
+        to_street = int(to_street) if to_street is not None else None
+    except Exception:
+        to_street = None
+    if not to_street:
+        to_street = int(st.props.get("street_id") or 0)
+    try:
+        to_pos = int(to_pos) if to_pos is not None else 0
+    except Exception:
+        to_pos = 0
+    try:
+        finish_reason = int(info.get("finishReason") or 0)
+    except Exception:
+        finish_reason = 0
+    mine = {
+        "win": bool(me.get("win", True)),
+        "reward_item_list": reward_list,
+        "useTime": int(me.get("useTime") or 0),
+        "collectCount": int(me.get("collectCount") or 0),
+        "rank": int(me.get("rank") or 1),
+        "damage": int(me.get("damage") or 0),
+    }
+    match_info = st.props.get("_oo_cur_match")
+    if not isinstance(match_info, dict):
+        match_info = {"system_type": 1004, "modeId": 1, "match_type": 3}
+    settle = {
+        "userList": {uid: 1},
+        uid: mine,
+        "toStreetId": to_street,
+        "toStreetPosId": to_pos,
+        "finishReason": finish_reason,
+        "match_info": match_info,
+    }
+    return settle
+
+def _advance_story_on_finish(st, info=None, uid=None):
+    """副本打完后推进剧情。
+
+    优先用 finishInfo 自带的 typeId/modeId/level（兼容手工构造的调用）；
+    没有就用 StartGame 时存下的 _oo_cur_match（match_info）反查：
+    typeId = system_type，modeId = modeId。
+    序章就是 FinishDungeon{typeId:1004, modeId:1, level:1}。
+    """
+    type_id = 0
+    mode_id = 0
+    level = 1
+    # 1) finishInfo 自带（旧格式 / 测试用）
+    if isinstance(info, dict):
+        try:
+            type_id = int(info.get("typeId") or 0)
+            mode_id = int(info.get("modeId") or 0)
+            level = int(info.get("level") or 1)
+        except Exception:
+            type_id = 0
+    # 2) 回退到 StartGame 存的 match_info
+    if not type_id:
+        m = st.props.get("_oo_cur_match")
+        if isinstance(m, dict):
+            try:
+                type_id = int(m.get("system_type") or 0)
+                mode_id = int(m.get("modeId") or 0)
+            except Exception:
+                type_id = 0
+    if not type_id:
+        return []
+    # ★ 把能拿到的参数都给上。event_matches 要求事件配置里的每个键都在
+    #   params 里，所以参数越全，能匹配上的事件越多：
+    #     areaid        57 个事件需要（区域 id，用 copyId 查 MainlineData）
+    #     levelId        4 个事件需要（具体关卡 id）
+    #     instructionid  6 个事件需要（战斗教学指令 id）
+    #     first_pass     6 个事件需要（首通标记）
+    #     isWin          1 个事件需要
+    ev = {"typeId": type_id, "modeId": mode_id, "level": level}
+    area = st.props.get("_oo_cur_area")
+    if area:
+        ev["areaid"] = int(area)
+    lv = st.props.get("_oo_cur_level")
+    if lv:
+        ev["levelId"] = int(lv)
+    teach = st.props.get("_oo_cur_teach")
+    if teach:
+        ev["instructionid"] = int(teach)
+    me = _finish_info_of(info, uid) if uid is not None else {}
+    win = bool(me.get("win", True))
+    ev["isWin"] = 1 if win else 0
+    cleared = st.props.get("_oo_cleared_levels")
+    if not isinstance(cleared, dict):
+        cleared = {}
+    lv_key = str(lv or 0)
+    first_pass = bool(lv) and lv_key not in cleared
+    if first_pass:
+        ev["first_pass"] = 1
+    # ★ P0-D：走事件总线（唯一写入口），不再直接调 story.evaluate_event
+    result = _events.apply_event(
+        st, _events.GameEvent(_events.EV_FINISH_DUNGEON, ev,
+                              source="rpc:Cmd_Avatar_FinishGame_CS"))
+    hits = result.hits
+    out = []
+    if hits:
+        out.extend(_finish_story_tasks(st, hits))
+    # 序章（SystemType.MainStory = 1004）打完 -> story_finished[1] = True，
+    # 下次登录 clientavatar.lua:180 的 CheckEnterPrologue 就会跳过序章进街区。
+    if type_id == _STORY_TYPE_MAINSTORY:
+        sf = st.props.get("story_finished")
+        if isinstance(sf, dict) and sf.get(1) is not True:
+            is_new = 1 not in sf
+            sf[1] = True
+            st.set("story_finished", sf)
+            out.append(sync_frame(
+                "", sf.get("__id__") or 0,
+                msmod.OP_ADD if is_new else msmod.OP_CHANGE,
+                "1", True))
+            print("[dungeon] 序章完成，story_finished[1]=True", flush=True)
+    # ★ P0-D：链式任务也走事件总线。这里用 tick() 而不是 apply_event()，
+    #   因为刚完成的任务可能让链式任务的前置条件满足了。
+    tick_res = _events.tick(st)
+    if tick_res.chain_hits:
+        out.extend(_finish_story_tasks(st, tick_res.chain_hits))
+    # 首通记录（下次同关卡就不是 first_pass 了）
+    if lv and win:
+        cleared[lv_key] = 1
+        st.set("_oo_cleared_levels", cleared)
+    if hits:
+        print("[dungeon] 结算推进剧情 %s（事件参数 %s）" % (hits, ev),
+              flush=True)
+    return out
+
+def _dungeon_finish(rid, params, uid=None):
+    """Cmd_Avatar_FinishGame_CS / Cmd_OfflineSpace_Finish_CS —— 副本结算。
+
+    1. 从 finishInfo[uid].battle_items 算奖励并发进背包
+    2. 下发 AvatarSpace_SpaceFinish_SC（客户端靠它弹结算面板 + 回街区）
+    3. 用 _oo_cur_match 推进剧情
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    info = vals[0] if (isinstance(vals, list) and vals
+                      and isinstance(vals[0], dict)) else {}
+    if not isinstance(info, dict):
+        info = {}
+    st = state(uid)
+    me = _finish_info_of(info, uid)
+    item_frames, reward_list = _grant_battle_items(
+        st, me.get("battle_items") or {})
+    frames.extend(item_frames)
+    settle = _settlement_table(st, uid, info, reward_list)
+    frames.append(msmod.build_entity_message(
+        "", "AvatarSpace_SpaceFinish_SC", RPC_AVATAR_SPACE_FINISH_SC,
+        msmod.mp_arr([settle])))
+    try:
+        to_street = int(settle.get("toStreetId") or 0)
+    except Exception:
+        to_street = 0
+    if to_street and to_street != int(st.props.get("street_id") or 0):
+        st.props["street_id"] = to_street
+        frames.append(sync_frame(
+            "", 0, msmod.OP_CHANGE, "street_id", to_street))
+    frames.extend(_advance_story_on_finish(st, info, uid))
+    st.props.pop("_oo_cur_copy", None)
+    st.props.pop("_oo_cur_match", None)
+    st.props.pop("_oo_cur_level", None)
+    st.props.pop("_oo_cur_area", None)
+    st.props.pop("_oo_cur_teach", None)
+    st.save()
+    print("[dungeon] 结算完成：奖励 %d 项，回街区 %s 位置 %s"
+          % (len(reward_list), settle.get("toStreetId"),
+             settle.get("toStreetPosId")), flush=True)
+    return frames
+
+def _storyline_finish_game(rid, params, uid=None):
+    """Storyline_FinishGame {storyID, passed, useTime} —— 标记剧情段落完成。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        sid = int(vals[0] or 0)
+    except Exception:
+        return frames
+    passed = True
+    if len(vals) > 1:
+        passed = bool(vals[1])
+    if not passed:
+        return frames
+    st = state(uid)
+    sf = st.props.get("story_finished")
+    if not isinstance(sf, dict):
+        return frames
+    if sf.get(sid) is not True:
+        # ★ is_new 必须在赋值**之前**判断。
+        #   审计发现：之前写成 `sf[sid] = True` 之后再判 `sid in sf`，
+        #   恒为 True -> 新键永远发 OP_CHANGE -> 客户端 oldVal nil 报错、同步被丢。
+        is_new = sid not in sf
+        sf[sid] = True
+        st.set("story_finished", sf)
+        st.save()
+        frames.append(sync_frame(
+            "", sf.get("__id__") or 0,
+            msmod.OP_ADD if is_new else msmod.OP_CHANGE,
+            str(sid), True))
+    print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)
+    return frames

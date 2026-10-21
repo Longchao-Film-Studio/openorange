@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""副本内关卡切换与战斗教学（P0-E2 第 3 步）。
+
+★ 逆向依据 battlecontainer/dispatchhub/dispatchhubonline.lua:198-232：
+  enterNextLevelCallback(..., ret, response) -> if ret.status then callback(true, response.levelInfo)
+  HubPlayer:enterOfflineBattleCallback -> self.hub:initProgress(levelinfo.levelProgress)
+  levelinfo 为 nil 直接抛异常（实测 HubPlayer.lua:139），下一关的 ServerBattle
+  根本建不起来，角色在空场景里一直坠落。所以应答必须带 levelInfo。
+
+BattleTeach_Activate_CS 写 battle_teach_state[iid] = 0 并推同步：
+  battle_main_panel.lua:513-516  if newVal ~= 0 then return end  => 0 才弹教学 UI
+"""
+import time
+
+from .. import gamedata
+from .. import ms as msmod
+from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_index import ACK_OK
+from .context import _remember_dungeon
+RPC_CMD_AVATAR_ENTER_NEXT = 43868592
+
+RPC_CMD_AVATAR_FINISH_GAME = 1846356571
+
+def _avatar_enter_next(rid, params, uid=None):
+    """Cmd_Avatar_EnterNext_CS {copyIndex} —— 回下一关的 levelInfo。
+
+    客户端 hubplayer.lua:116-121 会读：
+      levelinfo.levelProgress / towerLevelInfo / randSeed / runTime
+    少了就是 nil 索引异常，下一关建不起来。
+    """
+    vals = decode_params(params)
+    copy_index = 0
+    if isinstance(vals, list) and vals:
+        try:
+            copy_index = int(vals[0] or 0)
+        except Exception:
+            copy_index = 0
+    st = state(uid)
+    level_info = {
+        "levelProgress": {},
+        "randSeed": int(time.time()) & 0x7FFFFFFF,
+        "runTime": 0,
+    }
+    # ★ 切到下一关时更新「当前关卡」，结算时要用它算 levelId / areaid
+    copy_id = st.props.get("_oo_cur_copy")
+    roots = (gamedata.level_copy(copy_id) or {}).get("rootLevel") or []
+    if 1 <= copy_index <= len(roots):
+        _remember_dungeon(st, copy_id, roots[copy_index - 1])
+        st.save()
+    print("[dungeon] 进入下一关 copyIndex=%s 关卡=%s"
+          % (copy_index, st.props.get("_oo_cur_level")), flush=True)
+    return [msmod.build_entity_response(
+        rid, ret=dict(ACK_OK),
+        resp={"levelInfo": level_info})]
+
+def _battle_teach_activate(rid, params, uid=None):
+    """BattleTeach_Activate_CS {instructionID} —— 激活战斗教学。
+
+    客户端 avatarsystemguidecomp.lua:406-408 -> serverRpc("BattleTeach_Activate_CS")
+    服务端写 battle_teach_state[instructionID] = 0 并推同步：
+      config.lua:10084 AvatarSystemGuideComp
+        entryAdded.battle_teach_state -> onAddBattleTeach
+        changed["battle_teach_state.*"] -> onChangedBattleTeachState
+      battle_main_panel.lua:513-516  if newVal ~= 0 then return end
+      => 值为 0 才会弹教学 UI
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        iid = int(vals[0] or 0)
+    except Exception:
+        return frames
+    st = state(uid)
+    bts = st.props.get("battle_teach_state")
+    if not isinstance(bts, dict):
+        return frames
+    # 记下本次副本激活过的教学指令 —— 结算时喂 instructionid（6 个事件需要）
+    st.set("_oo_cur_teach", iid)
+    if iid not in bts:
+        bts[iid] = 0
+        st.set("battle_teach_state", bts)
+        st.save()
+        frames.append(sync_frame(
+            "", bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
+        print("[dungeon] 激活战斗教学 %s" % iid, flush=True)
+    return frames
