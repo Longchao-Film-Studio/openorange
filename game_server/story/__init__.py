@@ -142,6 +142,56 @@ def start_story_task(st, task_id, now):
     return out
 
 
+def mark_finish_parameter(st, task_id, param):
+    """把「已满足的一个目标」记进 finish_parameter，返回子属性同步描述。
+
+    ★ 依据（客户端 ui/panel/streetv2panel/streettasktrackcomp.lua:108-134）：
+      getStoryTaskDoingTargets 把 finish_parameter 里的值拿去和 Parameter1 逐个比对，
+      命中的下标对应的 GuideParam 目标就不再显示追踪箭头 ——
+      所以 finish_parameter 是「已完成的 Parameter1 值」列表。
+
+    ★ 只有 Parameter1 多于 1 项的任务才有意义（全表 11 条，其中 8 条带 GuideParam）。
+      单目标任务永远不需要它。
+
+    ★ 表示形式：CustomList（spec.py:132 —— list 类型的键是 "#N"，序列化后是 msgpack 数组），
+      所以这里是 {"__id__": N, "#1": v1, "#2": v2, ...}。
+    """
+    task_id = int(task_id)
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict):
+        return []
+    item = bag.get(task_id)
+    if not isinstance(item, dict):
+        return []
+    fp = item.get("finish_parameter")
+    if not isinstance(fp, dict):
+        fp = {"__id__": st.next_property_id()}
+    for k, v in fp.items():
+        if str(k).startswith("#") and int(v) == int(param):
+            return []
+    used = [int(str(k)[1:]) for k in fp
+            if str(k).startswith("#") and str(k)[1:].isdigit()]
+    fp["#%d" % ((max(used) + 1) if used else 1)] = int(param)
+    item["finish_parameter"] = fp
+    st.set("story_task_bag", bag)
+    return [("child", item, "finish_parameter", fp)]
+
+
+def finish_parameters_of(item):
+    """读出 finish_parameter 里的值集合。"""
+    fp = item.get("finish_parameter") if isinstance(item, dict) else None
+    if not isinstance(fp, dict):
+        return set()
+    out = set()
+    for k, v in fp.items():
+        if str(k).startswith("#"):
+            try:
+                out.add(int(v))
+            except Exception:
+                pass
+    return out
+
+
 def mark_story_task_finished(st, task_id, now):
     """只做「→Finished(6)」这一步，返回同步描述（可能含一条补建的 OP_ADD）。
 

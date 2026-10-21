@@ -59,6 +59,16 @@ def _story_sync_frames(st, changes):
                 continue
             frames.append(sync_frame(
                 SYNC_SELF, c.get("__id__") or 0, msmod.OP_CHANGE, str(key), value))
+        elif kind == "child":
+            # 改「某个条目内部的子属性」（例如 story_task_bag.<id>.finish_parameter）：
+            # propertyId 是**条目自己的 __id__**，name 是子属性名。
+            # 客户端 config.lua:9941-9944 的 changed["story_task_bag.*.finish_parameter"]
+            # 就是靠这个路径命中的。
+            _, obj, name, value = ch
+            if not isinstance(obj, dict):
+                continue
+            frames.append(sync_frame(
+                SYNC_SELF, obj.get("__id__") or 0, msmod.OP_CHANGE, str(name), value))
         elif kind == "del":
             _, container, key, _v = ch
             c = st.props.get(container)
@@ -231,6 +241,26 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
     frames.extend(_recalc_story_unlocks(st))
     return frames
 
+def _accumulate_multi_target(st, tid, param, frames):
+    """多目标任务：先把 param 记进 finish_parameter；没集齐返回 False（暂不完成）。
+
+    ★ 数据依据：StoryTaskData 里 Parameter1 多于 1 项的任务共 11 条（8 条带 GuideParam）。
+      客户端每完成一个目标就发一次 RequestDoneStoryTaskParamInt_CS(taskId, param)，
+      而服务端以前收到第一个就把整个任务完成了 —— 剩下两个目标被直接吞掉，
+      追踪箭头也会提前全消失（streettasktrackcomp.lua:108-134 靠 finish_parameter 判断）。
+    """
+    cfg = gamedata.story_task(tid) or {}
+    p1 = cfg.get("Parameter1") or []
+    if not isinstance(p1, list) or len(p1) <= 1 or param is None:
+        return True
+    frames.extend(_story_sync_frames(
+        st, story.mark_finish_parameter(st, tid, param)))
+    bag = st.props.get("story_task_bag") or {}
+    item = bag.get(int(tid))
+    got = story.finish_parameters_of(item)
+    return all(int(x) in got for x in p1)
+
+
 def _done_story_task(rid, params, uid=None):
     """RequestDoneStoryTaskParamInt_CS / ParamStr_CS —— 参数第 0 项是 taskId。"""
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
@@ -242,6 +272,14 @@ def _done_story_task(rid, params, uid=None):
     except Exception:
         return frames
     st = state(uid)
+    param = None
+    if len(vals) > 1:
+        try:
+            param = int(vals[1])
+        except Exception:
+            param = None
+    if not _accumulate_multi_target(st, tid, param, frames):
+        return frames
     frames.extend(_finish_story_tasks(st, [tid]))
     return frames
 
@@ -263,8 +301,10 @@ def _street_actor(rid, params, uid=None):
         return frames
     st = state(uid)
     hits = _find_story_tasks_by_param(st, actor_id, 2)
-    if hits:
-        frames.extend(_finish_story_tasks(st, hits))
+    ready = [tid for tid in hits
+             if _accumulate_multi_target(st, tid, actor_id, frames)]
+    if ready:
+        frames.extend(_finish_story_tasks(st, ready))
     return frames
 
 def _find_story_tasks_by_param(st, param_int, task_type):
