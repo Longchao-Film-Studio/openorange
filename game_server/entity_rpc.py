@@ -1780,6 +1780,10 @@ def _avatar_start_game(rid, params, uid=None):
     st.props["_oo_cur_copy"] = copy_id
     # 结算时要用它反查 typeId/modeId 推进剧情（客户端 finishInfo 里没有）
     st.props["_oo_cur_match"] = match_info
+    # ★ 结算时喂给剧情引擎的额外事件参数：FinishDungeon 事件里有 57 个带
+    #   areaid、4 个带 levelId，不给就永远匹配不上（event_matches 要求全字段）。
+    _remember_level(st, (inner.get("levelIds") or [None])[0])
+    st.props.pop("_oo_cur_teach", None)   # 新副本，清掉上一轮的教学记录
     st.save()
     print("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots), flush=True)
     resp = {"status": True, "spaceInfo": space_info}
@@ -1870,7 +1874,14 @@ def _avatar_enter_next(rid, params, uid=None):
         "randSeed": int(time.time()) & 0x7FFFFFFF,
         "runTime": 0,
     }
-    print("[dungeon] 进入下一关 copyIndex=%s" % copy_index, flush=True)
+    # ★ 切到下一关时更新「当前关卡」，结算时要用它算 levelId / areaid
+    copy_id = st.props.get("_oo_cur_copy")
+    roots = (gamedata.level_copy(copy_id) or {}).get("rootLevel") or []
+    if 1 <= copy_index <= len(roots):
+        _remember_level(st, roots[copy_index - 1])
+        st.save()
+    print("[dungeon] 进入下一关 copyIndex=%s 关卡=%s"
+          % (copy_index, st.props.get("_oo_cur_level")), flush=True)
     return [msmod.build_entity_response(
         rid, ret=dict(ACK_OK),
         resp={"levelInfo": level_info})]
@@ -2010,7 +2021,32 @@ def _settlement_table(st, uid, info, reward_list):
     return settle
 
 
-def _advance_story_on_finish(st, info=None):
+def _remember_level(st, level_id):
+    """记住「当前在打哪一关」，结算时喂 levelId / areaid 给剧情引擎。
+
+    为什么需要：FinishDungeon 的 77 个事件里，
+      - 57 个带 areaid（副本区域 id）
+      - 4 个带 levelId（具体关卡 id）
+    而 story.event_matches 要求事件配置里的**每个**参数都出现在我们给的
+    params 里，否则不匹配。所以这两个值必须提前记下来。
+    """
+    try:
+        lv = int(level_id) if level_id else 0
+    except (TypeError, ValueError):
+        lv = 0
+    if not lv:
+        st.props.pop("_oo_cur_level", None)
+        st.props.pop("_oo_cur_area", None)
+        return
+    st.props["_oo_cur_level"] = lv
+    area = gamedata.area_of_level(lv)
+    if area:
+        st.props["_oo_cur_area"] = int(area)
+    else:
+        st.props.pop("_oo_cur_area", None)
+
+
+def _advance_story_on_finish(st, info=None, uid=None):
     """副本打完后推进剧情。
 
     优先用 finishInfo 自带的 typeId/modeId/level（兼容手工构造的调用）；
@@ -2042,7 +2078,33 @@ def _advance_story_on_finish(st, info=None):
         return []
     if not type_id:
         return []
+    # ★ 把能拿到的参数都给上。event_matches 要求事件配置里的每个键都在
+    #   params 里，所以参数越全，能匹配上的事件越多：
+    #     areaid        57 个事件需要（副本区域 id，从当前关卡反查）
+    #     levelId        4 个事件需要（具体关卡 id）
+    #     instructionid  6 个事件需要（战斗教学指令 id）
+    #     first_pass     6 个事件需要（首通标记）
+    #     isWin          1 个事件需要
     ev = {"typeId": type_id, "modeId": mode_id, "level": level}
+    area = st.props.get("_oo_cur_area")
+    if area:
+        ev["areaid"] = int(area)
+    lv = st.props.get("_oo_cur_level")
+    if lv:
+        ev["levelId"] = int(lv)
+    teach = st.props.get("_oo_cur_teach")
+    if teach:
+        ev["instructionid"] = int(teach)
+    me = _finish_info_of(info, uid) if uid is not None else {}
+    win = bool(me.get("win", True))
+    ev["isWin"] = 1 if win else 0
+    cleared = st.props.get("_oo_cleared_levels")
+    if not isinstance(cleared, dict):
+        cleared = {}
+    lv_key = str(lv or 0)
+    first_pass = bool(lv) and lv_key not in cleared
+    if first_pass:
+        ev["first_pass"] = 1
     hits, _ch = story.evaluate_event(st, "FinishDungeon", ev)
     out = []
     if hits:
@@ -2063,8 +2125,13 @@ def _advance_story_on_finish(st, info=None):
     chain, _c2 = story.check_chain_tasks(st)
     if chain:
         out.extend(_finish_story_tasks(st, chain))
+    # 首通记录（下次同关卡就不是 first_pass 了）
+    if lv and win:
+        cleared[lv_key] = 1
+        st.set("_oo_cleared_levels", cleared)
     if hits:
-        print("[dungeon] 结算推进剧情 %s（事件参数 %s）" % (hits, ev), flush=True)
+        print("[dungeon] 结算推进剧情 %s（事件参数 %s）" % (hits, ev),
+              flush=True)
     return out
 
 
@@ -2098,9 +2165,12 @@ def _dungeon_finish(rid, params, uid=None):
         st.props["street_id"] = to_street
         frames.append(msmod.build_property_sync(
             "", 0, msmod.OP_CHANGE, "street_id", to_street))
-    frames.extend(_advance_story_on_finish(st, info))
+    frames.extend(_advance_story_on_finish(st, info, uid))
     st.props.pop("_oo_cur_copy", None)
     st.props.pop("_oo_cur_match", None)
+    st.props.pop("_oo_cur_level", None)
+    st.props.pop("_oo_cur_area", None)
+    st.props.pop("_oo_cur_teach", None)
     st.save()
     print("[dungeon] 结算完成：奖励 %d 项，回街区 %s 位置 %s"
           % (len(reward_list), settle.get("toStreetId"),
@@ -2131,6 +2201,9 @@ def _battle_teach_activate(rid, params, uid=None):
     bts = st.props.get("battle_teach_state")
     if not isinstance(bts, dict):
         return frames
+    # 记下本次副本激活过的教学指令 —— 结算时喂 instructionid（6 个事件需要）
+    st.props["_oo_cur_teach"] = iid
+    st.set("_oo_cur_teach", iid)
     if iid not in bts:
         bts[iid] = 0
         st.set("battle_teach_state", bts)

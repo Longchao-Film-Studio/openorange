@@ -160,6 +160,35 @@ def level(level_id):
     return row("LevelData", level_id)
 
 
+_AREA_BY_LEVEL = None
+
+
+def area_of_level(level_id):
+    """LevelData id -> DungeonId（区域 id）。
+
+    依据：EnterDungeonData 是 {id: {DungeonId, StageId, BirthPoint}}，
+    其中 StageId 就是 LevelData 的 id（实测 108/109 对得上）。
+    反向索引一次建好缓存。
+
+    用途：FinishDungeon 事件里有 57 个带 areaid 参数，
+    结算时必须能给出 areaid 才匹配得上（见 story.event_matches）。
+    """
+    global _AREA_BY_LEVEL
+    if _AREA_BY_LEVEL is None:
+        _AREA_BY_LEVEL = {}
+        for row in (table("EnterDungeonData") or {}).values():
+            if not isinstance(row, dict):
+                continue
+            sid = row.get("StageId")
+            did = row.get("DungeonId")
+            if isinstance(sid, int) and isinstance(did, int):
+                _AREA_BY_LEVEL.setdefault(sid, did)
+    try:
+        return _AREA_BY_LEVEL.get(int(level_id))
+    except (TypeError, ValueError):
+        return None
+
+
 def level_copy(copy_id):
     """Level_CopyData[copy_id] —— 副本配置，含 rootLevel（关卡 id 列表）。"""
     return row("Level_CopyData", copy_id)
