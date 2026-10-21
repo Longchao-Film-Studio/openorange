@@ -63,6 +63,11 @@ def run():
     check("等级升到 1", entry.get("prestige_level") == 1, entry.get("prestige_level"))
     check("剩余经验 30", entry.get("prestige_exp") == 30, entry.get("prestige_exp"))
     check("返回同步帧", len(frames) >= 2, len(frames))
+    # ★ 影子缓存校验：加声望的帧喂进客户端会不会崩
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from shadow_cache import frames_safe
+    _sc, _errs = frames_safe(msmod._live_init_dict("sx"), frames, "加声望")
+    check("加声望的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[4] 领声望等级奖励")
     frames = erpc.handle(erpc.RPC_INDEX["RequestGetPrestigeAward_CS"],

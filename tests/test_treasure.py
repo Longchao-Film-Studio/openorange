@@ -78,6 +78,12 @@ def run():
     check("宝箱标记为已开",
           (entry.get("treasure_box_info") or {}).get(10157) == 1)
     check("返回同步帧（不止宝箱状态）", len(frames) >= 3, len(frames))
+    # ★ 影子缓存校验：开宝箱的帧喂进客户端会不会崩（审计说这条路径曾发带 __tp__ 的
+    #   整条 StreetInfo，客户端 rochange 索引 nil）
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from shadow_cache import frames_safe
+    _sc, _errs = frames_safe(msmod._live_init_dict("tr_a"), frames, "开宝箱")
+    check("开宝箱的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[3] 重复开启不再发奖")
     frames2 = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],

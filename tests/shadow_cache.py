@@ -466,6 +466,29 @@ class ShadowCache(object):
                 obj.props[k] = v
 
 
+
+
+def frames_safe(init_dict, frames, tag=""):
+    """便捷入口：建影子缓存 -> 喂帧 -> 返回 (sc, errors)。
+
+    给现有测试用的：把 handler 产出的帧直接喂进来，断言客户端不崩。
+
+    用法：
+        from shadow_cache import frames_safe
+        sc, errs = frames_safe(msmod._live_init_dict(uid), frames)
+        assert not errs, errs
+    """
+    props = (init_dict or {}).get("__Properties__") or init_dict or {}
+    sc = ShadowCache()
+    sc.init_property(props)
+    for f in frames:
+        sc.apply_frame(f)
+    if tag and sc.errors:
+        print("    [%s] 客户端会崩 %d 处：" % (tag, len(sc.errors)))
+        for e in sc.errors[:5]:
+            print("      " + e[:110])
+    return sc, list(sc.errors)
+
 def _to_num(k):
     """客户端 intTypeKey 的 tonumber(k)。"""
     if isinstance(k, int):
