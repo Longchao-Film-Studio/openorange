@@ -187,6 +187,17 @@ def task_event(event_id):
     return row("TaskEventData", event_id)
 
 
+def street_treasure(treasure_id):
+    """StreetTreasureTaskData[treasure_id] —— 街景宝箱配置。
+
+    字段（实测）：
+      AwardItemList = {道具id: 数量}
+      AwardAttr     = {street_id, prestige_exp}
+      OwnStreetID / StoryID / preTaskStateMap / treasureTaskType
+    """
+    return row("StreetTreasureTaskData", treasure_id)
+
+
 def street_prestige(street_id):
     """StreetPrestigeData[street_id] —— 该街区的声望等级表（list，含 needExpNum/level/levelAward）。"""
     d = table("StreetPrestigeData")

@@ -1128,10 +1128,70 @@ def _leave_surface(params, uid=None):
     return out
 
 
+def _grant_treasure_reward(st, tid):
+    """按 StreetTreasureTaskData[tid] 发宝箱奖励，返回同步帧。
+
+    逆向依据（BDD 实测，44 条宝箱配置）：
+      AwardItemList = {道具id: 数量}      —— 38/44 条有
+      AwardAttr     = {street_id, prestige_exp}  —— 30/44 条有（都是 +6 声望经验）
+
+    之前只把 treasure_box_info[tid] 标成 1，**奖励一个没发** ——
+    玩家点开箱子只看到开箱动画，没道具也没声望，就是这个原因。
+    """
+    frames = []
+    cfg = gamedata.street_treasure(tid)
+    if not isinstance(cfg, dict):
+        return frames
+    # 1) 道具奖励
+    items = cfg.get("AwardItemList") or {}
+    bag = st.props.get("item_bag")
+    if isinstance(items, dict) and isinstance(bag, dict):
+        for k, v in items.items():
+            if k in ("KeyList", "__bdd_metatype__"):
+                continue
+            try:
+                iid = int(k)
+                cnt = int(v)
+            except Exception:
+                continue
+            if cnt <= 0:
+                continue
+            got = story.add_item(st.props, iid, cnt)
+            if not got:
+                continue
+            num, gkey, is_new = got
+            grid = bag.get(gkey)
+            if isinstance(grid, dict):
+                frames.append(msmod.build_property_sync(
+                    "", bag.get("__id__") or 0,
+                    msmod.OP_ADD if is_new else msmod.OP_CHANGE,
+                    str(gkey), grid))
+            print("[street] 宝箱 %s 发道具 %s x%s -> 现在 %s"
+                  % (tid, iid, cnt, num), flush=True)
+    # 2) 声望经验（AwardAttr.prestige_exp）
+    aa = cfg.get("AwardAttr") or {}
+    exp = 0
+    sid = None
+    if isinstance(aa, dict):
+        try:
+            exp = int(aa.get("prestige_exp") or 0)
+            sid = aa.get("street_id")
+        except Exception:
+            exp = 0
+    if exp > 0:
+        target = int(sid) if sid else int(st.props.get("street_id") or 0)
+        si2, entry2, s2 = _prestige_info(st, target)
+        if entry2 is not None:
+            frames.extend(_apply_prestige_exp(
+                st, si2, entry2, s2, exp, save=False))
+    return frames
+
+
 def _touch_treasure(params, uid=None):
     """RequestTouchTreasure_CS {treasure_id} / RequestStreetTreasure_CS {treasure_id}。
 
-    标记该宝箱已开：StreetInfo.treasure_box_info[treasure_id] = 1。
+    1. 标记该宝箱已开：StreetInfo.treasure_box_info[treasure_id] = 1
+    2. **按 StreetTreasureTaskData 发奖励**（道具 + 声望经验）
     """
     vals = params if isinstance(params, list) else decode_params(params)
     if not (isinstance(vals, list) and vals):
@@ -1149,12 +1209,17 @@ def _touch_treasure(params, uid=None):
     if not isinstance(tb, dict):
         tb = {"__id__": st.next_property_id()}
         entry["treasure_box_info"] = tb
+    already = tb.get(tid) == 1
     tb[tid] = 1
     st.set("street_info", si)
-    st.save()
-    print("[street] 开宝箱 %s（街区 %s）" % (tid, street_id), flush=True)
-    return [msmod.build_property_sync(
+    print("[street] 开宝箱 %s（街区 %s）%s"
+          % (tid, street_id, "重复开启，不再发奖" if already else ""), flush=True)
+    frames = [msmod.build_property_sync(
         "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
+    if not already:
+        frames.extend(_grant_treasure_reward(st, tid))
+    st.save()
+    return frames
 
 
 def _street_treasure_rpc(rid, params, uid=None):
@@ -1275,6 +1340,40 @@ def _prestige_push(st, si, street_id, entry):
         "", si.get("__id__") or 0, msmod.OP_CHANGE, str(street_id), entry)]
 
 
+def _apply_prestige_exp(st, si, entry, street_id, add, save=True):
+    """给某街区加声望经验并处理升级，返回同步帧。
+
+    宝箱奖励（StreetTreasureTaskData.AwardAttr.prestige_exp）和
+    声望 RPC（RequestAddPrestigeExp_CS）共用这段逻辑。
+    """
+    frames = []
+    if add <= 0 or entry is None:
+        return frames
+    entry["prestige_exp"] = int(entry.get("prestige_exp") or 0) + int(add)
+    rows = gamedata.street_prestige(
+        entry.get("prestige_street_id") or street_id)
+    by_level = {}
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("level"), int):
+            by_level[row["level"]] = int(row.get("needExpNum") or 0)
+    lv = int(entry.get("prestige_level") or 0)
+    exp = int(entry["prestige_exp"])
+    while True:
+        need = by_level.get(lv + 1)
+        if need is None or exp < need:
+            break
+        exp -= need
+        lv += 1
+    entry["prestige_level"] = lv
+    entry["prestige_exp"] = exp
+    st.set("street_info", si)
+    if save:
+        st.save()
+    print("[street] 声望 +%s -> level=%s exp=%s" % (add, lv, exp), flush=True)
+    frames.extend(_prestige_push(st, si, street_id, entry))
+    return frames
+
+
 def _add_prestige_exp(rid, params, uid=None):
     """RequestAddPrestigeExp_CS {exp} —— 加声望经验，够了就升级。"""
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
@@ -1291,26 +1390,7 @@ def _add_prestige_exp(rid, params, uid=None):
     si, entry, street_id = _prestige_info(st)
     if entry is None:
         return frames
-    entry["prestige_exp"] = int(entry.get("prestige_exp") or 0) + add
-    rows = gamedata.street_prestige(entry.get("prestige_street_id") or street_id)
-    by_level = {}
-    for row in rows:
-        if isinstance(row, dict) and isinstance(row.get("level"), int):
-            by_level[row["level"]] = int(row.get("needExpNum") or 0)
-    lv = int(entry.get("prestige_level") or 0)
-    exp = int(entry["prestige_exp"])
-    while True:
-        need = by_level.get(lv + 1)
-        if need is None or exp < need:
-            break
-        exp -= need
-        lv += 1
-    entry["prestige_level"] = lv
-    entry["prestige_exp"] = exp
-    st.set("street_info", si)
-    st.save()
-    print("[street] 声望 +%s -> level=%s exp=%s" % (add, lv, exp), flush=True)
-    frames.extend(_prestige_push(st, si, street_id, entry))
+    frames.extend(_apply_prestige_exp(st, si, entry, street_id, add))
     return frames
 
 
