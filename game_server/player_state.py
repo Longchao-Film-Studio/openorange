@@ -29,6 +29,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 #   （test_property_sync.py 用默认 uid 跑 reset_state + save，踩过一次）。
 # 存档目录统一由 config 管：默认 work/player_state，设 OO_STATE_DIR 可换。
 from . import config as _cfg  # noqa: E402
+from .property import ids as _ids  # noqa: E402
 _STATE_DIR = _cfg.STATE_DIR
 
 _LOCK = threading.RLock()
@@ -97,14 +98,14 @@ class PlayerState(object):
     def next_property_id(self):
         """分配一个新的属性对象 __id__。
 
-        ★ 必须避开 initDict 里已有的 __id__（那些是 1000+ 的值），
-          否则客户端 __CustomPropertiesCache__[id] 会撞车。
-          所以第一次分配时先把 property_seq 抬到「现有最大 __id__」之上。
+        ★ 2026-10-21 审计：这里以前和 `story._next_id_for_props()` 是**两个**
+          互不相知的分配器，实测撞号（1381 同时属于背包格子和任务条目）。
+          现在统一委托给 `property.ids.alloc_id()`，全项目唯一入口。
+
+        注意：分配进度存在 `props["_oo_next_id"]`，不再用 `property_seq`。
+        `property_seq` 只留给属性同步的序号（见 `_unused_next_property_id`）。
         """
-        if self.property_seq <= 0:
-            self.property_seq = _max_property_id(self.props)
-        self.property_seq += 1
-        return self.property_seq
+        return _ids.alloc_id(self.props)
 
     def _unused_next_property_id(self):
         """属性同步的序号，客户端用来去重/排序。"""
@@ -145,20 +146,6 @@ class PlayerState(object):
             return True
         except Exception:
             return False
-
-
-def _max_property_id(obj, cur=0):
-    """递归找 props 里最大的 __id__。"""
-    if isinstance(obj, dict):
-        v = obj.get("__id__")
-        if isinstance(v, int) and v > cur:
-            cur = v
-        for v2 in obj.values():
-            cur = _max_property_id(v2, cur)
-    elif isinstance(obj, list):
-        for v in obj:
-            cur = _max_property_id(v, cur)
-    return cur
 
 
 def load(uid=DEFAULT_UID):

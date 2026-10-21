@@ -44,6 +44,7 @@
     Idle=1 Init=2 Doing=3 WaitDone=4 Done=5 Finished=6
 """
 from . import gamedata
+from .property import ids as _ids
 
 TASK_STATE_IDLE = 1
 TASK_STATE_INIT = 2
@@ -358,7 +359,7 @@ def add_item(props, item_id, count):
     while new_key in used:
         new_key += 1
     bag[new_key] = {
-        "__id__": _next_id_for_props(props),
+        "__id__": _ids.alloc_id(props),
         "id": str(new_key),
         "itemId": int(item_id),
         "num": int(count),
@@ -368,20 +369,3 @@ def add_item(props, item_id, count):
     return int(count), new_key, True
 
 
-def _next_id_for_props(props):
-    """给嵌套对象分配 __id__（不走 PlayerState 时用）。"""
-    mx = _max_id(props)
-    return mx + 1
-
-
-def _max_id(obj, cur=0):
-    if isinstance(obj, dict):
-        v = obj.get("__id__")
-        if isinstance(v, int) and v > cur:
-            cur = v
-        for v2 in obj.values():
-            cur = _max_id(v2, cur)
-    elif isinstance(obj, list):
-        for v in obj:
-            cur = _max_id(v, cur)
-    return cur

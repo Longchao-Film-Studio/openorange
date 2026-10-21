@@ -66,7 +66,8 @@ def run():
         check("字段 " + f + " 存在", f in e)
 
     print("\n[4] __id__ 不能和已有属性撞")
-    mx = pstate._max_property_id({k: v for k, v in st.props.items() if k != "street_info"})
+    from game_server.property import ids as _ids
+    mx = _ids.max_id({k: v for k, v in st.props.items() if k != "street_info"})
     check("新条目 __id__ > 已有最大值", e.get("__id__") > mx, (e.get("__id__"), mx))
 
     print("\n[5] RpcEnterStreet 走同一条路")

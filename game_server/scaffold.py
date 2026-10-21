@@ -35,6 +35,7 @@
 - 自定义类型形状：generated/config.lua 里 StoryTaskItem / ActiveTask 的 Properties
 """
 from . import config
+from .property import ids as _ids
 
 # ---------------------------------------------------------------- 常量表
 
@@ -83,27 +84,20 @@ _INT_DICT_KEY_INT = {}
 
 # ---------------------------------------------------------------- 工具
 
-def _max_id(obj, cur=0):
-    """递归找最大的 __id__，用于分配新 id。"""
-    if isinstance(obj, dict):
-        v = obj.get("__id__")
-        if isinstance(v, int) and v > cur:
-            cur = v
-        for v2 in obj.values():
-            cur = _max_id(v2, cur)
-    elif isinstance(obj, list):
-        for v in obj:
-            cur = _max_id(v, cur)
-    return cur
-
-
 class _IdGen(object):
-    def __init__(self, start):
-        self.n = start
+    """脚手架种数据用的 id 生成器。
+
+    ★ 2026-10-21 审计：这里以前自己扫 max + 自增，是**第三个** __id__ 分配器。
+      现在统一委托给 `property.ids.alloc_id()`，和 story / player_state 共用
+      同一个单调计数器（存在 props 的 `_oo_next_id` 里），不会再撞号。
+    """
+
+    def __init__(self, props):
+        self.props = props
 
     def next(self):
-        self.n += 1
-        return self.n
+        return _ids.alloc_id(self.props)
+
 
 
 def _make(shape, gen):
@@ -140,7 +134,7 @@ def apply(props, cfg=None):
                 changed.append("系统解锁 %d 项" % len(SYSTEM_UNLOCKS))
 
     if cfg.all_tasks_done:
-        gen = _IdGen(_max_id(props))
+        gen = _IdGen(props)
 
         # task_bag：getSystemTaskState 会先看 task_bag[taskType] 是否存在，
         # 为空就直接返回 -1，根本走不到 done_tasks 的判断。
