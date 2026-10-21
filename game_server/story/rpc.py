@@ -175,8 +175,12 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
     for tid in task_ids:
         if story.story_state(st.props, tid) == story.TASK_STATE_FINISHED:
             continue
-        changes = story.finish_story_task(st, tid, now)
-        frames.extend(_story_sync_frames(st, changes))
+        # ★ P1 阶段 A：完成拆成三步，发奖插在中间
+        #   1) →Finished(6)：一条 OP_CHANGE，客户端靠它触发场记板/章节提示/清红点
+        #   2) 发奖：失败时任务仍在包里且状态 Finished，可重试（不会静默丢奖励）
+        #   3) 归档 + 推进 PostTasks
+        frames.extend(_story_sync_frames(
+            st, story.mark_story_task_finished(st, tid, now)))
         # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
         for award in story.story_award(st, tid):
             _item_id, _cnt, grid_key, is_new = award
@@ -196,6 +200,8 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
                     SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
+        frames.extend(_story_sync_frames(
+            st, story.archive_story_task(st, tid, now)))
         print("[story] 完成剧情任务 %s" % tid, flush=True)
         finished_now.append(tid)
     # ★ P0-D：把「完成了哪些任务」作为事件发出去。

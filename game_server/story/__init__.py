@@ -46,18 +46,17 @@
 from .. import gamedata
 from ..property import ids as _ids
 
-TASK_STATE_IDLE = 1
-TASK_STATE_INIT = 2
-TASK_STATE_DOING = 3
-TASK_STATE_WAIT_DONE = 4
-TASK_STATE_DONE = 5
-TASK_STATE_FINISHED = 6
+from .state_machine import (  # noqa: F401  (re-export：业务模块继续用 story.TASK_STATE_*)
+    TASK_STATE_CLOSED, TASK_STATE_DOING, TASK_STATE_DONE, TASK_STATE_FAILED,
+    TASK_STATE_FINISHED, TASK_STATE_IDLE, TASK_STATE_INIT, TASK_STATE_WAIT_DONE,
+    TransitionError, can_transition, make_story_task_item, state_name,
+)
+from .state_machine import create_task as _sm_create_task
+from .state_machine import current_state as _sm_current_state
+from .state_machine import move_to_done as _sm_move_to_done
+from .state_machine import transition as _sm_transition
 
-# 自定义类型形状（generated/config.lua:6698 StoryTaskItem / :186 ActiveTask）
-_STORY_TASK_ITEM = {
-    "id": 0, "state": 0, "get_time": 0, "start_time": 0,
-    "doing_targets": {}, "finish_targets": {}, "finish_parameter": {},
-}
+# 自定义类型形状（generated/config.lua:186 ActiveTask）
 _ACTIVE_TASK = {
     "id": 0, "type": 0, "state": 0, "get_time": 0,
     "complete_count": 0, "cache": {},
@@ -66,25 +65,6 @@ _ACTIVE_TASK = {
 
 def _next_id(st):
     return st.next_property_id()
-
-
-def make_story_task_item(st, task_id, state, now):
-    item = {"__tp__": "StoryTaskItem", "__id__": _next_id(st)}
-    item.update(_STORY_TASK_ITEM)
-    # ★ 嵌套的自定义属性（IntDictKeyInt / IntList）**必须带 __id__**，
-    #   但不带 __tp__（见 puppetpropertycomponent.lua:161-175：
-    #   _changeRootProperty 只对外层做 __tp__ 校验，嵌套对象靠 __id__ 定位）。
-    #   漏了 __id__ 客户端会报
-    #     class ClientAvatar function init must have a boolean return value
-    #   实测过（2026-10-20 阶段 2 实机验证）。
-    item["doing_targets"] = {"__id__": _next_id(st)}
-    item["finish_targets"] = {"__id__": _next_id(st)}
-    item["finish_parameter"] = {"__id__": _next_id(st)}
-    item["id"] = int(task_id)
-    item["state"] = int(state)
-    item["get_time"] = int(now)
-    item["start_time"] = int(now)
-    return item
 
 
 def make_active_task(st, task_id, task_type, state, now):
@@ -130,56 +110,73 @@ def init_new_player(st, now=None):
 
 
 def story_state(props, task_id):
-    bag = _as_map(props, "story_task_bag")
-    if isinstance(bag, dict):
-        it = bag.get(task_id)
-        if isinstance(it, dict):
-            return int(it.get("state") or 0)
-    done = _as_map(props, "done_story_tasks")
-    if isinstance(done, dict) and isinstance(done.get(task_id), dict):
-        return TASK_STATE_FINISHED
-    return -1
+    """任务状态；-1 = 不在包里也不在 done。实现在 state_machine.current_state。"""
+    return _sm_current_state(props, task_id)
 
 
 def start_story_task(st, task_id, now):
-    """把一个剧情任务设为「进行中」。已在进行/已完成则不动。"""
+    """把一个剧情任务设为「进行中」，返回同步描述。
+
+    ★ 为什么是两条而不是一条（P1 阶段 A）：
+      客户端 onStoryTaskItemChanged 只对 OP_CHANGE 触发，而 OP_ADD 走的是
+      onStoryTaskBagInserted —— 那是个空函数（avatarstorytaskcomp.lua:557-558），
+      所以「只发 OP_ADD」等于界面上什么都没发生。
+      正确做法是：OP_ADD 建出 Init(2) 条目 -> OP_CHANGE 迁到 Doing(3)，
+      这样客户端拿到的 old.state=Init、new.state=Doing，命中
+      avatarstorytaskcomp.lua:409-434 的「接任务」分支（章节开始提示 + 红点）。
+    """
     props = st.props
-    bag = props.get("story_task_bag")
-    if not isinstance(bag, dict):
+    if not isinstance(props.get("story_task_bag"), dict):
         return []
-    if story_state(props, task_id) in (TASK_STATE_DOING, TASK_STATE_FINISHED):
+    cur = story_state(props, task_id)
+    if cur not in (-1, TASK_STATE_INIT):
         return []
-    item = make_story_task_item(st, task_id, TASK_STATE_DOING, now)
-    bag[task_id] = item
-    st.set("story_task_bag", bag)
-    return [("add", "story_task_bag", task_id, item)]
+    out = _sm_create_task(st, task_id, now)
+    out.extend(_sm_transition(st, task_id, TASK_STATE_DOING,
+                              source="start_story_task", now=now))
+    return out
+
+
+def mark_story_task_finished(st, task_id, now):
+    """只做「→Finished(6)」这一步，返回同步描述（可能含一条补建的 OP_ADD）。
+
+    ★ 拆开的原因：发奖要插在「标记完成」和「归档进 done」之间。
+      如果先归档再发奖，发奖一旦抛异常，任务已经进了 done，奖励就永远丢了；
+      现在发奖失败时任务还留在 story_task_bag 里且状态是 Finished，可以重试。
+
+    ★ 任务不在包里（GM 命令 / 旧存档补偿 / 部分测试会这样调）时，
+      走 Idle -> Init -> Finished 两条**合法**迁移补建，不跳表；
+      两条描述一起返回，否则客户端会收到「改一个不存在的键」的 OP_CHANGE 而报错。
+    """
+    out = []
+    if story_state(st.props, task_id) == -1:
+        out.extend(_sm_create_task(st, task_id, now))
+    out.extend(_sm_transition(st, task_id, TASK_STATE_FINISHED,
+                              source="finish_story_task", now=now))
+    return out
+
+
+def archive_story_task(st, task_id, now):
+    """把已 Finished 的任务归档进 done_story_tasks，并启动 PostTasks 的下一环。
+
+    返回 [("add", "done_story_tasks", ...), ("del", "story_task_bag", ...)] + 下一环的启动描述。
+    """
+    out = _sm_move_to_done(st, task_id)
+    cfg = gamedata.story_task(task_id) or {}
+    for nxt in (cfg.get("PostTasks") or []):
+        out.extend(start_story_task(st, int(nxt), now))
+    return out
 
 
 def finish_story_task(st, task_id, now):
-    """标记剧情任务完成，返回要推的同步列表。
+    """完成剧情任务（兼容封装）：→Finished + 归档 + 推进 PostTasks。
 
-    同步项是 ("root", 属性名, 值) 或 ("sub", 容器属性名, 键, 值)。
+    ★ 生产路径不要用这个 —— 它会把发奖跳过去。
+      _finish_story_tasks_inner 用的是 mark_story_task_finished +
+      story_award + archive_story_task 三步，奖励才有地方发。
     """
-    props = st.props
-    out = []
-    bag = props.get("story_task_bag")
-    done = props.get("done_story_tasks")
-    if not isinstance(bag, dict) or not isinstance(done, dict):
-        return out
-
-    item = make_story_task_item(st, task_id, TASK_STATE_FINISHED, now)
-    done[task_id] = item
-    bag.pop(task_id, None)
-    st.set("done_story_tasks", done)
-    st.set("story_task_bag", bag)
-    out.append(("add", "done_story_tasks", task_id, item))
-    out.append(("del", "story_task_bag", task_id, None))
-
-    # 按 PostTasks 推进下一个
-    cfg = gamedata.story_task(task_id) or {}
-    posts = cfg.get("PostTasks") or []
-    for nxt in posts:
-        out.extend(start_story_task(st, int(nxt), now))
+    out = mark_story_task_finished(st, task_id, now)
+    out.extend(archive_story_task(st, task_id, now))
     return out
 
 
