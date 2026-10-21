@@ -27,7 +27,7 @@ import time
 from .. import gamedata
 from .. import ms as msmod
 from .. import story
-from ..rpc_common import EVENT_MAX_DEPTH, decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, EVENT_MAX_DEPTH, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from . import events as _events
 
@@ -39,7 +39,7 @@ def _story_sync_frames(st, changes):
         if kind == "root":
             _, name, value = ch
             frames.append(sync_frame(
-                "", 0, msmod.OP_CHANGE, name, value))
+                SYNC_SELF, 0, msmod.OP_CHANGE, name, value))
         elif kind == "add":
             # ★ 给自定义 dict **加新键**必须用 OP_ADD（客户端 __OpAdd__），
             #   用 OP_CHANGE 会走 __OpChange__，那里 oldVal 为 nil 直接报
@@ -51,21 +51,21 @@ def _story_sync_frames(st, changes):
             if not isinstance(c, dict):
                 continue
             frames.append(sync_frame(
-                "", c.get("__id__") or 0, msmod.OP_ADD, str(key), value))
+                SYNC_SELF, c.get("__id__") or 0, msmod.OP_ADD, str(key), value))
         elif kind == "sub":
             _, container, key, value = ch
             c = st.props.get(container)
             if not isinstance(c, dict):
                 continue
             frames.append(sync_frame(
-                "", c.get("__id__") or 0, msmod.OP_CHANGE, str(key), value))
+                SYNC_SELF, c.get("__id__") or 0, msmod.OP_CHANGE, str(key), value))
         elif kind == "del":
             _, container, key, _v = ch
             c = st.props.get(container)
             if not isinstance(c, dict):
                 continue
             frames.append(sync_frame(
-                "", c.get("__id__") or 0, msmod.OP_DEL, str(key), None))
+                SYNC_SELF, c.get("__id__") or 0, msmod.OP_DEL, str(key), None))
     return frames
 
 def _recalc_story_unlocks(st):
@@ -102,7 +102,7 @@ def _recalc_story_unlocks(st):
         st.set("system_p", sp)
         for sid in changed:
             frames.append(sync_frame(
-                "", us_id, msmod.OP_CHANGE, str(sid), True))
+                SYNC_SELF, us_id, msmod.OP_CHANGE, str(sid), True))
         print("[story] 解锁系统 %s" % changed, flush=True)
     return frames
 
@@ -193,7 +193,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
             grid = bag.get(grid_key)
             if isinstance(grid, dict):
                 frames.append(sync_frame(
-                    "", bag.get("__id__") or 0,
+                    SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
         print("[story] 完成剧情任务 %s" % tid, flush=True)

@@ -18,7 +18,7 @@
 编队（character_list）是「改子属性」不是根属性，所以单独两个函数。
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 
 def _set_character_list(rid, params, uid=None):
@@ -64,7 +64,7 @@ def _set_character_list(rid, params, uid=None):
     st.set("character_list", cl)
     st.save()
     frames.append(sync_frame(
-        "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+        SYNC_SELF, cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
     return frames
 
 
@@ -88,7 +88,7 @@ def _set_character_list_name(rid, params, uid=None):
     st.set("character_list", cl)
     st.save()
     frames.append(sync_frame(
-        "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+        SYNC_SELF, cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
     return frames
 
 
@@ -167,7 +167,7 @@ def _generic_setter(rid, params, spec, uid=None):
         new_value = vals[arg_idx]
     applied = _apply_property(prop_name, new_value, uid)
     frames.append(sync_frame(
-        "", 0, msmod.OP_CHANGE, prop_name, applied))
+        SYNC_SELF, 0, msmod.OP_CHANGE, prop_name, applied))
     return frames
 
 
@@ -181,7 +181,7 @@ def _const_setter(rid, params, spec, uid=None):
     #   canScore / hasScore 四个 RPC 全部中招。
     applied = _apply_property(prop_name, const_value, uid)
     frames.append(sync_frame(
-        "", 0, msmod.OP_CHANGE, prop_name, applied))
+        SYNC_SELF, 0, msmod.OP_CHANGE, prop_name, applied))
     return frames
 
 
@@ -213,5 +213,5 @@ def _set_signature(rid, params, uid=None):
         #   之前传的是递增序号 1，那是「改子属性」的语义（要 _id 命中
         #   __CustomPropertiesCache__ 里的对象），属于用错了分支。
         frames.append(sync_frame(
-            "", 0, msmod.OP_CHANGE, "signature", vals[0]))
+            SYNC_SELF, 0, msmod.OP_CHANGE, "signature", vals[0]))
     return frames

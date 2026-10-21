@@ -18,6 +18,7 @@ import time
 from .. import config as ooconf
 from .. import entity_rpc as erpc
 from .. import ms as msmod
+from ..rpc_common import SYNC_SELF
 from . import accounts
 from .net import hexdump
 
@@ -37,6 +38,7 @@ def handle_gate(conn, addr, cid):
     try:
         conn.settimeout(60)
         buf = bytearray()
+        pending = []          # 已切出来、还没处理的完整帧
 
         def next_frame():
             """按 [u32 LE payloadLen][u16 LE msgType][payload] 切出**一帧**。
@@ -46,18 +48,23 @@ def handle_gate(conn, addr, cid):
             于是第二条被 protobuf 解析失败直接丢掉 —— 丢的正好是
             networkCheckAfterChange_CS(index=0)，客户端 _recvHeartbeatIndex
             就停在 0，差值越拉越大，最后触发弱网重连。
-            现在按帧头长度切，一次 recv 里有多少帧就处理多少帧。
+
+            ★ 2026-10-22 修：原来写成「切出 frames 就 return frames[0]」，
+              一次 recv 里有**两条完整帧**时第二条被直接丢掉（rest 只留半包）。
+              现在先全部塞进 pending 队列，再一条条返回。
             """
             nonlocal buf
-            while True:
+            while not pending:
                 frames, rest = msmod.split_frames(buf)
                 if frames:
                     buf[:] = rest
-                    return frames[0]
+                    pending.extend(frames)
+                    break
                 chunk = conn.recv(8192)
                 if not chunk:
                     return b""
                 buf += chunk
+            return pending.pop(0)
 
         while True:
             data = next_frame()
@@ -168,7 +175,8 @@ def _on_heartbeat(conn, cid):
                              stamina_mod.PROP_TOTAL):
                     # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
                     conn.sendall(erpc._sync_frame(
-                        "", 0, msmod.OP_CHANGE, prop, st.props.get(prop)))
+                        SYNC_SELF, 0, msmod.OP_CHANGE, prop,
+                        st.props.get(prop)))
                 print("[GATE] #%03d 体力恢复 +%d -> %s"
                       % (cid, gained, st.props.get(stamina_mod.PROP_KEYS)),
                       flush=True)
@@ -224,6 +232,13 @@ def _on_entity_rpc(conn, cid, data, frame_type):
             print("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e), flush=True)
         rpkt = msmod.build_net_check_ack(hb)
         label = "networkCheckAfterChange_SC(%d)" % hb
+    elif idx == msmod.RPC_INDEX_NOT_FOUND:
+        # __rpc_index_not_found__：客户端在说「你发了个我不认识的 rpc」。
+        # ★ 必须显式 no-op：这类帧 rid 可能 > 0，交给 erpc.handle 会落进
+        #   dispatch 的「未知索引回通用 ACK」分支，客户端会收到一条不该有的
+        #   __rpc_response__。父提交里这段被粘进注释吞掉了，本次恢复。
+        rpkt = None
+        label = None
     else:
         # 其余全部交给实体 RPC 层：带 rid 的一律回 entityMessageResponse，
         # 单向的返回空列表。

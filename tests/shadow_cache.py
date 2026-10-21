@@ -87,7 +87,11 @@ class ShadowCache(object):
         self.warnings = []   # id repeated / not found 这类日志
         self.frame_count = 0
         # 帧里出现过的非空 ownerid（空串表示收帧者自己，不记）
-        self.ownerids = set()   # 已应用的属性同步帧数
+        self.ownerids = set()
+        # 已知的「别人」缓存：uid -> ShadowCache（单机私服一般不填）
+        self.owners = {}
+        # 因为 owner 未知而被丢掉的帧数（客户端也是整帧丢弃）
+        self.owner_frames_dropped = 0   # 已应用的属性同步帧数
         self.skipped = 0       # 非属性同步帧（实体消息/应答）跳过数
 
     # ------------------------------------------------------------ 诊断
@@ -231,6 +235,13 @@ class ShadowCache(object):
                    if isinstance(owner_raw, (bytes, bytearray)) else owner_raw)
         if ownerid:
             self.ownerids.add(ownerid)
+            # ★ 客户端 gateclientrpchandler.lua:269-288：ownerid 非空时先
+            #   getRealOwner(ownerid)，拿不到就 warn + return —— **整帧丢弃**，
+            #   不会应用到收帧者自己的缓存上。
+            #   这里照这个语义建模：未知 owner 直接丢，不落地。
+            if ownerid not in self.owners:
+                self.owner_frames_dropped += 1
+                return False
         pid = fields.get(2, [None])[0]
         optype = fields.get(3, [None])[0]
         name_raw = fields.get(4, [b""])[0]

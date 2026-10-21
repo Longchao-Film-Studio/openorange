@@ -21,7 +21,7 @@ from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import sync as _sync
 from ..property import tx as _tx
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .info import _street_info_of
 def _prestige_info(st, street_id=None):
@@ -59,7 +59,7 @@ def _prestige_push(st, si, street_id, entry, is_new=False):
         # 新条目：显式 OP_ADD，值剥掉嵌套 __tp__（审计 P0-1）
         value = _sync._strip_private(entry, is_root=False)
         return [sync_frame(
-            "", (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), value)]
+            SYNC_SELF, (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), value)]
     tx.set(("street_info", street_id), entry)
     return tx.frames()
 

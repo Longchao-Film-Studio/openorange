@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """找出 Python 文件里「导入了但没用」的名字（P0 遗留清理用的小工具）。
 
+★ 两种口径：
+  默认      跳过带 # noqa 的行（项目约定：noqa 表示「这个导入是有意保留的」）
+  --strict  连 # noqa 的行也查（用来核对「0 处」是不是真的 0）
+
 用法:
     python -u tools/find_unused_imports.py <文件或目录> [...]
 
@@ -26,7 +30,7 @@ def _names_from_import(node):
     return out
 
 
-def check_file(path):
+def check_file(path, strict=False):
     src = io.open(path, encoding="utf-8").read()
     lines = src.split("\n")
     try:
@@ -55,7 +59,7 @@ def check_file(path):
     out = []
     for name, lineno in imported:
         line = lines[lineno - 1] if 0 <= lineno - 1 < len(lines) else ""
-        if "noqa" in line:
+        if "noqa" in line and not strict:
             continue
         if name in used:
             continue
@@ -80,15 +84,17 @@ def iter_files(target):
 
 
 def main(argv):
+    strict = "--strict" in argv
+    argv = [a for a in argv if a != "--strict"]
     targets = argv or ["game_server", "shared", "web", "tests", "tools"]
     total = 0
     for t in targets:
         for path in iter_files(t):
-            for name, lineno, text in check_file(path):
+            for name, lineno, text in check_file(path, strict=strict):
                 total += 1
                 print("%s:%d  未使用: %s   | %s" % (path, lineno, name, text[:80]))
     print("-" * 56)
-    print("共 %d 处" % total)
+    print("共 %d 处%s" % (total, "（严格口径：含 # noqa）" if strict else ""))
     return 0
 
 

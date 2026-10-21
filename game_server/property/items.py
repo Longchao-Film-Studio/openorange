@@ -12,7 +12,7 @@
 """
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
@@ -80,7 +80,7 @@ def _use_item(rid, params, uid=None):
         "", bag_id, msmod.OP_CHANGE, str(grid_key), grid))
     for prop, value in changed_props:
         frames.append(sync_frame(
-            "", 0, msmod.OP_CHANGE, prop, value))
+            SYNC_SELF, 0, msmod.OP_CHANGE, prop, value))
     return frames
 
 # useParam 的键（PascalCase）-> 属性名（snake_case）。

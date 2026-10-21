@@ -37,7 +37,13 @@ from shadow_cache import frames_safe   # noqa: E402
 
 
 def pre_snapshot(uid):
-    """RPC 之前的状态快照（纯读，不触发登录 tick / 脚手架等副作用）。"""
+    """RPC 之前的状态快照。
+
+    ★ 不是完全无副作用：player_state.peek() 会加载存档（首次）并跑
+      id 计数器校正 / 背包键迁移，还会把 is_new 置 False。
+      但它**不会**跑登录 tick、脚手架、剧情起点这些会改业务数据的逻辑，
+      所以在测试里当「RPC 前快照」用是安全的。
+    """
     st = _pstate.peek(uid)
     if st is None:
         return None
@@ -47,6 +53,16 @@ def pre_snapshot(uid):
             continue
         props[k] = _sync._strip_private(v, is_root=True)
     return {"__Properties__": props}
+
+
+def _has_property_sync(frames):
+    """这批帧里有没有属性同步帧（type=13）——只有这种帧需要影子缓存校验。"""
+    from game_server import ms as _ms
+    for f in frames or []:
+        if isinstance(f, (bytes, bytearray)) and len(f) >= 6:
+            if int.from_bytes(bytes(f[4:6]), "little") == _ms.PROPERTY_SYNC_TYPE:
+                return True
+    return False
 
 
 def check_frames(pre, frames, tag):
@@ -67,5 +83,11 @@ def guarded_handle(index, params, rid, uid=None, tag=None):
     """
     pre = pre_snapshot(uid)
     frames = _erpc.handle(index, params, rid, uid=uid)
+    if pre is None and _has_property_sync(frames):
+        # 取不到快照就没法建客户端缓存 -> 这批属性帧等于没校验。
+        # 审计实测：以前这里会静默跳过，等于给了一条「绕过守卫」的后门。
+        raise AssertionError(
+            "取不到 uid=%r 的 RPC 前快照，但有属性同步帧无法校验（rpc#%s）"
+            % (uid, index))
     check_frames(pre, frames, tag or ("rpc#%s" % index))
     return frames

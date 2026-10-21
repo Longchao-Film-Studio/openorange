@@ -19,10 +19,8 @@ try:
 except Exception:
     shared_db = None
 
-# 最近一次 ms GameLoadService.query 里带的账号名
-last_username = None
-
 _LOCK = threading.Lock()
+_UID_LOCK = threading.Lock()   # _gate_uid 自己的锁（读改写要和 _pending 分开）
 _pending = []          # [(ts, username)]
 _gate_uid = {}         # cid -> username（= 游戏内 uid）
 USERNAME_MATCH_WINDOW = 30       # 秒
@@ -58,10 +56,8 @@ def resolve_display_uid(raw):
 
 def remember_username(username):
     """ms query 里看到的账号，还原成 uid 后放进待关联队列。"""
-    global last_username
     if not username:
         return
-    last_username = username
     username = resolve_display_uid(username)
     if not username:
         return
@@ -85,24 +81,33 @@ def claim_username():
 
 
 def bind(cid, uid):
-    """把 cid 和 uid 绑起来（新连接领号 / 从 auth 还原 都走这里）。"""
-    if uid:
+    """把 cid 和 uid 绑起来（新连接领号 / 从 auth 还原 都走这里）。
+
+    ★ 即使 uid 是 None 也要落键。审计实测：父提交里是
+      _gate_uid[cid] = _claimed（无条件写），如果这里「uid 为空就不写」，
+      同一个 cid 再收到一次 reqType=0 时 is_bound() 仍是 False，
+      会把**另一个账号**再领一遍并覆盖，造成串号。
+    """
+    with _UID_LOCK:
         _gate_uid[cid] = uid
     return _gate_uid.get(cid)
 
 
 def uid_of(cid):
     """这条 gate 连接对应的 uid（= 账号名）。没有就回退默认值。"""
-    return _gate_uid.get(cid) or DEFAULT_UID
+    with _UID_LOCK:
+        return _gate_uid.get(cid) or DEFAULT_UID
 
 
 def is_bound(cid):
-    return cid in _gate_uid
+    with _UID_LOCK:
+        return cid in _gate_uid
 
 
 def release(cid):
     """连接断开时释放关联。"""
-    _gate_uid.pop(cid, None)
+    with _UID_LOCK:
+        _gate_uid.pop(cid, None)
 
 
 def uid_from_auth(fields):

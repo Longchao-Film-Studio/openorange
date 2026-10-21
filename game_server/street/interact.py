@@ -16,7 +16,7 @@
 from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import tx as _tx
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
@@ -114,7 +114,7 @@ def _street_trace_task(rid, params, uid=None):
     st.props["street_trace_taskid"] = tid
     st.save()
     frames.append(sync_frame(
-        "", 0, msmod.OP_CHANGE, "street_trace_taskid", tid))
+        SYNC_SELF, 0, msmod.OP_CHANGE, "street_trace_taskid", tid))
     return frames
 
 def _clear_treasure_actor(params, uid=None):

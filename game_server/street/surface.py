@@ -13,7 +13,7 @@
 import time
 
 from .. import ms as msmod
-from ..rpc_common import state, sync_frame
+from ..rpc_common import SYNC_SELF, state, sync_frame
 from ..rpc_index import ACK_OK
 def _set_surface_time(st, value):
     """改 street_info.surface_enter_time 并推同步。"""
@@ -23,7 +23,7 @@ def _set_surface_time(st, value):
     si["surface_enter_time"] = int(value)
     st.set("street_info", si)
     return [sync_frame(
-        "", si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
+        SYNC_SELF, si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
 
 def _enter_surface(rid, params, uid=None):
     """RequestEnterStreetSurface_CS {worldId} —— 进阴界。"""

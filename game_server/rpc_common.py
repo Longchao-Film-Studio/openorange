@@ -77,9 +77,13 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
 
     参数顺序和 msmod.build_property_sync 完全一致，方便整段替换。
     """
-    if not isinstance(ownerid, str):
-        # 帧里 ownerid 是 bytes 字段，传 int/None 会在 pb_bytes_field 里炸
-        ownerid = "" if ownerid is None else str(ownerid)
+    if ownerid is None:
+        ownerid = SYNC_SELF
+    elif not isinstance(ownerid, str):
+        # ★ 不要静默 str()：传 int 会变成 "123"，客户端 getRealOwner("123")
+        #   找不到就把整帧丢掉 —— 比直接报错更难排查。所以这里显式拒绝。
+        raise TypeError("ownerid 必须是 str（空串 = 收帧者自己），收到 %r"
+                        % (ownerid,))
     if op_type in (msmod.OP_DEL, msmod.OP_REMOVE):
         val = None
     else:

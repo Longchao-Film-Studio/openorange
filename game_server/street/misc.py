@@ -10,7 +10,7 @@
     SC 回调 responseCb(status)
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 def _mainline_levelup(rid, params, uid=None):
@@ -33,7 +33,7 @@ def _mainline_levelup(rid, params, uid=None):
     st.save()
     print("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1), flush=True)
     frames.append(sync_frame(
-        "", ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
+        SYNC_SELF, ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
     return frames
 
 def _finish_storyline(rid, params, uid=None):

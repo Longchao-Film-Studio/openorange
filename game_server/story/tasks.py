@@ -16,7 +16,7 @@
 from .. import ms as msmod
 from .. import tasks
 from ..property import sync as _sync
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 
 def _task_sync_frames(st, changes):
@@ -35,7 +35,7 @@ def _task_sync_frames(st, changes):
             if not isinstance(name, str):
                 name = str(name)
             frames.append(sync_frame(
-                "", pid, optype, name,
+                SYNC_SELF, pid, optype, name,
                 None if optype == msmod.OP_DEL else value))
         elif kind in ("sub2", "del2"):
             # 兼容旧格式（story 那边还在用）
@@ -48,7 +48,7 @@ def _task_sync_frames(st, changes):
                 continue
             op = msmod.OP_CHANGE if kind == "sub2" else msmod.OP_DEL
             frames.append(sync_frame(
-                "", slot.get("__id__") or 0, op, str(key),
+                SYNC_SELF, slot.get("__id__") or 0, op, str(key),
                 value if kind == "sub2" else None))
     return frames
 

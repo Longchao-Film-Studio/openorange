@@ -46,7 +46,6 @@ if __package__ in (None, ""):
 from shared import db  # noqa: E402
 
 from . import config as ooconf  # noqa: E402
-from .transport.accounts import remember_username  # noqa: E402,F401
 from .transport.capture import handle_capture  # noqa: E402
 from .transport.gate import handle_gate  # noqa: E402
 from .transport.ms_service import handle_ms  # noqa: E402

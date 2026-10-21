@@ -15,7 +15,7 @@ from .. import gamedata
 from .. import ms as msmod
 from .. import story
 from ..property import ids as _ids
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
@@ -54,7 +54,7 @@ def _grant_treasure_reward(st, tid):
             grid = bag.get(gkey)
             if isinstance(grid, dict):
                 frames.append(sync_frame(
-                    "", bag.get("__id__") or 0,
+                    SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(gkey), grid))
             print("[street] 宝箱 %s 发道具 %s x%s -> 现在 %s"

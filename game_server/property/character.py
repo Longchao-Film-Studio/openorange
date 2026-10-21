@@ -12,7 +12,7 @@ characterBag 结构（initDict 实测）：
 所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
@@ -75,5 +75,5 @@ def _upgrade_character(rid, params, uid=None):
         frames.extend(_finish_story_tasks(st, nxt))
     st.save()
     frames.append(sync_frame(
-        "", bag_id, msmod.OP_CHANGE, str(key), char))
+        SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))
     return frames

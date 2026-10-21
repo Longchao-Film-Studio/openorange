@@ -18,7 +18,7 @@
 （offlinebattlespace.lua:217-221），于是卡在战斗空间、输入被锁。
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from ..story import events as _events
 from ..story.rpc import _finish_story_tasks
@@ -165,7 +165,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
             sf[1] = True
             st.set("story_finished", sf)
             out.append(sync_frame(
-                "", sf.get("__id__") or 0,
+                SYNC_SELF, sf.get("__id__") or 0,
                 msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                 "1", True))
             print("[dungeon] 序章完成，story_finished[1]=True", flush=True)
@@ -212,7 +212,7 @@ def _dungeon_finish(rid, params, uid=None):
     if to_street and to_street != int(st.props.get("street_id") or 0):
         st.props["street_id"] = to_street
         frames.append(sync_frame(
-            "", 0, msmod.OP_CHANGE, "street_id", to_street))
+            SYNC_SELF, 0, msmod.OP_CHANGE, "street_id", to_street))
     frames.extend(_advance_story_on_finish(st, info, uid))
     st.props.pop("_oo_cur_copy", None)
     st.props.pop("_oo_cur_match", None)
@@ -253,7 +253,7 @@ def _storyline_finish_game(rid, params, uid=None):
         st.set("story_finished", sf)
         st.save()
         frames.append(sync_frame(
-            "", sf.get("__id__") or 0,
+            SYNC_SELF, sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
     print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)

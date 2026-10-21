@@ -16,9 +16,6 @@ CAPTURE_DIR = ooconf.CAPTURE_DIR
 _conn_seq = 0
 _seq_lock = threading.Lock()
 
-_ms_seq = 0
-_ms_lock = threading.Lock()
-
 
 def next_cid():
     """给一条新连接分配 cid（日志里的 #%03d）。"""
@@ -27,13 +24,6 @@ def next_cid():
         _conn_seq += 1
         return _conn_seq
 
-
-def next_ms_seq():
-    """ms 层的 seqId 序号（和 gate 的 cid 分开计）。"""
-    global _ms_seq
-    with _ms_lock:
-        _ms_seq += 1
-        return _ms_seq
 
 
 def hexdump(data, width=16, limit=None):

@@ -15,7 +15,7 @@ street_dispatch 是 StreetDispatchDict（Dict<int, StreetDispatchInfo>），
 import time
 
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 _DISPATCH_DEFAULT_DURATION = 3600
 
@@ -55,7 +55,7 @@ def _dispatch_char(rid, params, uid=None):
     st.save()
     print("[street] 派遣 char=%s dip=%s" % (char_id, dip_id), flush=True)
     frames.append(sync_frame(
-        "", d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
+        SYNC_SELF, d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
     return frames
 
 def _finish_dispatch(rid, params, uid=None):
@@ -78,7 +78,7 @@ def _finish_dispatch(rid, params, uid=None):
     st.save()
     print("[street] 完成派遣 dip=%s" % dip_id, flush=True)
     frames.append(sync_frame(
-        "", d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
+        SYNC_SELF, d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
     return frames
 
 def _cancel_dispatch(rid, params, uid=None):
@@ -100,5 +100,5 @@ def _cancel_dispatch(rid, params, uid=None):
     st.save()
     print("[street] 取消派遣 dip=%s" % dip_id, flush=True)
     frames.append(sync_frame(
-        "", d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
+        SYNC_SELF, d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
     return frames

@@ -20,7 +20,7 @@ space_p 结构（initDict）：
 SpaceConst.SPACE_EDEN = 1000（gamecommon/consts/spaceconst.lua:2）
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 
 SPACE_EDEN = 1000
@@ -41,7 +41,7 @@ def _space_sync_frames(st, sp):
     sp_id = sp.get("__id__") or 0
     for name in ("spaceno", "seqno", "spaceid", "loading", "ld_spaceno"):
         frames.append(sync_frame(
-            "", sp_id, msmod.OP_CHANGE, name, sp.get(name)))
+            SYNC_SELF, sp_id, msmod.OP_CHANGE, name, sp.get(name)))
     return frames
 
 def _s2c_entity(method_name, index, params):

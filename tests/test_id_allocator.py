@@ -26,6 +26,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
                          story, scaffold, config, gamedata)
 from game_server.property import ids as ids_mod
+from tests.frame_guard import check_frames, pre_snapshot
 
 passed, failed = [], []
 
@@ -103,9 +104,18 @@ def run():
     story.start_story_task(st2, 1005, 0)
     story.start_story_task(st2, 1003, 0)
     st2.save()
-    erpc._finish_story_tasks(st2, [1005])
-    erpc._finish_story_tasks(st2, [1003])
+    # ★ 审计 P2-9：这条路径以前直接调 handler 并把帧丢掉，没有任何影子缓存校验。
+    #   发奖/建背包格子正是最容易产生新 __id__ 和属性帧的地方，必须过一遍客户端模型。
+    _pre = pre_snapshot("ids_b")
+    _frames = erpc._finish_story_tasks(st2, [1005])
+    _frames += erpc._finish_story_tasks(st2, [1003])
     st2.save()
+    check("真实发奖路径产生了属性帧", bool(_frames), len(_frames or []))
+    try:
+        check_frames(_pre, _frames, "真实发奖")
+        check("真实发奖的帧在客户端不会崩", True)
+    except AssertionError as _e:
+        check("真实发奖的帧在客户端不会崩", False, str(_e)[:160])
     bag_after = len(bag_ids(st2))
     check("真实发奖路径确实新建了背包格子", bag_after > bag_before,
           (bag_before, bag_after))

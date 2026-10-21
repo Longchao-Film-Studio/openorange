@@ -36,17 +36,3 @@ from .player import (cmd_account, cmd_clear, cmd_help,  # noqa: F401
 from .game import (cmd_act, cmd_char, cmd_give, cmd_lv,  # noqa: F401
                    cmd_money, cmd_quest, cmd_story, cmd_tp)
 from .admin_cmds import cmd_dungeon, cmd_prologue  # noqa: F401
-
-
-if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    db.init()
-    ctx = Context("aixiaoji", PERM_ADMIN, source="cli")
-    for line in ["/help", "/who", "/server", "/search 长命锁",
-                 "/give @ 1001 1", "/account aixiaoji", "/badcmd"]:
-        r = execute(line, ctx)
-        print("=" * 60)
-        print("> " + line)
-        print(r.text or "(空)")
-        print("[chat] " + r.chat)

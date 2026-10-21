@@ -15,7 +15,7 @@ import time
 
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
 def _avatar_enter_next(rid, params, uid=None):
@@ -86,6 +86,6 @@ def _battle_teach_activate(rid, params, uid=None):
         st.set("battle_teach_state", bts)
         st.save()
         frames.append(sync_frame(
-            "", bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
+            SYNC_SELF, bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
         print("[dungeon] 激活战斗教学 %s" % iid, flush=True)
     return frames
