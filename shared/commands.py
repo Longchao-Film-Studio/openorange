@@ -711,51 +711,27 @@ _GUIDE01_LEVELS = [
 ]
 
 
-@register("dungeon", aliases=("副本",), args="[<账号>] [<关卡ID> | off]",
-          desc="副本关卡覆盖（按账号）：进副本时只打指定关卡，例 /dungeon 50003",
-          perm=PERM_GM, needs_target=False, group="GM")
+@register("dungeon", aliases=("副本",), args="<target> [<关卡ID> | off]",
+          desc="副本关卡覆盖：只打指定关卡（例 /dungeon @ 50003 直达Boss）",
+          perm=PERM_GM, needs_target=True, group="GM")
 def cmd_dungeon(ctx, target, *args):
-    """副本关卡覆盖 —— **按账号**，不是全局。
+    """副本关卡覆盖 —— 按账号，语法与其它命令一致：/dungeon <target> <参数>。
 
-    用法：
-      /dungeon                    看自己的设置
-      /dungeon 50003              把自己设成只打 50003
-      /dungeon off                取消自己的覆盖
-      /dungeon <账号> 50003       给别的账号设（需要管理员）
-      /dungeon <账号> off         取消别的账号的覆盖
+    target：@ = 自己；其它为账号名（跨账号需管理员，由 execute 统一校验）
 
-    为什么按账号：之前是全局的，多开/换号时所有人都会被塞进同一关 —— 那是错的。
+      /dungeon @                  看自己的设置
+      /dungeon @ 50003            自己只打 50003
+      /dungeon @ off              取消自己的覆盖
+      /dungeon testplay 50003     给 testplay 设
+
     存法：玩家存档的 _oo_dungeon_force_level 私有字段（_oo_ 前缀会被
-    ms._live_init_dict 过滤掉，客户端看不到），重启游戏服也不丢。
+    ms._live_init_dict 过滤掉，客户端看不到），按账号隔离、重启不丢。
 
     原理：客户端 dispatchhubonline.lua:49-59 优先用服务端给的
     spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。
     适用于**所有副本**：关卡 id 属于该副本 rootLevel 才生效，否则忽略并打日志。
     """
-    # 解析参数：第一个 token 是数字/off -> 对自己操作；否则当账号名
     uid = str(target)
-    rest = list(args)
-    if rest:
-        head = (rest[0] or "").strip()
-        if head.lower() not in ("off", "0", "关", "取消", "clear"):
-            try:
-                int(head)
-            except (TypeError, ValueError):
-                # 不是数字 -> 当作账号名，但必须是真实存在的账号
-                # （否则把 /dungeon 5000O 这种笔误当成账号查询，很难发现）
-                try:
-                    acc = db.get_account_by_username(head)
-                except Exception:
-                    acc = None
-                if not acc:
-                    return err(
-                        "关卡 id 必须是数字，或 off（账号 %s 也不存在）" % head,
-                        chat="✗ 用法: /dungeon <关卡ID>|off")
-                if ctx.perm < PERM_ADMIN:
-                    return err("只有管理员才能给别的账号设置",
-                               chat="✗ 需要管理员权限")
-                uid = head
-                rest = rest[1:]
 
     info, e = _admin("GET", "/player/%s/dungeon" % uid)
     if e or not info or not info.get("ok"):
@@ -765,15 +741,14 @@ def cmd_dungeon(ctx, target, *args):
     cur = p.get("force_level") or 0
 
     # 无参数：显示当前状态
-    if not rest:
+    if not args:
         lines = [
             "副本关卡覆盖    账号 %s" % uid,
             "  当前            %s" % ("不覆盖" if not cur else "只打 %d" % cur),
             "",
-            "  用法：",
-            "    /dungeon <关卡ID>        只打这一关（例 /dungeon 50003）",
-            "    /dungeon off             取消覆盖",
-            "    /dungeon <账号> <关卡ID> 给别的账号设（需管理员）",
+            "  用法：/dungeon <target> [<关卡ID> | off]",
+            "    /dungeon @ 50003     自己只打 50003",
+            "    /dungeon @ off       取消",
             "",
             "  序章 guide_01 的关卡：",
         ]
@@ -790,7 +765,7 @@ def cmd_dungeon(ctx, target, *args):
                   data={"action": "dungeon_show", "uid": uid,
                         "force_level": cur, "levels": _GUIDE01_LEVELS})
 
-    raw = (rest[0] or "").strip().lower()
+    raw = (args[0] or "").strip().lower()
     if raw in ("off", "0", "关", "取消", "clear"):
         res, e = _admin("POST", "/dungeon/level", {"uid": uid, "level": 0})
         if e or not res or not res.get("ok"):
@@ -802,11 +777,9 @@ def cmd_dungeon(ctx, target, *args):
                   chat="✔ %s 副本: 已取消覆盖" % uid,
                   data={"action": "dungeon_set", "uid": uid, "force_level": 0})
 
-    try:
-        level = int(raw)
-    except (TypeError, ValueError):
-        return err("关卡 id 必须是数字，或 off。用法：/dungeon 50003",
-                   chat="✗ 用法: /dungeon <关卡ID>|off")
+    level, e2 = _need_num(raw, None, 1, 999999, "关卡ID")
+    if e2 is not None:
+        return e2
 
     # 关卡校验：LevelData 在 game_server.gamedata 里
     entry = None
@@ -844,20 +817,22 @@ def cmd_dungeon(ctx, target, *args):
               data={"action": "dungeon_set", "uid": uid, "force_level": got,
                     "level": entry})
 
+
 # ---------------------------------------------------------------- 序章跳过
 
 
-@register("prologue", aliases=("序章",), args="[skip]",
-          desc="序章：查看状态 / 跳过（立刻生效，直接进街区不再打副本）",
-          perm=PERM_GM, needs_target=False, group="GM")
+@register("prologue", aliases=("序章",), args="<target> [skip]",
+          desc="序章：查看状态 / 跳过（跳过 = 直接进街区，不再打副本）",
+          perm=PERM_GM, needs_target=True, group="GM")
 def cmd_prologue(ctx, target, *args):
-    """查看或跳过序章。
+    """查看或跳过序章 —— 语法与其它命令一致：/prologue <target> [skip]。
+
+      /prologue @              看自己的序章状态
+      /prologue @ skip         跳过自己的序章（立即生效）
+      /prologue testplay skip  跳过 testplay 的序章
 
     跳过通过游戏服管理接口**立刻**改服务端状态：
-      - StoryTask 1000 -> Finished
-      - StoryTask 1003 -> Doing
-      - story_finished[1] = True
-    不需要等下次登录，也不需要共用数据库。
+      StoryTask 1000 -> Finished、1003 -> Doing、story_finished[1] = True
     """
     uid = str(target)
 
@@ -867,6 +842,14 @@ def cmd_prologue(ctx, target, *args):
             return err(_ADMIN_DOWN if e else "查询失败: %s" % (info,),
                        chat="✗ 连不上游戏服")
         p = info.get("player") or {}
+        if not p.get("exists", True):
+            return ok(["序章状态    账号 %s" % uid,
+                       "  该账号还没有存档（从没登录过）。",
+                       "",
+                       "  可以直接 /prologue %s skip 预先跳过。" % uid],
+                      chat="序章 %s: 还没存档" % uid,
+                      data={"action": "prologue_show", "target": uid,
+                            "player": p})
         sf1 = p.get("story_finished_1")
         t1000 = p.get("story_task_1000")
         lines = [
@@ -878,8 +861,8 @@ def cmd_prologue(ctx, target, *args):
                 "未开始" if t1000 == -1 else "状态 %s" % t1000),
             "  进行中的剧情任务     %s" % (p.get("active") or "无"),
             "",
-            "  跳过之后：1000 标完成、1003 开始、直接进街区，不再打序章副本。",
-            "  用法：/prologue skip",
+            "  用法：/prologue <target> [skip]",
+            "    /prologue @ skip     跳过自己的序章",
         ]
         return ok(lines,
                   chat="序章 %s: %s" % (uid, "已过" if sf1 else "未过"),
@@ -887,8 +870,8 @@ def cmd_prologue(ctx, target, *args):
 
     sub = (args[0] or "").strip().lower()
     if sub not in ("skip", "跳过"):
-        return err("未知子命令「%s」，用法：/prologue skip" % args[0],
-                   chat="✗ 用法: /prologue skip")
+        return err("未知子命令「%s」，用法：/prologue <target> [skip]" % args[0],
+                   chat="✗ 用法: /prologue <target> [skip]")
 
     res, e = _admin("POST", "/player/skip-prologue", {"uid": uid})
     if e or not res or not res.get("ok"):
@@ -923,3 +906,4 @@ if __name__ == "__main__":
         print("> " + line)
         print(r.text or "(空)")
         print("[chat] " + r.chat)
+

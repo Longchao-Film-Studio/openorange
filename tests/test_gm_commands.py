@@ -91,12 +91,12 @@ def run():
 
     try:
         print("\n[1] /dungeon 查看（默认不覆盖）")
-        r = cmds.execute("/dungeon", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @", ctx(actor="cmd_a"))
         check("成功", r.ok, r.chat)
         check("force_level = 0", r.data.get("force_level") == 0, r.data)
 
         print("\n[2] /dungeon 50003 -> 只打千手Boss战（按账号）")
-        r = cmds.execute("/dungeon 50003", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @ 50003", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
         check("设置到 cmd_a", r.data.get("uid") == "cmd_a", r.data)
         lv = start_levels("cmd_a")
@@ -107,13 +107,13 @@ def run():
         check("cmd_b 仍下发三关", lv_b == [50001, 50002, 50003], lv_b)
 
         print("\n[4] /dungeon 50001 -> 换一关")
-        r = cmds.execute("/dungeon 50001", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @ 50001", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
         lv2 = start_levels("cmd_a")
         check("cmd_a 只下发 [50001]", lv2 == [50001], lv2)
 
         print("\n[5] /dungeon off -> 恢复全部关卡")
-        r = cmds.execute("/dungeon off", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @ off", ctx(actor="cmd_a"))
         check("命令成功", r.ok, r.chat)
         lv3 = start_levels("cmd_a")
         check("cmd_a 恢复三关", lv3 == [50001, 50002, 50003], lv3)
@@ -131,21 +131,21 @@ def run():
         check("GM 被拒", not r.ok, r.chat)
 
         print("\n[8] 参数校验")
-        r = cmds.execute("/dungeon abc", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @ abc", ctx(actor="cmd_a"))
         check("非数字报错", not r.ok, r.chat)
-        r = cmds.execute("/dungeon 999999", ctx(actor="cmd_a"))
+        r = cmds.execute("/dungeon @ 999999", ctx(actor="cmd_a"))
         check("不存在的关卡报错", not r.ok, r.chat)
-        r = cmds.execute("/dungeon 50003", ctx(perm=cmds.PERM_PLAYER))
+        r = cmds.execute("/dungeon @ 50003", ctx(perm=cmds.PERM_PLAYER))
         check("玩家被拒", not r.ok, r.chat)
 
         print("\n[6] /prologue 查看")
-        r = cmds.execute("/prologue", ctx(actor="cmd_p"))
+        r = cmds.execute("/prologue @", ctx(actor="cmd_p"))
         check("成功", r.ok, r.chat)
         p = r.data.get("player") or {}
         check("story_finished[1] 未过", p.get("story_finished_1") is False, p)
 
         print("\n[7] /prologue skip -> 立即生效")
-        r = cmds.execute("/prologue skip", ctx(actor="cmd_p"))
+        r = cmds.execute("/prologue @ skip", ctx(actor="cmd_p"))
         check("命令成功", r.ok, r.chat)
         res = r.data.get("result") or {}
         check("StoryTask 1000 = 6", res.get("story_task_1000") == 6, res)
@@ -154,18 +154,18 @@ def run():
         check("进行中任务只剩 1003", res.get("story_task_bag") == [1003], res)
 
         print("\n[8] 跳过之后查询状态")
-        r = cmds.execute("/prologue", ctx(actor="cmd_p"))
+        r = cmds.execute("/prologue @", ctx(actor="cmd_p"))
         p2 = r.data.get("player") or {}
         check("已过", p2.get("story_finished_1") is True, p2)
         check("1000 已完成", p2.get("story_task_1000") == 6, p2)
 
         print("\n[9] 重复 skip 幂等")
-        r = cmds.execute("/prologue skip", ctx(actor="cmd_p"))
+        r = cmds.execute("/prologue @ skip", ctx(actor="cmd_p"))
         res2 = r.data.get("result") or {}
         check("标记为本来就完成", res2.get("already_finished") is True, res2)
 
         print("\n[10] 查询不会创建存档（关键：否则会毁掉新号初始化）")
-        r = cmds.execute("/prologue", ctx(actor="cmd_q"))
+        r = cmds.execute("/prologue @", ctx(actor="cmd_q"))
         pq = r.data.get("player") or {}
         check("cmd_q 还没有存档", pq.get("exists") is False, pq)
         check("cmd_q 未过序章", pq.get("story_finished_1") is False, pq)
@@ -182,7 +182,7 @@ def run():
         print("\n[11] 游戏服没在跑时给友好错误")
         old = cmds.ADMIN_URL
         cmds.ADMIN_URL = "http://127.0.0.1:1"
-        r = cmds.execute("/dungeon", ctx())
+        r = cmds.execute("/dungeon @", ctx())
         cmds.ADMIN_URL = old
         check("返回错误而不是抛异常", not r.ok, r.chat)
         check("提示游戏服没运行", "游戏服" in (r.text or ""), r.text)
