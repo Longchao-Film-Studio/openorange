@@ -57,6 +57,7 @@ def run():
     st = pstate.get_state(uid="sx")
     st.props["street_id"] = 101
     need1 = int((rows[0] or {}).get("needExpNum") or 100)
+    _pre = msmod._live_init_dict("sx")   # RPC 前快照（审计 P0-3）
     frames = erpc.handle(erpc.RPC_INDEX["RequestAddPrestigeExp_CS"],
                          msmod.mp_arr([need1 + 30]), 1, uid="sx")
     entry = (st.props.get("street_info") or {}).get(101) or {}
@@ -66,7 +67,7 @@ def run():
     # ★ 影子缓存校验：加声望的帧喂进客户端会不会崩
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from shadow_cache import frames_safe
-    _sc, _errs = frames_safe(msmod._live_init_dict("sx"), frames, "加声望")
+    _sc, _errs = frames_safe(_pre, frames, "加声望")
     check("加声望的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[4] 领声望等级奖励")

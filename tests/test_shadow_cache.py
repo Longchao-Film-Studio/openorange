@@ -108,12 +108,12 @@ def run():
                          {"__tp__": "TaskBag", "__id__": 9001}))
     check("抓到「容器子项带 __tp__」", bool(sc.errors), sc.errors[:1])
 
-    # A5 重复 __id__
+    # A5 重复 __id__（客户端只是 logger:warn + 覆盖缓存，不是崩）
     sc = fresh_cache()
     sc.apply_frame(frame(si_id, msmod.OP_ADD, "66661", {"__id__": 6666}))
     sc.apply_frame(frame(si_id, msmod.OP_ADD, "66662", {"__id__": 6666}))
     rep = [w for w in sc.warnings if "repeated" in w]
-    check("抓到「重复 __id__」", bool(rep), sc.warnings[:1])
+    check("抓到「重复 __id__」告警（不是崩溃）", bool(rep), sc.warnings[:1])
 
     # A6 OP_DEL 不存在的键
     sc = fresh_cache()
@@ -145,8 +145,11 @@ def run():
         (338297034, [1011, 5], "CD 选择"),
         (980877859, [101, 1], "领声望奖"),
     ], start=1):
+        _n0 = sc.frame_count
         errs = feed(sc, erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_c"), tag)
         check("%s 帧安全" % tag, not errs, errs[:2])
+        check("%s 确实产生了属性同步帧" % tag, sc.frame_count > _n0,
+              sc.frame_count - _n0)
 
     # C2 通用任务（槽位 + 任务项）
     st2 = fresh("sc_d")
@@ -183,13 +186,17 @@ def run():
         msmod.mp_arr([{"match_type": 3, "system_type": 1004,
                        "modeId": 1, "storyID": 1}]), 1, uid="sc_f"), "进副本")
     check("进副本帧安全", not errs, errs[:2])
+    # 注：进副本本身只回应答帧、不改属性，所以这里不断言 frame_count
     info = {"toStreetId": 101, "toStreetPosId": 50005, "finishReason": 5,
             "userList": {"sc_f": 1},
             "sc_f": {"win": True, "useTime": 95, "battle_items": {203: 3}}}
+    _n4 = sc4.frame_count
     errs = feed(sc4, erpc.handle(
         erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
         msmod.mp_arr([info]), 2, uid="sc_f"), "副本结算")
     check("副本结算帧安全", not errs, errs[:2])
+    check("副本结算确实产生了属性同步帧", sc4.frame_count > _n4,
+          sc4.frame_count - _n4)
 
     # C5 Set* 系列
     st5 = fresh("sc_g")
@@ -212,7 +219,7 @@ def run():
         bad = [k for k in bag if isinstance(k, int) and not isinstance(k, bool)]
         check("%s 背包键全是字符串" % uid, not bad, bad[:3])
 
-    print("\n[E] ★ 全量 RPC 扫描：所有能安全调用的 handler 产出的帧")
+    print("\n[E] ★ RPC 抽样扫描（24/114）：挑能安全调用的 handler 验帧")
     # 用一个全新存档，逐个调 RPC，把产出的属性同步帧喂进影子缓存。
     # 目的不是验业务逻辑（那是各模块测试的事），而是验「帧本身合法」。
     sweep = [
@@ -253,10 +260,51 @@ def run():
         errs = feed(sc6, frames, name)
         if errs:
             bad_rpcs.append("%s: %s" % (name, errs[0][:80]))
-    check("扫描 %d 个 RPC，全部帧合法" % len(sweep), not bad_rpcs, bad_rpcs[:5])
+    check("抽样 %d 个 RPC，全部帧合法" % len(sweep), not bad_rpcs, bad_rpcs[:5])
     check("影子缓存确实处理了帧", sc6.frame_count > 10, sc6.frame_count)
     print("    （处理 %d 条属性同步帧，跳过 %d 条非同步帧）"
           % (sc6.frame_count, sc6.skipped))
+
+    print("\n[F] ★ P0-1 回归：接任务后重新登录，initDict 不能带嵌套 __tp__")
+    # 审计实测：tasks.ensure_type_slot 把 {"__tp__":"TaskBag"} 写进 state，
+    # 之前 _live_init_dict 只过滤顶层 _oo_，嵌套 __tp__ 原样进登录 initDict ->
+    # 客户端 initProperty -> TaskBag:roinit 把 "TaskBag" 字符串当子项 ->
+    # value.__id__ 对字符串取值 -> 崩。
+    stF = fresh("sc_relogin")
+    tidF = None
+    for _k, _v in (gamedata.table("TaskData") or {}).items():
+        if isinstance(_v, dict) and isinstance(_v.get("TaskType"), int):
+            tidF = _v.get("id") or int(_k)
+            break
+    erpc.handle(1744435905, msmod.mp_arr([tidF]), 1, uid="sc_relogin")
+    stF.save()
+    pstate._STATES.pop("sc_relogin", None)          # 模拟进程重启
+    dF = msmod._live_init_dict("sc_relogin")
+    tbF = (dF["__Properties__"].get("task_bag") or {})
+    check("根属性 task_bag 仍带 __tp__（客户端靠它认类型）",
+          tbF.get("__tp__") == "TaskTypeBag", tbF.get("__tp__"))
+    slotF = tbF.get(1)
+    check("嵌套的 task_bag[1] 已剥掉 __tp__",
+          isinstance(slotF, dict) and "__tp__" not in slotF,
+          list(slotF.keys()) if isinstance(slotF, dict) else slotF)
+    scF = ShadowCache()
+    scF.init_property(dF["__Properties__"])
+    check("接任务后重登，客户端 initProperty 不崩", not scF.errors, scF.errors[:2])
+
+    # 顺带扫一遍：所有根属性的嵌套值里都不该有 __tp__
+    bad_tp = []
+    def _scan(o, path):
+        if isinstance(o, dict):
+            for k2, v2 in o.items():
+                if k2 == "__tp__" and path.count(".") > 0:
+                    bad_tp.append(path)
+                _scan(v2, path + "." + str(k2))
+        elif isinstance(o, (list, tuple)):
+            for i2, v2 in enumerate(o):
+                _scan(v2, path + "[%d]" % i2)
+    for k2, v2 in dF["__Properties__"].items():
+        _scan(v2, k2)
+    check("登录 initDict 里没有嵌套 __tp__ 残留", not bad_tp, bad_tp[:5])
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

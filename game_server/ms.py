@@ -498,8 +498,23 @@ def _live_init_dict(uid=None):
     #   普通 dict 会让 ClientAvatar:init 抛错、返回非布尔，
     #   表现为「自动进入游戏 -> 被踢回开始页 -> 再自动进 -> 再被踢」的死循环。
     #   实测踩过（2026-10-20 阶段 2 第 2 轮）。
-    _public = {k: v for k, v in st.props.items()
-               if not (isinstance(k, str) and k.startswith("_oo_"))}
+    # ★ 2026-10-21 审计 P0-1：**嵌套的 __tp__ 也必须剥掉**。
+    #   之前只过滤顶层 _oo_，嵌套的 __tp__ 会原样进 initDict：
+    #     task_bag[1] = {"__tp__": "TaskBag", "__id__": ..., 1: {...}}
+    #   客户端 initProperty -> TaskBag:roinit 遍历到 __tp__ 这个键 ->
+    #     declare = __ValueTypeDeclare__（TaskItem，自定义类型）->
+    #     createCustomObjRO("__tp__", "TaskBag") -> 对字符串执行
+    #     value.__id__ = nil（customdict.lua:449）-> 崩
+    #   实测：接一个通用任务后重新登录，客户端必崩。
+    #
+    #   _strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
+    #   递归进去的值一律剥掉。
+    from .property import sync as _syncmod
+    _public = {}
+    for k, v in st.props.items():
+        if isinstance(k, str) and k.startswith("_oo_"):
+            continue
+        _public[k] = _syncmod._strip_private(v, is_root=True)
     return {"__Properties__": _public}
 
 

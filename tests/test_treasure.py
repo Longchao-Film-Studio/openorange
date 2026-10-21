@@ -66,6 +66,7 @@ def run():
     print("\n[2] 开箱发道具 + 声望经验")
     st = fresh("tr_a")
     before = bag_items(st)
+    _pre = msmod._live_init_dict("tr_a")   # RPC 前快照（审计 P0-3）
     frames = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                          msmod.mp_arr([10157]), 1, uid="tr_a")
     after = bag_items(st)
@@ -82,7 +83,7 @@ def run():
     #   整条 StreetInfo，客户端 rochange 索引 nil）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from shadow_cache import frames_safe
-    _sc, _errs = frames_safe(msmod._live_init_dict("tr_a"), frames, "开宝箱")
+    _sc, _errs = frames_safe(_pre, frames, "开宝箱")
     check("开宝箱的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[3] 重复开启不再发奖")

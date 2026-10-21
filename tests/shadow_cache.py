@@ -363,7 +363,18 @@ class ShadowCache(object):
                       % obj.type_name)
             return
         k = _to_num(name) if _int_key(obj.type_name) else name
+        if isinstance(k, _NilKey):
+            self._err("__OpAdd__",
+                      "%s 的键 %r 转不成数字 -> :248 tonumber 返回 nil -> "
+                      "_properties[nil] 崩" % (obj.type_name, name))
+            return
         if isinstance(value, dict):
+            if not _is_custom(vtype):
+                self._err("__OpAdd__",
+                          "%s 的元素类型 %s 不是自定义类型，但值是个表 -> "
+                          ":252 valueTypeDeclare.customClass 为 nil，调 nil 崩"
+                          % (obj.type_name, vtype))
+                return
             child = self._create_ro(vtype, k, value, obj, False, "__OpAdd__")
             if child is None:
                 return
@@ -386,6 +397,10 @@ class ShadowCache(object):
                       "（结构体字段不能删）" % obj.type_name)
             return
         k = _to_num(name) if _int_key(obj.type_name) else name
+        if isinstance(k, _NilKey):
+            self._err("__OpDel__",
+                      "%s 的键 %r 转不成数字 -> :293 tonumber 返回 nil" % (obj.type_name, name))
+            return
         old = obj.props.get(k)
         if old is None:      # :296
             self._err("__OpDel__",
@@ -396,89 +411,189 @@ class ShadowCache(object):
         del obj.props[k]
 
     def _op_insert(self, pid, name, value):
+        """puppetpropertycomponent.lua:329 __OpInsert__ —— 只对 list 有意义。"""
         obj = self.cache.get(pid)
-        if obj is None:
-            self._err("__OpInsert__", "propertyId=%s 不在缓存" % pid)
+        if obj is None:      # :331
+            self._err("__OpInsert__",
+                      "propertyId=%s 不在缓存 -> :331 assert(customObj ~= nil)" % pid)
             return
         vtype = _spec.value_type(obj.type_name)
-        if vtype is None:
-            self._err("__OpInsert__", "%s 没有 __ValueTypeDeclare__" % obj.type_name)
+        if vtype is None:    # :336
+            self._err("__OpInsert__",
+                      "%s 没有 __ValueTypeDeclare__ -> :336 assert 崩" % obj.type_name)
             return
-        k = _to_num(name)
+        k = _to_num(name)   # :333 无条件 tonumber
+        if isinstance(k, _NilKey) or k < 1:
+            self._err("__OpInsert__",
+                      "位置 %r 非法 -> :333 tonumber 失败或 <1" % (name,))
+            return
+        n = len(obj.props)
+        if k > n + 1:        # table.insert 越界
+            self._err("__OpInsert__",
+                      "位置 %s 越界（当前 %d 个元素）-> :340 table.insert 崩"
+                      % (k, n))
+            return
         if isinstance(value, dict):
             child = self._create_ro(vtype, k, value, obj, False, "__OpInsert__")
             if child is None:
                 return
             self._attach(child, "__OpInsert__")
-            obj.props[k] = child
         else:
-            obj.props[k] = value
+            child = value
+        # 模拟 table.insert 的位移
+        new_props = {}
+        for kk, vv in obj.props.items():
+            new_props[kk if kk < k else kk + 1] = vv
+        new_props[k] = child
+        obj.props = new_props
 
     def _op_remove(self, pid, name):
+        """puppetpropertycomponent.lua:377 __OpRemove__ —— 只对 list 有意义。"""
         obj = self.cache.get(pid)
-        if obj is None:
-            self._err("__OpRemove__", "propertyId=%s 不在缓存" % pid)
+        if obj is None:      # :379
+            self._err("__OpRemove__",
+                      "propertyId=%s 不在缓存 -> :379 assert(customObj ~= nil)" % pid)
+            return
+        vtype = _spec.value_type(obj.type_name)
+        if vtype is None:    # :383
+            self._err("__OpRemove__",
+                      "%s 没有 __ValueTypeDeclare__ -> :383 assert 崩" % obj.type_name)
             return
         k = _to_num(name)
-        obj.props.pop(k, None)
+        if isinstance(k, _NilKey):
+            self._err("__OpRemove__", "索引 %r 转不成数字" % (name,))
+            return
+        obj2 = obj.props.get(k)
+        if obj2 is None:     # :385
+            self._err("__OpRemove__",
+                      "%s[%s] 不存在 -> :385 assert(obj ~= nil)" % (obj.type_name, k))
+            return
+        if isinstance(obj2, CustomObj):
+            self._detach(obj2, "__OpRemove__")
+        # 模拟 table.remove 的位移
+        new_props = {}
+        for kk, vv in obj.props.items():
+            if kk == k:
+                continue
+            new_props[kk if kk < k else kk - 1] = vv
+        obj.props = new_props
 
     def _rochange(self, obj, value, where):
-        """customdict.lua:481 rochange —— 只更新已有键。"""
+        """customdict.lua:481 rochange —— 严格按客户端算法。
+
+        客户端算法（:496-541）：
+          for k, v in pairs(value):
+            ov = self._properties[k]
+            if ov ~= nil:
+              if type(ov) == table:
+                if ov._id == v.__id__ and ov._id > 0: ov:rochange(v)
+                else: detach; declare = propDeclares[k] or valueTypeDeclare;
+                      if declare:isCustomType(): create+attach
+              else: self._properties[k] = v      # 旧值是原生 -> 直接覆盖
+            else:                                 # ★ 新键
+              assert(propDeclares[k] == nil)      # 结构体字段当新键 -> 崩
+              if valueTypeDeclare:isCustomType()  # 结构体 vtype 为 nil -> 崩
+                then create+attach
+          然后删除 value 里没有的键（同样 assert propDeclares[k] == nil）
+
+        ★ 2026-10-21 审计 #9：__tp__ 是**新键**（结构体没有这个字段），
+          走到 else 分支 -> valueTypeDeclare 为 nil -> :519 索引 nil 崩。
+          之前我只 warn，漏检。
+        """
         oid = value.get("__id__")
         if oid is None:
             self._err(where, "%s rochange 缺 __id__ -> :488 assert(id ~= nil)"
                       % obj.type_name)
             return
         if oid != obj.id:
-            self._err(where, "%s rochange id 不匹配（%s vs %s）-> :490 日志并返回"
-                      % (obj.type_name, obj.id, oid))
+            self._warn(where, "%s rochange id 不匹配（%s vs %s）-> :490 日志并返回"
+                       % (obj.type_name, obj.id, oid))
             return
         fields = _spec.struct_fields(obj.type_name)
         vtype = _spec.value_type(obj.type_name)
         for k, v in value.items():
             if k == "__id__":
                 continue
-            if k == "__tp__":
-                if vtype and (_spec.is_struct(vtype) or _spec.is_container(vtype)):
-                    self._err(where,
-                              "%s rochange 的 value 里带 __tp__，父是容器 -> 崩"
-                              % obj.type_name)
-                else:
-                    self._warn(where,
-                              "%s rochange 的 value 里带 __tp__（静默丢弃）"
-                              % obj.type_name)
-                continue
-            fld = fields.get(k)
-            declare = fld[0] if fld else vtype
             ov = obj.props.get(k)
-            if ov is not None and isinstance(ov, CustomObj):
-                if isinstance(v, dict):
-                    self._rochange(ov, v, where)
+            if ov is not None:
+                if isinstance(ov, CustomObj):
+                    if isinstance(v, dict) and ov.id == v.get("__id__") and ov.id > 0:
+                        self._rochange(ov, v, where)
+                        continue
+                    fld = fields.get(k)
+                    declare = fld[0] if fld else vtype
+                    if declare is None:
+                        self._err(where,
+                                  "%s rochange %r 需要重建但没有 declare -> :508 崩"
+                                  % (obj.type_name, k))
+                        continue
+                    self._detach(ov, where)
+                    if _is_custom(declare):
+                        child = self._create_ro(declare, k, v, obj, False, where)
+                        if child is not None:
+                            self._attach(child, where)
+                            obj.props[k] = child
+                    else:
+                        obj.props[k] = v
+                else:
+                    obj.props[k] = v
                 continue
-            if isinstance(v, dict):
-                if declare is None:
-                    continue
-                child = self._create_ro(declare, k, v, obj, False, where)
+            # ★ 新键
+            if k in fields:
+                self._err(where,
+                          "%s rochange 把结构体字段 %r 当新键 -> :518 "
+                          "assert(propDeclares[k] == nil) 崩" % (obj.type_name, k))
+                continue
+            if vtype is None:
+                self._err(where,
+                          "%s rochange 遇到新键 %r，且是结构体（valueTypeDeclare 为 nil）"
+                          " -> :519 索引 nil 崩" % (obj.type_name, k))
+                continue
+            if _is_custom(vtype):
+                child = self._create_ro(vtype, k, v, obj, False, where)
                 if child is not None:
                     self._attach(child, where)
                     obj.props[k] = child
             else:
                 obj.props[k] = v
+        # 删除 value 里没有的键（:527-541）
+        for k in list(obj.props):
+            if k in value:
+                continue
+            ov = obj.props[k]
+            if isinstance(ov, CustomObj):
+                self._detach(ov, where)
+            if k in fields:
+                self._err(where,
+                          "%s rochange 删除结构体字段 %r -> :538 assert 崩"
+                          % (obj.type_name, k))
+                continue
+            del obj.props[k]
+
+
+def _is_custom(type_name):
+    """该类型是不是自定义类型（结构体或容器）。"""
+    return bool(type_name) and (_spec.is_struct(type_name)
+                                or _spec.is_container(type_name))
 
 
 
 
-def frames_safe(init_dict, frames, tag=""):
+def frames_safe(pre_init_dict, frames, tag=""):
     """便捷入口：建影子缓存 -> 喂帧 -> 返回 (sc, errors)。
 
-    给现有测试用的：把 handler 产出的帧直接喂进来，断言客户端不崩。
+    ★ pre_init_dict 必须是 **RPC 调用之前** 的 initDict！
+      审计 P0-3 实测：如果用 RPC 之后的 initDict，客户端缓存里已经有
+      那条新数据了，于是「新键用 OP_CHANGE」这种回归**抓不到**。
+      正确用法：
 
-    用法：
-        from shadow_cache import frames_safe
-        sc, errs = frames_safe(msmod._live_init_dict(uid), frames)
+        pre = msmod._live_init_dict(uid)      # 先快照
+        frames = erpc.handle(...)             # 再跑 RPC
+        sc, errs = frames_safe(pre, frames)   # 用 pre 建缓存
         assert not errs, errs
     """
-    props = (init_dict or {}).get("__Properties__") or init_dict or {}
+    props = ((pre_init_dict or {}).get("__Properties__")
+             or pre_init_dict or {})
     sc = ShadowCache()
     sc.init_property(props)
     for f in frames:
@@ -489,16 +604,28 @@ def frames_safe(init_dict, frames, tag=""):
             print("      " + e[:110])
     return sc, list(sc.errors)
 
+
+class _NilKey(object):
+    """客户端 tonumber(k) 失败返回 nil —— 拿 nil 当 table 键会崩。"""
+    def __repr__(self):
+        return "<nil>"
+
+
 def _to_num(k):
-    """客户端 intTypeKey 的 tonumber(k)。"""
-    if isinstance(k, int):
+    """客户端 intTypeKey 的 tonumber(k)。失败返回 _NilKey（代表 nil）。"""
+    if isinstance(k, int) and not isinstance(k, bool):
         return k
     try:
         return int(k)
     except (TypeError, ValueError):
-        return k
+        return _NilKey()
 
 
 def _int_key(type_name):
-    """该容器的键是不是整数。"""
-    return _spec.key_kind(type_name) == "int"
+    """该容器的键是不是整数（客户端 __IntTypeKey__）。
+
+    ★ 审计 P1：**list 类型的 __IntTypeKey__ 也是 true**，
+      客户端对 list 也做 tonumber(k)。之前用 key_kind=="int" 判断，
+      导致 IntList / CharacterList 的键没转 -> 误报。
+    """
+    return _spec.int_type_key(type_name)

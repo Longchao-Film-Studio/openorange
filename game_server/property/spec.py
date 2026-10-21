@@ -152,6 +152,17 @@ def key_kind(type_name):
     return "int" if c.get("int_key") else "str"
 
 
+def int_type_key(type_name):
+    """该容器的键是不是整数（客户端 __IntTypeKey__）。
+
+    ★ 注意：**list 类型的 __IntTypeKey__ 也是 true**
+      （IntList / CharacterList 都是），客户端对 list 也做 tonumber(k)。
+      所以不能用 key_kind == "int" 来判断。
+    """
+    c = custom(type_name) or {}
+    return bool(c.get("int_key"))
+
+
 def struct_fields(type_name):
     """结构体的字段表：{field: [type, default]}。非结构体返回 {}。"""
     c = custom(type_name)

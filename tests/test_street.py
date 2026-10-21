@@ -52,13 +52,13 @@ def run():
     msmod._live_init_dict("street_test")
     st = pstate.get_state(uid="street_test")
     check("初始 street_id = 101", st.props.get("street_id") == 101, st.props.get("street_id"))
+    _pre = msmod._live_init_dict("street_test")   # RPC 前快照（审计 P0-3）
     frames = erpc.handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"],
                          msmod.mp_arr([1011, None]), 1, uid="street_test")
     check("street_id -> 1011", st.props.get("street_id") == 1011, st.props.get("street_id"))
     check("返回 >= 3 帧（应答 + street_id + street_info）", len(frames) >= 3, len(frames))
     # ★ 影子缓存校验：这些帧喂进客户端会不会崩
-    _sc, _errs = frames_safe(msmod._live_init_dict("street_test"), frames,
-                             "切街区")
+    _sc, _errs = frames_safe(_pre, frames, "切街区")
     check("切街区的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[3] street_info 里建了 1011 条目")
