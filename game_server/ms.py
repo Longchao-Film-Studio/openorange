@@ -466,29 +466,6 @@ def _live_init_dict(uid=None):
             except Exception as e:
                 print("[init] 剧情起点设置失败: %s" % e, flush=True)
 
-    # ★ 网页命令 /prologue skip 写的一次性标记：这次登录就应用。
-    #   命令在网页进程（8399）里写共享库，游戏服（33100）在这里读。
-    #   应用后：StoryTask 1000 标完成（PostTasks 会自动开 1003）、
-    #   story_finished[1] = True，于是客户端 CheckEnterPrologue 直接跳过序章。
-    try:
-        from shared import db as _shared_db
-        _skip_key = "skip_prologue:" + str(uid)
-        if _shared_db.get_setting_bool(_skip_key, False):
-            _shared_db.delete_setting(_skip_key)
-            try:
-                from . import story as _story_mod
-            except Exception:
-                import story as _story_mod
-            _story_mod.finish_story_task(st, _story_mod.FIRST_STORY_TASK,
-                                         int(__import__("time").time()))
-            _sf = st.props.get("story_finished")
-            if isinstance(_sf, dict):
-                _sf[1] = True
-                st.set("story_finished", _sf)
-            print("[init] 应用 /prologue skip：%s 跳过序章" % uid, flush=True)
-    except Exception as e:
-        print("[init] /prologue skip 应用失败: %s" % e, flush=True)
-
     # ★ 体力：新号拉满；每次登录按离线时间补。
     #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
     #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。

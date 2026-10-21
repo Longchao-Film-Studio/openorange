@@ -933,6 +933,18 @@ def main():
     ooconf.configure_dungeon_last_only(_last_only)
     if _last_only:
         print("[cfg] 副本: 只下发最后一关（一关直达 Boss）", flush=True)
+
+    # ---- 本地管理接口（给网页命令系统用）----
+    # 网页端（8399）和游戏服（33100）是两个进程，命令要改游戏服状态，
+    # 走这个显式的 HTTP 边界，而不是共用一个 SQLite 表互相猜。
+    # 只监听 127.0.0.1，需要 X-OO-Token。
+    try:
+        from . import admin_api as _admin_api
+        _admin_api.start()
+        print("[admin] 管理接口 http://127.0.0.1:%d（命令系统用）"
+              % _admin_api._port(), flush=True)
+    except Exception as _e:
+        print("[admin] 管理接口启动失败: %s" % _e, flush=True)
     if MS_MODE:
         os.makedirs(CAPTURE_DIR, exist_ok=True)
         db.init()

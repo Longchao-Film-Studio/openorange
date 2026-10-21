@@ -1,27 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""命令系统 → 游戏服 的联动测试（/dungeon、/prologue）。
+"""命令系统 <-> 游戏服管理接口 的联动测试。
 
-架构：网页端（8399）和游戏服（33100）是两个进程，靠 shared/db 的
-settings 表通信：
-  网页命令 db.set_setting(...)  ->  游戏服每次需要时 db.get_setting(...)
+架构（2026-10-21 重构后）：
+  网页命令  --HTTP-->  游戏服本地管理接口（127.0.0.1:33102, X-OO-Token）
+  -> 直接改游戏服**内存状态**并落盘，同步返回结果。
+  不再共用 SQLite 表。
 
-测试用独立的 OO_STATE_DIR + OO_DB_PATH，不碰真实数据。
+测试用独立的 OO_STATE_DIR，管理接口起在测试端口，不碰真实数据。
 """
 import os
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_cmd_")
-os.environ["OO_DB_PATH"] = os.path.join(
-    tempfile.mkdtemp(prefix="oo_test_cmd_db_"), "data.db")
+_TEST_PORT = 33197
+_TEST_TOKEN = "testtok"
+os.environ["OO_ADMIN_PORT"] = str(_TEST_PORT)
+os.environ["OO_ADMIN_TOKEN"] = _TEST_TOKEN
+os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % _TEST_PORT
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from shared import db, commands as cmds
-from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
-                         config)
+from game_server import admin_api, runtime
+from shared import commands as cmds
+from game_server import ms as msmod, entity_rpc as erpc, config
 
 passed, failed = [], []
 
@@ -40,7 +46,6 @@ def ctx(perm=cmds.PERM_ADMIN, actor="cmd_a"):
 
 
 def start_levels(uid):
-    """进副本，返回服务端下发的 levelIds。"""
     msmod._live_init_dict(uid)
     fs = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                      msmod.mp_arr([{"match_type": 3, "system_type": 1004,
@@ -49,8 +54,7 @@ def start_levels(uid):
     for f in fs:
         if not isinstance(f, (bytes, bytearray)):
             continue
-        body = bytes(f[6:])
-        fields = msmod.pb_parse(body)
+        fields = msmod.pb_parse(bytes(f[6:]))
         params = fields.get(4, [b""])[0]
         if not params:
             continue
@@ -68,81 +72,97 @@ def start_levels(uid):
 
 
 def run():
-    db.init()
     config.configure_scaffold(unlock_all=False)
-    config.configure_dungeon_last_only(False)
+    runtime.set_dungeon_force_level(0)
+    srv, _th = admin_api.start(port=_TEST_PORT)
+    time.sleep(0.3)
 
-    print("\n[1] /dungeon 查看")
-    r = cmds.execute("/dungeon", ctx())
-    check("不报错", r.ok, r.chat)
-    check("默认关闭", r.data.get("last_only") is False, r.data)
+    try:
+        print("\n[1] /dungeon 查看（默认不覆盖）")
+        r = cmds.execute("/dungeon", ctx())
+        check("成功", r.ok, r.chat)
+        check("force_level = 0", r.data.get("force_level") == 0, r.data)
 
-    print("\n[2] /dungeon last-only on -> 游戏服立即生效")
-    r = cmds.execute("/dungeon last-only on", ctx())
-    check("命令成功", r.ok, r.chat)
-    check("库里有标记", db.get_setting_bool("dungeon_last_only") is True)
-    check("config.dungeon_last_only() = True",
-          config.dungeon_last_only() is True)
-    lv = start_levels("cmd_a")
-    check("副本只下发 [50003]（千手Boss战）", lv == [50003], lv)
+        print("\n[2] /dungeon 50003 -> 只打千手Boss战")
+        r = cmds.execute("/dungeon 50003", ctx())
+        check("命令成功", r.ok, r.chat)
+        check("运行时状态已改", runtime.dungeon_force_level() == 50003,
+              runtime.dungeon_force_level())
+        lv = start_levels("cmd_a")
+        check("副本只下发 [50003]", lv == [50003], lv)
 
-    print("\n[3] /dungeon last-only off -> 恢复三关")
-    r = cmds.execute("/dungeon last-only off", ctx())
-    check("命令成功", r.ok, r.chat)
-    check("config.dungeon_last_only() = False",
-          config.dungeon_last_only() is False)
-    lv2 = start_levels("cmd_b")
-    check("副本下发三关", lv2 == [50001, 50002, 50003], lv2)
+        print("\n[3] /dungeon 50001 -> 换一关")
+        r = cmds.execute("/dungeon 50001", ctx())
+        check("命令成功", r.ok, r.chat)
+        lv2 = start_levels("cmd_b")
+        check("副本只下发 [50001]", lv2 == [50001], lv2)
 
-    print("\n[4] /dungeon 参数校验")
-    r = cmds.execute("/dungeon last-only xx", ctx())
-    check("非法开关报错", not r.ok, r.chat)
-    r = cmds.execute("/dungeon nope on", ctx())
-    check("非法子命令报错", not r.ok, r.chat)
+        print("\n[4] /dungeon off -> 恢复全部关卡")
+        r = cmds.execute("/dungeon off", ctx())
+        check("命令成功", r.ok, r.chat)
+        check("运行时已清零", runtime.dungeon_force_level() == 0)
+        lv3 = start_levels("cmd_c")
+        check("下发三关", lv3 == [50001, 50002, 50003], lv3)
 
-    print("\n[5] 权限：普通玩家不能用")
-    r = cmds.execute("/dungeon", ctx(perm=cmds.PERM_PLAYER))
-    check("玩家被拒", not r.ok, r.chat)
+        print("\n[5] 参数校验")
+        r = cmds.execute("/dungeon abc", ctx())
+        check("非数字报错", not r.ok, r.chat)
+        r = cmds.execute("/dungeon 999999", ctx())
+        check("不存在的关卡报错", not r.ok, r.chat)
+        r = cmds.execute("/dungeon 50003", ctx(perm=cmds.PERM_PLAYER))
+        check("玩家被拒", not r.ok, r.chat)
 
-    print("\n[6] /prologue 查看 + 跳过")
-    r = cmds.execute("/prologue", ctx(actor="cmd_c"))
-    check("不报错", r.ok, r.chat)
-    check("默认未跳过", r.data.get("pending") is False, r.data)
+        print("\n[6] /prologue 查看")
+        r = cmds.execute("/prologue", ctx(actor="cmd_p"))
+        check("成功", r.ok, r.chat)
+        p = r.data.get("player") or {}
+        check("story_finished[1] 未过", p.get("story_finished_1") is False, p)
 
-    r = cmds.execute("/prologue skip", ctx(actor="cmd_c"))
-    check("标记成功", r.ok, r.chat)
-    check("库里有标记",
-          db.get_setting_bool("skip_prologue:cmd_c") is True)
+        print("\n[7] /prologue skip -> 立即生效")
+        r = cmds.execute("/prologue skip", ctx(actor="cmd_p"))
+        check("命令成功", r.ok, r.chat)
+        res = r.data.get("result") or {}
+        check("StoryTask 1000 = 6", res.get("story_task_1000") == 6, res)
+        check("story_finished[1] = True",
+              res.get("story_finished_1") is True, res)
+        check("进行中任务只剩 1003", res.get("story_task_bag") == [1003], res)
 
-    print("\n[7] 下次登录应用跳过序章")
-    d = msmod._live_init_dict("cmd_c")["__Properties__"]
-    sf = d.get("story_finished") or {}
-    check("story_finished 有整数键 1",
-          any(k == 1 for k in sf if isinstance(k, int)), list(sf.keys())[:5])
-    bag = d.get("story_task_bag") or {}
-    check("1000 已从 story_task_bag 移除", 1000 not in bag)
-    check("1003 已设为 Doing",
-          isinstance(bag.get(1003), dict) and bag[1003].get("state") == 3,
-          bag.get(1003))
-    check("1000 进了 done_story_tasks",
-          isinstance((d.get("done_story_tasks") or {}).get(1000), dict))
-    check("一次性标记已清",
-          db.get_setting("skip_prologue:cmd_c") is None)
+        print("\n[8] 跳过之后查询状态")
+        r = cmds.execute("/prologue", ctx(actor="cmd_p"))
+        p2 = r.data.get("player") or {}
+        check("已过", p2.get("story_finished_1") is True, p2)
+        check("1000 已完成", p2.get("story_task_1000") == 6, p2)
 
-    print("\n[8] 再登录不会重复应用（不应报错）")
-    d2 = msmod._live_init_dict("cmd_c")["__Properties__"]
-    check("story_finished 仍为真",
-          any(k == 1 for k in (d2.get("story_finished") or {})
-              if isinstance(k, int)))
+        print("\n[9] 重复 skip 幂等")
+        r = cmds.execute("/prologue skip", ctx(actor="cmd_p"))
+        res2 = r.data.get("result") or {}
+        check("标记为本来就完成", res2.get("already_finished") is True, res2)
 
-    print("\n[9] 没标记的账号不受影响")
-    d3 = msmod._live_init_dict("cmd_d")["__Properties__"]
-    check("cmd_d 的 story_finished 为空",
-          not [k for k in (d3.get("story_finished") or {})
-               if isinstance(k, int)],
-          list((d3.get("story_finished") or {}).keys())[:5])
-    check("cmd_d 有任务 1000 进行中",
-          1000 in (d3.get("story_task_bag") or {}))
+        print("\n[10] 查询不会创建存档（关键：否则会毁掉新号初始化）")
+        r = cmds.execute("/prologue", ctx(actor="cmd_q"))
+        pq = r.data.get("player") or {}
+        check("cmd_q 还没有存档", pq.get("exists") is False, pq)
+        check("cmd_q 未过序章", pq.get("story_finished_1") is False, pq)
+        # 查询之后存档仍不应存在
+        from game_server import player_state as _ps
+        check("查询后依然没有存档文件", _ps.peek("cmd_q") is None)
+        # 真登录一次才会有任务 1000
+        msmod._live_init_dict("cmd_q")
+        st_q = _ps.peek("cmd_q")
+        bag_q = (st_q.props.get("story_task_bag") or {})
+        check("登录后才有任务 1000", isinstance(bag_q.get(1000), dict),
+              list(bag_q.keys())[:5])
+
+        print("\n[11] 游戏服没在跑时给友好错误")
+        old = cmds.ADMIN_URL
+        cmds.ADMIN_URL = "http://127.0.0.1:1"
+        r = cmds.execute("/dungeon", ctx())
+        cmds.ADMIN_URL = old
+        check("返回错误而不是抛异常", not r.ok, r.chat)
+        check("提示游戏服没运行", "游戏服" in (r.text or ""), r.text)
+
+    finally:
+        srv.shutdown()
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

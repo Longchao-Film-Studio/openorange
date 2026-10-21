@@ -155,6 +155,11 @@ def story_line(story_id):
     return row("StoryLineData", story_id)
 
 
+def level(level_id):
+    """LevelData[level_id] —— 关卡配置（levelName / scene / nextLevel）。"""
+    return row("LevelData", level_id)
+
+
 def level_copy(copy_id):
     """Level_CopyData[copy_id] —— 副本配置，含 rootLevel（关卡 id 列表）。"""
     return row("Level_CopyData", copy_id)

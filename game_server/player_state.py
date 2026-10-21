@@ -200,6 +200,26 @@ def get_state(init_props=None, uid=DEFAULT_UID):
         return st
 
 
+def peek(uid=DEFAULT_UID):
+    """只看状态，不存在就返回 None（**不创建**）。
+
+    为什么要它：`get_state()` 在没有存档时会建一份空白状态并缓存。
+    如果管理接口的**查询**命令用了 get_state，就会留下一个空壳存档，
+    导致后面真正的登录看到 is_new=False、跳过新号初始化（任务 1000 就没了）。
+    """
+    uid = uid or DEFAULT_UID
+    with _LOCK:
+        st = _STATES.get(uid)
+        if st is not None:
+            return st
+        st = load(uid)
+        if st is None:
+            return None
+        st.is_new = False
+        _STATES[uid] = st
+        return st
+
+
 def reset_state(init_props=None, uid=DEFAULT_UID):
     uid = uid or DEFAULT_UID
     with _LOCK:

@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""game_server.admin_api —— 游戏服的本地管理接口（给网页命令系统用）。
+
+为什么要有这个
+--------------
+网页端（8399）和游戏服（33100）是两个进程。命令要改游戏服的行为，
+需要一个**显式的服务边界**，而不是两边共用一个 SQLite 表互相猜。
+
+设计
+----
+- 只监听 127.0.0.1（不对外）
+- 需要 X-OO-Token 头（默认 OO_ADMIN_TOKEN，缺省 local-dev）
+- 同步返回结果，命令能立刻知道成功与否
+- 直接改游戏服**内存状态**并落盘，不是「等下次登录生效」
+
+接口
+----
+    GET  /health
+    GET  /state
+    POST /dungeon/level            {"level": 50003}   0 = 取消覆盖
+    POST /player/skip-prologue     {"uid": "xxx"}
+    GET  /player/{uid}/story       看某账号剧情状态
+"""
+import json
+import os
+import threading
+import time
+import traceback
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from . import runtime
+
+DEFAULT_PORT = 33102
+DEFAULT_TOKEN = "local-dev"
+
+
+def _token():
+    return os.environ.get("OO_ADMIN_TOKEN") or DEFAULT_TOKEN
+
+
+def _port():
+    try:
+        return int(os.environ.get("OO_ADMIN_PORT") or DEFAULT_PORT)
+    except (TypeError, ValueError):
+        return DEFAULT_PORT
+
+
+# ---------------------------------------------------------------- 业务实现
+def _do_skip_prologue(uid):
+    """立刻把某个账号的序章标完成（不等下次登录）。
+
+    必须先走一遍 `ms._live_init_dict(uid)`：
+      - 新号第一次被创建时，它会应用脚手架/新号剧情起点（任务 1000 设为进行中）
+      - 直接 get_state 拿到的是**空白状态**，story_task_bag 还没有 1000，
+        后面 finish_story_task 就找不到任务（实测 story_task_1000 返回 -1）。
+    """
+    from . import ms as msmod, player_state, story
+    # 没有存档 / 存档是空壳（被查询命令创建过）-> 用完整初始数据重建
+    st = player_state.peek(uid)
+    if st is None or not isinstance(st.props.get("story_task_bag"), dict):
+        player_state.reset_state(
+            msmod._conv_int_keys(
+                msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+            uid=uid)
+        player_state.peek(uid).is_new = True
+    msmod._live_init_dict(uid)          # 走一遍新号初始化（任务 1000 设为进行中）
+    st = player_state.get_state(uid=uid)
+    now = int(time.time())
+    bag = st.props.get("story_task_bag") or {}
+    done_before = story.story_state(st.props, story.FIRST_STORY_TASK)
+    if done_before != story.TASK_STATE_FINISHED:
+        story.finish_story_task(st, story.FIRST_STORY_TASK, now)
+    sf = st.props.get("story_finished")
+    if isinstance(sf, dict):
+        sf[1] = True
+        st.set("story_finished", sf)
+    st.save()
+    return {
+        "uid": uid,
+        "already_finished": done_before == story.TASK_STATE_FINISHED,
+        "story_task_1000": story.story_state(st.props, story.FIRST_STORY_TASK),
+        "story_finished_1": bool(isinstance(sf, dict) and sf.get(1) is True),
+        "story_task_bag": sorted([k for k in (st.props.get("story_task_bag") or {})
+                                  if isinstance(k, int)]),
+    }
+
+
+def _player_story(uid):
+    from . import player_state, story
+    st = player_state.peek(uid)      # 查询不创建存档
+    if st is None:
+        return {"uid": uid, "exists": False, "story_task_1000": -1,
+                "story_finished_1": False, "active": [],
+                "level": None, "street_id": None}
+    bag = st.props.get("story_task_bag") or {}
+    sf = st.props.get("story_finished") or {}
+    return {
+        "uid": uid,
+        "story_task_1000": story.story_state(st.props, story.FIRST_STORY_TASK),
+        "story_finished_1": bool(isinstance(sf, dict) and sf.get(1) is True),
+        "active": sorted([k for k in bag if isinstance(k, int)]),
+        "level": st.props.get("level"),
+        "street_id": st.props.get("street_id"),
+    }
+
+
+# ---------------------------------------------------------------- HTTP 层
+class _Handler(BaseHTTPRequestHandler):
+    server_version = "OOAdmin/1.0"
+
+    def log_message(self, fmt, *args):  # 静音，别刷屏
+        pass
+
+    def _send(self, code, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _auth(self):
+        tok = self.headers.get("X-OO-Token") or ""
+        if tok != _token():
+            self._send(403, {"ok": False, "error": "bad token"})
+            return False
+        return True
+
+    def _body(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except (TypeError, ValueError):
+            n = 0
+        if n <= 0:
+            return {}
+        raw = self.rfile.read(n)
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except Exception:
+            return {}
+
+    def do_GET(self):
+        if not self._auth():
+            return
+        path = self.path.split("?")[0].rstrip("/") or "/"
+        try:
+            if path == "/health":
+                return self._send(200, {"ok": True,
+                                        "started_at": runtime.STARTED_AT})
+            if path == "/state":
+                return self._send(200, {"ok": True, "state": runtime.snapshot()})
+            if path.startswith("/player/") and path.endswith("/story"):
+                uid = path[len("/player/"):-len("/story")]
+                return self._send(200, {"ok": True,
+                                        "player": _player_story(uid)})
+            return self._send(404, {"ok": False, "error": "no such path"})
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": "%s: %s"
+                                    % (type(e).__name__, e),
+                                    "trace": traceback.format_exc()[-800:]})
+
+    def do_POST(self):
+        if not self._auth():
+            return
+        path = self.path.split("?")[0].rstrip("/") or "/"
+        payload = self._body()
+        try:
+            if path == "/dungeon/level":
+                lv = runtime.set_dungeon_force_level(payload.get("level"))
+                return self._send(200, {"ok": True, "dungeon_force_level": lv})
+            if path == "/player/skip-prologue":
+                uid = str(payload.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "missing uid"})
+                return self._send(200, {"ok": True,
+                                        "result": _do_skip_prologue(uid)})
+            return self._send(404, {"ok": False, "error": "no such path"})
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": "%s: %s"
+                                    % (type(e).__name__, e),
+                                    "trace": traceback.format_exc()[-800:]})
+
+    def do_PUT(self):
+        self.do_POST()
+
+
+def start(host="127.0.0.1", port=None):
+    """在后台线程起管理接口。返回 (server, thread)。"""
+    if runtime.STARTED_AT is None:
+        runtime.STARTED_AT = int(time.time())
+    p = port or _port()
+    srv = ThreadingHTTPServer((host, p), _Handler)
+    th = threading.Thread(target=srv.serve_forever, name="oo-admin-api",
+                          daemon=True)
+    th.start()
+    return srv, th

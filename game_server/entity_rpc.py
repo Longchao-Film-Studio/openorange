@@ -46,6 +46,7 @@ import time
 from . import ms as msmod
 from . import config as ooconf
 from . import gamedata
+from . import runtime as oo_runtime
 from . import story
 from . import tasks
 
@@ -1752,9 +1753,19 @@ def _avatar_start_game(rid, params, uid=None):
     }
     if roots:
         ids = [int(x) for x in roots if isinstance(x, int)]
-        # --dungeon-last-only：只下发最后一关，测试时一关直达 Boss
-        # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 levelIds
-        if ooconf.dungeon_last_only() and len(ids) > 1:
+        # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 levelIds，
+        # 所以覆盖关卡列表就能直接进指定关卡（跳过前面的关卡）。
+        force = oo_runtime.dungeon_force_level()
+        if force:
+            if force in ids:
+                ids = [force]
+                print("[dungeon] 强制关卡 %s（管理接口设置）" % force,
+                      flush=True)
+            else:
+                print("[dungeon] ⚠ 强制关卡 %s 不属于本副本（%s），忽略"
+                      % (force, ids), flush=True)
+        elif ooconf.DUNGEON_LAST_ONLY and len(ids) > 1:
+            # 命令行 --dungeon-last-only：只下发最后一关
             ids = ids[-1:]
             print("[dungeon] --dungeon-last-only：只下发最后一关 %s" % ids,
                   flush=True)

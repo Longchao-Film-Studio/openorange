@@ -662,132 +662,215 @@ def cmd_act(ctx, target, *args):
               data={"action": "act", "activity": entry, "mode": mode, "applied": False})
 
 
-# ---------------------------------------------------------------- 副本调试
+# ---------------------------------------------------------------- 游戏服管理接口
 
-# 运行时开关（存在共享库 settings 表里，网页端写、游戏服读）
-DUNGEON_FLAG = "dungeon_last_only"
-
-_ONOFF = {
-    "on": True, "off": False,
-    "1": True, "0": False,
-    "true": True, "false": False,
-    "开": True, "关": False,
-}
+# 网页端（8399）和游戏服（33100）是两个进程。
+# 命令要改游戏服状态，走游戏服的本地 HTTP 管理接口（game_server/admin_api.py），
+# 不共用数据库表 —— 显式边界、同步拿结果、能返回真实状态。
+ADMIN_URL = os.environ.get("OO_ADMIN_URL") or "http://127.0.0.1:33102"
+ADMIN_TOKEN = os.environ.get("OO_ADMIN_TOKEN") or "local-dev"
 
 
-@register("dungeon", aliases=("副本",), args="[last-only on|off]",
-          desc="副本调试：只下发最后一关（一关直达 Boss）",
+def _admin(method, path, payload=None):
+    """调游戏服管理接口。返回 (json, err)。"""
+    import json as _json
+    import urllib.error
+    import urllib.request
+    url = ADMIN_URL.rstrip("/") + path
+    data = None
+    if payload is not None:
+        data = _json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=data, method=method,
+        headers={"X-OO-Token": ADMIN_TOKEN,
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return _json.loads(r.read().decode("utf-8")), None
+    except urllib.error.HTTPError as e:
+        try:
+            return _json.loads(e.read().decode("utf-8")), None
+        except Exception:
+            return None, "HTTP %s" % e.code
+    except Exception as e:
+        return None, "%s: %s" % (type(e).__name__, e)
+
+
+_ADMIN_DOWN = ("连不上游戏服管理接口（%s）。\n"
+               "  游戏服没在运行？先启动 game_server.server --ms-ok。"
+               % ADMIN_URL)
+
+
+# ---------------------------------------------------------------- 副本关卡
+
+# 序章的关卡，给 /dungeon 显示用（客户端 Level_CopyData["guide_01"].rootLevel）
+_GUIDE01_LEVELS = [
+    (50001, "序章_中浦区天台"),
+    (50002, "序章_千相会龙域"),
+    (50003, "序章_千手Boss战"),
+]
+
+
+@register("dungeon", aliases=("副本",), args="[<关卡ID> | off]",
+          desc="副本关卡覆盖：进副本时只打指定关卡（例：/dungeon 50003 直达Boss）",
           perm=PERM_GM, needs_target=False, group="GM")
 def cmd_dungeon(ctx, target, *args):
-    """副本调试开关。
+    """副本关卡覆盖。
 
-    背景：序章 guide_01 有 3 关（50001 天台 / 50002 千相会 / 50003 千手Boss战），
-    测结算时每次打三关太慢。客户端 dispatchhubonline.lua:49-59 优先用
-    服务端下发的 spaceInfo.levelIds，所以只给最后一关就能一关直达 Boss。
+    原理：客户端 battlecontainer/dispatchhub/dispatchhubonline.lua:49-59
+    优先用服务端下发的 spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。
 
-    开关存在 shared/db 的 settings 表，game_server 每次进副本都会读，
-    所以这里改完**立即生效，不用重启游戏服**。
+    适用于**所有副本**（不限序章）：只要那个关卡属于该副本的 rootLevel 就生效，
+    不属于就忽略并打日志。参数是**关卡 id（数字）**，不是布尔开关。
     """
+    state, e = _admin("GET", "/state")
+    if e or not state or not state.get("ok"):
+        return err(_ADMIN_DOWN if e else "游戏服返回异常: %s" % (state,),
+                   chat="✗ 连不上游戏服")
+    cur = (state.get("state") or {}).get("dungeon_force_level") or 0
+
     if not args:
-        cur = db.get_setting_bool(DUNGEON_FLAG, False)
         lines = [
-            "副本设置",
-            "  只下发最后一关    %s" % ("开启" if cur else "关闭"),
+            "副本关卡覆盖    %s" % ("关闭" if not cur else "只打 %d" % cur),
+            "",
+            "  用法：",
+            "    /dungeon <关卡ID>    只打这一关（例 /dungeon 50003）",
+            "    /dungeon off         取消覆盖",
             "",
             "  序章 guide_01 的关卡：",
-            "    50001  序章_中浦区天台",
-            "    50002  序章_千相会龙域",
-            "    50003  序章_千手Boss战",
+        ]
+        for lid, nm in _GUIDE01_LEVELS:
+            mark = "  ← 当前" if lid == cur else ""
+            lines.append("    %-7s %s%s" % (lid, nm, mark))
+        lines += [
             "",
-            "  开启后进副本只给 50003，测结算不用打三关。",
-            "",
-            "  用法：/dungeon last-only on|off",
-            "  生效：立即（游戏服每次进副本都读共享库）",
+            "  适用于所有副本：关卡 id 只要属于该副本的 rootLevel 就生效。",
+            "  立即生效（游戏服每次进副本都读运行时状态，不用重启）。",
         ]
         return ok(lines,
-                  chat="副本: 只下发最后一关 %s" % ("开" if cur else "关"),
-                  data={"action": "dungeon_show", "last_only": cur})
+                  chat="副本: %s" % ("只打 %d" % cur if cur else "不覆盖"),
+                  data={"action": "dungeon_show",
+                        "force_level": cur, "levels": _GUIDE01_LEVELS})
 
-    sub = (args[0] or "").strip().lower()
-    if sub not in ("last-only", "lastonly", "last", "最后一关"):
-        return err("未知子命令「%s」，用法：/dungeon last-only on|off" % args[0],
-                   chat="✗ 用法: /dungeon last-only on|off")
-    if len(args) < 2:
-        return err("缺少开关，用法：/dungeon last-only on|off",
-                   chat="✗ 用法: /dungeon last-only on|off")
-    val = _ONOFF.get((args[1] or "").strip().lower())
-    if val is None:
-        return err("开关只能是 on / off", chat="✗ 只能是 on/off")
+    raw = (args[0] or "").strip().lower()
+    if raw in ("off", "0", "关", "取消", "clear"):
+        res, e = _admin("POST", "/dungeon/level", {"level": 0})
+        if e or not res or not res.get("ok"):
+            return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
+                       chat="✗ 设置失败")
+        return ok(["✔ 已取消副本关卡覆盖", "",
+                   "  进副本会按 Level_CopyData.rootLevel 正常下发全部关卡。"],
+                  chat="✔ 副本: 已取消覆盖",
+                  data={"action": "dungeon_set", "force_level": 0})
 
-    db.set_setting(DUNGEON_FLAG, 1 if val else 0)
+    try:
+        level = int(raw)
+    except (TypeError, ValueError):
+        return err("关卡 id 必须是数字，或 off。用法：/dungeon 50003",
+                   chat="✗ 用法: /dungeon <关卡ID>|off")
+
+    # 关卡校验：LevelData 在 game_server.gamedata 里（shared.gamedata 没导出这张表）。
+    # 懒加载 + 容错：网页进程拿不到就跳过校验，别把命令搞挂。
+    entry = None
+    _bdd_ok = False
+    try:
+        from game_server import gamedata as _gsdata
+        _bdd_ok = True
+        entry = _gsdata.level(level)
+    except Exception:
+        _bdd_ok = False
+    if _bdd_ok and entry is None:
+        return err("关卡 %d 不存在（LevelData 里没有这个 id）" % level,
+                   chat="✗ 关卡 %d 不存在" % level)
+    name = (entry or {}).get("levelName") or "-"
+    scene = (entry or {}).get("scene") or "-"
+    nxt = (entry or {}).get("nextLevel") or "无"
+
+    res, e = _admin("POST", "/dungeon/level", {"level": level})
+    if e or not res or not res.get("ok"):
+        return err(_ADMIN_DOWN if e else "设置失败: %s" % (res,),
+                   chat="✗ 设置失败")
+    got = res.get("dungeon_force_level") or 0
     lines = [
-        "✔ 已设置",
-        "  只下发最后一关    %s" % ("开启" if val else "关闭"),
+        "✔ 已设置副本关卡覆盖",
+        "  关卡    %d  %s" % (level, name),
+        "  场景    %s" % scene,
+        "  下一关  %s" % nxt,
         "",
-        "  立即生效：游戏服每次进副本都会读共享库，不用重启。",
+        "  立即生效：下次进副本只打这一关。",
+        "  如果该关卡不属于当前副本的 rootLevel，会被忽略并在服务端打日志。",
     ]
     return ok(lines,
-              chat="✔ 副本: 只下发最后一关 %s" % ("开" if val else "关"),
-              data={"action": "dungeon_set", "last_only": val, "applied": True})
+              chat="✔ 副本: 只打 %d（%s）" % (level, name),
+              data={"action": "dungeon_set", "force_level": got,
+                    "level": entry})
 
 
 # ---------------------------------------------------------------- 序章跳过
 
-SKIP_PROLOGUE_PREFIX = "skip_prologue:"
-
 
 @register("prologue", aliases=("序章",), args="[skip]",
-          desc="序章：查看状态 / 跳过（跳过 = 直接进街区，不再打副本）",
+          desc="序章：查看状态 / 跳过（立刻生效，直接进街区不再打副本）",
           perm=PERM_GM, needs_target=False, group="GM")
 def cmd_prologue(ctx, target, *args):
     """查看或跳过序章。
 
-    跳过是**一次性指令**：命令往共享库写 skip_prologue:<uid>=1，
-    游戏服在下一次登录（ms._live_init_dict）时看到就：
-      - StoryTask 1000 标 Finished
-      - StoryTask 1003 设 Doing
+    跳过通过游戏服管理接口**立刻**改服务端状态：
+      - StoryTask 1000 -> Finished
+      - StoryTask 1003 -> Doing
       - story_finished[1] = True
-    然后把标记清掉。这样不用打序章副本就能直接进街区。
-
-    真正打副本的路径不受影响：那是由结算 RPC 推进的。
+    不需要等下次登录，也不需要共用数据库。
     """
-    key = SKIP_PROLOGUE_PREFIX + str(target)
-    pending = db.get_setting_bool(key, False)
+    uid = str(target)
 
     if not args:
+        info, e = _admin("GET", "/player/%s/story" % uid)
+        if e or not info or not info.get("ok"):
+            return err(_ADMIN_DOWN if e else "查询失败: %s" % (info,),
+                       chat="✗ 连不上游戏服")
+        p = info.get("player") or {}
+        sf1 = p.get("story_finished_1")
+        t1000 = p.get("story_task_1000")
         lines = [
-            "序章状态  账号 %s" % target,
-            "  待跳过的标记    %s" % ("有（下次登录生效）" if pending else "无"),
+            "序章状态    账号 %s" % uid,
+            "  story_finished[1]    %s" % ("已过" if sf1 else "未过"),
+            "  StoryTask 1000       %s" % (
+                "已完成" if t1000 == 6 else
+                "进行中" if t1000 == 3 else
+                "未开始" if t1000 == -1 else "状态 %s" % t1000),
+            "  进行中的剧情任务     %s" % (p.get("active") or "无"),
             "",
-            "  跳过之后：StoryTask 1000 标完成、1003 开始、直接进街区。",
-            "  不跳过：新号第一次登录会进序章副本（3 关，可用 /dungeon last-only 只打 Boss）。",
-            "",
+            "  跳过之后：1000 标完成、1003 开始、直接进街区，不再打序章副本。",
             "  用法：/prologue skip",
         ]
         return ok(lines,
-                  chat="序章 %s: %s" % (target, "待跳过" if pending else "未跳过"),
-                  data={"action": "prologue_show", "target": target,
-                        "pending": pending})
+                  chat="序章 %s: %s" % (uid, "已过" if sf1 else "未过"),
+                  data={"action": "prologue_show", "target": uid, "player": p})
 
     sub = (args[0] or "").strip().lower()
     if sub not in ("skip", "跳过"):
         return err("未知子命令「%s」，用法：/prologue skip" % args[0],
                    chat="✗ 用法: /prologue skip")
 
-    db.set_setting(key, 1)
+    res, e = _admin("POST", "/player/skip-prologue", {"uid": uid})
+    if e or not res or not res.get("ok"):
+        return err(_ADMIN_DOWN if e else "跳过失败: %s" % (res,),
+                   chat="✗ 跳过失败")
+    r = res.get("result") or {}
     lines = [
-        "✔ 已标记跳过序章",
-        "  账号    %s" % target,
+        "✔ 序章已跳过（立即生效）",
+        "  账号              %s" % uid,
+        "  StoryTask 1000    %s" % (
+            "本来就已完成" if r.get("already_finished") else "已标完成"),
+        "  story_finished[1] %s" % ("True" if r.get("story_finished_1") else "False"),
+        "  进行中任务        %s" % (r.get("story_task_bag") or "无"),
         "",
-        "  生效时机：该账号**下一次登录**（游戏服读共享库后应用）。",
-        "  应用后：StoryTask 1000 → 完成、1003 → 进行中、story_finished[1] = True。",
-        "",
-        "  ⚠ 只在服务端生效，客户端要重新登录才会看到。",
+        "  客户端下次登录/重连就会直接进街区，不再进序章副本。",
     ]
     return ok(lines,
-              chat="✔ 序章跳过已标记（%s 下次登录生效）" % target,
-              data={"action": "prologue_skip", "target": target,
-                    "applied": True})
+              chat="✔ 序章已跳过（%s）" % uid,
+              data={"action": "prologue_skip", "target": uid,
+                    "result": r, "applied": True})
 
 
 if __name__ == "__main__":
