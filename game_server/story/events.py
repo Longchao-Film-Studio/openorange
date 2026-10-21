@@ -18,7 +18,12 @@ story.evaluate_event 全仓库**只有 1 个调用点**（副本结算里写死 
         event_id  去重键；None 表示不去重（每次发生都算）
 
     apply_event(st, event) -> EventResult
-        **唯一写入口**。业务只发事件，不直接改任务状态。
+        **检测入口**。业务只发事件，不直接改任务状态。
+
+    注意用词：apply_event 只**检测**哪些任务可以完成，
+    真正落状态的是 entity_rpc._finish_story_tasks -> story.finish_story_task。
+    所以它是「检测入口」，不是「写入口」——
+    2026-10-21 审计指出原文档写「唯一写入口」是夸大且自相矛盾。
 
 ## 为什么 apply_event 不直接落状态
 
@@ -148,14 +153,24 @@ def apply_event(st, event, now=None):
     # 1) 去重
     if event.event_id and already_seen(st, event.event_id):
         return EventResult(deduped=True, event=event)
-    _mark_seen(st, event.event_id, now)
 
     # 2) 事件型任务（TaskType 3 / 7）
-    hits, _ = _story.evaluate_event(st, event.type, event.params, now)
+    #    ★ 审计 P1-6：mark_seen 必须在求值**之后** ——
+    #      之前是先标记再求值，求值抛异常的话事件就被永久吞掉了。
+    try:
+        hits, _ = _story.evaluate_event(st, event.type, event.params, now)
+    except Exception as e:
+        print("[story] 事件求值失败 %s: %s" % (event.type, e), flush=True)
+        hits = []
+    _mark_seen(st, event.event_id, now)
 
     # 3) 链式任务（TaskType 6）—— 任何事件之后都重新检查一次，
     #    因为上一步可能刚完成某个前置任务
-    chain, _ = _story.check_chain_tasks(st, now)
+    try:
+        chain, _ = _story.check_chain_tasks(st, now)
+    except Exception as e:
+        print("[story] 链式检查失败: %s" % e, flush=True)
+        chain = []
 
     return EventResult(hits=hits, chain_hits=chain, event=event)
 
@@ -167,7 +182,11 @@ def tick(st, now=None):
     用于登录、切场景、定时器等时机，把之前漏掉的推进补上。
     """
     now = int(now if now is not None else time.time())
-    chain, _ = _story.check_chain_tasks(st, now)
+    try:
+        chain, _ = _story.check_chain_tasks(st, now)
+    except Exception as e:
+        print("[story] tick 链式检查失败: %s" % e, flush=True)
+        chain = []
     return EventResult(chain_hits=chain)
 
 
@@ -220,6 +239,9 @@ def ev_street_interact(actor_id, interact_id, street_id=None, actor_type=None,
         "InteractId": int(interact_id),
         "interactId": int(interact_id),      # 兼容另一种写法
         "actorId": int(actor_id),
+        # ★ 审计 P1-3：TaskEventData 里 StreetInteract 有 7/11 的 KeyList 是
+        #   ["actorType","streetId"]，不传就永远命中不了。
+        "actorType": int(actor_type) if actor_type is not None else 0,
     }
     if street_id is not None:
         params["streetId"] = int(street_id)
@@ -266,12 +288,17 @@ def ev_avatar_attr(attr, value, source="internal"):
 
     实测 TaskEventData 里 AvatarAttr 的 KeyList 是 ["level"]，
     所以等级变化要发 {"level": N}。
+
+    ★ 2026-10-21 审计 P0-4：**不能按 level 去重**。
+      7006 和 7007 两个剧情任务共用同一个 level=3 事件（TaskEventData[40103]），
+      7006 完成后 7007 才激活，那时需要「再来一次 level=3 事件」——
+      如果按 AvatarAttr:level:3 去重，7007 永远完不成。
+      所以这里**不带 event_id**（每次真发生都算）。
     """
     p = {attr: value}
     if attr != "level":
         p["level"] = value
-    return GameEvent(EV_AVATAR_ATTR, p, source=source,
-                     event_id="AvatarAttr:%s:%s" % (attr, value))
+    return GameEvent(EV_AVATAR_ATTR, p, source=source)
 
 
 def ev_get_item(item_id=0, count=1, item_type=None, level=None, grade=None,

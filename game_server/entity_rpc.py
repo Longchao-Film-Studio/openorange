@@ -627,16 +627,74 @@ def _recalc_story_unlocks(st):
     return frames
 
 
+def _emit_get_item(st, item_id, count):
+    """发一条 GetItem 事件（覆盖 4 条剧情任务）。
+
+    ★ 审计 P0-2：不能依赖客户端 RecordItemObtain_CS ——
+      客户端只在 ItemData.firstObtainNotice 为真且首次获取时才发，
+      全表只有 6 个道具有这个标记，而剧情任务要的 701/118 都没有。
+      所以服务端在真正发道具的地方主动发事件。
+
+    参数尽量补全：TaskEventData 里 GetItem 的 KeyList 有
+      [itemId] / [itemType,level,grade] / [itemType,grade] /
+      [itemType,itemSubType] / [itemType] 五种，
+    能查到 ItemData 就把 itemType/grade/level/itemSubType 都带上。
+    """
+    if not item_id:
+        return []
+    item_type = grade = level = sub_type = None
+    try:
+        info = gamedata.item(item_id) or {}
+        for name, box in (("itemType", "t"), ("grade", "g"),
+                          ("level", "l"), ("itemSubType", "s")):
+            v = info.get(name)
+            if isinstance(v, int):
+                if box == "t":
+                    item_type = v
+                elif box == "g":
+                    grade = v
+                elif box == "l":
+                    level = v
+                else:
+                    sub_type = v
+    except Exception:
+        pass
+    ev = _events.ev_get_item(int(item_id), int(count or 1), item_type, level,
+                             grade)
+    if sub_type is not None:
+        ev.params["itemSubType"] = sub_type
+    try:
+        res = _events.apply_event(st, ev)
+        return list(res.hits) + list(res.chain_hits)
+    except Exception as e:
+        print("[story] GetItem 事件失败 %s: %s" % (item_id, e), flush=True)
+        return []
+
+
 def _finish_story_tasks(st, task_ids, depth=0):
     """完成若干剧情任务，返回全部同步帧。
 
-    ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线，
-      让「完成 A 触发 B」这种剧情链自动往下走（之前完全没有）。
+    ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线。
       depth 是递归保护：任务图理论上无环，但外部数据不一定可靠。
+
+    ★ 审计 P1-4：save 放进 finally —— 之前只在 depth==0 的**正常返回**路径
+      调 save，递归里抛异常就完全不落盘，内存改了但盘上没改。
     """
     frames = []
     now = int(time.time())
     finished_now = []
+    try:
+        return _finish_story_tasks_inner(st, task_ids, depth, frames, now,
+                                         finished_now)
+    finally:
+        if depth == 0:
+            try:
+                st.save()
+            except Exception as e:
+                print("[story] 保存失败: %s" % e, flush=True)
+
+
+def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
     for tid in task_ids:
         if story.story_state(st.props, tid) == story.TASK_STATE_FINISHED:
             continue
@@ -645,6 +703,13 @@ def _finish_story_tasks(st, task_ids, depth=0):
         # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
         for award in story.story_award(st, tid):
             _item_id, _cnt, grid_key, is_new = award
+            # ★ P0-D：服务端发 GetItem 事件（审计 P0-2：
+            #   客户端只在 6 个 firstObtainNotice 道具首次获取时才发
+            #   RecordItemObtain_CS，任务要的 701/118 永远等不到 RPC，
+            #   所以必须服务端自己发）
+            _get_hits = _emit_get_item(st, _item_id, _cnt)
+            if _get_hits and depth < _EVENT_MAX_DEPTH:
+                frames.extend(_finish_story_tasks(st, _get_hits, depth + 1))
             bag = st.props.get("item_bag")
             if not isinstance(bag, dict):
                 break
@@ -656,17 +721,25 @@ def _finish_story_tasks(st, task_ids, depth=0):
                     str(grid_key), grid))
         print("[story] 完成剧情任务 %s" % tid, flush=True)
         finished_now.append(tid)
-    # ★ P0-D：把「完成了哪些任务」作为事件发出去，驱动后续剧情链
+    # ★ P0-D：把「完成了哪些任务」作为事件发出去。
+    #   审计 P1-2 实测：116 条 FinishTask 事件里**没有任何一条**被
+    #   TaskType 3/7 的剧情任务引用，所以这段对剧情任务 0 命中；
+    #   真正起作用的是下面 _recalc_story_unlocks + 外层 events.tick 的链式检查。
+    #   保留它是为了将来数据里出现 FinishTask 引用时能自动生效。
     if finished_now and depth < _EVENT_MAX_DEPTH:
         for tid in finished_now:
-            res = _events.apply_event(
-                st, _events.ev_finish_task(tid, source="internal"))
-            nxt = list(res.hits) + list(res.chain_hits)
-            if nxt:
-                frames.extend(_finish_story_tasks(st, nxt, depth + 1))
+            try:
+                res = _events.apply_event(
+                    st, _events.ev_finish_task(tid, source="internal"))
+                nxt = list(res.hits) + list(res.chain_hits)
+                if nxt:
+                    frames.extend(_finish_story_tasks(st, nxt, depth + 1))
+            except Exception as e:
+                print("[story] FinishTask 事件失败 %s: %s" % (tid, e), flush=True)
+    elif finished_now:
+        print("[story] 事件链超过 %d 层，停止递归（任务 %s）"
+              % (_EVENT_MAX_DEPTH, finished_now[:5]), flush=True)
     frames.extend(_recalc_story_unlocks(st))
-    if depth == 0:
-        st.save()
     return frames
 
 
@@ -2133,6 +2206,7 @@ def _grant_battle_items(st, battle_items):
     """把 battle_items 里的道具发进背包，返回 (同步帧列表, reward_item_list)。"""
     frames = []
     reward_list = []
+    granted = []
     if not isinstance(battle_items, dict):
         return frames, reward_list
     bag = st.props.get("item_bag")
@@ -2159,8 +2233,16 @@ def _grant_battle_items(st, battle_items):
                 msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                 str(gkey), grid))
         reward_list.append({"item_id": iid, "item_num": cnt})
+        granted.append((iid, cnt))
         print("[dungeon] 结算发道具 %s x%s -> 现在 %s" % (iid, cnt, num),
               flush=True)
+    # ★ P0-D：战斗里捡到的道具也发 GetItem 事件
+    #   （审计 P0-2：客户端只对 6 个 firstObtainNotice 道具发 RPC，
+    #    剧情任务要的道具服务端必须自己发事件）
+    for _iid, _cnt in granted:
+        _hits = _emit_get_item(st, _iid, _cnt)
+        if _hits:
+            frames.extend(_finish_story_tasks(st, _hits))
     return frames, reward_list
 
 
@@ -3014,6 +3096,11 @@ def handle(index, params, rid, uid=None):
     #   处理器根本没被调用 —— 但服务端**必须**处理它们（位置上报、红点、
     #   清理等全是单向的），只是不能回应答帧。
     #   所以单向消息走 _ONE_WAY_HANDLERS，只改数据、不回包。
+    # ★ P0-D：把登录时事件总线攒下的「待完成剧情任务」补上。
+    #   这是「服务端主动推进」的落地点：不依赖任何具体 RPC，
+    #   登录后第一条消息（**包括单向消息**）就顺带把漏掉的剧情推进完。
+    #   审计 P1-7：之前放在 rid<=0 之后，单向消息不会 drain，会一直滞留。
+    _pending_frames = _drain_pending_chain(uid)
     if rid <= 0:
         fn1 = _ONE_WAY_HANDLERS.get(index)
         if fn1 is not None:
@@ -3024,12 +3111,8 @@ def handle(index, params, rid, uid=None):
                 out = None
             # 单向处理器可以返回「服务端主动下发的 S2C 帧」（比如 RpcOnEnterSpace）
             if isinstance(out, list):
-                return out
-        return []
-    # ★ P0-D：把登录时事件总线攒下的「待完成链式任务」补上。
-    #   这是「服务端主动推进」的落地点：不依赖任何具体 RPC，
-    #   登录后第一条 RPC 就顺带把漏掉的剧情推进完并推同步帧。
-    _pending_frames = _drain_pending_chain(uid)
+                return _pending_frames + out
+        return _pending_frames
     fn = _HANDLERS.get(index)
     if fn is not None:
         out = fn(rid, params, uid)

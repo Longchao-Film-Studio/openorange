@@ -380,21 +380,32 @@ DEFAULT_INIT_DICT = AVATAR_INIT_DICT if AVATAR_INIT_DICT.get("__Properties__") e
 def _login_tick(st):
     """登录时跑一次事件总线：
 
-    1. 用当前等级发一条 AvatarAttr 事件（覆盖 6 条剧情任务）
-    2. 跑一次 tick() 检查链式任务，命中的记到 _oo_pending_chain，
-       等 entity_rpc 的第一条 RPC 来补完并推同步帧。
+    1. 用当前等级发一条 AvatarAttr 事件
+    2. 跑一次 tick() 检查链式任务
 
-    这样剧情推进就不再只依赖「又打一次副本」。
+    命中的任务（**包括 hits 和 chain_hits**）都记到 _oo_pending_chain，
+    等 entity_rpc 的第一条 RPC 来补完并推同步帧。
+
+    ★ 2026-10-21 审计 P0-1：之前只记了 chain_hits，把 hits 直接丢了，
+      而 apply_event 内部已经把事件标成 seen —— 结果 AvatarAttr 命中的
+      6 条剧情任务永远完不成。现在 hits 一并记进去。
     """
     try:
         from .story import events as _events
+        hits = []
         lv = st.props.get("level")
         if isinstance(lv, int) and lv > 0:
-            _events.apply_event(st, _events.ev_avatar_attr("level", lv,
-                                                          source="login"))
-        res = _events.tick(st)
-        if res.chain_hits:
-            st.props["_oo_pending_chain"] = [int(x) for x in res.chain_hits]
+            res = _events.apply_event(
+                st, _events.ev_avatar_attr("level", lv, source="login"))
+            hits.extend(res.hits)
+            hits.extend(res.chain_hits)
+        res2 = _events.tick(st)
+        hits.extend(res2.chain_hits)
+        # 去重保序
+        hits = [int(x) for x in dict.fromkeys(hits)]
+        if hits:
+            st.props["_oo_pending_chain"] = hits
+            print("[init] 登录事件命中待完成剧情任务 %s" % hits, flush=True)
     except Exception as e:
         print("[init] 登录事件 tick 失败: %s" % e, flush=True)
 

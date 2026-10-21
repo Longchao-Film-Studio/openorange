@@ -224,6 +224,51 @@ def run():
     check("_oo_pending_chain 已清空",
           "_oo_pending_chain" not in st2.props)
 
+    print("\n[I] ★ 审计 P0 修复回归")
+    # P0-1：登录 tick 的 hits 不能丢（之前只记 chain_hits，AvatarAttr 命中的任务永远完不成）
+    st = fresh("ev_p01")
+    activate(st, 400015)          # 需要 AvatarAttr level=3
+    st.props["level"] = 3
+    st.save()
+    pstate._STATES.pop("ev_p01", None)
+    msmod._live_init_dict("ev_p01")
+    st = pstate.get_state(uid="ev_p01")
+    pend = st.props.get("_oo_pending_chain") or []
+    check("P0-1 登录 tick 把 hits 记进 pending", 400015 in pend, pend)
+    erpc.handle(erpc.RPC_INDEX["SetSignature_CS"], msmod.mp_arr(["x"]),
+                1, uid="ev_p01")
+    check("P0-1 首条 RPC 完成任务 400015", finished(st, 400015))
+
+    # P0-4：7006/7007 共用 level=3，AvatarAttr 不能按 level 去重
+    st = fresh("ev_p04")
+    activate(st, 7006)
+    activate(st, 7007)
+    r1 = events.apply_event(st, events.ev_avatar_attr("level", 3))
+    check("P0-4 第一次 level=3 同时命中 7006 和 7007",
+          7006 in r1.hits and 7007 in r1.hits, r1.hits)
+    erpc._finish_story_tasks(st, [7006])
+    r2 = events.apply_event(st, events.ev_avatar_attr("level", 3))
+    check("P0-4 第二次 level=3 仍能命中 7007（没被去重挡住）",
+          7007 in r2.hits and not r2.deduped, (r2.hits, r2.deduped))
+
+    # P0-2：服务端自己发 GetItem（不能只靠客户端 RecordItemObtain_CS）
+    st = fresh("ev_p02")
+    activate(st, 7017)            # 需要 GetItem itemId=701
+    hits = erpc._emit_get_item(st, 701, 1)
+    check("P0-2 _emit_get_item 返回命中的任务", 7017 in (hits or []), hits)
+
+    # P1-4：递归里抛异常也要落盘（save 在 finally）
+    st = fresh("ev_p14")
+    activate(st, 50290)
+    _saved = []
+    _orig_save = st.save
+    st.save = lambda *a, **k: (_saved.append(1), _orig_save(*a, **k))[1]
+    try:
+        erpc._finish_story_tasks(st, [50290])
+    finally:
+        st.save = _orig_save
+    check("P1-4 _finish_story_tasks 结束时会 save", bool(_saved), len(_saved))
+
     print("\n[H] 帧安全：以上路径的帧喂进影子缓存不崩")
     st = fresh("ev_shadow")
     activate(st, 50290)
