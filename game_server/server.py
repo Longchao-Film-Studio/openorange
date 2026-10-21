@@ -566,8 +566,10 @@ def _handle_gate_probe(conn, addr, cid):
                             for _p in (stamina_mod.PROP_KEYS,
                                        stamina_mod.PROP_NEXT,
                                        stamina_mod.PROP_TOTAL):
-                                conn.sendall(msmod.build_property_sync(
-                                    "", 0, msmod.OP_CHANGE, _p, _st.props.get(_p)))
+                                # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
+                                conn.sendall(erpc._sync_frame(
+                                    "", 0, msmod.OP_CHANGE, _p,
+                                    _st.props.get(_p)))
                             print("[GATE] #%03d 体力恢复 +%d -> %s"
                                   % (cid, _gained,
                                      _st.props.get(stamina_mod.PROP_KEYS)), flush=True)
