@@ -1754,7 +1754,7 @@ def _avatar_start_game(rid, params, uid=None):
         ids = [int(x) for x in roots if isinstance(x, int)]
         # --dungeon-last-only：只下发最后一关，测试时一关直达 Boss
         # 客户端 dispatchhubonline.lua:49-59 优先用服务端给的 levelIds
-        if getattr(ooconf, "DUNGEON_LAST_ONLY", False) and len(ids) > 1:
+        if ooconf.dungeon_last_only() and len(ids) > 1:
             ids = ids[-1:]
             print("[dungeon] --dungeon-last-only：只下发最后一关 %s" % ids,
                   flush=True)

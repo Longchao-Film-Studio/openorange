@@ -662,6 +662,134 @@ def cmd_act(ctx, target, *args):
               data={"action": "act", "activity": entry, "mode": mode, "applied": False})
 
 
+# ---------------------------------------------------------------- 副本调试
+
+# 运行时开关（存在共享库 settings 表里，网页端写、游戏服读）
+DUNGEON_FLAG = "dungeon_last_only"
+
+_ONOFF = {
+    "on": True, "off": False,
+    "1": True, "0": False,
+    "true": True, "false": False,
+    "开": True, "关": False,
+}
+
+
+@register("dungeon", aliases=("副本",), args="[last-only on|off]",
+          desc="副本调试：只下发最后一关（一关直达 Boss）",
+          perm=PERM_GM, needs_target=False, group="GM")
+def cmd_dungeon(ctx, target, *args):
+    """副本调试开关。
+
+    背景：序章 guide_01 有 3 关（50001 天台 / 50002 千相会 / 50003 千手Boss战），
+    测结算时每次打三关太慢。客户端 dispatchhubonline.lua:49-59 优先用
+    服务端下发的 spaceInfo.levelIds，所以只给最后一关就能一关直达 Boss。
+
+    开关存在 shared/db 的 settings 表，game_server 每次进副本都会读，
+    所以这里改完**立即生效，不用重启游戏服**。
+    """
+    if not args:
+        cur = db.get_setting_bool(DUNGEON_FLAG, False)
+        lines = [
+            "副本设置",
+            "  只下发最后一关    %s" % ("开启" if cur else "关闭"),
+            "",
+            "  序章 guide_01 的关卡：",
+            "    50001  序章_中浦区天台",
+            "    50002  序章_千相会龙域",
+            "    50003  序章_千手Boss战",
+            "",
+            "  开启后进副本只给 50003，测结算不用打三关。",
+            "",
+            "  用法：/dungeon last-only on|off",
+            "  生效：立即（游戏服每次进副本都读共享库）",
+        ]
+        return ok(lines,
+                  chat="副本: 只下发最后一关 %s" % ("开" if cur else "关"),
+                  data={"action": "dungeon_show", "last_only": cur})
+
+    sub = (args[0] or "").strip().lower()
+    if sub not in ("last-only", "lastonly", "last", "最后一关"):
+        return err("未知子命令「%s」，用法：/dungeon last-only on|off" % args[0],
+                   chat="✗ 用法: /dungeon last-only on|off")
+    if len(args) < 2:
+        return err("缺少开关，用法：/dungeon last-only on|off",
+                   chat="✗ 用法: /dungeon last-only on|off")
+    val = _ONOFF.get((args[1] or "").strip().lower())
+    if val is None:
+        return err("开关只能是 on / off", chat="✗ 只能是 on/off")
+
+    db.set_setting(DUNGEON_FLAG, 1 if val else 0)
+    lines = [
+        "✔ 已设置",
+        "  只下发最后一关    %s" % ("开启" if val else "关闭"),
+        "",
+        "  立即生效：游戏服每次进副本都会读共享库，不用重启。",
+    ]
+    return ok(lines,
+              chat="✔ 副本: 只下发最后一关 %s" % ("开" if val else "关"),
+              data={"action": "dungeon_set", "last_only": val, "applied": True})
+
+
+# ---------------------------------------------------------------- 序章跳过
+
+SKIP_PROLOGUE_PREFIX = "skip_prologue:"
+
+
+@register("prologue", aliases=("序章",), args="[skip]",
+          desc="序章：查看状态 / 跳过（跳过 = 直接进街区，不再打副本）",
+          perm=PERM_GM, needs_target=False, group="GM")
+def cmd_prologue(ctx, target, *args):
+    """查看或跳过序章。
+
+    跳过是**一次性指令**：命令往共享库写 skip_prologue:<uid>=1，
+    游戏服在下一次登录（ms._live_init_dict）时看到就：
+      - StoryTask 1000 标 Finished
+      - StoryTask 1003 设 Doing
+      - story_finished[1] = True
+    然后把标记清掉。这样不用打序章副本就能直接进街区。
+
+    真正打副本的路径不受影响：那是由结算 RPC 推进的。
+    """
+    key = SKIP_PROLOGUE_PREFIX + str(target)
+    pending = db.get_setting_bool(key, False)
+
+    if not args:
+        lines = [
+            "序章状态  账号 %s" % target,
+            "  待跳过的标记    %s" % ("有（下次登录生效）" if pending else "无"),
+            "",
+            "  跳过之后：StoryTask 1000 标完成、1003 开始、直接进街区。",
+            "  不跳过：新号第一次登录会进序章副本（3 关，可用 /dungeon last-only 只打 Boss）。",
+            "",
+            "  用法：/prologue skip",
+        ]
+        return ok(lines,
+                  chat="序章 %s: %s" % (target, "待跳过" if pending else "未跳过"),
+                  data={"action": "prologue_show", "target": target,
+                        "pending": pending})
+
+    sub = (args[0] or "").strip().lower()
+    if sub not in ("skip", "跳过"):
+        return err("未知子命令「%s」，用法：/prologue skip" % args[0],
+                   chat="✗ 用法: /prologue skip")
+
+    db.set_setting(key, 1)
+    lines = [
+        "✔ 已标记跳过序章",
+        "  账号    %s" % target,
+        "",
+        "  生效时机：该账号**下一次登录**（游戏服读共享库后应用）。",
+        "  应用后：StoryTask 1000 → 完成、1003 → 进行中、story_finished[1] = True。",
+        "",
+        "  ⚠ 只在服务端生效，客户端要重新登录才会看到。",
+    ]
+    return ok(lines,
+              chat="✔ 序章跳过已标记（%s 下次登录生效）" % target,
+              data={"action": "prologue_skip", "target": target,
+                    "applied": True})
+
+
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

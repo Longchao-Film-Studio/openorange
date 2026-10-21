@@ -156,6 +156,25 @@ def configure_dungeon_last_only(on=True):
     return DUNGEON_LAST_ONLY
 
 
+def dungeon_last_only():
+    """副本是否只下发最后一关（运行时生效）。
+
+    优先级：
+      1. 命令行 --dungeon-last-only / 环境变量 OO_DUNGEON_LAST_ONLY（启动时写进 DUNGEON_LAST_ONLY）
+      2. 共享 DB 的 settings.dungeon_last_only —— 网页端 /dungeon last-only on 写进去的
+
+    两个进程共享同一个 SQLite，所以网页命令能实时改变游戏服行为，
+    不需要重启游戏服。
+    """
+    if DUNGEON_LAST_ONLY:
+        return True
+    try:
+        from shared import db as shared_db
+        return shared_db.get_setting_bool("dungeon_last_only", False)
+    except Exception:
+        return False
+
+
 def avatar_entity_id(uid):
     return AVATAR_ENTITY_PREFIX + str(uid)
 

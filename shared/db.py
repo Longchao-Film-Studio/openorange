@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 -- 游戏内在线表：由 game_server 在收到 createChannelEntity / 心跳 / 断连时维护。
 -- 以前 /who 读的是 sessions（网页会话），启动器每登一次留一条，越积越多。
+-- 运行时开关：网页端 /admin/command 写，游戏服读。两个进程共享这个库，
+-- 所以这是「命令系统 → 游戏服」的唯一控制通道。
+-- 例：dungeon_last_only = 1 -> 进副本只下发最后一关（一关直达 Boss）
+CREATE TABLE IF NOT EXISTS settings (
+    key          TEXT PRIMARY KEY,
+    value        TEXT NOT NULL,
+    updated_ts   INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS game_online (
     session_id   TEXT PRIMARY KEY,   -- 游戏服连接标识（服务端自增连接号）
     username     TEXT,               -- 账号名（来自 ms GameLoadService.query）
@@ -342,6 +351,59 @@ def online_accounts(limit=200):
     断连时维护，只有真正进了游戏的连接才会出现。
     """
     return list_game_online(limit=limit)
+
+
+# ---------------------------------------------------------------- 运行时开关
+def get_setting(key, default=None):
+    """读一个运行时开关。没有就返回 default。"""
+    c = _conn()
+    row = c.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    if row is None:
+        return default
+    return row["value"]
+
+
+def get_setting_int(key, default=0):
+    v = get_setting(key)
+    if v is None:
+        return default
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def get_setting_bool(key, default=False):
+    v = get_setting(key)
+    if v is None:
+        return default
+    return str(v).strip().lower() not in ("", "0", "false", "off", "no")
+
+
+def set_setting(key, value):
+    """写一个运行时开关。value 会转成字符串。"""
+    c = _conn()
+    now = int(time.time())
+    c.execute(
+        "INSERT INTO settings(key, value, updated_ts) VALUES(?,?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value, "
+        "updated_ts=excluded.updated_ts",
+        (str(key), str(value), now))
+    c.commit()
+    return str(value)
+
+
+def delete_setting(key):
+    c = _conn()
+    c.execute("DELETE FROM settings WHERE key=?", (key,))
+    c.commit()
+
+
+def all_settings():
+    """返回 {key: value} 全量。"""
+    c = _conn()
+    rows = c.execute("SELECT key, value FROM settings ORDER BY key").fetchall()
+    return {r["key"]: r["value"] for r in rows}
 
 
 def list_accounts(limit=100):
