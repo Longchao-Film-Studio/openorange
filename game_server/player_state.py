@@ -107,12 +107,6 @@ class PlayerState(object):
         """
         return _ids.alloc_id(self.props)
 
-    def _unused_next_property_id(self):
-        """属性同步的序号，客户端用来去重/排序。"""
-        with _LOCK:
-            self.property_seq += 1
-            return self.property_seq
-
     def to_dict(self):
         with _LOCK:
             return {
@@ -159,6 +153,8 @@ def load(uid=DEFAULT_UID):
         # 存档损坏/格式不对时不要硬用：属性太少说明写坏了，回退到初始值
         if not isinstance(st.props, dict) or len(st.props) < 10:
             return None
+        # ★ 校正 __id__ 分配计数器 + 检测已有撞号（审计 P0-2/P0-3）
+        _ids.reconcile(st.props)
         return st
     except Exception:
         return None

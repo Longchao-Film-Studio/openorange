@@ -56,18 +56,15 @@ def load_props(uid):
     return props, src
 
 
+# ★ 2026-10-21 审计：这里原本自带一份 max_id + 自己发 __id__，
+#   不更新 props 的 _oo_next_id -> 发完道具重登后第一次分配就撞号。
+#   现在统一走 property.ids.alloc_id（全项目唯一发号入口）。
+from game_server.property import ids as _ids  # noqa: E402
+
+
 def max_id(obj, cur=0):
-    """递归找最大的 __id__。"""
-    if isinstance(obj, dict):
-        v = obj.get("__id__")
-        if isinstance(v, int) and v > cur:
-            cur = v
-        for k, v2 in obj.items():
-            cur = max_id(v2, cur)
-    elif isinstance(obj, list):
-        for v in obj:
-            cur = max_id(v, cur)
-    return cur
+    """兼容旧调用：委托给 property.ids.max_id。"""
+    return _ids.max_id(obj, cur)
 
 
 def give(props, item_id, num, grid_key=None):
@@ -100,15 +97,14 @@ def give(props, item_id, num, grid_key=None):
             nk += 1
     nk = str(nk)
 
-    base = max_id(props)
     grid = {
-        "__id__": base + 1,
+        "__id__": _ids.alloc_id(props),
         "id": nk,
         "itemId": int(item_id),
         "num": int(num),
         "expireTime": 0.0,
         "getTime": 0.0,
-        "ext": {"__id__": base + 2},
+        "ext": {"__id__": _ids.alloc_id(props)},
     }
     bag[nk] = grid
     return nk, int(num), "新格子"

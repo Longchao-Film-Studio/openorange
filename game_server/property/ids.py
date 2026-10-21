@@ -59,7 +59,11 @@ def max_id(obj, cur=0):
 
 
 def peek_next_id(props):
-    """看当前分配的进度（只读，不分配）。测试和诊断用。"""
+    """看**最后已分配**的 id（只读，不分配）。
+
+    注意语义：返回的是「已经用掉的最后一个」，不是「下一个可用」。
+    下一次 alloc_id 会返回 peek_next_id + 1。
+    """
     with _LOCK:
         cur = props.get(_OO_NEXT_ID)
         if isinstance(cur, int) and cur > 0:
@@ -87,6 +91,36 @@ def alloc_id(props):
         return nid
 
 
+def reconcile(props, warn=True):
+    """加载存档时校正分配计数器 + 检测已有的撞号。
+
+    ★ 为什么必须有这一步（2026-10-21 审计 P0-2/P0-3）：
+      alloc_id 只在 _oo_next_id 缺失时扫 max，之后就信任它。
+      但外部写入（GM 工具、客户端异常值、还没迁移的老代码）会往 props 里
+      塞更大的 __id__ 而不更新计数器 —— 下一次分配就会撞。
+      实测：counter=100 但 props 里已有 __id__=500 时，分配会返回 500。
+
+    所以每次读档都做一次 O(n) 校正：把 counter 抬到真实 max。
+    代价是每次登录一次全量扫描（218 属性，毫秒级），可以接受。
+
+    返回 (是否校正过, 重复 id 字典)。
+    """
+    fixed = False
+    real_max = max_id(props)
+    cur = props.get(_OO_NEXT_ID)
+    if not isinstance(cur, int) or cur < real_max:
+        props[_OO_NEXT_ID] = real_max
+        fixed = True
+    ok, dup = verify_unique(props)
+    if warn and not ok:
+        print("[ids] ⚠ 存档里有重复 __id__：%s" %
+              ", ".join("%s:%s" % (k, v) for k, v in list(dup.items())[:5]),
+              flush=True)
+        print("[ids]   客户端会打印 id repeated! 并覆盖缓存项 —— 建议用"
+              " tools/fix_dup_ids.py 修一次", flush=True)
+    return fixed, dup
+
+
 def verify_unique(props):
     """检查 props 里有没有重复的 `__id__`。返回 (是否唯一, {id: [路径...]})。
 
@@ -97,7 +131,8 @@ def verify_unique(props):
     def walk(obj, path):
         if isinstance(obj, dict):
             v = obj.get("__id__")
-            if isinstance(v, int):
+            # bool 是 int 的子类，要排除（否则 True 和 1 会被当成重复）
+            if isinstance(v, int) and not isinstance(v, bool):
                 seen.setdefault(v, []).append(path)
             for k, v2 in obj.items():
                 if k == "__id__":

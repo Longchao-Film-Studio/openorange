@@ -48,30 +48,27 @@ def load_props(uid):
     return props, src
 
 
+# ★ 2026-10-21 审计：这里原本自带一份 max_id + 自己发 __id__，
+#   不更新 props 的 _oo_next_id -> 发完角色重登后第一次分配就撞号。
+#   现在统一走 property.ids.alloc_id（全项目唯一发号入口）。
+from game_server.property import ids as _ids  # noqa: E402
+
+
 def max_id(obj, cur=0):
-    if isinstance(obj, dict):
-        v = obj.get("__id__")
-        if isinstance(v, int) and v > cur:
-            cur = v
-        for v2 in obj.values():
-            cur = max_id(v2, cur)
-    elif isinstance(obj, list):
-        for v in obj:
-            cur = max_id(v, cur)
-    return cur
+    """兼容旧调用：委托给 property.ids.max_id。"""
+    return _ids.max_id(obj, cur)
 
 
-def reid(obj, gen):
-    """递归给所有 __id__ 换新值（避免和已有对象冲突）。"""
+def reid(obj, props):
+    """递归给所有 __id__ 换新值（走统一分配器，会推进 props 里的计数器）。"""
     if isinstance(obj, dict):
         if "__id__" in obj:
-            obj["__id__"] = gen[0]
-            gen[0] += 1
+            obj["__id__"] = _ids.alloc_id(props)
         for k, v in list(obj.items()):
-            reid(v, gen)
+            reid(v, props)
     elif isinstance(obj, list):
         for v in obj:
-            reid(v, gen)
+            reid(v, props)
     return obj
 
 
@@ -103,8 +100,7 @@ def give_char(props, char_id, slot=None):
     if not default_skin:
         raise SystemExit("CharData 里找不到角色 %s 的 DefaultSkin（id 对吗？）" % char_id)
 
-    gen = [max_id(props) + 1]
-    newbie = reid(copy.deepcopy(template), gen)
+    newbie = reid(copy.deepcopy(template), props)
     newbie["useSkinId"] = int(default_skin)
     bag[char_id] = newbie
 
