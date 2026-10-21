@@ -164,13 +164,16 @@ def create_task(st, task_id, now):
     return [("add", "story_task_bag", task_id, item)]
 
 
-def transition(st, task_id, to_state, source="", now=None):
+def transition(st, task_id, to_state, source=""):
     """把一个已在包里的任务迁到 to_state，返回同步描述列表。
 
     唯一允许改 story_task_bag[*]["state"] 的函数。
     - 同状态重复迁移：幂等，返回 []
     - 表外组合：抛 TransitionError（带 from/to 名字，便于定位）
     - 任务不在包里：抛 TransitionError（必须先 create_task）
+
+    （没有 now 参数：客户端 StoryTaskItem 只声明了 get_time/start_time，
+      迁移动态补一个 state_time 会触发「字段没有声明」的客户端警告。）
     """
     task_id = int(task_id)
     to_state = int(to_state)
@@ -196,12 +199,21 @@ def transition(st, task_id, to_state, source="", now=None):
     return [("sub", "story_task_bag", task_id, item)]
 
 
-def move_to_done(st, task_id):
+def move_to_done(st, task_id, now=None):
     """把一条**已 Finished** 的任务从包里挪进 done_story_tasks。
 
-    返回 [("add", "done_story_tasks", taskId, item), ("del", "story_task_bag", taskId, None)]。
-    ★ 顺序不能反：先 OP_CHANGE 到 Finished（在 transition 里），再 add done、del bag。
+    返回 [("add", "done_story_tasks", taskId, doneItem), ("del", "story_task_bag", taskId, None)]。
+
+    ★ 顺序：先 OP_CHANGE 到 Finished（在 transition 里），再 add done、del bag。
       反过来的话客户端永远观察不到 old.state -> 6 的转换，场记板/章节结束不会出现。
+
+    ★★ 为什么必须**新建**一条 item 而不是把 bag 里那条搬过去（审计 P0-1）：
+      复用同一个对象 = 复用同一个 __id__（含三个嵌套容器的 id）。客户端收到
+      OP_ADD(done) 时会先 attach 一个已存在的 id -> customtype._attachToCache 打
+      「id repeated!」并覆盖缓存项；紧接着 OP_DEL(bag) 又把这个 id detach 掉 ->
+      **done 条目直接从客户端缓存里消失**。这正是 docs/P0-地基.md:53-55 定性的
+      P0 类问题。所以 done 用一条全新的 StoryTaskItem（新 __id__ + 新嵌套 id），
+      bag 里那条只用来发 OP_CHANGE / OP_DEL。
     """
     task_id = int(task_id)
     props = st.props
@@ -217,10 +229,16 @@ def move_to_done(st, task_id):
         raise TransitionError(
             "task %d 还没 Finished（当前 %s），不能归档"
             % (task_id, state_name(frm)))
-    item["state"] = TASK_STATE_FINISHED
-    done[task_id] = item
+    # 保留原始时间戳（get_time = 领到任务的时间，start_time = 开始的时间）
+    start_time = int(item.get("start_time") or 0)
+    get_time = int(item.get("get_time") or 0)
+    done_item = make_story_task_item(st, task_id, TASK_STATE_FINISHED,
+                                     start_time or int(now or 0))
+    done_item["start_time"] = start_time
+    done_item["get_time"] = get_time
+    done[task_id] = done_item
     bag.pop(task_id, None)
     st.set("done_story_tasks", done)
     st.set("story_task_bag", bag)
-    return [("add", "done_story_tasks", task_id, item),
+    return [("add", "done_story_tasks", task_id, done_item),
             ("del", "story_task_bag", task_id, None)]

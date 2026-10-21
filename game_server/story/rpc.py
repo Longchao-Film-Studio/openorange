@@ -172,8 +172,14 @@ def _finish_story_tasks(st, task_ids, depth=0):
                 print("[story] 保存失败: %s" % e, flush=True)
 
 def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
+    done_bag = st.props.get("done_story_tasks")
+    if not isinstance(done_bag, dict):
+        done_bag = {}
     for tid in task_ids:
-        if story.story_state(st.props, tid) == story.TASK_STATE_FINISHED:
+        # ★ 审计 P0-2：判「是否真完成」要看**有没有归档进 done**，不能只看 state==6。
+        #   否则「标记完成 -> 发奖失败」留下的 bag-state-6 任务会被永远跳过，
+        #   既不会重试发奖，也不会归档。
+        if isinstance(done_bag.get(int(tid)), dict):
             continue
         # ★ P1 阶段 A：完成拆成三步，发奖插在中间
         #   1) →Finished(6)：一条 OP_CHANGE，客户端靠它触发场记板/章节提示/清红点

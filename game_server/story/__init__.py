@@ -88,6 +88,11 @@ def _as_map(props, name, tp=None):
 # 主线第一环：StoryTaskData[1000]「好戏开拍」（main_01 笼律鸟）
 FIRST_STORY_TASK = 1000
 
+# 发奖账本："taskId:itemId" -> 已发数量。
+# ★ 为什么需要它（审计 P0-2）：story_award 以前直接累加 num，同任务调两次奖励翻倍。
+#   而「标记完成 -> 发奖 -> 归档」拆成三步之后中间失败会重试，所以发奖必须幂等。
+_AWARD_LOG = "_oo_story_award_log"
+
 
 def init_new_player(st, now=None):
     """新号的剧情起点：把第一环设为进行中。
@@ -133,7 +138,7 @@ def start_story_task(st, task_id, now):
         return []
     out = _sm_create_task(st, task_id, now)
     out.extend(_sm_transition(st, task_id, TASK_STATE_DOING,
-                              source="start_story_task", now=now))
+                              source="start_story_task"))
     return out
 
 
@@ -149,10 +154,17 @@ def mark_story_task_finished(st, task_id, now):
       两条描述一起返回，否则客户端会收到「改一个不存在的键」的 OP_CHANGE 而报错。
     """
     out = []
-    if story_state(st.props, task_id) == -1:
+    props = st.props
+    if not isinstance(props.get("story_task_bag"), dict):
+        return out
+    cur = story_state(props, task_id)
+    if cur == TASK_STATE_FINISHED:
+        # 已在包里 Finished（上次发奖失败留下的）或已归档 -> 幂等 no-op
+        return out
+    if cur == -1:
         out.extend(_sm_create_task(st, task_id, now))
     out.extend(_sm_transition(st, task_id, TASK_STATE_FINISHED,
-                              source="finish_story_task", now=now))
+                              source="finish_story_task"))
     return out
 
 
@@ -161,7 +173,10 @@ def archive_story_task(st, task_id, now):
 
     返回 [("add", "done_story_tasks", ...), ("del", "story_task_bag", ...)] + 下一环的启动描述。
     """
-    out = _sm_move_to_done(st, task_id)
+    out = _sm_move_to_done(st, task_id, now)
+    if not out:
+        # 没归档成功（任务不在包里）就不许推进 PostTasks，否则会「没完成却开了下一环」
+        return out
     cfg = gamedata.story_task(task_id) or {}
     for nxt in (cfg.get("PostTasks") or []):
         out.extend(start_story_task(st, int(nxt), now))
@@ -180,10 +195,20 @@ def finish_story_task(st, task_id, now):
     return out
 
 
-def story_award(st, task_id):
-    """发 StoryTaskData[task_id].AwardItemList 的奖励，返回 (item_id, 新数量) 列表。"""
+def story_award(st, task_id, now=None):
+    """发 StoryTaskData[task_id].AwardItemList 的奖励，返回 (item_id, 新数量, 格子键, 是否新建)。
+
+    ★ 幂等（审计 P0-2）：每发一项就把 "taskId:itemId" 记进 `_oo_story_award_log`，
+      重复调用会跳过已发过的项。这样「标记完成 -> 发奖 -> 归档」中途失败后重试，
+      既不会丢奖励，也不会把奖励翻倍。
+    """
     cfg = gamedata.story_task(task_id) or {}
     awards = cfg.get("AwardItemList") or {}
+    props = st.props
+    log = props.get(_AWARD_LOG)
+    if not isinstance(log, dict):
+        log = {}
+        st.set(_AWARD_LOG, log)
     out = []
     for k, v in awards.items():
         if k in ("KeyList", "__bdd_metatype__"):
@@ -195,12 +220,17 @@ def story_award(st, task_id):
             continue
         if count <= 0:
             continue
-        got = add_item(st.props, item_id, count)
-        if got is not None:
-            newnum, grid_key, is_new = got
-            out.append((item_id, newnum, grid_key, is_new))
+        key = "%d:%d" % (int(task_id), item_id)
+        if key in log:
+            continue
+        got = add_item(props, item_id, count)
+        if got is None:
+            continue
+        newnum, grid_key, is_new = got
+        log[key] = int(count)
+        st.set(_AWARD_LOG, log)
+        out.append((item_id, newnum, grid_key, is_new))
     return out
-
 
 # ---------------------------------------------------------------------------
 # 剧情触发引擎（TaskType 3 / 6 / 7）
