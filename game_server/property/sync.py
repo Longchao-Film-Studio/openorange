@@ -21,15 +21,36 @@
 from .tx import OP_DEL, OP_REMOVE, OP_ADD
 
 
-def _strip_private(value):
-    """递归剥掉 _oo_* 前缀的键。返回新对象（不改原值）。"""
+def _strip_private(value, is_root=False):
+    """递归剥掉私有键。返回新对象（不改原值）。
+
+    剥两类：
+      _oo_*  —— 服务端私有字段，任何层级都不该发给客户端
+      __tp__ —— **只在根属性值里保留**；嵌套值一律剥掉
+
+    ★ 为什么嵌套值必须剥 __tp__（2026-10-21 审计 P0-1/P0-2 实锤）：
+      客户端 initProperty 用 __tp__ 决定「这个根属性是什么自定义类型」；
+      但嵌套路径的 roinit/rochange（customdict.lua / customlist.lua）
+      会把它当成一个**普通子键**去解析：
+        - 结构体（StreetInfo）没有 __ValueTypeDeclare__ ->
+          rochange 里 valueTypeDeclare:isCustomType() 索引 nil 崩
+        - 容器（TaskBag）有 __ValueType__=TaskItem ->
+          把 "TaskBag" 这个字符串当 TaskItem 解析 -> index a string value 崩
+      实测：声望增长 / 宝箱首开 / 接通用任务 三条路径都会发这种帧。
+    """
     if isinstance(value, dict):
-        return {k: _strip_private(v) for k, v in value.items()
-                if not (isinstance(k, str) and k.startswith("_oo_"))}
+        out = {}
+        for k, v in value.items():
+            if isinstance(k, str) and k.startswith("_oo_"):
+                continue
+            if k == "__tp__" and not is_root:
+                continue
+            out[k] = _strip_private(v, is_root=False)
+        return out
     if isinstance(value, list):
-        return [_strip_private(v) for v in value]
+        return [_strip_private(v, is_root=False) for v in value]
     if isinstance(value, tuple):
-        return tuple(_strip_private(v) for v in value)
+        return tuple(_strip_private(v, is_root=False) for v in value)
     return value
 
 
@@ -40,20 +61,73 @@ def _sort_key(op):
 
 
 def validate(ops):
-    """开发期断言。返回错误信息列表（空表示通过）。"""
+    """开发期断言。返回错误信息列表（空表示通过）。
+
+    ★ 2026-10-21 审计 P0-3：原来只查「OP_ADD 是 dict 且有 __id__」，
+      对 8 类客户端会崩的场景里 7 类返回 []。现在补上：
+        - OP_ADD 的 propertyId 必须 > 0（客户端要拿它找父对象）
+        - 同一批 ops 里不能有重复的 __id__（客户端 id repeated! 覆盖缓存）
+        - 值里嵌套的 dict 必须带 __id__（客户端 roinit assert）
+        - 结构体字段禁止 OP_ADD（客户端 __OpAdd__ 要求 __ValueTypeDeclare__）
+        - list 键禁止 OP_DEL（应用 OP_REMOVE）
+    """
+    from . import spec as _spec
     errs = []
+    seen_ids = {}
+
+    def walk_ids(obj, path):
+        if isinstance(obj, dict):
+            v = obj.get("__id__")
+            if isinstance(v, int) and not isinstance(v, bool):
+                if v in seen_ids:
+                    errs.append("__id__ %d 重复：%r 和 %r"
+                                % (v, seen_ids[v], path))
+                else:
+                    seen_ids[v] = path
+            else:
+                errs.append("嵌套 dict %r 没有 __id__（客户端 roinit 会 assert）"
+                            % (path,))
+            for k, v2 in obj.items():
+                if k in ("__id__", "__tp__"):
+                    continue
+                walk_ids(v2, "%s.%s" % (path, k))
+        elif isinstance(obj, (list, tuple)):
+            for i, v2 in enumerate(obj):
+                walk_ids(v2, "%s[%d]" % (path, i))
+
     for op in ops:
+        path = op.path or ()
+        if not isinstance(op.property_id, int):
+            errs.append("%r 的 property_id 不是整数" % (path,))
         if op.optype == OP_ADD:
             if not isinstance(op.value, dict):
-                errs.append("OP_ADD %r 的值不是 dict" % (op.path,))
+                errs.append("OP_ADD %r 的值不是 dict" % (path,))
             elif not isinstance(op.value.get("__id__"), int):
-                errs.append("OP_ADD %r 的值没有 __id__" % (op.path,))
-        if op.optype in (OP_DEL, OP_REMOVE):
-            if op.value is not None:
-                errs.append("OP_DEL %r 不该带值" % (op.path,))
-        if not isinstance(op.property_id, int):
-            errs.append("%r 的 property_id 不是整数" % (op.path,))
+                errs.append("OP_ADD %r 的值没有 __id__" % (path,))
+            if op.property_id <= 0:
+                errs.append("OP_ADD %r 的 propertyId=0（客户端找不到父对象）" % (path,))
+            # 结构体字段不能 OP_ADD
+            if len(path) >= 2:
+                ptype = _parent_type_of(ops, path)
+                if ptype and path[-1] in _spec.struct_fields(ptype):
+                    errs.append("OP_ADD %r 打的是结构体字段（应用 OP_CHANGE）" % (path,))
+        if op.optype in (OP_DEL, OP_REMOVE) and op.value is not None:
+            errs.append("OP_DEL/REMOVE %r 不该带值" % (path,))
+        if op.value is not None:
+            walk_ids(op.value, path)
     return errs
+
+
+def _parent_type_of(ops, path):
+    """尽量推断某条 op 的父对象类型（用于结构体字段判定）。
+
+    简化实现：只看路径长度 2 的情况（根容器 -> 键），用根属性声明的 value_type。
+    """
+    from . import spec as _spec
+    if len(path) != 2:
+        return None
+    sp = _spec.get(path[0])
+    return sp.value_type if sp else None
 
 
 def ops_to_frames(ops, strict=False):
@@ -79,7 +153,9 @@ def ops_to_frames(ops, strict=False):
         if op.optype in (OP_DEL, OP_REMOVE):
             value = None
         else:
-            value = _strip_private(op.value)
+            # ★ 根属性值保留 __tp__，嵌套值剥掉（审计 P0-1/P0-2）
+            is_root = len(op.path or ()) == 1
+            value = _strip_private(op.value, is_root=is_root)
         frames.append(_ms.build_property_sync(
             "", op.property_id, op.optype, op.name, value))
     return frames

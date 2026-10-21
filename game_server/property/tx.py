@@ -42,6 +42,8 @@ handler 只描述**意图**（tx.set(path, value)），Tx 负责
 from . import ids as _ids
 from . import spec as _spec
 
+OP_REMOVE = 5
+
 # optype（和客户端 puppetpropertycomponent.lua 一致）
 OP_CHANGE = 1
 OP_ADD = 2
@@ -174,17 +176,29 @@ class Tx(object):
         return value
 
     def delete(self, path):
-        """删除某个路径（容器里的一个键）。"""
+        """删除容器里的一个键。
+
+        ★ 两类禁止（2026-10-21 审计 P1-1）：
+          1. 结构体字段不能删 —— 客户端 __OpDel__ 第一句就是
+             assert(valueTypeDeclare ~= nil)，而结构体没有 __ValueTypeDeclare__ -> 崩
+          2. list 类型的删除要用 OP_REMOVE（不是 OP_DEL）——
+             客户端 __OpDel__ 里 assert(obj ~= nil) 也会崩
+        """
         if isinstance(path, str):
             raise TxError("不能删除根属性")
         path = tuple(path)
-        parent, key, pid, _ptype = self._walk(path)
+        parent, key, pid, ptype = self._walk(path)
         if not isinstance(parent, dict):
             raise TxError("路径 %r 的父不是 dict" % (path,))
+        fields = _spec.struct_fields(ptype) if ptype else {}
+        if key in fields:
+            raise TxError("不能删除结构体字段 %r（客户端会 assert 崩）" % (path,))
         if key not in parent:
             raise TxError("路径 %r 的键不存在，不能删除" % (path,))
+        kind = _spec.key_kind(ptype) if ptype else None
+        optype = OP_REMOVE if kind == "list" else OP_DEL
         del parent[key]
-        self.ops.append(Op(pid, OP_DEL, _key_str(key), None, path))
+        self.ops.append(Op(pid, optype, _key_str(key), None, path))
         return True
 
     del_ = delete

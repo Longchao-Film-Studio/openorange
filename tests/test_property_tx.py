@@ -105,13 +105,30 @@ def run():
           op.optype == OP_CHANGE and op.property_id == 1400,
           (op.optype, op.property_id))
 
-    print("\n[7] 删除 -> OP_DEL")
-    t.set(("street_info", 1011, "cd_choose"), {})
-    t.delete(("street_info", 1011, "cd_choose"))
+    print("\n[7] 删除容器键 -> OP_DEL")
+    # 注意：cd_choose 是 StreetInfo 的**结构体字段**，不能删（新守卫会拦）。
+    # 要删的必须是容器里的键，例如 treasure_box_info[101]。
+    t.set(("street_info", 1011, "treasure_box_info"), {"__id__": 1600})
+    t.set(("street_info", 1011, "treasure_box_info", 101), 1)
+    t.delete(("street_info", 1011, "treasure_box_info", 101))
     op = t.ops[-1]
-    check("optype=OP_DEL", op.optype == OP_DEL, op.optype)
+    check("容器键 optype=OP_DEL", op.optype == OP_DEL, op.optype)
     check("删除后 props 里没了",
-          "cd_choose" not in props["street_info"][1011])
+          101 not in (props["street_info"][1011]["treasure_box_info"] or {}))
+
+    print("\n[7b] ★ 守卫：不能删结构体字段（审计 P1-1）")
+    try:
+        t.delete(("street_info", 1011, "cd_choose"))
+        check("删结构体字段被拦", False)
+    except Exception as e:
+        check("删结构体字段被拦", "结构体字段" in str(e), str(e))
+
+    print("\n[7c] ★ list 键删除用 OP_REMOVE（审计 P1-1）")
+    props_l = {"char_list": {"__id__": 100, 1: 9001, 2: 9002}}
+    t_l = txmod.Tx(props_l)
+    t_l.delete(("char_list", 1))
+    check("list 删除 optype=OP_REMOVE",
+          t_l.ops[-1].optype == 5, t_l.ops[-1].optype)
 
     print("\n[8] 自动分配 __id__")
     t.set(("street_info", 2000), {"prestige_level": 0})
@@ -119,28 +136,63 @@ def run():
     check("新对象自动带 __id__", isinstance(nid, int), nid)
     check("分配的 id 大于已有最大值", nid > 1500, nid)
 
-    print("\n[9] B3 排序：先父后子")
-    props2 = {"story_task_bag": {"__tp__": "StoryTaskBag", "__id__": 100}}
+    print("\n[9] B3 排序：先父后子（★ 审计指出原测试没有顺序断言）")
+    props2 = {"story_task_bag": {"__tp__": "StoryTaskBag", "__id__": 100},
+              "signature": ""}
     t2 = txmod.Tx(props2)
-    t2.set(("story_task_bag", 1000), {"__id__": 500})
+    # 调用顺序：先建父对象，再改子字段，最后改根属性 —— ops 顺序是 [2,3,1]
+    t2.set(("story_task_bag", 1000), {"__id__": 500, "state": 0})
     t2.set(("story_task_bag", 1000, "state"), 3)
     t2.set(("signature",), "x")
-    frames = t2.frames()
-    check("3 条变更 3 个帧", len(frames) == 3, len(frames))
-    # 根属性（路径长 1）应该排在容器新键（长 2）之前，结构体字段（长 3）最后
+    raw_lens = [len(op.path) for op in t2.ops]
+    check("调用顺序确实是 [2,3,1]", raw_lens == [2, 3, 1], raw_lens)
+    ordered = sorted(t2.ops, key=sync._sort_key)
+    lens = [len(op.path) for op in ordered]
+    check("排序后路径长度单调不减（先父后子）",
+          lens == sorted(lens), lens)
+    check("最短的根属性排第一", lens[0] == 1, lens)
     errs = sync.validate(t2.ops)
     check("校验通过", not errs, errs)
 
-    print("\n[10] ★ 嵌套 _oo_* 递归剥离")
-    props3 = {"nested": {"__id__": 9, "a": 1, "_oo_hidden": 2,
-                         "deep": {"__id__": 10, "_oo_x": 3}}}
+    print("\n[9b] ★ validate 抓得住审计列的崩溃场景（P0-3）")
+    # (a) OP_ADD propertyId=0
+    bad1 = [txmod.Op(0, txmod.OP_ADD, "k", {"__id__": 1}, ("x", "k"))]
+    check("抓到 OP_ADD pid=0", bool(sync.validate(bad1)), sync.validate(bad1))
+    # (b) 同一批里 __id__ 重复
+    bad2 = [txmod.Op(1, txmod.OP_ADD, "a", {"__id__": 77}, ("c", "a")),
+            txmod.Op(1, txmod.OP_ADD, "b", {"__id__": 77}, ("c", "b"))]
+    check("抓到 __id__ 重复", any("重复" in e for e in sync.validate(bad2)),
+          sync.validate(bad2))
+    # (c) 嵌套 dict 没 __id__
+    bad3 = [txmod.Op(1, txmod.OP_ADD, "a",
+                     {"__id__": 5, "sub": {"no": "id"}}, ("c", "a"))]
+    check("抓到嵌套 dict 没 __id__",
+          any("没有 __id__" in e for e in sync.validate(bad3)),
+          sync.validate(bad3))
+
+    print("\n[10] ★ 嵌套私有键剥离（_oo_* 和 __tp__）")
+    # 用**真实存在的**根属性（审计指出原来用了不存在的 "nested"，那种帧
+    # 在真实客户端会 assert(customType ~= nil) 崩）
+    props3 = {"street_info": {"__tp__": "StreetInfoDict", "__id__": 1400}}
     t3 = txmod.Tx(props3)
-    t3.set(("nested",), props3["nested"])
+    t3.set(("street_info", 2000),
+           {"__tp__": "StreetInfo", "__id__": 9, "prestige_level": 1,
+            "_oo_hidden": 2, "exploration_info": {"__id__": 10, "_oo_x": 3}})
     f = t3.frames()
     check("帧里没有 _oo_hidden", b"_oo_hidden" not in f[0])
     check("帧里没有 _oo_x（嵌套层）", b"_oo_x" not in f[0])
+    check("★ 嵌套值里没有 __tp__（审计 P0-1/P0-2）",
+          b"__tp__" not in f[0])
+    check("嵌套值里保留 __id__", b"__id__" in f[0])
     check("原 props 仍保留（只剥离发送副本）",
-          "_oo_hidden" in props3["nested"])
+          "_oo_hidden" in props3["street_info"][2000])
+
+    print("\n[10b] ★ 根属性值保留 __tp__")
+    props_r = {"base_prop": {"__tp__": "BaseProp", "__id__": 50}}
+    t_r = txmod.Tx(props_r)
+    t_r.set(("base_prop",), {"__tp__": "BaseProp", "__id__": 50, "x": 1})
+    f_r = t_r.frames()
+    check("根属性值保留 __tp__", b"__tp__" in f_r[0])
 
     print("\n[11] 校验能抓出错误")
     props4 = {"bag": {"__id__": 7}}

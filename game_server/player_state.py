@@ -142,6 +142,46 @@ class PlayerState(object):
             return False
 
 
+def _migrate_item_bag_keys(props):
+    """把 item_bag 的整数键统一转成字符串键。
+
+    ★ 为什么（2026-10-21 审计 P0-5）：
+      ItemBag 的 __IntTypeKey__ = false，客户端是 item_bag[gridId] **字符串**查询。
+      旧存档里 JSON 的 "#1" 读回来会变成整数 1，于是 bag 里同时有 "1" 和 1。
+      后果：
+        - 发奖命中整数键 -> 同步 name="1" -> 客户端 "1" 格是别的道具 ->
+          __id__ 不匹配 -> 顶掉客户端第 1 格（奖励实际是丢的）
+        - UseItem_CS 对整数键 -> ms.pb_bytes_field 里 len(int) -> TypeError
+
+    返回迁移了几个。
+    """
+    bag = props.get("item_bag")
+    if not isinstance(bag, dict):
+        return 0
+    int_keys = [k for k in bag
+                if isinstance(k, int) and not isinstance(k, bool)]
+    if not int_keys:
+        return 0
+    n = 0
+    for k in int_keys:
+        grid = bag.pop(k)
+        sk = str(k)
+        if sk in bag:
+            # 冲突：整数 k 和字符串 str(k) 同时存在 -> 换一个空键
+            nk = k
+            while str(nk) in bag:
+                nk += 1000
+            sk = str(nk)
+        bag[sk] = grid
+        if isinstance(grid, dict):
+            grid["id"] = sk
+        n += 1
+    if n:
+        print("[state] item_bag 迁移了 %d 个整数键 -> 字符串键" % n,
+              flush=True)
+    return n
+
+
 def load(uid=DEFAULT_UID):
     """读盘；没有存档就返回 None。"""
     p = os.path.join(_STATE_DIR, "%s.json" % uid)
@@ -155,6 +195,8 @@ def load(uid=DEFAULT_UID):
             return None
         # ★ 校正 __id__ 分配计数器 + 检测已有撞号（审计 P0-2/P0-3）
         _ids.reconcile(st.props)
+        # ★ 旧存档的 item_bag 整数键迁移成字符串键（审计 P0-5）
+        _migrate_item_bag_keys(st.props)
         return st
     except Exception:
         return None
