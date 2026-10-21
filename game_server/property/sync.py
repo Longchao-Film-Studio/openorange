@@ -18,7 +18,7 @@
 
 这两个检查放在这一层，所有走 Tx 的地方自动受益。
 """
-from .tx import OP_DEL, OP_REMOVE, OP_ADD
+from .tx import OP_ADD, OP_DEL, OP_INSERT, OP_REMOVE
 
 
 def _strip_private(value, is_root=False):
@@ -100,10 +100,25 @@ def validate(ops):
         if not isinstance(op.property_id, int):
             errs.append("%r 的 property_id 不是整数" % (path,))
         if op.optype == OP_ADD:
-            if not isinstance(op.value, dict):
+            # ★ 容器元素可能是「自定义类型」也可能是「简单类型」：
+            #   item_bag / street_info 这类元素是结构体 -> 值必须是带 __id__ 的表；
+            #   battle_teach_state（IntDictKeyInt）这类元素就是 int -> 值就是标量。
+            #   以前一刀切要求「必须带 __id__」，把 battle_teach_state 的 OP_ADD
+            #   误报成错误（生产路径 strict=False 所以只刷警告，但语义是错的）。
+            # 注意 _parent_type_of 返回的已经是**元素类型**（sp.value_type），
+            # 不要再 value_type() 一次 —— 双重解引用会拿到错的类型。
+            vtype = _parent_type_of(ops, path) if len(path) >= 2 else None
+            elem_custom = bool(vtype) and (_spec.is_struct(vtype)
+                                          or _spec.is_container(vtype))
+            if isinstance(op.value, dict):
+                if not isinstance(op.value.get("__id__"), int):
+                    errs.append("OP_ADD %r 的值没有 __id__" % (path,))
+                if vtype is not None and not elem_custom:
+                    errs.append("OP_ADD %r 的元素类型 %r 是简单类型，值不该是表"
+                                % (path, vtype))
+            elif vtype is None or elem_custom:
+                # 父类型查不到（自定义根属性）时按旧规则从严：值必须是带 __id__ 的表
                 errs.append("OP_ADD %r 的值不是 dict" % (path,))
-            elif not isinstance(op.value.get("__id__"), int):
-                errs.append("OP_ADD %r 的值没有 __id__" % (path,))
             if op.property_id <= 0:
                 errs.append("OP_ADD %r 的 propertyId=0（客户端找不到父对象）" % (path,))
             # 结构体字段不能 OP_ADD
@@ -113,6 +128,22 @@ def validate(ops):
                     errs.append("OP_ADD %r 打的是结构体字段（应用 OP_CHANGE）" % (path,))
         if op.optype in (OP_DEL, OP_REMOVE) and op.value is not None:
             errs.append("OP_DEL/REMOVE %r 不该带值" % (path,))
+        # ★ B 段遗留：OP_INSERT / OP_REMOVE 以前没有任何校验（也没人产出）。
+        #   客户端 __OpInsert__/__OpRemove__ 的第一句都是 assert(customObj ~= nil)，
+        #   而且 name 会无条件 tonumber —— propertyId 填 0 或 name 不是正整数都会崩。
+        if op.optype in (OP_INSERT, OP_REMOVE):
+            if not isinstance(op.property_id, int) or op.property_id <= 0:
+                errs.append("OP_INSERT/REMOVE %r 的 propertyId 必须是父 list 的 __id__（>0）"
+                            % (path,))
+            try:
+                pos = int(op.name)
+            except Exception:
+                pos = None
+            if pos is None or pos < 1:
+                errs.append("OP_INSERT/REMOVE %r 的 name=%r 必须是 1-based 位置"
+                            % (path, op.name))
+        if op.optype == OP_INSERT and op.value is None:
+            errs.append("OP_INSERT %r 没有值" % (path,))
         if op.value is not None:
             walk_ids(op.value, path)
     return errs

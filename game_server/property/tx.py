@@ -80,7 +80,7 @@ class Tx(object):
     保证两边一致。
     """
 
-    __slots__ = ("props", "ops", "_touched_roots")
+    __slots__ = ("props", "ops", "_touched_roots", "_added_paths")
 
     def __init__(self, props):
         if not isinstance(props, dict):
@@ -88,6 +88,8 @@ class Tx(object):
         self.props = props
         self.ops = []
         self._touched_roots = []
+        # 本 Tx 里已经 OP_ADD 过的路径（用来避免「父帧里已经带着子对象，又给子发一条」）
+        self._added_paths = []
 
     # ------------------------------------------------------------ 内部
     def _walk(self, path):
@@ -181,7 +183,12 @@ class Tx(object):
             self._ensure_id(value)
         parent[key] = value
         optype = OP_CHANGE if (is_struct_field or not is_new) else OP_ADD
+        if optype == OP_ADD and self._covered_by_added(path):
+            # 父容器本 Tx 里刚 OP_ADD 过，它那帧已经带着这个新对象了（活引用）
+            return value
         self.ops.append(Op(pid, optype, _key_str(key), value, path))
+        if optype == OP_ADD:
+            self._added_paths.append(path)
         return value
 
     def delete(self, path):
@@ -211,6 +218,99 @@ class Tx(object):
         return True
 
     del_ = delete
+
+    def insert(self, path, index, value):
+        """往 list 容器的 index 位置插入一个元素（1-based），发 OP_INSERT。
+
+        ★ 为什么要有这条 API（B 段遗留）：
+          Tx 之前只有 set/delete，OP_INSERT **从来没被产出过** ——
+          于是 list 类型属性只能整表替换，每加一个元素都要把整张表重发。
+
+        客户端语义（puppetpropertycomponent.lua:329-375 __OpInsert__）：
+          - 只对 list 有效：父对象必须有 __ValueTypeDeclare__，否则 :336 assert 崩
+          - name 是 1-based 位置，客户端无条件 tonumber(name)
+          - 越界（index > n+1）会让客户端 table.insert 崩
+          - 插入后 index 之后的元素整体后移
+        """
+        path, container, pid, ctype = self._list_container(path, index)
+        keys = _normalize_list_keys(container)
+        n = len(keys)
+        idx = _as_index(index, "insert")
+        if idx < 1 or idx > n + 1:
+            raise TxError("insert 位置 %d 越界（当前 %d 个元素，合法范围 1..%d）"
+                          % (idx, n, n + 1))
+        if isinstance(value, dict):
+            self._ensure_id(value)
+        # 从后往前挪，避免覆盖
+        for i in range(n, idx - 1, -1):
+            container[i + 1] = container.pop(i)
+        container[idx] = value
+        if not self._covered_by_added(path):
+            self.ops.append(Op(pid, OP_INSERT, str(idx), value, path + (idx,)))
+        return value
+
+    def append(self, path, value):
+        """往 list 末尾追加一个元素（insert 的语法糖）。"""
+        if isinstance(path, str):
+            path = (path,)
+        else:
+            path = tuple(path)
+        container = self.get(path)
+        if not isinstance(container, dict):
+            raise TxError("路径 %r 的容器不是 dict" % (path,))
+        keys = _normalize_list_keys(container)
+        return self.insert(path, len(keys) + 1, value)
+
+    def remove_at(self, path, index):
+        """删除 list 的第 index 个元素（1-based），发 OP_REMOVE，后续元素前移。
+
+        ★ 和 delete() 的区别：delete 是按**键**删（dict 语义），
+          list 的键就是位置，所以两者对 list 等价；但 remove_at 做越界检查
+          并按位置语义前移，调用方意图更明确。
+        """
+        path, container, pid, ctype = self._list_container(path, index)
+        keys = _normalize_list_keys(container)
+        n = len(keys)
+        idx = _as_index(index, "remove_at")
+        if idx < 1 or idx > n:
+            raise TxError("remove_at 位置 %d 越界（当前 %d 个元素，合法范围 1..%d）"
+                          % (idx, n, n))
+        old = container.pop(idx)
+        for i in range(idx + 1, n + 1):
+            container[i - 1] = container.pop(i)
+        if not self._covered_by_added(path):
+            self.ops.append(Op(pid, OP_REMOVE, str(idx), None, path + (idx,)))
+        return old
+
+    def _list_container(self, path, index):
+        """定位 list 容器：返回 (path, container, container_pid, container_type)。"""
+        if isinstance(path, str):
+            path = (path,)
+        else:
+            path = tuple(path)
+        container, _k, pid, ctype = self._walk(path + (index,))
+        if not isinstance(container, dict):
+            raise TxError("路径 %r 的容器不是 dict" % (path,))
+        if _spec.key_kind(ctype) != "list":
+            raise TxError("路径 %r 的类型 %r 不是 list（list 操作要用 set/insert）"
+                          % (path, ctype))
+        return path, container, pid, ctype
+
+    def _covered_by_added(self, path):
+        """path 的某个祖先是否在本 Tx 里刚被 OP_ADD。
+
+        ★ 为什么必须判断：OP_ADD 的 value 是 props 里的**活引用**，
+          父容器建好之后再往里面塞子对象，父帧里已经带着那个子对象了；
+          如果这时再给子对象发一条 OP_ADD，客户端会收到两遍同一个 __id__
+          -> _attachToCache 打 "id repeated!" 并覆盖缓存，之后针对它的同步会打到旧对象上。
+          （validate 的「__id__ 重复」检查也会报。）
+
+        所以被祖先覆盖的写入**只改 props、不再发帧**。
+        """
+        for p in self._added_paths:
+            if len(p) < len(path) and tuple(path[:len(p)]) == p:
+                return True
+        return False
 
     def _touch(self, root):
         if root not in self._touched_roots:
@@ -248,6 +348,32 @@ class Tx(object):
 
     def __repr__(self):
         return "Tx(%d ops)" % len(self.ops)
+
+
+def _as_index(index, where):
+    """把位置参数转成 1-based 整数，非法直接抛（不要静默变 0）。"""
+    if isinstance(index, bool):
+        raise TxError("%s 的位置不能是 bool" % (where,))
+    try:
+        return int(index)
+    except Exception:
+        raise TxError("%s 的位置 %r 不是整数" % (where, index))
+
+
+def _normalize_list_keys(container):
+    """把 list 容器的位置键统一成整数键，返回排好序的位置列表。
+
+    为什么会有两种形态：
+      - "#N"：avatar_init.json 里就是这么写的；_apply_property 重建 list 时也写 "#N"
+      - N   ：ms._conv_int_keys 之后的形态
+    两种在发给客户端时都会转成整数（build_property_sync 里做），但服务端做位移时
+    必须统一，否则 pop 和写回会互相看不见。
+    """
+    for k in [k for k in container
+              if isinstance(k, str) and k.startswith("#") and k[1:].isdigit()]:
+        container[int(k[1:])] = container.pop(k)
+    return sorted(k for k in container
+                  if isinstance(k, int) and not isinstance(k, bool))
 
 
 def _key_str(key):
