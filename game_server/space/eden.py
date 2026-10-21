@@ -11,7 +11,7 @@
   JumpToEdenStage("StreetData", 502, ...) 加载伊甸场景。
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params, state
+from ..rpc_common import decode_params
 from ..rpc_index import ACK_OK
 from .space import SPACE_EDEN, _enter_space
 

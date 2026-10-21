@@ -14,8 +14,8 @@ characterBag 结构（initDict 实测）：
 from .. import ms as msmod
 from ..rpc_common import decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
-from ..story import events as _events
-from ..story.rpc import _finish_story_tasks
+# ★ 不在这里 import story：story/__init__.py 要 import property.ids，
+#   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 def _upgrade_character(rid, params, uid=None):
     """1-1 角色升级：加 CharLevel + 推 characterBag 子属性同步。
 
@@ -34,6 +34,9 @@ def _upgrade_character(rid, params, uid=None):
     键在 _conv_int_keys 之后是整数 9001；但 proto 的 name 字段是字符串，
     所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
     """
+    # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
+    from ..story import events as _events
+    from ..story.rpc import _finish_story_tasks
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):

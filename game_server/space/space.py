@@ -27,9 +27,6 @@ SPACE_EDEN = 1000
 
 # ServerOnlyMsg 的索引（genRpcIndex 现算，见 work/rpc_hashes.tsv）
 RPC_ON_ENTER_SPACE = 1879036833      # RpcOnEnterSpace(int, string, table)
-
-RPC_ON_ENTER_SPACE_FAILED = 0        # 未算，用到再补
-
 RPC_ON_TELEPORT_OUT = 354358832      # RpcOnTeleportOut(int)
 
 def _space_prop(st):

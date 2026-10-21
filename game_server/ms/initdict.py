@@ -16,7 +16,7 @@ import os
 
 from .defaults import _DEF_AVATAR_EID, _DEF_UID, ooconf
 from .frames import frame
-from .protocol import _conv_int_keys, mp_map
+from .protocol import _conv_int_keys, mp_map, pb_bytes_field
 
 #
 # ChannelEntityInfo 的字段 1 是 **string**，不是 uint32。

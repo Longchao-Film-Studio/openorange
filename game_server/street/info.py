@@ -11,7 +11,6 @@ getStreetInfo() 直接取 self.street_info[street_id]，nil 会崩，所以任�
   如果先插入再交给 Tx，Tx 会以为键已存在 -> 发 OP_CHANGE ->
   客户端 oldVal:customTypeName() 索引 nil -> 同步被丢（审计实锤）。
 """
-from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import tx as _tx
 _STREET_INFO_DEFAULTS = {
@@ -63,36 +62,23 @@ def _make_street_info_entry(st):
         entry[_k] = {"__id__": _ids.alloc_id(st.props)}
     return entry
 
-def _ensure_street_info(st, street_id):
-    """确保 street_info[street_id] 存在，返回 (street_info, entry)。
-
-    注意：这个函数会**直接插入** props。需要发同步帧的地方应该用
-    _make_street_info_entry() + Tx，让 Tx 自己判断 OP_ADD。
-    """
-    si = st.get("street_info")
-    if not isinstance(si, dict):
-        return None, None
-    cur = si.get(street_id)
-    if isinstance(cur, dict):
-        return si, cur
-    entry = _make_street_info_entry(st)
-    si[street_id] = entry
-    st.set("street_info", si)
-    return si, entry
-
 def _street_info_of(st, street_id):
-    """取 street_info[street_id]，没有就建。"""
+    """取 street_info[street_id]，没有就建（直接插入 props）。
+
+    ★ 条目一律由 _make_street_info_entry 构造。审计 P2-4：以前这里把默认字段和
+      5 个嵌套 __id__ 的分配逻辑又抄了一遍，和 _make_street_info_entry 各写各的，
+      改一处忘一处就会漂移（一个用 st.next_property_id、一个用 _ids.alloc_id）。
+
+    ★ 需要发同步帧的路径不要用这个函数，改用 _make_street_info_entry() + Tx，
+      让 Tx 自己判断 OP_ADD —— 先插入再交给 Tx 会发成 OP_CHANGE，客户端崩。
+    """
     si = st.props.get("street_info")
     if not isinstance(si, dict):
         return None, None
     cur = si.get(street_id)
     if isinstance(cur, dict):
         return si, cur
-    entry = {"__tp__": "StreetInfo", "__id__": st.next_property_id()}
-    entry.update(_STREET_INFO_DEFAULTS)
-    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
-               "treasure_box_info", "inter_actor_info"):
-        entry[_k] = {"__id__": st.next_property_id()}
+    entry = _make_street_info_entry(st)
     si[street_id] = entry
     st.set("street_info", si)
     return si, entry

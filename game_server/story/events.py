@@ -143,8 +143,9 @@ def clear_seen(st):
 def apply_event(st, event, now=None):
     """把一条事件喂进剧情系统，返回 EventResult。
 
-    ★ 这是剧情推进的**唯一写入口**：业务代码只负责发事件，
-      不要自己判断「该完成哪个任务」。
+    ★ 这是剧情推进的**检测入口**（不是写入口）：业务代码只负责发事件，
+      不要自己判断「该完成哪个任务」。本函数只返回命中的 taskId，
+      真正落状态（发奖 / 推同步 / 重算解锁）统一走 story.rpc._finish_story_tasks。
     """
     now = int(now if now is not None else time.time())
     if event is None:

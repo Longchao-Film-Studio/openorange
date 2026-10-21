@@ -95,7 +95,6 @@ from .misc.unimplemented import _ack_only, _noop_one_way  # noqa: F401
 # 业务域模块（P0-E2 第 2 步）：space / story
 from .space.space import (  # noqa: F401  (re-export)
     RPC_ON_ENTER_SPACE,
-    RPC_ON_ENTER_SPACE_FAILED,
     RPC_ON_TELEPORT_OUT,
     SPACE_EDEN,
     _enter_space,
@@ -139,8 +138,6 @@ from .dungeon.enter import (  # noqa: F401  (re-export)
     _single_start_match,
 )
 from .dungeon.level import (  # noqa: F401  (re-export)
-    RPC_CMD_AVATAR_ENTER_NEXT,
-    RPC_CMD_AVATAR_FINISH_GAME,
     _avatar_enter_next,
     _battle_teach_activate,
 )
@@ -156,7 +153,6 @@ from .dungeon.settle import (  # noqa: F401  (re-export)
 # 业务域模块（P0-E2 第 4 步）：street
 from .street.info import (  # noqa: F401  (re-export)
     _STREET_INFO_DEFAULTS,
-    _ensure_street_info,
     _make_street_info_entry,
     _street_info_of,
     _street_tx_begin,
@@ -192,10 +188,8 @@ from .street.prestige import (  # noqa: F401  (re-export)
     _prestige_push,
 )
 from .street.dispatch import (  # noqa: F401  (re-export)
-    _DISPATCH_DEFAULT_DURATION,
     _cancel_dispatch,
     _dispatch_char,
-    _dispatch_dict,
     _finish_dispatch,
 )
 from .street.misc import (  # noqa: F401  (re-export)

@@ -70,7 +70,11 @@ def _do_skip_prologue(uid):
     bag = st.props.get("story_task_bag") or {}
     done_before = story.story_state(st.props, story.FIRST_STORY_TASK)
     if done_before != story.TASK_STATE_FINISHED:
-        story.finish_story_task(st, story.FIRST_STORY_TASK, now)
+        # ★ 审计 P1-2：不能直接调 story.finish_story_task —— 那会绕过发奖、
+        #   属性同步和 _recalc_story_unlocks，和「落状态唯一入口」的声明矛盾。
+        #   走同一条主路径，返回的帧这里没人可推（GM 命令不带连接），直接丢弃。
+        from .story.rpc import _finish_story_tasks
+        _finish_story_tasks(st, [story.FIRST_STORY_TASK])
     sf = st.props.get("story_finished")
     if isinstance(sf, dict):
         sf[1] = True

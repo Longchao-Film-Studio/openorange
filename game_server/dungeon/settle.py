@@ -147,7 +147,8 @@ def _advance_story_on_finish(st, info=None, uid=None):
     first_pass = bool(lv) and lv_key not in cleared
     if first_pass:
         ev["first_pass"] = 1
-    # ★ P0-D：走事件总线（唯一写入口），不再直接调 story.evaluate_event
+    # ★ P0-D：走事件总线（检测入口），不再直接调 story.evaluate_event；
+    #   落状态仍统一走 _finish_story_tasks。
     result = _events.apply_event(
         st, _events.GameEvent(_events.EV_FINISH_DUNGEON, ev,
                               source="rpc:Cmd_Avatar_FinishGame_CS"))

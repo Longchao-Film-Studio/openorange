@@ -87,15 +87,33 @@ def mp_str(s):
     return b"\xda" + struct.pack(">H", n) + b
 
 def mp_int(v):
+    """msgpack 整数编码（P0-E3 修正：负数以前编码是坏的）。
+
+    ★ 原来的负数分支是  b"\xff" + struct.pack(">q", v)  —— 多写了一个 0xff 前缀，
+      于是 -1 变成 9 字节（8 个 0xff + 一个 0xff），客户端按负 fixint 只读 1 字节，
+      剩下 8 字节被当成后续数据的开头，**整条 msgpack 流错位**。
+      现在按 spec 分层编码：负 fixint / int8 / int16 / int32 / int64。
+      （tests/test_ms_frames.py 的 msgpack 往返用例会守住这一点）
+    """
     if v < 0:
-        return b"\xff" + struct.pack(">q", v)
+        if v >= -32:
+            return bytes([v & 0xFF])                  # negative fixint
+        if v >= -128:
+            return b"\xd0" + struct.pack(">b", v)     # int8
+        if v >= -32768:
+            return b"\xd1" + struct.pack(">h", v)     # int16
+        if v >= -(1 << 31):
+            return b"\xd2" + struct.pack(">i", v)     # int32
+        return b"\xd3" + struct.pack(">q", v)         # int64
     if v < 128:
-        return bytes([v])
+        return bytes([v])                             # positive fixint
     if v < 256:
-        return b"\xcc" + bytes([v])
+        return b"\xcc" + bytes([v])                   # uint8
     if v < 65536:
-        return b"\xcd" + struct.pack(">H", v)
-    return b"\xce" + struct.pack(">I", v)
+        return b"\xcd" + struct.pack(">H", v)         # uint16
+    if v < (1 << 32):
+        return b"\xce" + struct.pack(">I", v)         # uint32
+    return b"\xcf" + struct.pack(">Q", v)             # uint64
 
 def mp_bool(v):
     return b"\xc3" if v else b"\xc2"

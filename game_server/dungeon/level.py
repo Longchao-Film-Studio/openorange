@@ -18,10 +18,6 @@ from .. import ms as msmod
 from ..rpc_common import decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
-RPC_CMD_AVATAR_ENTER_NEXT = 43868592
-
-RPC_CMD_AVATAR_FINISH_GAME = 1846356571
-
 def _avatar_enter_next(rid, params, uid=None):
     """Cmd_Avatar_EnterNext_CS {copyIndex} —— 回下一关的 levelInfo。
 

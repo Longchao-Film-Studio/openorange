@@ -14,8 +14,9 @@ from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
-from ..story import events as _events
-from ..story.rpc import _finish_story_tasks
+# ★ 不在这里 import story：story/__init__.py 要 import property.ids，
+#   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
+#   真正用到的地方做函数内延迟导入。
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -143,6 +144,9 @@ def _submit_item(rid, params, uid=None):
     实测 TaskEventData 里 SubmitItem 的 EventParam 是空的，
     所以只要发了这个 RPC 就能命中 —— 客户端只在真的提交时才发。
     """
+    # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
+    from ..story import events as _events
+    from ..story.rpc import _finish_story_tasks
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     submit_id = None
@@ -208,6 +212,9 @@ def _record_item_obtain(rid, params, uid=None):
       ["itemType", "level", "grade"]   -> 道具类型/等级/品质
     客户端上报的参数里可能带这些，能取到就一起发。
     """
+    # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
+    from ..story import events as _events
+    from ..story.rpc import _finish_story_tasks
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     item_id, count = 0, 1
