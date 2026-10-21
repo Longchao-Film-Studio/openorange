@@ -1,7 +1,22 @@
 -- oo/05a..05c_probe.lua —— 实机验收探针（P0-E3 从 oo_bootstrap.lua 拆出）
 --
--- 这些探针都是**默认关闭**的（见文件末尾 OO_PROBE_* 开关），只在实机排查时
--- 临时打开。它们会改数据、弹面板、发 RPC，生产链路绝不能默认开。
+-- 分两类，别搞混：
+--
+--   ★ 默认常开（只读）：probe_street_actor / probe_cs_api / probe_charbag /
+--     probe_story / probe_sysunlock / probe_userdata / probe_sig_watch /
+--     probe_phonestcore_keys / probe_p1_accept / probe_encode_response
+--     它们只读状态、打日志，是「不看屏幕也能验收」的眼睛 —— 实机验证全靠它们
+--     输出的 storyprobe / bagprobe / street| 这些行。改数据的不会混进来。
+--
+--   ★ 默认关闭（会改数据 / 发 RPC / 弹面板）：由 OO_PROBE_* 开关控制
+--     （OO_PROBE_RPC / WRITE / STREET / STORY_ADV / STARTGAME / MAP ...）。
+--     排障时才临时打开，生产链路绝不能默认开。
+--
+-- ⚠ 已知无害噪音：probe_encode_response 会一次性调
+--     cObj:dispatchRpc('entityMessageResponse', 4242, payload)
+--   客户端 ProtobufHandler 会打一行
+--     [error] dispatchRpc but got wrong name entityMessageResponse
+--   这是探针故意喂的假应答（用来确认应答帧的真实格式），不是 bug。
 
 -- 阶段 1 实机验收探针
 -- ------------------------------------------------------------
