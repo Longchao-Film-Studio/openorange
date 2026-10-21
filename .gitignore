@@ -14,6 +14,8 @@ launcher/dist/*.exp
 launcher/dist/*.lib
 launcher/dist/work/
 launcher/dist/*.log
+launcher/dist/*.log.*
+launcher/dist/*.bak_*
 launcher/dist/*.png
 launcher/dist/*.bin
 launcher/dist/launcher_state.ini
