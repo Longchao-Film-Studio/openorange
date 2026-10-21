@@ -318,7 +318,7 @@ def _upgrade_character(rid, params, uid=None):
     char.setdefault("CharExp", 0)
     st.set("characterBag", bag)
     st.save()
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", bag_id, msmod.OP_CHANGE, str(key), char))
     return frames
 
@@ -365,7 +365,7 @@ def _set_character_list(rid, params, uid=None):
                 lst[i] = 0
     st.set("character_list", cl)
     st.save()
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
     return frames
 
@@ -389,7 +389,7 @@ def _set_character_list_name(rid, params, uid=None):
     team["name"] = name if isinstance(name, str) else ""
     st.set("character_list", cl)
     st.save()
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
     return frames
 
@@ -546,7 +546,7 @@ def _story_sync_frames(st, changes):
         kind = ch[0]
         if kind == "root":
             _, name, value = ch
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", 0, msmod.OP_CHANGE, name, value))
         elif kind == "add":
             # ★ 给自定义 dict **加新键**必须用 OP_ADD（客户端 __OpAdd__），
@@ -558,21 +558,21 @@ def _story_sync_frames(st, changes):
             c = st.props.get(container)
             if not isinstance(c, dict):
                 continue
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", c.get("__id__") or 0, msmod.OP_ADD, str(key), value))
         elif kind == "sub":
             _, container, key, value = ch
             c = st.props.get(container)
             if not isinstance(c, dict):
                 continue
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", c.get("__id__") or 0, msmod.OP_CHANGE, str(key), value))
         elif kind == "del":
             _, container, key, _v = ch
             c = st.props.get(container)
             if not isinstance(c, dict):
                 continue
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", c.get("__id__") or 0, msmod.OP_DEL, str(key), None))
     return frames
 
@@ -610,7 +610,7 @@ def _recalc_story_unlocks(st):
     if changed:
         st.set("system_p", sp)
         for sid in changed:
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", us_id, msmod.OP_CHANGE, str(sid), True))
         print("[story] 解锁系统 %s" % changed, flush=True)
     return frames
@@ -633,7 +633,7 @@ def _finish_story_tasks(st, task_ids):
                 break
             grid = bag.get(grid_key)
             if isinstance(grid, dict):
-                frames.append(msmod.build_property_sync(
+                frames.append(_sync_frame(
                     "", bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
@@ -729,7 +729,7 @@ def _task_sync_frames(st, changes):
                 value = _sync._strip_private(value, is_root=False)
             if not isinstance(name, str):
                 name = str(name)
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", pid, optype, name,
                 None if optype == msmod.OP_DEL else value))
         elif kind in ("sub2", "del2"):
@@ -742,7 +742,7 @@ def _task_sync_frames(st, changes):
             if not isinstance(slot, dict):
                 continue
             op = msmod.OP_CHANGE if kind == "sub2" else msmod.OP_DEL
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", slot.get("__id__") or 0, op, str(key),
                 value if kind == "sub2" else None))
     return frames
@@ -840,7 +840,7 @@ def _space_sync_frames(st, sp):
     frames = []
     sp_id = sp.get("__id__") or 0
     for name in ("spaceno", "seqno", "spaceid", "loading", "ld_spaceno"):
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", sp_id, msmod.OP_CHANGE, name, sp.get(name)))
     return frames
 
@@ -1121,7 +1121,7 @@ def _street_trace_task(rid, params, uid=None):
     st = _state(uid)
     st.props["street_trace_taskid"] = tid
     st.save()
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", 0, msmod.OP_CHANGE, "street_trace_taskid", tid))
     return frames
 
@@ -1174,7 +1174,7 @@ def _set_surface_time(st, value):
         return []
     si["surface_enter_time"] = int(value)
     st.set("street_info", si)
-    return [msmod.build_property_sync(
+    return [_sync_frame(
         "", si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
 
 
@@ -1231,7 +1231,7 @@ def _grant_treasure_reward(st, tid):
             num, gkey, is_new = got
             grid = bag.get(gkey)
             if isinstance(grid, dict):
-                frames.append(msmod.build_property_sync(
+                frames.append(_sync_frame(
                     "", bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(gkey), grid))
@@ -1335,7 +1335,7 @@ def _mainline_levelup(rid, params, uid=None):
     st.set("mainline_level", ml)
     st.save()
     print("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1), flush=True)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
     return frames
 
@@ -1425,7 +1425,7 @@ def _prestige_push(st, si, street_id, entry, is_new=False):
     if is_new:
         # 新条目：显式 OP_ADD，值剥掉嵌套 __tp__（审计 P0-1）
         value = _sync._strip_private(entry, is_root=False)
-        return [msmod.build_property_sync(
+        return [_sync_frame(
             "", (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), value)]
     tx.set(("street_info", street_id), entry)
     return tx.frames()
@@ -1593,7 +1593,7 @@ def _dispatch_char(rid, params, uid=None):
     st.set("street_dispatch", d)
     st.save()
     print("[street] 派遣 char=%s dip=%s" % (char_id, dip_id), flush=True)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
     return frames
 
@@ -1617,7 +1617,7 @@ def _finish_dispatch(rid, params, uid=None):
     st.set("street_dispatch", d)
     st.save()
     print("[street] 完成派遣 dip=%s" % dip_id, flush=True)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
     return frames
 
@@ -1640,7 +1640,7 @@ def _cancel_dispatch(rid, params, uid=None):
     st.set("street_dispatch", d)
     st.save()
     print("[street] 取消派遣 dip=%s" % dip_id, flush=True)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
     return frames
 
@@ -1968,7 +1968,7 @@ def _storyline_finish_game(rid, params, uid=None):
         sf[sid] = True
         st.set("story_finished", sf)
         st.save()
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
@@ -2119,7 +2119,7 @@ def _grant_battle_items(st, battle_items):
         num, gkey, is_new = got
         grid = bag.get(gkey)
         if isinstance(grid, dict):
-            frames.append(msmod.build_property_sync(
+            frames.append(_sync_frame(
                 "", bag.get("__id__") or 0,
                 msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                 str(gkey), grid))
@@ -2278,7 +2278,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
             is_new = 1 not in sf
             sf[1] = True
             st.set("story_finished", sf)
-            out.append(msmod.build_property_sync(
+            out.append(_sync_frame(
                 "", sf.get("__id__") or 0,
                 msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                 "1", True))
@@ -2324,7 +2324,7 @@ def _dungeon_finish(rid, params, uid=None):
         to_street = 0
     if to_street and to_street != int(st.props.get("street_id") or 0):
         st.props["street_id"] = to_street
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", 0, msmod.OP_CHANGE, "street_id", to_street))
     frames.extend(_advance_story_on_finish(st, info, uid))
     st.props.pop("_oo_cur_copy", None)
@@ -2368,7 +2368,7 @@ def _battle_teach_activate(rid, params, uid=None):
         bts[iid] = 0
         st.set("battle_teach_state", bts)
         st.save()
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
         print("[dungeon] 激活战斗教学 %s" % iid, flush=True)
     return frames
@@ -2431,12 +2431,12 @@ def _use_item(rid, params, uid=None):
     st.save()
 
     # ---- 3) 推同步 ----
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         # ★ name 必须是字符串（ms.pb_bytes_field 里对 int 会 len() 抛 TypeError）
         #   审计 P0-5：旧存档的整数键会让这条 RPC 无应答 -> 客户端弱网转圈。
         "", bag_id, msmod.OP_CHANGE, str(grid_key), grid))
     for prop, value in changed_props:
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", 0, msmod.OP_CHANGE, prop, value))
     return frames
 
@@ -2573,7 +2573,7 @@ def _generic_setter(rid, params, spec, uid=None):
             return frames
         new_value = vals[arg_idx]
     applied = _apply_property(prop_name, new_value, uid)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", 0, msmod.OP_CHANGE, prop_name, applied))
     return frames
 
@@ -2587,7 +2587,7 @@ def _const_setter(rid, params, spec, uid=None):
     #   真实用户的属性没改，却给他推了 value=1 的同步帧。
     #   canScore / hasScore 四个 RPC 全部中招。
     applied = _apply_property(prop_name, const_value, uid)
-    frames.append(msmod.build_property_sync(
+    frames.append(_sync_frame(
         "", 0, msmod.OP_CHANGE, prop_name, applied))
     return frames
 
@@ -2619,10 +2619,37 @@ def _set_signature(rid, params, uid=None):
         #   puppetpropertycomponent.lua:233-235 的 _changeRootProperty(k, v)。
         #   之前传的是递增序号 1，那是「改子属性」的语义（要 _id 命中
         #   __CustomPropertiesCache__ 里的对象），属于用错了分支。
-        frames.append(msmod.build_property_sync(
+        frames.append(_sync_frame(
             "", 0, msmod.OP_CHANGE, "signature", vals[0]))
     return frames
 
+
+def _sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
+    """统一的属性同步帧构造器 —— 所有手拼帧的地方都应该用它。
+
+    ★ 为什么要有这层（2026-10-21 审计 P0-1/P0-2/P0-3）：
+      entity_rpc.py 里还有 30 处直接调 msmod.build_property_sync，
+      它们绕过了 sync 层的剥离和校验，于是：
+        - 写嵌套容器时把 __tp__ 发出去 -> 客户端 rochange/roinit 崩
+        - name 是 int -> ms.pb_bytes_field 里 len(int) 抛 TypeError
+        - 非法帧照发，没人拦
+
+    这层做三件事：
+      1. 剥私有键（_oo_* 永远剥；__tp__ 只在 propertyId=0 的根属性值里保留）
+      2. name 统一转字符串
+      3. 不做校验（校验在 sync.validate，测试里跑 strict 模式）
+
+    参数顺序和 msmod.build_property_sync 完全一致，方便整段替换。
+    """
+    if op_type in (msmod.OP_DEL, msmod.OP_REMOVE):
+        val = None
+    else:
+        # 只有根属性值（propertyId == 0）保留 __tp__
+        val = _sync._strip_private(value, is_root=(int(property_id) == 0))
+    if not isinstance(name, str):
+        name = str(name)
+    return msmod.build_property_sync(ownerid, property_id, op_type, name,
+                                     val, session_id)
 
 def _state(uid=None):
     """服务端可变玩家状态（按 uid 分开，懒加载，首次用 initDict 初始化）。"""
