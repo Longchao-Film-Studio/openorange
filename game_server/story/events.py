@@ -230,18 +230,35 @@ def ev_street_interact(actor_id, interact_id, street_id=None, actor_type=None,
                                                         int(interact_id)))
 
 
-def ev_submit_item(item_id=0, count=1, source="rpc:SubmitItem_CS"):
+def ev_submit_item(item_id=0, count=1, submit_id=None, item_ids=None,
+                   source="rpc:SubmitItem_CS"):
     """提交道具。
 
+    ★ 客户端真实签名（avatarbagcomp.lua:930 / interactfunctionfactory.lua:810）：
+        SubmitItem_CS(submit_id, itemDict)
+      submit_id 是 **ItemSubmitData 的字符串键**（如 zhaixi_lv1Elevator），
+      itemDict 是 {itemId: count}。
+      之前把 vals[0] 当 itemId 用 int() 转，字符串会抛异常被吞掉，
+      等于丢掉了 submit_id 这个关键信息。
+
     实测 TaskEventData 里 SubmitItem 的 EventParam 是**空的**（KeyList 为 nil），
-    所以 event_matches 对任何 SubmitItem 事件都返回 True ——
-    任务完成靠的是「客户端只在真的提交时才会发这个 RPC」。
+    所以 event_matches 对任何 SubmitItem 事件都返回 True。
+    也就是说：15 条 SubmitItem 剧情任务，理论上发一次就会全命中。
+    实际上它们是同一剧情线的连续任务（PreTask 串起来），同一时刻只会有 1 条在进行中，
+    所以危害有限；但这是**数据层面的限制**，不是我们能补的。
 
     注意：**不带 event_id** —— 同一个道具可以反复提交（每次都是真发生）。
     """
-    return GameEvent(EV_SUBMIT_ITEM,
-                     {"itemId": int(item_id), "count": int(count)},
-                     source=source)
+    p = {}
+    if item_id:
+        p["itemId"] = int(item_id)
+    if count:
+        p["count"] = int(count)
+    if submit_id is not None:
+        p["submit_id"] = submit_id
+    if item_ids:
+        p["itemIds"] = list(item_ids)
+    return GameEvent(EV_SUBMIT_ITEM, p, source=source)
 
 
 def ev_avatar_attr(attr, value, source="internal"):

@@ -2709,23 +2709,58 @@ def _submit_item(rid, params, uid=None):
     """
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
+    submit_id = None
     item_id, count = 0, 1
+    item_ids = []
     if isinstance(vals, list) and vals:
-        try:
-            item_id = int(vals[0] or 0)
-        except Exception:
-            item_id = 0
-        if len(vals) > 1:
-            try:
-                count = int(vals[1] or 1)
-            except Exception:
-                count = 1
+        # 客户端签名：SubmitItem_CS(submit_id, itemDict)
+        #   avatarbagcomp.lua:930 / interactfunctionfactory.lua:810
+        first = vals[0]
+        if isinstance(first, str):
+            submit_id = first
+        elif isinstance(first, int) and not isinstance(first, bool):
+            # 兼容：有的调用点直接把 itemId 当第一个参数
+            item_id = first
+        # 第二个参数是 itemDict = {itemId: count}
+        if len(vals) > 1 and isinstance(vals[1], dict):
+            idict = vals[1]
+            for k, v in idict.items():
+                try:
+                    iid = int(k)
+                except Exception:
+                    continue
+                item_ids.append(iid)
+                if not item_id:
+                    item_id = iid
+                    try:
+                        count = int(v)
+                    except Exception:
+                        count = 1
+        # 从 ItemSubmitData 反查这个 submit_id 要求的道具
+        if submit_id:
+            row = gamedata.table("ItemSubmitData") or {}
+            info = row.get(submit_id) or {}
+            need = info.get("itemId")
+            if isinstance(need, dict):
+                for k in need.keys():
+                    if str(k).startswith("__") or k == "KeyList":
+                        continue
+                    try:
+                        iid = int(k)
+                    except Exception:
+                        continue
+                    if iid not in item_ids:
+                        item_ids.append(iid)
+                    if not item_id:
+                        item_id = iid
     st = _state(uid)
-    res = _events.apply_event(st, _events.ev_submit_item(item_id, count))
+    res = _events.apply_event(
+        st, _events.ev_submit_item(item_id, count, submit_id, item_ids))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         frames.extend(_finish_story_tasks(st, nxt))
-    print("[story] 提交道具 %s x%s" % (item_id, count), flush=True)
+    print("[story] 提交道具 submit_id=%s item=%s x%s 需求=%s"
+          % (submit_id, item_id, count, item_ids), flush=True)
     st.save()
     return frames
 

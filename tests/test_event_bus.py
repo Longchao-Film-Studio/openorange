@@ -185,6 +185,26 @@ def run():
           (st.props["characterBag"][key] or {}).get("CharLevel"))
     check("UpgradeCharacter_CS 完成任务 7020", finished(st, 7020))
 
+    # F4 客户端真实签名：SubmitItem_CS(submit_id, itemDict)
+    st = fresh("ev_rpc_subid")
+    activate(st, 50290)
+    row = gamedata.table("ItemSubmitData") or {}
+    sid = next(iter(row)) if row else None
+    check("ItemSubmitData 有数据", bool(row), len(row))
+    need = (row.get(sid) or {}).get("itemId") if sid else None
+    need_ids = []
+    if isinstance(need, dict):
+        for k in need.keys():
+            if not str(k).startswith("__") and k != "KeyList":
+                need_ids.append(int(k))
+    frames = erpc.handle(erpc.RPC_INDEX["SubmitItem_CS"],
+                         msmod.mp_arr([sid, {need_ids[0]: 1} if need_ids else {}]),
+                         1, uid="ev_rpc_subid")
+    check("submit_id 字符串参数不抛异常",
+          isinstance(frames, list) and len(frames) >= 1, frames)
+    check("SubmitItem_CS 用 submit_id 签名也能完成任务 50290",
+          finished(st, 50290))
+
     print("\n[G] 服务端主动推进：登录 tick + pending chain")
     st = fresh("ev_login")
     activate(st, 201000)          # 链式任务，前置 1031
