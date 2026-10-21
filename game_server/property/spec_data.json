@@ -1075,6 +1075,7 @@
    "value_type": null
   },
   "AccuChargeGachaSetProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "AccuChargeGachaProp"
@@ -1098,6 +1099,7 @@
    "value_type": null
   },
   "AchieveBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "AchieveItem"
@@ -1133,6 +1135,7 @@
    "value_type": null
   },
   "AchieveTypeBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "has_open": [
@@ -1173,6 +1176,7 @@
    "value_type": null
   },
   "ActTypeTaskProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActTaskDict"
@@ -1208,11 +1212,13 @@
    "value_type": null
   },
   "ActiveTaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActiveTask"
   },
   "ActivityCheckinRecords": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "CheckinRecordInfo"
@@ -1232,6 +1238,7 @@
    "value_type": null
   },
   "ActivityProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActivityInfo"
@@ -1359,6 +1366,7 @@
    "value_type": null
   },
   "ArenaTypeTaskProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ArenaTaskDict"
@@ -1586,11 +1594,13 @@
    "value_type": null
   },
   "BooleanDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "boolean"
   },
   "BooleanDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "boolean"
@@ -1640,6 +1650,7 @@
    "value_type": null
   },
   "BossGroupRecordDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "BossGroupRecord"
@@ -1659,11 +1670,13 @@
    "value_type": null
   },
   "BossRecordDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "BossRecord"
   },
   "BossUnlockDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "int"
@@ -1769,6 +1782,7 @@
    "value_type": null
   },
   "CardDictProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CardInfoProp"
@@ -1930,6 +1944,7 @@
    "value_type": null
   },
   "ChallengeTowerActiveTaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActiveTaskBag"
@@ -1989,6 +2004,7 @@
    "value_type": null
   },
   "ChallengeTowerLevelInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "BooleanDictKeyInt"
@@ -2070,6 +2086,7 @@
    "value_type": null
   },
   "ChampionshipGroupInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipRoundInfo"
@@ -2097,6 +2114,7 @@
    "value_type": null
   },
   "ChampionshipGuessRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipGuessData"
@@ -2116,11 +2134,13 @@
    "value_type": null
   },
   "ChampionshipGuessStatisticsRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipGuessStatisticsData"
   },
   "ChampionshipHonorRank": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipHonorRankData"
@@ -2144,6 +2164,7 @@
    "value_type": null
   },
   "ChampionshipPlayerInfo": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "ChampionshipPlayerInfoDetail"
@@ -2197,11 +2218,13 @@
    "value_type": null
   },
   "ChampionshipRoomInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipGroupInfo"
   },
   "ChampionshipRoundInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipBattleInfo"
@@ -2233,11 +2256,13 @@
    "value_type": null
   },
   "ChampionshipScheduleInfoList": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipScheduleRoundInfo"
   },
   "ChampionshipScheduleRoundInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ChampionshipScheduleInfo"
@@ -2269,6 +2294,7 @@
    "value_type": null
   },
   "ChampionshipStatisticsRecord": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "ChampionshipStatisticsData"
@@ -2292,11 +2318,13 @@
    "value_type": null
   },
   "CharBattleRankRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharBattleRankInfo"
   },
   "CharBattleRankSeasonRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharBattleRankRecord"
@@ -2328,11 +2356,13 @@
    "value_type": null
   },
   "CharBattleScores": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "CharBattleScore"
   },
   "CharEquipDesign": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharEquipDesignInfoRecord"
@@ -2368,6 +2398,7 @@
    "value_type": null
   },
   "CharEquipDesignInfoRecord": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "CharEquipDesignInfo"
@@ -2387,6 +2418,7 @@
    "value_type": null
   },
   "CharEquipDesignUseRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharEquipDesignUseInfo"
@@ -2402,11 +2434,13 @@
    "value_type": null
   },
   "CharShownList": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharShownInfo"
   },
   "CharStarActMgrProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharStarActProp"
@@ -2430,11 +2464,13 @@
    "value_type": null
   },
   "CharUseRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharUseRecordInfo"
   },
   "CharUseRecordInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharUseRecordInfoDict"
@@ -2494,6 +2530,7 @@
    "value_type": null
   },
   "CharacterInfo": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {
     "RuneId": [
@@ -2572,11 +2609,13 @@
    "value_type": "int"
   },
   "CharacterList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "Character"
   },
   "CharacterPersistentDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CharacterInfo"
@@ -2710,6 +2749,7 @@
    "value_type": null
   },
   "CheckinRecords": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActivityCheckinRecords"
@@ -2795,6 +2835,7 @@
    "value_type": null
   },
   "ContributionPlayerInfoRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ContributionPlayerInfo"
@@ -2814,6 +2855,7 @@
    "value_type": null
   },
   "ContributionRanksCycleAward": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ContributionRankAward"
@@ -2847,6 +2889,7 @@
    "value_type": null
   },
   "CountdownGifts": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CountdownGift"
@@ -2870,11 +2913,13 @@
    "value_type": null
   },
   "CycleChargeActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CycleChargeAct"
   },
   "CycleInfiniteActiveTaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ActiveTaskBag"
@@ -2932,6 +2977,7 @@
    "value_type": null
   },
   "CycleInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "CycleInfo"
@@ -2995,6 +3041,7 @@
    "value_type": null
   },
   "DexTypeProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DexInfoProp"
@@ -3044,26 +3091,31 @@
    "value_type": null
   },
   "DonateRecords": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "Donate"
   },
   "DoneTaskTypeBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "IntDictKeyInt"
   },
   "DoubleDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "double"
   },
   "DoubleDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "double"
   },
   "DoubleList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "double"
@@ -3099,6 +3151,7 @@
    "value_type": null
   },
   "DragonCharmActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "bp_info": [
@@ -3117,6 +3170,7 @@
    "value_type": "DragonCharmProp"
   },
   "DragonCharmDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DragonCharmInfo"
@@ -3150,6 +3204,7 @@
    "value_type": null
   },
   "DragonCharmProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "character_list": [
@@ -3190,21 +3245,25 @@
    "value_type": null
   },
   "DrawProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DrawInfo"
   },
   "DungeonChallengeData": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "IntDictKeyInt"
   },
   "DungeonData": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DungeonLevelData"
   },
   "DungeonDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DungeonData"
@@ -3238,11 +3297,13 @@
    "value_type": null
   },
   "DungeonLevelNpcDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "DungeonLevelNpcData"
   },
   "DungeonLevelViewData": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "is_reward": [
@@ -3301,6 +3362,7 @@
    "value_type": null
   },
   "DungeonViewData": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "duration": [
@@ -3323,6 +3385,7 @@
    "value_type": "DungeonLevelViewData"
   },
   "DungeonViewDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "DungeonViewData"
@@ -3350,11 +3413,13 @@
    "value_type": null
   },
   "ERankProp": {
+   "container_kind": null,
    "int_key": false,
    "props": {},
    "value_type": "ERank"
   },
   "EmergencyData": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "string"
@@ -3374,16 +3439,19 @@
    "value_type": null
   },
   "EndlessCharacterList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "EndlessCharacter"
   },
   "EndlessDailyRewardDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "EndlessDailyRewardList"
   },
   "EndlessDailyRewardList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "IntDictKeyInt"
@@ -3407,16 +3475,19 @@
    "value_type": null
   },
   "EndlessRankInfoRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "EndlessRankInfo"
   },
   "EndlessRankInfoRecordList": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "EndlessRankInfoRecord"
   },
   "EndlessRewardDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "EndlessRewardInfo"
@@ -3440,11 +3511,13 @@
    "value_type": null
   },
   "EquipSaveSchemeDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StringDictKeyInt"
   },
   "EquipSuitDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "EquipSuitInfo"
@@ -3504,11 +3577,13 @@
    "value_type": null
   },
   "FansClubApplications": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "FansClubApplication"
   },
   "FansClubApplications2": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "FansClubApplication2"
@@ -3562,6 +3637,7 @@
    "value_type": null
   },
   "FansClubFlagItems": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "FansClubFlagItem"
@@ -3593,6 +3669,7 @@
    "value_type": null
   },
   "FansClubInfos": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "FansClubInfo"
@@ -3640,6 +3717,7 @@
    "value_type": null
   },
   "FansClubMembers": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "FansClubMember"
@@ -3699,6 +3777,7 @@
    "value_type": null
   },
   "FashionBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "Fashion"
@@ -3736,11 +3815,13 @@
    "value_type": null
   },
   "FashionEquipSaveScheme": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StringDictKeyInt"
   },
   "FashionEquipSuitDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "FashionEquipSuitInfo"
@@ -3878,6 +3959,7 @@
    "value_type": null
   },
   "GachaDrawActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "GachaDrawAct"
@@ -3897,6 +3979,7 @@
    "value_type": null
   },
   "GachaDrawRewards": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "GachaDrawReward"
@@ -3952,6 +4035,7 @@
    "value_type": null
   },
   "GachaRecord": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "GachaRecordInfo"
@@ -3997,6 +4081,7 @@
    "value_type": null
   },
   "GachaRewards": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "GachaReward"
@@ -4090,11 +4175,13 @@
    "value_type": null
   },
   "HonorWallDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "HonorWallDataDict"
   },
   "HonorWallObjectInfo": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "HonorWallData"
@@ -4266,41 +4353,49 @@
    "value_type": null
   },
   "IntDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "int"
   },
   "IntDictDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "IntDictKeyInt"
   },
   "IntDictDictKeyStr": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "IntDictKeyInt"
   },
   "IntDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "int"
   },
   "IntList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "int"
   },
   "IntListDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "IntList"
   },
   "IntListDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "IntList"
   },
   "IntListList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "IntList"
@@ -4324,11 +4419,13 @@
    "value_type": null
   },
   "ItemAttrs": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "int"
   },
   "ItemBag": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "ItemInfo"
@@ -4364,6 +4461,7 @@
    "value_type": null
   },
   "ItemInfoList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "ItemInfo"
@@ -4387,6 +4485,7 @@
    "value_type": null
   },
   "LockProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "Lock"
@@ -4424,6 +4523,7 @@
    "value_type": null
   },
   "MallRecords": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MallRecord"
@@ -4477,11 +4577,13 @@
    "value_type": null
   },
   "MirageActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MirageDungeonProp"
   },
   "MirageDungeonProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MirageLevelProp"
@@ -4501,6 +4603,7 @@
    "value_type": null
   },
   "MirageProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MirageActProp"
@@ -4592,6 +4695,7 @@
    "value_type": null
   },
   "MonthlyPassProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "vip_p": [
@@ -4630,11 +4734,13 @@
    "value_type": null
   },
   "MultiTowerLevelInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MultiTowerLevelInfo"
   },
   "MultiTowerLineupInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "MultiTowerCharInfo"
@@ -4754,11 +4860,13 @@
    "value_type": null
   },
   "NonReplacementGachaSetProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "NonReplacementGachaProp"
   },
   "NpcChatCollect": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "NpcChatRecord"
@@ -4816,6 +4924,7 @@
    "value_type": null
   },
   "NpcChatRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "NpcChatInfo"
@@ -4863,6 +4972,7 @@
    "value_type": null
   },
   "Orders": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "Order"
@@ -5030,11 +5140,13 @@
    "value_type": null
   },
   "PetSkinInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "PetSkinInfo"
   },
   "PhysicalPowerBpActMgrProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "PhysicalPowerBpActProp"
@@ -5140,6 +5252,7 @@
    "value_type": null
   },
   "PlayerValueList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "PlayerValue"
@@ -5199,6 +5312,7 @@
    "value_type": null
   },
   "PopupGifts": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "PopupGift"
@@ -5222,6 +5336,7 @@
    "value_type": null
   },
   "PupilSkillDictProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "PupilSkillInfoProp"
@@ -5289,6 +5404,7 @@
    "value_type": null
   },
   "PuzzleLevelProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "boolean"
@@ -5330,6 +5446,7 @@
    "value_type": null
   },
   "RankScores": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {
     "challenge_boss_fuzzy": [
@@ -5440,6 +5557,7 @@
    "value_type": null
   },
   "RedeemActTypeProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "RedeemActInfo"
@@ -5471,11 +5589,13 @@
    "value_type": null
   },
   "ResourceSubTypeInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "int"
   },
   "ResourceTowerExtraRewardRecord": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ResourceTowerExtraRewardTypeRecord"
@@ -5495,6 +5615,7 @@
    "value_type": null
   },
   "ResourceTowerInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "character_list": [
@@ -5505,6 +5626,7 @@
    "value_type": "ResourceTypeInfo"
   },
   "ResourceTypeInfo": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "ResourceSubTypeInfo"
@@ -5694,6 +5816,7 @@
    "value_type": null
   },
   "RogueLevelInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "RogueLevelInfo"
@@ -5789,6 +5912,7 @@
    "value_type": null
   },
   "SeasonTypeTaskProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SeasonTaskDict"
@@ -5812,11 +5936,13 @@
    "value_type": null
   },
   "SevenDayDifficultyProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SevenDayLevelProp"
   },
   "SevenDayDungeonProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SevenDayDifficultyProp"
@@ -5850,11 +5976,13 @@
    "value_type": null
   },
   "SigninProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "Signs"
   },
   "Signs": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "DailySign"
@@ -5904,11 +6032,13 @@
    "value_type": null
   },
   "SkinInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SkinInfo"
   },
   "SkinScheme": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "choose_scheme": [
@@ -5919,6 +6049,7 @@
    "value_type": "IntDictDictKeyStr"
   },
   "SmartTimerDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SmartTimerItem"
@@ -5958,6 +6089,7 @@
    "value_type": null
   },
   "SoulTaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SoulTaskItem"
@@ -5999,6 +6131,7 @@
    "value_type": null
   },
   "SpaceDatas": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SpaceData"
@@ -6074,6 +6207,7 @@
    "value_type": null
   },
   "StoryActLevelInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StoryActLevelInfo"
@@ -6105,6 +6239,7 @@
    "value_type": null
   },
   "StoryTaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StoryTaskItem"
@@ -6144,6 +6279,7 @@
    "value_type": null
   },
   "StreetDispatchDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StreetDispatchInfo"
@@ -6175,6 +6311,7 @@
    "value_type": null
   },
   "StreetExplorationDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "all_done": [
@@ -6189,6 +6326,7 @@
    "value_type": "StreetExplorationInfo"
   },
   "StreetExplorationGroups": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StreetExplorationDict"
@@ -6280,6 +6418,7 @@
    "value_type": null
   },
   "StreetInfoDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "all_prestige_exp": [
@@ -6298,11 +6437,13 @@
    "value_type": "StreetInfo"
   },
   "StreetInfoDict2D": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StreetInfo2D"
   },
   "StreetLevelDict": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StreetLevelInfo"
@@ -6348,36 +6489,43 @@
    "value_type": null
   },
   "StreetTakePhotoActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "StreetTakePhotoActInfo"
   },
   "StringDictKeyInt": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "string"
   },
   "StringList": {
+   "container_kind": "list",
    "int_key": true,
    "props": {},
    "value_type": "string"
   },
   "StringStringDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "string"
   },
   "SunActProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SunDungeonProp"
   },
   "SunDailyLevelProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "SunLevelProp"
   },
   "SunDungeonProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "dailyLevelProp": [
@@ -6434,6 +6582,7 @@
    "value_type": null
   },
   "TaskBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "TaskItem"
@@ -6477,6 +6626,7 @@
    "value_type": null
   },
   "TaskTypeBag": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "TaskBag"
@@ -6522,6 +6672,7 @@
    "value_type": null
   },
   "TeamPupilSkillTypeProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {
     "unlock_eyetrace_fst": [
@@ -6598,6 +6749,7 @@
    "value_type": null
   },
   "TrialCharProp": {
+   "container_kind": "dict",
    "int_key": true,
    "props": {},
    "value_type": "IntDictKeyInt"
@@ -6683,6 +6835,7 @@
    "value_type": null
   },
   "_Engine_PushAckDict": {
+   "container_kind": "dict",
    "int_key": false,
    "props": {},
    "value_type": "int"

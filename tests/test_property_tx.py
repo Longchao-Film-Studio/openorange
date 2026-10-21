@@ -226,6 +226,44 @@ def run():
     except Exception as e:
         check("不存在的根属性抛异常", "不存在" in str(e), str(e))
 
+    print("\n[14] ★ key_kind 用客户端类定义判定（审计 P1-4）")
+    # 审计实测：按「类型名以 List 结尾」猜，342 个类型里错 7 个
+    for t, want in (("ActivityCheckinRecords", "list"),
+                    ("GachaRecord", "list"),
+                    ("GachaRewards", "list"),
+                    ("Signs", "list"),
+                    ("ChampionshipScheduleInfoList", "int"),
+                    ("CharShownList", "int"),
+                    ("EndlessRankInfoRecordList", "int")):
+        got = spec.key_kind(t)
+        check("%s -> %s" % (t, want), got == want, got)
+    check("ItemBag 仍是 str 键", spec.key_kind("ItemBag") == "str")
+    check("StoryTaskBag 仍是 int 键", spec.key_kind("StoryTaskBag") == "int")
+
+    print("\n[15] ★ 4 层路径类型推导（审计 P1-3）")
+    props4 = {"street_info": {
+        "__tp__": "StreetInfoDict", "__id__": 1400,
+        1011: {"__tp__": "StreetInfo", "__id__": 1500,
+               "inter_actor_info": {"__id__": 1600}}}}
+    t4 = txmod.Tx(props4)
+    t4.set(("street_info", 1011, "inter_actor_info", 40004), 400041)
+    op4 = t4.ops[-1]
+    check("4 层路径 propertyId = inter_actor_info 的 __id__",
+          op4.property_id == 1600, op4.property_id)
+    check("4 层新键 optype=OP_ADD", op4.optype == OP_ADD, op4.optype)
+
+    print("\n[16] ★ spec_data.json 与 config.lua 一致（审计 P1-6）")
+    import subprocess
+    _gen = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "tools", "gen_property_spec.py")
+    if os.path.exists(_gen):
+        rc = subprocess.call([sys.executable, _gen, "--check"],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        check("生成器 --check 退出码 0（未过期）", rc == 0, rc)
+    else:
+        check("生成器存在", False, _gen)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

@@ -134,6 +134,44 @@ def parse_custom_types(txt):
     return types
 
 
+def parse_container_kinds():
+    """从客户端 gamecommon/customtypes/*.lua 抽「类型名 -> list/dict」。
+
+    ★ 为什么需要：config.lua 里 IntList 和 GachaRecord 的声明**长得一模一样**
+      （都是 __ValueType__ + __IntTypeKey__），光看 config.lua 区分不出
+      容器是 list 还是 dict。真正的区分在客户端类定义里：
+        class.Class("IntList", CustomList)   -- list
+        class.Class("ItemBag", CustomDict)   -- dict
+
+    审计实测：按「类型名以 List 结尾」猜，342 个类型里错 7 个
+      （ActivityCheckinRecords/GachaRecord/GachaRewards/Signs 是 list 但名字不带 List；
+       ChampionshipScheduleInfoList/CharShownList/EndlessRankInfoRecordList 是 dict 但名字带 List）。
+
+    返回 {type_name: "list" | "dict"}。
+    """
+    out = {}
+    if not os.path.isdir(LUA_SRC):
+        return out
+    # class.Class("Name", CustomList|CustomDict)，前面可能带 local X =
+    pat = re.compile(
+        r'class\.Class\(\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(CustomList|CustomDict)\s*\)')
+    for dirpath, _dirs, files in os.walk(LUA_SRC):
+        for fn in files:
+            if not fn.endswith(".lua"):
+                continue
+            p = os.path.join(dirpath, fn)
+            try:
+                txt = open(p, encoding="utf-8", errors="replace").read()
+            except Exception:
+                continue
+            if "class.Class" not in txt:
+                continue
+            for m in pat.finditer(txt):
+                out[m.group(1)] = ("list" if m.group(2) == "CustomList"
+                                  else "dict")
+    return out
+
+
 def parse_avatar_properties(txt):
     """解析 AvatarProperties.Properties：name -> {type, default, scope, persist}。"""
     i = txt.find("    AvatarProperties = {")
@@ -169,6 +207,17 @@ def main():
 
     types = parse_custom_types(txt)
     props = parse_avatar_properties(txt)
+    kinds = parse_container_kinds()
+    # 把权威的 list/dict 判定塞进每个自定义类型
+    hit = 0
+    for name, info in types.items():
+        if info.get("value_type"):
+            k = kinds.get(name)
+            info["container_kind"] = k
+            if k:
+                hit += 1
+    print("  容器类型权威判定: %d / %d（其余未在客户端类定义里找到）"
+          % (hit, sum(1 for t in types.values() if t.get("value_type"))))
 
     structs = sum(1 for t in types.values() if t["props"])
     dicts = sum(1 for t in types.values()
@@ -203,15 +252,44 @@ def main():
     else:
         print("  ✅ 结构体字段类型全部存在")
 
-    if args.check:
-        return
-
-    os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     data = {
         "generated_from": CONFIG_LUA,
         "custom_types": types,
         "avatar_properties": props,
     }
+
+    if args.check:
+        # ★ 审计 P1-6：--check 必须做 diff，否则客户端版本更新后
+        #   spec_data.json 会静默变旧，Tx 的 struct/container 判断跟着错。
+        if not os.path.exists(OUT_JSON):
+            print("❌ %s 不存在" % OUT_JSON)
+            return 1
+        with open(OUT_JSON, "r", encoding="utf-8") as f:
+            old = json.load(f)
+        diffs = []
+        for key in ("custom_types", "avatar_properties"):
+            a = old.get(key) or {}
+            b = data.get(key) or {}
+            if a == b:
+                continue
+            only_a = sorted(set(a) - set(b))
+            only_b = sorted(set(b) - set(a))
+            changed = sorted(k for k in (set(a) & set(b)) if a[k] != b[k])
+            if only_a:
+                diffs.append("  %s 少了 %d 项: %s" % (key, len(only_a), only_a[:5]))
+            if only_b:
+                diffs.append("  %s 多了 %d 项: %s" % (key, len(only_b), only_b[:5]))
+            if changed:
+                diffs.append("  %s 变了 %d 项: %s" % (key, len(changed), changed[:5]))
+        if diffs:
+            print("❌ spec_data.json 已过期，请重新生成：")
+            for d in diffs:
+                print(d)
+            return 1
+        print("✅ spec_data.json 与 config.lua 一致")
+        return 0
+
+    os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     with open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
     print("写出 %s（%.1f KB）"
@@ -219,4 +297,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

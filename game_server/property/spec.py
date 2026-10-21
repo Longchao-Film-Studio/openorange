@@ -129,16 +129,26 @@ def key_kind(type_name):
     """容器的键类型。
 
     返回：
-      "list"  类型名以 List 结尾，键是 "#N"（msgpack 数组表示）
-      "int"   __IntTypeKey__ = true，键是整数
-      "str"   __IntTypeKey__ = false，键是字符串
+      "list"  客户端类定义是 CustomList，键是 "#N"（msgpack 数组表示）
+      "int"   是 CustomDict 且 __IntTypeKey__ = true，键是整数
+      "str"   是 CustomDict 且 __IntTypeKey__ = false，键是字符串
       None    不是容器
+
+    ★ 判定来源是客户端类定义（class.Class("X", CustomList|CustomDict)），
+      不是「类型名以 List 结尾」的名字启发式。
+      审计实测：按名字猜，342 个类型里错 7 个 ——
+        ActivityCheckinRecords / GachaRecord / GachaRewards / Signs 是 list 但名字不带 List；
+        ChampionshipScheduleInfoList / CharShownList / EndlessRankInfoRecordList 是 dict 但名字带 List。
     """
     if not is_container(type_name):
         return None
-    if type_name.endswith("List"):
-        return "list"
     c = custom(type_name) or {}
+    kind = c.get("container_kind")
+    if kind == "list":
+        return "list"
+    # 兜底：客户端类定义没找到时退回名字启发式
+    if not kind and type_name.endswith("List"):
+        return "list"
     return "int" if c.get("int_key") else "str"
 
 

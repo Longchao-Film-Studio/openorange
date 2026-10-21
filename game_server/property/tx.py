@@ -121,7 +121,16 @@ class Tx(object):
             if not isinstance(nid, int):
                 raise TxError("路径 %r 第 %d 段 %r 没有 __id__" % (path, i, key))
             cur_pid = nid
-            cur_type = _spec.value_type(cur_type) or cur_type
+            # ★ 更新类型：先看「这个 key 是不是当前类型的结构体字段」，
+            #   再看「当前类型是不是容器（取元素类型）」。
+            #   审计 P1-3：之前只做 value_type(cur_type) or cur_type，
+            #   下钻结构体字段时类型不更新 -> 4 层路径推出错误父类型 ->
+            #   可能把新键误判成结构体字段发 OP_CHANGE。
+            fields = _spec.struct_fields(cur_type) if cur_type else {}
+            if key in fields:
+                cur_type = fields[key][0]
+            else:
+                cur_type = _spec.value_type(cur_type) or cur_type
         return cur, path[-1], cur_pid, cur_type
 
     def _ensure_id(self, value):
