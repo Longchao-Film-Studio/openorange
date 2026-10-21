@@ -23,12 +23,14 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story)
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
 
 SPACE_FINISH_SC = 1634212414
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -38,12 +40,10 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
-
 
 def bag_items(st):
     bag = st.props.get("item_bag") or {}
@@ -52,7 +52,6 @@ def bag_items(st):
         if isinstance(v, dict) and isinstance(v.get("itemId"), int):
             out[v["itemId"]] = v.get("num")
     return out
-
 
 def find_s2c(frames, method):
     """在返回帧里找 server->client 的 entityMessage，返回 (index, params_bytes)。"""
@@ -68,13 +67,11 @@ def find_s2c(frames, method):
         return idx, params
     return None, None
 
-
 def start_game(uid):
-    return erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+    return guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                        msmod.mp_arr([{"match_type": 3, "system_type": 1004,
                                       "modeId": 1, "storyID": 1}]),
                        1, uid=uid)
-
 
 FINISH_INFO = {
     "toStreetId": 101,
@@ -85,7 +82,6 @@ FINISH_INFO = {
     "settle_a": {"win": True, "useTime": 95, "collectCount": 0,
                  "battle_items": {203: 3, 103: 500}},
 }
-
 
 def run():
     print("\n[1] StartGame 要存下 match_info（结算时反查 typeId）")
@@ -101,7 +97,7 @@ def run():
 
     print("\n[2] 结算发奖（battle_items -> item_bag）")
     before = bag_items(st)
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                          msmod.mp_arr([FINISH_INFO]), 26, uid="settle_a")
     after = bag_items(st)
     check("道具 203 从无到 3",
@@ -157,7 +153,7 @@ def run():
     start_game("settle_b")
     info2 = dict(FINISH_INFO)
     info2["settle_b"] = {"win": True, "useTime": 10}
-    frames2 = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+    frames2 = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                           msmod.mp_arr([info2]), 27, uid="settle_b")
     idx2, _p2 = find_s2c(frames2, "AvatarSpace_SpaceFinish_SC")
     check("仍下发 SpaceFinish_SC", idx2 == SPACE_FINISH_SC, idx2)
@@ -166,19 +162,19 @@ def run():
     st3 = fresh("settle_c")
     bts = st3.props.get("battle_teach_state") or {}
     check("battle_teach_state 在 initDict 里", isinstance(bts, dict), type(bts))
-    frames3 = erpc.handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
+    frames3 = guarded_handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
                           msmod.mp_arr([101]), 28, uid="settle_c")
     check("battle_teach_state[101] = 0",
           (st3.props.get("battle_teach_state") or {}).get(101) == 0,
           st3.props.get("battle_teach_state"))
     check("有同步帧（OP_ADD）", len(frames3) >= 2, len(frames3))
     # 重复激活不应重复推
-    frames3b = erpc.handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
+    frames3b = guarded_handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
                            msmod.mp_arr([101]), 29, uid="settle_c")
     check("重复激活只有 ACK", len(frames3b) == 1, len(frames3b))
 
     print("\n[8] P0.5：RecordItemObtain_CS 只回 ACK")
-    frames4 = erpc.handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
+    frames4 = guarded_handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
                           msmod.mp_arr([203]), 30, uid="settle_c")
     check("返回 1 帧", len(frames4) == 1, len(frames4))
     check("是应答帧", b"__rpc_response__" in frames4[0])
@@ -189,7 +185,7 @@ def run():
     def start_levels(flag, uid):
         config.configure_dungeon_last_only(flag)
         fresh(uid)
-        fs = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+        fs = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                          msmod.mp_arr([{"match_type": 3, "system_type": 1004,
                                        "modeId": 1, "storyID": 1}]),
                          1, uid=uid)
@@ -226,7 +222,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

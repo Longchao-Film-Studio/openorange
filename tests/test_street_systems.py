@@ -23,8 +23,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config, gamedata
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -33,7 +34,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] 索引与处理器")
@@ -58,7 +58,7 @@ def run():
     st.props["street_id"] = 101
     need1 = int((rows[0] or {}).get("needExpNum") or 100)
     _pre = msmod._live_init_dict("sx")   # RPC 前快照（审计 P0-3）
-    frames = erpc.handle(erpc.RPC_INDEX["RequestAddPrestigeExp_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestAddPrestigeExp_CS"],
                          msmod.mp_arr([need1 + 30]), 1, uid="sx")
     entry = (st.props.get("street_info") or {}).get(101) or {}
     check("等级升到 1", entry.get("prestige_level") == 1, entry.get("prestige_level"))
@@ -71,7 +71,7 @@ def run():
     check("加声望的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[4] 领声望等级奖励")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestGetPrestigeAward_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestGetPrestigeAward_CS"],
                          msmod.mp_arr([101, 1]), 2, uid="sx")
     entry = (st.props.get("street_info") or {}).get(101) or {}
     check("prestige_awarded[1] = 1",
@@ -79,7 +79,7 @@ def run():
           entry.get("prestige_awarded"))
 
     print("\n[5] 领声望任务奖励")
-    erpc.handle(erpc.RPC_INDEX["RequestGetPrestigeTaskAward_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestGetPrestigeTaskAward_CS"],
                 msmod.mp_arr([101, 777]), 3, uid="sx")
     entry = (st.props.get("street_info") or {}).get(101) or {}
     check("prestige_tasks[777] = 1",
@@ -87,7 +87,7 @@ def run():
           entry.get("prestige_tasks"))
 
     print("\n[6] 派遣：派出 -> 完成 -> 取消")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestDispatchChar_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestDispatchChar_CS"],
                          msmod.mp_arr([9001, 5001]), 4, uid="sx")
     d = st.props.get("street_dispatch") or {}
     e1 = d.get(5001) or {}
@@ -97,17 +97,17 @@ def run():
     check("char_id = 9001", e1.get("char_id") == 9001, e1.get("char_id"))
     check("beg/end_time 都有", e1.get("beg_time") and e1.get("end_time"), e1)
     check("返回同步帧", len(frames) >= 2, len(frames))
-    erpc.handle(erpc.RPC_INDEX["RequestFinishDispatch_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestFinishDispatch_CS"],
                 msmod.mp_arr([5001]), 5, uid="sx")
     check("完成后 end_time <= beg_time+1",
           (d.get(5001) or {}).get("end_time", 0) <= (d.get(5001) or {}).get("beg_time", 0) + 1,
           d.get(5001))
-    erpc.handle(erpc.RPC_INDEX["RequestCancelDispatchChar_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestCancelDispatchChar_CS"],
                 msmod.mp_arr([5001]), 6, uid="sx")
     check("取消后条目消失", 5001 not in d, list(d.keys())[:5])
 
     print("\n[7] AOI 表情不崩")
-    out = erpc.handle(2000707256, msmod.mp_arr([5]), 0, uid="sx")
+    out = guarded_handle(2000707256, msmod.mp_arr([5]), 0, uid="sx")
     check("单向返回空列表", out == [], out)
     check("记录了 emoji", st.props.get("_oo_last_emoji") == 5,
           st.props.get("_oo_last_emoji"))
@@ -117,7 +117,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

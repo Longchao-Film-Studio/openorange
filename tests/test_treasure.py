@@ -19,10 +19,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, gamedata)
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -32,12 +34,10 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
-
 
 def bag_items(st):
     bag = st.props.get("item_bag") or {}
@@ -47,10 +47,8 @@ def bag_items(st):
             out[v["itemId"]] = v.get("num")
     return out
 
-
 def street_entry(st, sid=101):
     return (st.props.get("street_info") or {}).get(sid) or {}
-
 
 def run():
     print("\n[1] 宝箱配置（BDD）")
@@ -67,7 +65,7 @@ def run():
     st = fresh("tr_a")
     before = bag_items(st)
     _pre = msmod._live_init_dict("tr_a")   # RPC 前快照（审计 P0-3）
-    frames = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                          msmod.mp_arr([10157]), 1, uid="tr_a")
     after = bag_items(st)
     check("道具 203 从无到 2",
@@ -87,7 +85,7 @@ def run():
     check("开宝箱的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[3] 重复开启不再发奖")
-    frames2 = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+    frames2 = guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                           msmod.mp_arr([10157]), 2, uid="tr_a")
     after2 = bag_items(st)
     check("道具数量没变", after2.get(203) == 2, after2.get(203))
@@ -98,7 +96,7 @@ def run():
 
     print("\n[4] 单向 RequestTouchTreasure_CS 也发奖")
     st2 = fresh("tr_b")
-    erpc.handle(1282426820, msmod.mp_arr([10158]), 0, uid="tr_b")
+    guarded_handle(1282426820, msmod.mp_arr([10158]), 0, uid="tr_b")
     after3 = bag_items(st2)
     cfg2 = gamedata.street_treasure(10158) or {}
     ai2 = cfg2.get("AwardItemList") or {}
@@ -111,7 +109,7 @@ def run():
     print("\n[5] 没奖励的宝箱不崩")
     # 10161 / 10173 是完全没有 AwardItemList/AwardAttr 的两条
     st3 = fresh("tr_c")
-    erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                 msmod.mp_arr([10161]), 3, uid="tr_c")
     entry4 = street_entry(st3)
     check("标记为已开",
@@ -125,7 +123,7 @@ def run():
     for i, tid in enumerate([10141, 10142, 10143, 10144, 10145, 10146,
                              10147, 10148, 10149, 10150, 10151, 10152,
                              10153, 10154, 10155, 10156, 10157, 10158]):
-        erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+        guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                     msmod.mp_arr([tid]), 10 + i, uid="tr_d")
     entry5 = street_entry(st4)
     lv = int(entry5.get("prestige_level") or 0)
@@ -139,7 +137,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

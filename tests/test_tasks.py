@@ -19,10 +19,11 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import config, tasks
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -31,7 +32,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] task_bag 类型必须是 TaskTypeBag（两层）")
@@ -53,7 +53,7 @@ def run():
     config.configure_scaffold()
     msmod._live_init_dict("task_test")
     st = pstate.get_state(uid="task_test")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
                          msmod.mp_arr([1]), 1, uid="task_test")
     check("返回同步帧", len(frames) >= 2, len(frames))
     tb = st.props.get("task_bag") or {}
@@ -70,7 +70,7 @@ def run():
     check("task_state(1) = 3", tasks.task_state(st.props, 1) == 3)
 
     print("\n[4] 完成任务 1")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
                          msmod.mp_arr([1]), 2, uid="task_test")
     check("返回同步帧", len(frames) >= 2, len(frames))
     check("task_bag[type] 里没有 1 了", 1 not in (st.props["task_bag"].get(t1) or {}))
@@ -80,7 +80,7 @@ def run():
     check("task_state(1) = Finished(6)", tasks.task_state(st.props, 1) == 6)
 
     print("\n[5] 幂等：再完成一次不出错")
-    erpc.handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
                 msmod.mp_arr([1]), 3, uid="task_test")
     check("状态仍是 6", tasks.task_state(st.props, 1) == 6)
 
@@ -95,14 +95,14 @@ def run():
     check("找到同类型的其它任务", len(same) > 0, same)
     for tid in same:
         tasks.start_task(st, tid)
-    erpc.handle(erpc.RPC_INDEX["RequestDoneSomeTypeTask_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestDoneSomeTypeTask_CS"],
                 msmod.mp_arr([t1]), 4, uid="task_test")
     for tid in same:
         check("任务 %d 已完成" % tid, tasks.task_state(st.props, tid) == 6,
               tasks.task_state(st.props, tid))
 
     print("\n[7] 未知任务不崩")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
                          msmod.mp_arr([999999]), 5, uid="task_test")
     check("返回应答帧", len(frames) >= 1, len(frames))
 
@@ -111,7 +111,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

@@ -18,11 +18,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 
 passed = []
 failed = []
-
 
 def check(name, cond, detail=""):
     if cond:
@@ -32,14 +33,12 @@ def check(name, cond, detail=""):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def split_frame(pkt):
     """拆 [u32 LE payloadLen][u16 LE msgType][body]，返回 (msg_type, body)。"""
     plen = struct.unpack_from("<I", pkt, 0)[0]
     assert len(pkt) == 4 + plen, (len(pkt), plen)
     mtype = struct.unpack_from("<H", pkt, 4)[0]
     return mtype, pkt[6:]
-
 
 def parse_response(pkt):
     """解析应答帧，返回 (mtype, rid, params)。
@@ -50,7 +49,6 @@ def parse_response(pkt):
     mtype, method, rid, params = msmod.parse_entity_response(pkt)
     assert method == "__rpc_response__", method
     return mtype, rid, params
-
 
 def run():
     print("\n[1] 索引表完整性")
@@ -95,7 +93,7 @@ def run():
     check("RpcGetSunActLevel_CS", erpc.RPC_INDEX["RpcGetSunActLevel_CS"] == 1033592883)
 
     print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
-    pkt = erpc.handle(732022161, b"\x90", 7)[0]
+    pkt = guarded_handle(732022161, b"\x90", 7)[0]
     mtype, rid, val = parse_response(pkt)
     # 应答 = entityMessage(type=2) + methodName __rpc_response__（逆向确认）
     check("帧类型 = 2（entityMessage）",
@@ -107,15 +105,15 @@ def run():
     check("response 为空表", val[1] == {}, val[1])
 
     print("\n[5] 单向消息不应答")
-    check("rid=0 返回空列表", erpc.handle(732022161, b"\x90", 0) == [])
-    check("index=None 返回空列表", erpc.handle(None, b"\x90", 5) == [])
+    check("rid=0 返回空列表", guarded_handle(732022161, b"\x90", 0) == [])
+    check("index=None 返回空列表", guarded_handle(None, b"\x90", 5) == [])
 
     print("\n[6] 专用应答")
-    _, _, v1 = parse_response(erpc.handle(1033592883, b"\x90", 2)[0])
+    _, _, v1 = parse_response(guarded_handle(1033592883, b"\x90", 2)[0])
     check("RpcGetSunActLevel 回 levelIds", v1[1].get("levelIds") == [], v1[1])
-    _, _, v2 = parse_response(erpc.handle(1795313897, b"\x90", 1)[0])
+    _, _, v2 = parse_response(guarded_handle(1795313897, b"\x90", 1)[0])
     check("RpcGetMatchDuration 回 data", v2[1].get("data") == {}, v2[1])
-    _, _, v3 = parse_response(erpc.handle(1674960337, b"\x90", 3)[0])
+    _, _, v3 = parse_response(guarded_handle(1674960337, b"\x90", 3)[0])
     check("QueryMyTeamInfo 回 status=false", v3[0].get("status") is False, v3[0])
 
     print("\n[7] 名字解析 / 参数解码")
@@ -131,7 +129,6 @@ def run():
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

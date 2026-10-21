@@ -30,10 +30,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story, gamedata)
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -43,19 +45,16 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
-
 
 COPY = "dgarea_arcade_04"
 LEVEL = 52108
 AREA = 10304
 TASK = 5031
 EVENT = 5009
-
 
 def run():
     print("\n[0] BDD 前提校验")
@@ -75,7 +74,7 @@ def run():
     st = fresh("dgev_a")
     story.start_story_task(st, TASK, 0)
     st.save()
-    erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                 msmod.mp_arr([{"copyId": COPY, "system_type": 1000, "modeId": 1}]),
                 1, uid="dgev_a")
     check("_oo_cur_copy = %s" % COPY, st.props.get("_oo_cur_copy") == COPY)
@@ -85,7 +84,7 @@ def run():
           st.props.get("_oo_cur_area") == AREA, st.props.get("_oo_cur_area"))
 
     print("\n[2] 战斗中激活教学 -> 记下 instructionid")
-    erpc.handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
+    guarded_handle(erpc.RPC_INDEX["BattleTeach_Activate_CS"],
                 msmod.mp_arr([101]), 2, uid="dgev_a")
     check("_oo_cur_teach = 101", st.props.get("_oo_cur_teach") == 101,
           st.props.get("_oo_cur_teach"))
@@ -94,7 +93,7 @@ def run():
     info = {"toStreetId": 101, "toStreetPosId": 0, "finishReason": 5,
             "userList": {"dgev_a": 1},
             "dgev_a": {"win": True, "battle_items": {}}}
-    erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                 msmod.mp_arr([info]), 3, uid="dgev_a")
     check("任务 %d = Finished" % TASK,
           story.story_state(st.props, TASK) == story.TASK_STATE_FINISHED,
@@ -122,10 +121,10 @@ def run():
 
     story.evaluate_event = spy
     try:
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                     msmod.mp_arr([{"copyId": COPY, "system_type": 1000,
                                    "modeId": 1}]), 1, uid="dgev_b")
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                     msmod.mp_arr([dict(info, userList={"dgev_b": 1},
                                        dgev_b={"win": True, "battle_items": {}})]),
                     2, uid="dgev_b")
@@ -148,10 +147,10 @@ def run():
 
     story.evaluate_event = spy2
     try:
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                     msmod.mp_arr([{"copyId": COPY, "system_type": 1000,
                                    "modeId": 1}]), 1, uid="dgev_c")
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                     msmod.mp_arr([dict(info, userList={"dgev_c": 1},
                                        dgev_c={"win": True, "battle_items": {}})]),
                     2, uid="dgev_c")
@@ -170,10 +169,10 @@ def run():
 
     story.evaluate_event = spy3
     try:
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                     msmod.mp_arr([{"copyId": COPY, "system_type": 1000,
                                    "modeId": 1}]), 1, uid="dgev_d")
-        erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+        guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                     msmod.mp_arr([dict(info, userList={"dgev_d": 1},
                                        dgev_d={"win": False, "battle_items": {}})]),
                     2, uid="dgev_d")
@@ -199,7 +198,7 @@ def run():
     check("找到 MainlineData 样例", area_id is not None, area_id)
 
     st5 = fresh("dgev_ssm")
-    frames5 = erpc.handle(1996394131,
+    frames5 = guarded_handle(1996394131,
                           msmod.mp_arr([{"match_type": 1, "system_type": 1005,
                                          "modeId": 1, "dungeonId": area_id}]),
                           7, uid="dgev_ssm")
@@ -217,7 +216,7 @@ def run():
 
     # 反例：解析不出 copyId 时回 status=False
     st6 = fresh("dgev_ssm2")
-    frames6 = erpc.handle(1996394131,
+    frames6 = guarded_handle(1996394131,
                           msmod.mp_arr([{"match_type": 1, "system_type": 9999}]),
                           8, uid="dgev_ssm2")
     check("解析不出 copyId 时不记录上下文",
@@ -243,7 +242,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

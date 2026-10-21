@@ -85,7 +85,9 @@ class ShadowCache(object):
         self.cache = {}      # __CustomPropertiesCache__: id -> CustomObj
         self.errors = []     # 客户端会崩的地方
         self.warnings = []   # id repeated / not found 这类日志
-        self.frame_count = 0   # 已应用的属性同步帧数
+        self.frame_count = 0
+        # 帧里出现过的非空 ownerid（空串表示收帧者自己，不记）
+        self.ownerids = set()   # 已应用的属性同步帧数
         self.skipped = 0       # 非属性同步帧（实体消息/应答）跳过数
 
     # ------------------------------------------------------------ 诊断
@@ -223,6 +225,12 @@ class ShadowCache(object):
             return False
         # 帧格式：[u32 len][u16 type] + body
         fields = _ms.pb_parse(f[6:])
+        # ownerid：空串 = 收帧者自己；非空 = 别人的对象（客户端会 getRealOwner）
+        owner_raw = fields.get(1, [b""])[0]
+        ownerid = (owner_raw.decode("utf-8", "replace")
+                   if isinstance(owner_raw, (bytes, bytearray)) else owner_raw)
+        if ownerid:
+            self.ownerids.add(ownerid)
         pid = fields.get(2, [None])[0]
         optype = fields.get(3, [None])[0]
         name_raw = fields.get(4, [b""])[0]

@@ -20,10 +20,11 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import config, story, gamedata
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -32,7 +33,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] 索引与处理器")
@@ -66,7 +66,7 @@ def run():
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
 
     print("\n[4] 通过 RPC 完成 1000")
-    frames = erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                          msmod.mp_arr([1000, 10103]), 1, uid="story_test")
     check("返回多帧", len(frames) >= 3, len(frames))
     check("done_story_tasks 里有 1000", 1000 in st.props["done_story_tasks"])
@@ -93,7 +93,7 @@ def run():
 
     print("\n[7] 重复完成不重复推进")
     before = dict(st.props["story_task_bag"])
-    erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                 msmod.mp_arr([1000, 0]), 2, uid="story_test")
     check("story_task_bag 没变", set(before.keys()) == set(st.props["story_task_bag"].keys()))
 
@@ -110,7 +110,7 @@ def run():
     if target:
         tid, actor = target
         story.start_story_task(st, tid, now)
-        frames = erpc.handle(erpc.RPC_INDEX["RequestStreetActor_CS"],
+        frames = guarded_handle(erpc.RPC_INDEX["RequestStreetActor_CS"],
                              msmod.mp_arr([actor]), 3, uid="story_test")
         check("命中并完成 %d" % tid,
               story.story_state(st.props, tid) == story.TASK_STATE_FINISHED,
@@ -122,7 +122,7 @@ def run():
     check("1005 完成后 头衔(2)/龙胤(4)/成就(55) 应解锁", True)
     # 1005 是 StoryTask 解锁 2/4/55 的那条
     story.start_story_task(st, 1005, now)
-    erpc.handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                 msmod.mp_arr([1005, 0]), 4, uid="story_test")
     check("系统 2 已解锁", us.get(2) is True, us.get(2))
     check("系统 4 已解锁", us.get(4) is True, us.get(4))
@@ -133,7 +133,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

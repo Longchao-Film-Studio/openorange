@@ -31,10 +31,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story, gamedata)
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -44,15 +46,12 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
-
 PROLOGUE_MATCH = {"match_type": 3, "system_type": 1004, "modeId": 1, "storyID": 1}
-
 
 def run():
     print("\n[1] 序章配置链条（BDD）")
@@ -78,7 +77,7 @@ def run():
     check("story_finished 没有整数键 1", 1 not in sf, list(sf.keys())[:5])
 
     print("\n[3] Cmd_Avatar_StartGame_CS 返回正确的 spaceInfo")
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                          msmod.mp_arr([PROLOGUE_MATCH]), 1, uid="dg_a")
     check("有应答帧", len(frames) >= 1, len(frames))
     # 解码应答，检查嵌套结构
@@ -112,7 +111,7 @@ def run():
 
     print("\n[4] 结算 -> 剧情推进 + story_finished[1] 置真")
     st2 = fresh("dg_b")
-    erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
                 2, uid="dg_b")
     check("StoryTask 1000 = Finished(6)",
@@ -134,7 +133,7 @@ def run():
 
     print("\n[6] 参数不匹配不推进剧情")
     st3 = fresh("dg_c")
-    erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 9999, "modeId": 1, "level": 1}]),
                 3, uid="dg_c")
     check("1000 仍是 Doing",
@@ -145,14 +144,14 @@ def run():
 
     print("\n[7] Storyline_FinishGame 也能置 story_finished")
     st4 = fresh("dg_d")
-    erpc.handle(erpc.RPC_INDEX["Storyline_FinishGame"],
+    guarded_handle(erpc.RPC_INDEX["Storyline_FinishGame"],
                 msmod.mp_arr([1, True, 120]), 4, uid="dg_d")
     check("story_finished[1] = True",
           (st4.props.get("story_finished") or {}).get(1) is True,
           (st4.props.get("story_finished") or {}).get(1))
     # （原来这里有个 check(..., True) 恒真断言，删掉 —— 下面的 st5 才是真检验）
     st5 = fresh("dg_e")
-    erpc.handle(erpc.RPC_INDEX["Storyline_FinishGame"],
+    guarded_handle(erpc.RPC_INDEX["Storyline_FinishGame"],
                 msmod.mp_arr([1, False, 5]), 5, uid="dg_e")
     check("passed=False 时不变",
           (st5.props.get("story_finished") or {}).get(1) is not True,
@@ -163,7 +162,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

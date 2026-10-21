@@ -19,11 +19,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 
 passed = []
 failed = []
-
 
 def check(name, cond, detail=""):
     if cond:
@@ -33,10 +34,8 @@ def check(name, cond, detail=""):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def h(s):
     return bytes.fromhex(s.replace(" ", ""))
-
 
 # ---- 实机抓到的单帧 ----
 F_SYNC_TIME = h("0F 00 00 00 04 00 18 94 BD A1 07 22 06 91 CE 6A D6 1C 3C")
@@ -56,7 +55,6 @@ F_TWO = h(
     "0C 00 00 00 04 00 18 A4 84 E1 D8 04 22 02 91 00"
 )
 
-
 def parse_response(pkt):
     """应答 = entityMessage(type=2) + methodName __rpc_response__ + field4/5。
 
@@ -68,7 +66,6 @@ def parse_response(pkt):
     mtype, method, rid, val = msmod.parse_entity_response(pkt)
     assert method == "__rpc_response__", method
     return mtype, rid, val
-
 
 def run():
     print("\n[1] 单帧解析（实机字节）")
@@ -123,18 +120,18 @@ def run():
     check("不足 6 字节不返回", frames == [] and len(rest) == 5)
 
     print("\n[4] 用实机帧跑应答（帧类型 + rid 回带）")
-    mtype, rid, val = parse_response(erpc.handle(1033592883, b"\x90", 1)[0])
+    mtype, rid, val = parse_response(guarded_handle(1033592883, b"\x90", 1)[0])
     check("应答帧类型 = 2（entityMessage）",
           mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE,
           (mtype, msmod.ENTITY_RESPONSE_FRAME_TYPE))
     check("RpcGetSunActLevel rid=1 回带", rid == 1, rid)
     check("RpcGetSunActLevel 回 levelIds", val[1].get("levelIds") == [], val[1])
 
-    mtype, rid, val = parse_response(erpc.handle(1795313897, b"\x90", 3)[0])
+    mtype, rid, val = parse_response(guarded_handle(1795313897, b"\x90", 3)[0])
     check("RpcGetMatchDuration rid=3 回带", rid == 3, rid)
     check("RpcGetMatchDuration 回 data", val[1].get("data") == {}, val[1])
 
-    mtype, rid, val = parse_response(erpc.handle(1674960337, b"\x90", 4)[0])
+    mtype, rid, val = parse_response(guarded_handle(1674960337, b"\x90", 4)[0])
     check("QueryMyTeamInfo rid=4 回带", rid == 4, rid)
     check("QueryMyTeamInfo status=false", val[0].get("status") is False, val[0])
 
@@ -155,14 +152,14 @@ def run():
     for tag, frame in (("RpcPullHotfix", F_HOTFIX), ("心跳", F_HEARTBEAT0),
                        ("RpcSyncServerTime", F_SYNC_TIME)):
         idx, params, rid = msmod.parse_entity_frame(frame[6:])
-        check(tag + "（rid=0）返回空列表", erpc.handle(idx, params, rid) == [])
+        check(tag + "（rid=0）返回空列表", guarded_handle(idx, params, rid) == [])
 
     print("\n[6] 阶段 1 的 RPC 都能用通用 ACK 应答")
     # 抽 6 条 1-1/1-2/1-3 的 RPC，用空数组参数模拟调用
     for nm in ("UpgradeCharacter_CS", "BreakCharacter_CS", "UseItem_CS",
                "SubmitItem_CS", "SetSignature_CS", "UpgradePlayerStage_CS"):
         idx = erpc.RPC_INDEX[nm]
-        pkt = erpc.handle(idx, b"\x90", 9)[0]
+        pkt = guarded_handle(idx, b"\x90", 9)[0]
         mtype, rid, val = parse_response(pkt)
         ok = (mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE and rid == 9
               and val[0].get("status") is True)
@@ -171,7 +168,6 @@ def run():
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

@@ -21,10 +21,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story, gamedata)
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -34,12 +36,10 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
-
 
 def run():
     print("\n[1] TaskType 分类常量")
@@ -88,7 +88,7 @@ def run():
 
     print("\n[6] 走 RPC：Cmd_OfflineSpace_Finish_CS 完成闭环")
     st2 = fresh("se_b")
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                          msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
                          1, uid="se_b")
     check("1000 = Finished(6)",
@@ -105,7 +105,7 @@ def run():
 
     print("\n[7] 参数不匹配时剧情不动")
     st3 = fresh("se_c")
-    erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 9999, "modeId": 1, "level": 1}]),
                 1, uid="se_c")
     check("1000 仍是 Doing",
@@ -172,7 +172,7 @@ def run():
     check("推进前 1003 不满足（-1）",
           story.story_state(st8.props, 1003) != 3,
           story.story_state(st8.props, 1003))
-    erpc.handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+    guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
                 1, uid="se_g")
     check("推进后 1003 = Doing(3)，NPC 条件满足",
@@ -184,7 +184,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

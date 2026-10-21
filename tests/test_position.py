@@ -26,8 +26,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config, story
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -36,7 +37,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] street_pos_info 必须是 DoubleDict（不是 Pos）")
@@ -67,10 +67,10 @@ def run():
 
     print("\n[2] AOI 上报 -> 落盘 -> 重登恢复")
     st = pstate.get_state(uid="pos_a")
-    erpc.handle(1920167376, msmod.mp_arr([12.5, -3.25, 88.75, 1.57]), 0,
+    guarded_handle(1920167376, msmod.mp_arr([12.5, -3.25, 88.75, 1.57]), 0,
                 uid="pos_a")
     erpc._LAST_SAVE.clear()
-    erpc.handle(294469585,
+    guarded_handle(294469585,
                 msmod.mp_arr([101, {"x": 12.5, "y": -3.25, "z": 88.75, "dir": 1.57}]),
                 0, uid="pos_a")
     check("_oo_street_pos 已记录",
@@ -86,16 +86,16 @@ def run():
     print("\n[3] 节流：短时间内第二次上报不重复写盘")
     erpc._LAST_SAVE.clear()
     st = pstate.get_state(uid="pos_a")
-    erpc.handle(1920167376, msmod.mp_arr([1, 2, 3, 0]), 0, uid="pos_a")
+    guarded_handle(1920167376, msmod.mp_arr([1, 2, 3, 0]), 0, uid="pos_a")
     first = erpc._LAST_SAVE.get("pos_a")
-    erpc.handle(1920167376, msmod.mp_arr([4, 5, 6, 0]), 0, uid="pos_a")
+    guarded_handle(1920167376, msmod.mp_arr([4, 5, 6, 0]), 0, uid="pos_a")
     check("5 秒内不重复落盘", erpc._LAST_SAVE.get("pos_a") == first)
     check("内存里的值仍然更新",
           (st.props.get("_oo_street_pos") or {}).get("x") == 4.0)
 
     print("\n[4] 街景 NPC 交互记录到 inter_actor_info")
     st.props["street_id"] = 101
-    frames = erpc.handle(erpc.RPC_INDEX["Street_Actor_InteractID_Update_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Street_Actor_InteractID_Update_CS"],
                          msmod.mp_arr([40004, 40004, 400041, None, 400041]), 1,
                          uid="pos_a")
     si = st.props.get("street_info") or {}
@@ -107,7 +107,7 @@ def run():
     print("\n[5] 交互同时完成命中的剧情任务")
     story.start_story_task(st, 1003, 1700000000)
     # 1003 的 Parameter1 是 [400041]，TaskType=2
-    erpc.handle(erpc.RPC_INDEX["Street_Actor_InteractID_Update_CS"],
+    guarded_handle(erpc.RPC_INDEX["Street_Actor_InteractID_Update_CS"],
                 msmod.mp_arr([40004, 40004, 400041, None, 400041]), 2,
                 uid="pos_a")
     check("任务 1003 已完成",
@@ -115,14 +115,14 @@ def run():
           story.story_state(st.props, 1003))
 
     print("\n[6] 红点")
-    frames = erpc.handle(erpc.RPC_INDEX["Street_Redpoint_Update_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Street_Redpoint_Update_CS"],
                          msmod.mp_arr([7, 1]), 3, uid="pos_a")
     rp = (st.props.get("street_info") or {}).get("street_redpoint") or {}
     check("street_redpoint[7] = 1", rp.get(7) == 1, rp)
     check("返回同步帧", len(frames) >= 2, len(frames))
 
     print("\n[7] 追踪任务")
-    frames = erpc.handle(erpc.RPC_INDEX["updateStreetTraceTask_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["updateStreetTraceTask_CS"],
                          msmod.mp_arr([1003]), 4, uid="pos_a")
     check("street_trace_taskid = 1003",
           st.props.get("street_trace_taskid") == 1003,
@@ -131,31 +131,31 @@ def run():
     print("\n[7b] 阴阳界切换")
     # 逆向：avatarstreetcomp.lua:560-562 getCurStreetYinYangEnterTime 读
     #   StreetInfoDict.surface_enter_time；streetsystemmgrbase.lua:679-685 用它定 worldIndex。
-    frames = erpc.handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
                          msmod.mp_arr([1]), 5, uid="pos_a")
     si2 = st.props.get("street_info") or {}
     t_enter = si2.get("surface_enter_time") or 0
     check("进阴界 surface_enter_time > 0", t_enter > 0, t_enter)
     check("返回同步帧", len(frames) >= 2, len(frames))
-    erpc.handle(2137482665, msmod.mp_arr([]), 0, uid="pos_a")
+    guarded_handle(2137482665, msmod.mp_arr([]), 0, uid="pos_a")
     check("离开阴界归 0",
           (st.props.get("street_info") or {}).get("surface_enter_time") == 0)
 
     print("\n[7c] 街景宝箱")
     # 逆向：StreetInfo.treasure_box_info（IntDictKeyInt），0 < state 即已开
-    frames = erpc.handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                          msmod.mp_arr([10157]), 6, uid="pos_a")
     entry2 = (st.props.get("street_info") or {}).get(101) or {}
     tb = entry2.get("treasure_box_info") or {}
     check("treasure_box_info[10157] = 1", tb.get(10157) == 1, tb)
     check("返回同步帧", len(frames) >= 2, len(frames))
-    erpc.handle(1282426820, msmod.mp_arr([10158]), 0, uid="pos_a")
+    guarded_handle(1282426820, msmod.mp_arr([10158]), 0, uid="pos_a")
     entry3 = (st.props.get("street_info") or {}).get(101) or {}
     tb3 = entry3.get("treasure_box_info") or {}
     check("TouchTreasure 也记录", tb3.get(10158) == 1, tb3)
 
     print("\n[8] 清理宝箱 actor（单向）")
-    erpc.handle(1675033651, msmod.mp_arr([101]), 0, uid="pos_a")
+    guarded_handle(1675033651, msmod.mp_arr([101]), 0, uid="pos_a")
     check("不崩", True)
 
     print("\n" + "=" * 56)
@@ -163,7 +163,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

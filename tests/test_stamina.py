@@ -21,10 +21,11 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_stamina_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import stamina as S, gamedata as G, ms as msmod, entity_rpc as erpc, player_state as pstate, config
+from game_server import stamina as S, gamedata as G, ms as msmod, player_state as pstate, config
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -33,7 +34,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] 上限与恢复速度（读 BDD）")
@@ -93,7 +93,7 @@ def run():
     bag = st.props["item_bag"]
     bag["9"] = {"__id__": 99001, "id": "9", "itemId": 110, "num": 3,
                  "ext": {"__id__": 99002}}
-    frames = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([110, 1, None]), 5,
+    frames = guarded_handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([110, 1, None]), 5,
                          uid="stamina_test")
     check("返回多帧（应答 + 道具同步 + 体力同步）", len(frames) >= 3, len(frames))
     check("体力 100 -> 160", st.props[S.PROP_KEYS] == 160, st.props[S.PROP_KEYS])
@@ -101,13 +101,13 @@ def run():
 
     print("\n[7] 背包里没有该道具时不动数据")
     before = st.props[S.PROP_KEYS]
-    erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([99999, 1, None]), 6,
+    guarded_handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([99999, 1, None]), 6,
                 uid="stamina_test")
     check("体力没变", st.props[S.PROP_KEYS] == before, st.props[S.PROP_KEYS])
 
     print("\n[8] 数量不足时不动数据")
     before = st.props[S.PROP_KEYS]
-    erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([110, 99, None]), 7,
+    guarded_handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([110, 99, None]), 7,
                 uid="stamina_test")
     check("体力没变", st.props[S.PROP_KEYS] == before, st.props[S.PROP_KEYS])
     check("道具数量没变", bag["9"]["num"] == 2, bag["9"]["num"])
@@ -117,7 +117,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

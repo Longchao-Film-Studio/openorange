@@ -22,8 +22,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -32,7 +33,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def run():
     print("\n[1] 常量与索引")
@@ -48,7 +48,7 @@ def run():
     st = pstate.get_state(uid="space_test")
     sp0 = st.props.get("space_p") or {}
     check("初始 spaceno = 0", sp0.get("spaceno") == 0, sp0.get("spaceno"))
-    frames = erpc.handle(1277075552,
+    frames = guarded_handle(1277075552,
                          msmod.mp_arr([1000, "eden_1", {"toPosId": 50004}]), 0,
                          uid="space_test")
     check("返回了 S2C 帧", len(frames) > 0, len(frames))
@@ -69,13 +69,13 @@ def run():
     check("确实下发了 entityMessage", found)
 
     print("\n[4] 场景加载完成 RpcOnSceneLoaded")
-    frames = erpc.handle(996547331, msmod.mp_arr([1000]), 0, uid="space_test")
+    frames = guarded_handle(996547331, msmod.mp_arr([1000]), 0, uid="space_test")
     sp = st.props.get("space_p") or {}
     check("loading -> false", sp.get("loading") is False, sp.get("loading"))
     check("ld_spaceno -> 1000", sp.get("ld_spaceno") == 1000, sp.get("ld_spaceno"))
 
     print("\n[5] 离开空间 RpcLeaveSpace（带回调）")
-    frames = erpc.handle(erpc.RPC_INDEX["RpcLeaveSpace"], msmod.mp_arr([]), 7,
+    frames = guarded_handle(erpc.RPC_INDEX["RpcLeaveSpace"], msmod.mp_arr([]), 7,
                          uid="space_test")
     check("返回应答帧", len(frames) >= 1, len(frames))
     sp = st.props.get("space_p") or {}
@@ -85,31 +85,31 @@ def run():
     check("下发了 RpcOnTeleportOut", has_tp)
 
     print("\n[6] RpcEnterSpace 传 0 等价于离开")
-    erpc.handle(1277075552, msmod.mp_arr([1000, "", {}]), 0, uid="space_test")
-    erpc.handle(1277075552, msmod.mp_arr([0, "", {}]), 0, uid="space_test")
+    guarded_handle(1277075552, msmod.mp_arr([1000, "", {}]), 0, uid="space_test")
+    guarded_handle(1277075552, msmod.mp_arr([0, "", {}]), 0, uid="space_test")
     sp = st.props.get("space_p") or {}
     check("spaceno -> 0", sp.get("spaceno") == 0, sp.get("spaceno"))
 
     print("\n[7] 进伊甸 RpcEnterEden / RpcBackToEden")
-    erpc.handle(1277075552, msmod.mp_arr([0, "", {}]), 0, uid="space_test")
-    frames = erpc.handle(1588890197, msmod.mp_arr([50004]), 0, uid="space_test")
+    guarded_handle(1277075552, msmod.mp_arr([0, "", {}]), 0, uid="space_test")
+    frames = guarded_handle(1588890197, msmod.mp_arr([50004]), 0, uid="space_test")
     sp = st.props.get("space_p") or {}
     check("RpcEnterEden -> spaceno = 1000", sp.get("spaceno") == 1000, sp.get("spaceno"))
     check("下发 RpcOnEnterSpace", any(b"RpcOnEnterSpace" in f for f in frames))
     check("info 带 toPosId", any(b"toPosId" in f for f in frames))
-    frames = erpc.handle(1369842456, msmod.mp_arr([]), 0, uid="space_test")
+    frames = guarded_handle(1369842456, msmod.mp_arr([]), 0, uid="space_test")
     check("RpcBackToEden 也进 1000",
           (st.props.get("space_p") or {}).get("spaceno") == 1000)
 
     print("\n[8] AOI 移动 RpcOnClientMove")
-    erpc.handle(1920167376, msmod.mp_arr([1.5, -3.2, 60.25, 1.57]), 0, uid="space_test")
+    guarded_handle(1920167376, msmod.mp_arr([1.5, -3.2, 60.25, 1.57]), 0, uid="space_test")
     pos = st.props.get("_oo_street_pos") or {}
     check("记录 x", abs(pos.get("x", 0) - 1.5) < 1e-6, pos)
     check("记录 z", abs(pos.get("z", 0) - 60.25) < 1e-6, pos)
     check("记录 dir", abs(pos.get("dir", 0) - 1.57) < 1e-6, pos)
 
     print("\n[9] RpcChangeMicroState")
-    erpc.handle(1517096639, msmod.mp_arr([3]), 0, uid="space_test")
+    guarded_handle(1517096639, msmod.mp_arr([3]), 0, uid="space_test")
     check("micro_state = 3", st.props.get("_oo_micro_state") == 3,
           st.props.get("_oo_micro_state"))
 
@@ -118,7 +118,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

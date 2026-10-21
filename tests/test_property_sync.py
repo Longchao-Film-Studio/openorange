@@ -20,11 +20,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import ms as msmod
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import entity_rpc as erpc
 from game_server import player_state as pstate
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -33,7 +34,6 @@ def check(name, cond, detail=None):
     else:
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
-
 
 def parse_sync(pkt):
     """解析 propertySync2Client 帧。"""
@@ -51,7 +51,6 @@ def parse_sync(pkt):
     if 5 in fields:
         out["value"] = msmod.mp_decode(fields[5][0])[0]
     return out
-
 
 def run():
     print("\n[1] 属性同步帧格式")
@@ -78,7 +77,7 @@ def run():
 
     print("\n[4] SetSignature_CS 返回两帧：应答 + 同步")
     pstate.reset_state({"signature": "", "level": 1})
-    frames = erpc.handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, msmod.mp_arr(["OpenOrange"]), 42)
+    frames = guarded_handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, msmod.mp_arr(["OpenOrange"]), 42)
     check("返回 2 帧", isinstance(frames, list) and len(frames) == 2, len(frames) if isinstance(frames, list) else frames)
     mtype, method, rid, params = msmod.parse_entity_response(frames[0])
     check("第 1 帧是应答", mtype == 2 and method == "__rpc_response__", (mtype, method))
@@ -95,7 +94,7 @@ def run():
     pstate.reset_state({"item_bag": {"__tp__": "ItemBag", "__id__": 1324,
                                       "1": {"__id__": 1357, "id": "1", "itemId": 101,
                                             "num": 1000, "ext": {"__id__": 1358}}}})
-    frames3 = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 100, None]), 11)
+    frames3 = guarded_handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 100, None]), 11)
     check("返回 2 帧", len(frames3) == 2, len(frames3))
     bag = pstate.get_state().get("item_bag")
     check("数量 1000 -> 900", bag["1"]["num"] == 900, bag["1"]["num"])
@@ -111,7 +110,7 @@ def run():
     # 真实服务端在数量不足时会拒绝整条请求。
     # 以前这里实现成「夹到 0」，会凭空把道具用光；现在改成不动数据。
     before_num = pstate.get_state().get("item_bag")["1"]["num"]
-    frames4 = erpc.handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 99999, None]), 12)
+    frames4 = guarded_handle(msmod.RPC_INDEX_USE_ITEM_CS, msmod.mp_arr([101, 99999, None]), 12)
     bag4 = pstate.get_state().get("item_bag")
     check("数量没变", bag4["1"]["num"] == before_num, bag4["1"]["num"])
     check("只回应答帧，没有同步帧", len(frames4) == 1, len(frames4))
@@ -119,7 +118,7 @@ def run():
     print("\n[4d] UpgradeCharacter_CS 升级 + characterBag 子属性同步")
     pstate.reset_state({"characterBag": {"__tp__": "CharacterPersistentDict", "__id__": 1326,
                                          9001: {"__id__": 1341, "useSkinId": 900101}}})
-    frames5 = erpc.handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 21)
+    frames5 = guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 21)
     check("返回 2 帧", len(frames5) == 2, len(frames5))
     cbag = pstate.get_state().get("characterBag")
     check("CharLevel 默认 1 -> 2", cbag[9001].get("CharLevel") == 2, cbag[9001].get("CharLevel"))
@@ -131,14 +130,14 @@ def run():
           (d6.get("value") or {}).get("CharLevel"))
 
     print("\n[4e] 再升一次到 3")
-    erpc.handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 22)
+    guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 22)
     check("CharLevel = 3", pstate.get_state().get("characterBag")[9001].get("CharLevel") == 3,
           pstate.get_state().get("characterBag")[9001].get("CharLevel"))
 
     print("\n[4f] 1-3 的 Set* 系列：真正改数据 + 推根属性同步")
     pstate.reset_state({"portrait_id": 0, "is_char_list_shown": False, "canScore": 0,
                         "char_list": {"__tp__": "IntList", "__id__": 1044}})
-    fs6 = erpc.handle(erpc.RPC_INDEX["SetPortrait_CS"], msmod.mp_arr([12345]), 31)
+    fs6 = guarded_handle(erpc.RPC_INDEX["SetPortrait_CS"], msmod.mp_arr([12345]), 31)
     check("SetPortrait 返回 2 帧", len(fs6) == 2, len(fs6))
     check("portrait_id = 12345", pstate.get_state().get("portrait_id") == 12345,
           pstate.get_state().get("portrait_id"))
@@ -147,15 +146,15 @@ def run():
     check("同步 name = portrait_id", d7.get("name") == "portrait_id", d7.get("name"))
     check("同步 value = 12345", d7.get("value") == 12345, d7.get("value"))
 
-    fs7 = erpc.handle(erpc.RPC_INDEX["SetIsCharListShown_CS"], msmod.mp_arr([True]), 32)
+    fs7 = guarded_handle(erpc.RPC_INDEX["SetIsCharListShown_CS"], msmod.mp_arr([True]), 32)
     check("is_char_list_shown = true", pstate.get_state().get("is_char_list_shown") is True,
           pstate.get_state().get("is_char_list_shown"))
 
-    fs8 = erpc.handle(erpc.RPC_INDEX["SetCanScore_CS"], msmod.mp_arr([]), 33)
+    fs8 = guarded_handle(erpc.RPC_INDEX["SetCanScore_CS"], msmod.mp_arr([]), 33)
     check("SetCanScore 无参数也能改", pstate.get_state().get("canScore") == 1,
           pstate.get_state().get("canScore"))
 
-    fs9 = erpc.handle(erpc.RPC_INDEX["SetCharShown_CS"], msmod.mp_arr([[9001, 9002]]), 34)
+    fs9 = guarded_handle(erpc.RPC_INDEX["SetCharShown_CS"], msmod.mp_arr([[9001, 9002]]), 34)
     cl = pstate.get_state().get("char_list")
     check("char_list 保留 __tp__", cl.get("__tp__") == "IntList", cl.get("__tp__"))
     check("char_list 保留 __id__", cl.get("__id__") == 1044, cl.get("__id__"))
@@ -174,14 +173,14 @@ def run():
                                                "value": {"__id__": 1356, 1: 9001, 2: 0, 3: 0}}}})
     check("SetChoosenIndex_CS 在索引表里", "SetChoosenIndex_CS" in erpc.RPC_INDEX)
     check("SetChoosenChar_CS 在索引表里", "SetChoosenChar_CS" in erpc.RPC_INDEX)
-    fs10 = erpc.handle(erpc.RPC_INDEX["SetChoosenIndex_CS"], msmod.mp_arr([2]), 41)
+    fs10 = guarded_handle(erpc.RPC_INDEX["SetChoosenIndex_CS"], msmod.mp_arr([2]), 41)
     check("choosen_index 1 -> 2", pstate.get_state().get("choosen_index") == 2,
           pstate.get_state().get("choosen_index"))
     d10 = parse_sync(fs10[1])
     check("同步的是根属性 choosen_index",
           d10.get("propertyid") == 0 and d10.get("name") == "choosen_index",
           (d10.get("propertyid"), d10.get("name")))
-    fs11 = erpc.handle(erpc.RPC_INDEX["SetChoosenChar_CS"], msmod.mp_arr([1020]), 42)
+    fs11 = guarded_handle(erpc.RPC_INDEX["SetChoosenChar_CS"], msmod.mp_arr([1020]), 42)
     check("character_choosen_char 9001 -> 1020",
           pstate.get_state().get("character_choosen_char") == 1020,
           pstate.get_state().get("character_choosen_char"))
@@ -189,7 +188,7 @@ def run():
     check("同步的是 character_choosen_char", d11.get("name") == "character_choosen_char",
           d11.get("name"))
 
-    fs12 = erpc.handle(erpc.RPC_INDEX["SetCharacterList_CS"],
+    fs12 = guarded_handle(erpc.RPC_INDEX["SetCharacterList_CS"],
                        msmod.mp_arr([1, [9001, 1020, 0]]), 43)
     team = pstate.get_state().get("character_list")[1]
     check("编队第 2 格变成 1020", team["value"].get(2) == 1020, team["value"])
@@ -199,11 +198,11 @@ def run():
     check("编队同步 name = 队伍下标", d12.get("name") == "1", d12.get("name"))
 
     print("\n[5] 其它 RPC 仍然只有一帧")
-    frames2 = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
+    frames2 = guarded_handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
     check("1 帧", len(frames2) == 1, len(frames2))
     print("\n[6] 单向消息返回空列表")
-    check("rid=0 -> []", erpc.handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, b"\x90", 0) == [])
-    check("index=None -> []", erpc.handle(None, b"\x90", 5) == [])
+    check("rid=0 -> []", guarded_handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, b"\x90", 0) == [])
+    check("index=None -> []", guarded_handle(None, b"\x90", 5) == [])
 
     print("\n[7] 存档整数键往返（JSON 会把 int 键变字符串，必须用 #N 约定）")
     # load() 有保护：属性少于 10 条视为存档损坏、回退初始值。
@@ -225,7 +224,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

@@ -24,14 +24,16 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story, gamedata)
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server.story import events as _events
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from shadow_cache import frames_safe   # noqa: E402
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -41,15 +43,12 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
-
 PROLOGUE_MATCH = {"match_type": 3, "system_type": 1004, "modeId": 1, "storyID": 1}
-
 
 def parse_resp(frames):
     """从帧列表里解出 RPC 应答的 response（field2=__rpc_response__ 的那条）。"""
@@ -70,7 +69,6 @@ def parse_resp(frames):
             return decoded[1]
     return None
 
-
 def run():
     print("\n[1] 序章配置：guide_01 就是三关")
     cfg = gamedata.level_copy("guide_01") or {}
@@ -85,7 +83,7 @@ def run():
     print("\n[2] StartGame 一次下发三关")
     fresh("dglv_a")
     _pre = msmod._live_init_dict("dglv_a")
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                          msmod.mp_arr([PROLOGUE_MATCH]), 1, uid="dglv_a")
     resp = parse_resp(frames)
     inner = ((resp or {}).get("spaceInfo") or {}).get("spaceInfo") or {}
@@ -99,7 +97,7 @@ def run():
 
     print("\n[3] 打完第一关 -> EnterNext(copyIndex=2) 回第二关 levelInfo")
     _pre = msmod._live_init_dict("dglv_a")
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                          msmod.mp_arr([2]), 2, uid="dglv_a")
     resp = parse_resp(frames)
     li = (resp or {}).get("levelInfo") or {}
@@ -113,7 +111,7 @@ def run():
     check("切关的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[4] 打完第二关 -> EnterNext(copyIndex=3) 回第三关")
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                          msmod.mp_arr([3]), 3, uid="dglv_a")
     resp = parse_resp(frames)
     check("第三关也带 levelInfo", bool((resp or {}).get("levelInfo")), resp)
@@ -122,12 +120,12 @@ def run():
 
     print("\n[5] 越界 copyIndex 不崩、也不改上下文")
     for bad in (0, 99, -1):
-        frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
+        frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                              msmod.mp_arr([bad]), 4, uid="dglv_a")
         check("copyIndex=%d 不抛异常" % bad, isinstance(frames, list), frames)
         check("copyIndex=%d 不改当前关卡" % bad,
               st.props.get("_oo_cur_level") == 50003, st.props.get("_oo_cur_level"))
-    frames = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                          msmod.mp_arr(["x"]), 5, uid="dglv_a")
     check("非整数 copyIndex 不抛异常", isinstance(frames, list), frames)
 
@@ -145,7 +143,7 @@ def run():
     _events.apply_event = _spy
     try:
         _pre = msmod._live_init_dict("dglv_a")
-        frames = erpc.handle(
+        frames = guarded_handle(
             erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
             msmod.mp_arr([{"toStreetId": 101, "toStreetPosId": 0,
                            "finishReason": 0,
@@ -182,7 +180,6 @@ def run():
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

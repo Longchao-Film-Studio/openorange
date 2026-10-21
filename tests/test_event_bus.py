@@ -30,12 +30,14 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
+
                          config, story, gamedata)
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server.story import events
 from shadow_cache import ShadowCache
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -45,22 +47,18 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
     msmod._live_init_dict(uid)
     return pstate.get_state(uid=uid)
-
 
 def activate(st, task_id):
     """把剧情任务设为进行中。"""
     story.start_story_task(st, int(task_id), 0)
     return story.story_state(st.props, int(task_id))
 
-
 def finished(st, task_id):
     return story.story_state(st.props, int(task_id)) == story.TASK_STATE_FINISHED
-
 
 def run():
     print("\n[A] 结构：apply_event 是唯一写入口")
@@ -156,7 +154,7 @@ def run():
     # F1 SubmitItem_CS
     st = fresh("ev_rpc_sub")
     activate(st, 50290)
-    frames = erpc.handle(erpc.RPC_INDEX["SubmitItem_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["SubmitItem_CS"],
                          msmod.mp_arr([101, 1]), 1, uid="ev_rpc_sub")
     check("SubmitItem_CS 完成任务 50290", finished(st, 50290))
     check("SubmitItem_CS 返回同步帧", len(frames) >= 2, len(frames))
@@ -164,7 +162,7 @@ def run():
     # F2 RecordItemObtain_CS
     st = fresh("ev_rpc_get")
     activate(st, 7017)          # 事件 {itemId: 701}
-    frames = erpc.handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
                          msmod.mp_arr([{"itemId": 701, "count": 1}]),
                          1, uid="ev_rpc_get")
     check("RecordItemObtain_CS 完成任务 7017", finished(st, 7017))
@@ -178,7 +176,7 @@ def run():
     check("存档里有角色", key is not None, list(bag.keys())[:5])
     bag[key]["CharLevel"] = 9
     st.set("characterBag", bag)
-    frames = erpc.handle(erpc.RPC_INDEX["UpgradeCharacter_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["UpgradeCharacter_CS"],
                          msmod.mp_arr([key]), 1, uid="ev_rpc_char")
     check("角色升到 10 级",
           int((st.props["characterBag"][key] or {}).get("CharLevel") or 0) == 10,
@@ -197,7 +195,7 @@ def run():
         for k in need.keys():
             if not str(k).startswith("__") and k != "KeyList":
                 need_ids.append(int(k))
-    frames = erpc.handle(erpc.RPC_INDEX["SubmitItem_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["SubmitItem_CS"],
                          msmod.mp_arr([sid, {need_ids[0]: 1} if need_ids else {}]),
                          1, uid="ev_rpc_subid")
     check("submit_id 字符串参数不抛异常",
@@ -217,7 +215,7 @@ def run():
     check("登录 tick 把命中的链式任务记进 _oo_pending_chain",
           isinstance(pend, list) and 201000 in pend, pend)
     # 第一条 RPC 应该把它补完
-    frames = erpc.handle(erpc.RPC_INDEX["SetSignature_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["SetSignature_CS"],
                          msmod.mp_arr(["hi"]), 1, uid="ev_login")
     check("第一条 RPC 补完链式任务 201000", finished(st2, 201000))
     check("补完时推了同步帧", len(frames) >= 2, len(frames))
@@ -235,7 +233,7 @@ def run():
     st = pstate.get_state(uid="ev_p01")
     pend = st.props.get("_oo_pending_chain") or []
     check("P0-1 登录 tick 把 hits 记进 pending", 400015 in pend, pend)
-    erpc.handle(erpc.RPC_INDEX["SetSignature_CS"], msmod.mp_arr(["x"]),
+    guarded_handle(erpc.RPC_INDEX["SetSignature_CS"], msmod.mp_arr(["x"]),
                 1, uid="ev_p01")
     check("P0-1 首条 RPC 完成任务 400015", finished(st, 400015))
 
@@ -276,9 +274,9 @@ def run():
     #   而真实游戏里任务是通过 PostTasks 用 OP_ADD 推给客户端的。
     pre = msmod._live_init_dict("ev_shadow")
     frames = []
-    frames += erpc.handle(erpc.RPC_INDEX["SubmitItem_CS"],
+    frames += guarded_handle(erpc.RPC_INDEX["SubmitItem_CS"],
                           msmod.mp_arr([101, 1]), 1, uid="ev_shadow")
-    frames += erpc.handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
+    frames += guarded_handle(erpc.RPC_INDEX["RecordItemObtain_CS"],
                           msmod.mp_arr([{"itemId": 701}]), 2, uid="ev_shadow")
     sc = ShadowCache()
     sc.init_property(pre["__Properties__"])
@@ -292,7 +290,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

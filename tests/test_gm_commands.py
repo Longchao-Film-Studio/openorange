@@ -29,11 +29,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import admin_api
+
+from tests.frame_guard import guarded_handle  # noqa: E402
 from shared import commands as cmds
 from game_server import ms as msmod, entity_rpc as erpc, config
 
 passed, failed = [], []
-
 
 def check(name, cond, detail=None):
     if cond:
@@ -43,14 +44,12 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 def ctx(perm=cmds.PERM_ADMIN, actor="cmd_a"):
     return cmds.Context(actor, perm)
 
-
 def start_levels(uid):
     msmod._live_init_dict(uid)
-    fs = erpc.handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+    fs = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                      msmod.mp_arr([{"match_type": 3, "system_type": 1004,
                                     "modeId": 1, "storyID": 1}]),
                      1, uid=uid)
@@ -72,7 +71,6 @@ def start_levels(uid):
         if "levelIds" in inner:
             return inner["levelIds"]
     return None
-
 
 def run():
     config.configure_scaffold(unlock_all=False)
@@ -231,7 +229,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())

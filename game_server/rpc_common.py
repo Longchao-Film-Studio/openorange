@@ -49,8 +49,19 @@ def state(uid=None):
     return pstate.get_state(props, uid=uid or pstate.DEFAULT_UID)
 
 
+# 属性同步帧里的 ownerid 语义（客户端 core/client/gateclientrpchandler.lua:269-288）：
+#   onSyncProperty(ownerid, propertyid, optype, name, value)
+#     -> owner:__syncProperty__(...)
+#   只有 ownerid ~= "" 时客户端才去 getRealOwner(ownerid) 找「别人的对象」。
+# 私服是一连接一账号，服务端推的永远是**收帧这个人自己**的属性，
+# 所以 ownerid 一律用 SYNC_SELF；非空值只在「把别人的属性推给你」时才用。
+SYNC_SELF = ""
+
+
 def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
     """统一的属性同步帧构造器 —— 所有产生同步帧的地方都应该用它。
+
+    ownerid: ""（SYNC_SELF）表示「就是收帧的这个玩家自己」；非空表示别人的 uid。
 
     ★ 为什么要有这层（2026-10-21 审计 P0-1/P0-2/P0-3）：
       原先 entity_rpc.py 里有 30 处直接调 msmod.build_property_sync，
@@ -66,6 +77,9 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
 
     参数顺序和 msmod.build_property_sync 完全一致，方便整段替换。
     """
+    if not isinstance(ownerid, str):
+        # 帧里 ownerid 是 bytes 字段，传 int/None 会在 pb_bytes_field 里炸
+        ownerid = "" if ownerid is None else str(ownerid)
     if op_type in (msmod.OP_DEL, msmod.OP_REMOVE):
         val = None
     else:

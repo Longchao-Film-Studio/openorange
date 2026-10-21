@@ -23,8 +23,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config
 
-passed, failed = [], []
+from tests.frame_guard import guarded_handle  # noqa: E402
 
+passed, failed = [], []
 
 def check(name, cond, detail=None):
     if cond:
@@ -34,12 +35,10 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
-
 # ★ 原来这里有个 parse_sync 依赖 msmod.parse_property_sync，但那个函数根本不存在，
 #   永远返回 {}（死代码）。现在改成用影子缓存做真正的帧校验。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from shadow_cache import frames_safe   # noqa: E402
-
 
 def run():
     print("\n[1] 索引表里有街区三条")
@@ -53,7 +52,7 @@ def run():
     st = pstate.get_state(uid="street_test")
     check("初始 street_id = 101", st.props.get("street_id") == 101, st.props.get("street_id"))
     _pre = msmod._live_init_dict("street_test")   # RPC 前快照（审计 P0-3）
-    frames = erpc.handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"],
+    frames = guarded_handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"],
                          msmod.mp_arr([1011, None]), 1, uid="street_test")
     check("street_id -> 1011", st.props.get("street_id") == 1011, st.props.get("street_id"))
     check("返回 >= 3 帧（应答 + street_id + street_info）", len(frames) >= 3, len(frames))
@@ -79,19 +78,19 @@ def run():
     print("\n[5] RpcEnterStreet 走同一条路")
     st.props["street_id"] = 101
     st.set("street_id", 101)
-    erpc.handle(erpc.RPC_INDEX["RpcEnterStreet"],
+    guarded_handle(erpc.RPC_INDEX["RpcEnterStreet"],
                 msmod.mp_arr([100, None]), 2, uid="street_test")
     check("street_id -> 100（龙潮阁）", st.props.get("street_id") == 100, st.props.get("street_id"))
     check("street_info 有 100", 100 in (st.props.get("street_info") or {}))
 
     print("\n[6] 离开街区")
-    erpc.handle(erpc.RPC_INDEX["RequestLeaveStreet_CS"],
+    guarded_handle(erpc.RPC_INDEX["RequestLeaveStreet_CS"],
                 msmod.mp_arr([100]), 3, uid="street_test")
     check("street_id -> 0", st.props.get("street_id") == 0, st.props.get("street_id"))
 
     print("\n[7] 参数非法时不崩")
     before = st.props.get("street_id")
-    erpc.handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"], msmod.mp_arr([]), 4,
+    guarded_handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"], msmod.mp_arr([]), 4,
                 uid="street_test")
     check("空参数不改数据", st.props.get("street_id") == before)
 
@@ -100,7 +99,6 @@ def run():
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1
-
 
 if __name__ == "__main__":
     sys.exit(run())
