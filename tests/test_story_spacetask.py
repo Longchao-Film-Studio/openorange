@@ -179,6 +179,18 @@ def run():
           and story.story_state(st.props, 1102) == sm.TASK_STATE_DOING,
           story.story_state(st.props, 1102))
 
+    # ★ 必须先进副本：SpaceTask 10101 的 dungeonId=dgarea_linglongge,
+    #   levelId=52021，服务端会校验 _oo_cur_copy / _oo_cur_level。
+    #   MainlineData[10103].dungeonid = dgarea_linglongge，rootLevel[0] = 52021
+    guarded_handle(rpc_index.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"system_type": 3, "dungeonId": 10103}]), 9,
+                   uid=uid)
+    check("★ 进副本后 _oo_cur_copy = dgarea_linglongge",
+          st.props.get("_oo_cur_copy") == "dgarea_linglongge",
+          st.props.get("_oo_cur_copy"))
+    check("★ 进副本后 _oo_cur_level = 52021（= SpaceTask 要求的关卡）",
+          st.props.get("_oo_cur_level") == 52021,
+          st.props.get("_oo_cur_level"))
     pre = pre_snapshot(uid)
     frames = guarded_handle(rpc_index.RPC_INDEX[RPC],
                             msmod.mp_arr([10101]), 1, uid=uid)
@@ -194,7 +206,31 @@ def run():
     check("帧在客户端模型里不崩且无警告",
           not errs and not sc.warnings, (errs[:1], sc.warnings[:1]))
 
-    print("\n[5] 防伪造：不在包里的剧情任务不许完成")
+    print("\n[5] 防伪造：不在副本里 / 不在包里的请求都要被拒")
+    # 5a 不在副本里（_oo_cur_copy 为 None）-> 拒
+    uid_d = "std_" + _TAG
+    msmod._live_init_dict(uid_d)
+    st_d = pstate.get_state(uid=uid_d)
+    SD.seed(st_d, NOW)
+    story.start_story_task(st_d, 1102, NOW)
+    check("5a 1102 已在包里但玩家不在副本",
+          1102 in (st_d.props.get("story_task_bag") or {})
+          and st_d.props.get("_oo_cur_copy") is None)
+    guarded_handle(rpc_index.RPC_INDEX[RPC], msmod.mp_arr([10101]), 8, uid=uid_d)
+    check("★ 不在副本里发 FinishSpaceTask 被拒（1102 未完成）",
+          story.story_state(st_d.props, 1102) != sm.TASK_STATE_FINISHED,
+          story.story_state(st_d.props, 1102))
+    # 5b 进了错的副本 -> 拒
+    guarded_handle(rpc_index.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"system_type": 3, "dungeonId": 10101}]), 9,
+                   uid=uid_d)
+    check("5b 进了 dgarea_lcmansion（错副本）",
+          st_d.props.get("_oo_cur_copy") == "dgarea_lcmansion",
+          st_d.props.get("_oo_cur_copy"))
+    guarded_handle(rpc_index.RPC_INDEX[RPC], msmod.mp_arr([10101]), 8, uid=uid_d)
+    check("★ 错副本里发 FinishSpaceTask 被拒（1102 未完成）",
+          story.story_state(st_d.props, 1102) != sm.TASK_STATE_FINISHED,
+          story.story_state(st_d.props, 1102))
     uid2 = "st2_" + _TAG
     msmod._live_init_dict(uid2)
     st2 = pstate.get_state(uid=uid2)
@@ -222,7 +258,41 @@ def run():
     check("★ 无 avatarTask 的 SpaceTask 不产生任何剧情完成", before == after,
           (before, after))
 
-    print("\n[7] 覆盖率工具按新口径算")
+    print("\n[7] 端到端：进副本 -> SpaceTask -> 剧情推进 -> 结算")
+    uid4 = "st4_" + _TAG
+    msmod._live_init_dict(uid4)
+    st4 = pstate.get_state(uid=uid4)
+    SD.seed(st4, NOW)
+    # 直接给 1102 建 Doing 条目（省掉主线推进，本用例只验副本内链路）
+    story.start_story_task(st4, 1102, NOW)
+    # 1) 进副本 dgarea_linglongge（MainlineData[10103].dungeonid）
+    guarded_handle(rpc_index.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"system_type": 3, "dungeonId": 10103}]), 7,
+                   uid=uid4)
+    check("★ 进副本后 cur_copy/cur_level/cur_area 都对",
+          (st4.props.get("_oo_cur_copy") == "dgarea_linglongge"
+           and st4.props.get("_oo_cur_level") == 52021
+           and st4.props.get("_oo_cur_area") == 10103),
+          (st4.props.get("_oo_cur_copy"), st4.props.get("_oo_cur_level"),
+           st4.props.get("_oo_cur_area")))
+    # 2) SpaceTask 完成 -> 剧情任务完成
+    guarded_handle(rpc_index.RPC_INDEX[RPC], msmod.mp_arr([10101]), 8, uid=uid4)
+    check("★ 副本内 SpaceTask 完成 -> 1102 Finished",
+          story.story_state(st4.props, 1102) == sm.TASK_STATE_FINISHED,
+          story.story_state(st4.props, 1102))
+    # 3) 结算 -> 临时字段清理
+    guarded_handle(rpc_index.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
+                   msmod.mp_arr([{"typeId": 3, "modeId": 1, "level": 1}]), 9,
+                   uid=uid4)
+    check("★ 结算后 _oo_cur_copy / _oo_cur_area 被清掉",
+          st4.props.get("_oo_cur_copy") is None
+          and st4.props.get("_oo_cur_area") is None,
+          (st4.props.get("_oo_cur_copy"), st4.props.get("_oo_cur_area")))
+    check("★ 结算不影响已完成状态",
+          story.story_state(st4.props, 1102) == sm.TASK_STATE_FINISHED,
+          story.story_state(st4.props, 1102))
+
+    print("\n[8] 覆盖率工具按新口径算")
     import importlib.util
     scp = os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "tools", "story_coverage.py")

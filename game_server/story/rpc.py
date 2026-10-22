@@ -387,6 +387,27 @@ def _finish_space_task(rid, params, uid=None):
         print("[story] 忽略 SpaceTask %s 的完成请求：剧情任务 %s 不在包里"
               % (sid, tid), flush=True)
         return frames
+    # ★ 防伪造：必须真的在那个副本的那个关卡里。
+    #   SpaceTaskData 每行都有 dungeonId + levelId，而 StartGame 会把当前
+    #   副本/关卡记进 _oo_cur_copy / _oo_cur_level（dungeon/context.py）。
+    #   不校验的话，伪造包可以坐在街区里发 FinishSpaceTask_Directly_CS 完成任意
+    #   type0 任务（270 条），等于跳过全部副本内容。
+    row = gamedata.space_task(sid) or {}
+    want_copy = row.get("dungeonId")
+    want_level = row.get("levelId")
+    cur_copy = st.props.get("_oo_cur_copy")
+    cur_level = st.props.get("_oo_cur_level")
+    # ★ 注意必须「要求相等」而不是「不等才拒」：
+    #   cur_copy 为 None（玩家不在任何副本里）时也要拒 ——
+    #   否则「不在副本」反而绕过校验，这正是伪造包会利用的状态。
+    if want_copy and str(cur_copy) != str(want_copy):
+        print("[story] 拒绝 SpaceTask %s：当前副本 %s，要求 %s"
+              % (sid, cur_copy, want_copy), flush=True)
+        return frames
+    if want_level and str(cur_level) != str(want_level):
+        print("[story] 拒绝 SpaceTask %s：当前关卡 %s，要求 %s"
+              % (sid, cur_level, want_level), flush=True)
+        return frames
     print("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid), flush=True)
     frames.extend(_finish_story_tasks(st, [tid]))
     return frames
