@@ -169,6 +169,42 @@ def run():
     ok7, parts7 = can_enter_street(st1)
     check("★ 新号不能直接进街区", ok7 is False, parts7)
 
+
+    print("\n[8] P1-2：取名按性别设主角（男9001/女9002 + 补 characterBag 9002）")
+    st8, u8 = fresh("p12girl")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u963f\u5f71", 2]), 8, uid=u8)
+    cb8 = st8.props.get("characterBag") or {}
+    check("★ 女导 -> character_choosen_char=9002",
+          st8.props.get("character_choosen_char") == 9002,
+          st8.props.get("character_choosen_char"))
+    check("★ characterBag 补了 9002（女主）", 9002 in cb8, sorted(k for k in cb8 if isinstance(k, int)))
+    check("★ 9002 的 useSkinId=900201（女主默认皮肤）",
+          cb8.get(9002, {}).get("useSkinId") == 900201, cb8.get(9002, {}).get("useSkinId"))
+    check("★ 9002 的 __id__ 不与 9001 撞号",
+          cb8.get(9002, {}).get("__id__") != cb8.get(9001, {}).get("__id__"))
+    check("★ 9001 仍保留（没被顶掉）", 9001 in cb8)
+
+    st8b, u8b = fresh("p12boy")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u963f\u5149", 1]), 9, uid=u8b)
+    cb8b = st8b.props.get("characterBag") or {}
+    check("★ 男导 -> 保持 9001",
+          st8b.props.get("character_choosen_char") == 9001,
+          st8b.props.get("character_choosen_char"))
+    check("★ 男导不补 9002（bag 只有 9001）",
+          9002 not in cb8b, sorted(k for k in cb8b if isinstance(k, int)))
+
+    print("\n[9] P1-7：FriendService.fetchFriends 返回空好友列表")
+    _params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
+    _dec = msmod.mp_decode(_params)[0]
+    check("★ Ret = [True, \"\"]（客户端 ret[1]=status, ret[2]=errmsg）",
+          _dec.get("Ret") == [True, ""], _dec.get("Ret"))
+    check("★ Friends = []（空好友列表）", _dec.get("Friends") == [], _dec.get("Friends"))
+    # 模拟客户端剥掉 Ret 后（msgateclientrpchandler.lua:47 response.Ret=nil）
+    _resp = {k: v for k, v in _dec.items() if k != "Ret"}
+    check("★ 剥掉 Ret 后客户端拿到 Friends", _resp.get("Friends") == [], _resp)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

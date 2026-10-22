@@ -43,6 +43,7 @@
 客户端 `checkNameResult(ret)`（namecomp.lua:46-67）的判定顺序：
 `ret.status` 为真即成功；否则看 `ret.errorcode`。所以成功时回 `{status: True}` 就够。
 """
+import copy
 from . import ms as msmod
 from .rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from .rpc_index import ACK_OK
@@ -167,6 +168,81 @@ def _change_nickname(rid, params, uid=None):
     return frames
 
 
+
+# ★ P1-2（2026-10-23 实机实锤）：按性别设「街区/战斗主角」。
+#
+# 根因：取名时只写了 player_name / gender / player_card_id，
+#   而客户端街区主角读 `character_choosen_char`
+#   （system/streetsystem/manager/streetplayerrolemgr.lua:17、
+#    streetactorbase.lua:237）。initDict 里它是 9001（男主），
+#   取名选女（gender=2）后没切到 9002，也没有 characterBag[9002]，
+#   于是「选女主却显示男导演」（存档实锤 nvdaoces）。
+#
+# 证据：
+#   TableData.CommonData.CommonConstData
+#     male_player_char   = 9001
+#     female_player_char = 9002
+#   TableData.CommonData.CharData
+#     9001 -> DefaultSkin 900101 / 9002 -> DefaultSkin 900201
+#   clientavatar 主角 = character_choosen_char
+def _ensure_hero_by_gender(st, gender, frames):
+    """取名时按性别确保主角存在并切换 character_choosen_char。
+
+    gender=1 -> 男主 9001（initDict 已给，无需改）
+    gender=2 -> 女主 9002（深拷贝 9001 结构 + 换 useSkinId=900201）
+    返回是否改动（好让调用方决定 save）。
+    """
+    try:
+        g = int(gender)
+    except Exception:
+        return False
+    if g not in (1, 2):
+        return False
+    want = 9002 if g == 2 else 9001
+    cb = st.props.get("characterBag")
+    if not isinstance(cb, dict):
+        return False
+    changed = False
+    if want == 9002 and 9002 not in cb:
+        # 深拷贝 9001 结构，重分配所有嵌套 __id__，改女主皮肤
+        src = cb.get(9001)
+        if isinstance(src, dict):
+            dst = copy.deepcopy(src)
+            _realloc_ids(dst, st)
+            dst["useSkinId"] = 900201
+            cb[9002] = dst
+            changed = True
+            print("[avatar] 补女主角色 9002 进 characterBag（useSkinId=900201）",
+                  flush=True)
+    cur = st.props.get("character_choosen_char")
+    if int(cur or 0) != want:
+        st.props["character_choosen_char"] = want
+        changed = True
+        try:
+            frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                     "character_choosen_char", want))
+        except Exception as e:
+            print("[avatar] 主角同步失败: %s" % e, flush=True)
+        print("[avatar] 主角切换 gender=%s -> character_choosen_char=%s"
+              % (g, want), flush=True)
+    if changed:
+        st.set("characterBag", cb)
+    return changed
+
+
+def _realloc_ids(obj, st):
+    """递归给自定义对象的 __id__ 重新分配（避免与已有对象撞号）。"""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "__id__" and isinstance(v, int):
+                obj[k] = st.next_property_id()
+            else:
+                _realloc_ids(v, st)
+    elif isinstance(obj, list):
+        for v in obj:
+            _realloc_ids(v, st)
+
+
 def _set_default_card(st, gender, frames):
     """按性别设默认名片（P0-7b）。
 
@@ -224,6 +300,8 @@ def _commit_name_gender(rid, params, uid=None):
         print("[avatar] 取名 %r -> %r gender=%s" % (old, name, gender), flush=True)
     # P0-7b：按性别设默认名片（男2/女1，见 _set_default_card 的说明）
     _set_default_card(st, gender, frames)
+    # P1-2：按性别设街区/战斗主角（女=9002，男=9001）
+    _ensure_hero_by_gender(st, gender, frames)
     # ★ 无论名字是否变化都发 Sign：客户端可能重试同一次取名请求
     _emit_sign(st, frames)
     st.save()

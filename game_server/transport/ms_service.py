@@ -105,6 +105,18 @@ def handle_ms(conn, addr, cid):
                 print("[ms] #%03d    -> 回 %d 条 Results"
                       % (cid, len(msmod.mp_decode(params)[0].get("Results", []))),
                       flush=True)
+            elif method == "fetchFriends":
+                # ★ P1-7（2026-10-23）：FriendService 最小实现。
+                #   客户端结算时必调 fetchFriends
+                #   （avatarsettlementcomp.lua:36 -> avatarfriendcomp.lua:256-264
+                #    callService("FriendService", "fetchFriends", {uid,start,limit})）。
+                #   之前落进 else 回 {"Ret":[True,0]} 且无 Friends 字段，
+                #   客户端 CheckFriendStatus 能过但 response.Friends 为空；
+                #   这里回标准空好友列表，语义完整。
+                #   响应结构见 core/microservice/msgateclientrpchandler.lua:35-49：
+                #     response=decode(parameters); ret=response.Ret;
+                #     retStatus={status=ret[1], errmsg=ret[2]}; response.Ret=nil
+                params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
             else:
                 params = msmod.mp_map({"Ret": [True, 0]})
             pkt = msmod.frame_ms_response(seq, params, service)
