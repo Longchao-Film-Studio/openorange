@@ -345,6 +345,53 @@ def _done_story_task(rid, params, uid=None):
     frames.extend(_finish_story_tasks(st, [tid], param=param))
     return frames
 
+def _finish_space_task(rid, params, uid=None):
+    """FinishSpaceTask_Directly_CS {spaceTaskId} —— 战斗内 SpaceTask 完成上报。
+
+    ★ 这是 TaskType=0 的**唯一**完成路径（P1 阶段 J）。
+
+      客户端证据链：
+        battlecontainer/base/player.lua:416-425
+          function Player:finishSpaceTask(taskId)
+            local spaceTaskData = self:_getTaskInfo(taskId)
+            if spaceTaskData and spaceTaskData.avatarTask then
+              self:startSyncAvatarTask(taskId)      -- 有剧情任务就同步
+            else
+              GlobalData.Soul:sendServerRpc("FinishSpaceTask_Directly_CS", {taskId})
+            end
+          end
+        :451  startSyncAvatarTask 最终也是发同一条 RPC（带 5 次重试）
+
+      服务端要做的：按 SpaceTaskData[spaceTaskId].avatarTask 找到剧情任务，
+      走**同一条** _finish_story_tasks 落状态（不另拼帧）。
+
+    ★ 防刷：只接受「avatarTask 指向的剧情任务确实在包里」的请求；
+      不在包里就忽略（和 _done_story_task 的规则一致）。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        sid = int(vals[0])
+    except Exception:
+        return frames
+    tid = story.space_task_avatar_task(sid)
+    if tid is None:
+        # 没有 avatarTask 的 SpaceTask 只影响战斗内 UI，不改剧情状态
+        print("[story] SpaceTask %s 没有 avatarTask，忽略" % sid, flush=True)
+        return frames
+    st = state(uid)
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
+        print("[story] 忽略 SpaceTask %s 的完成请求：剧情任务 %s 不在包里"
+              % (sid, tid), flush=True)
+        return frames
+    print("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid), flush=True)
+    frames.extend(_finish_story_tasks(st, [tid]))
+    return frames
+
+
 def _street_actor(rid, params, uid=None):
     """RequestStreetActor_CS {actor_id} —— 街景 NPC 交互。
 

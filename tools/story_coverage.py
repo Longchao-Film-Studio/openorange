@@ -112,7 +112,7 @@ def event_types_needed(S, T, E, tid):
     return out
 
 
-def completable(S, T, E, tid):
+def completable(S, T, E, tid, SP=None):
     """按当前实现，这个任务有没有完成路径。"""
     cfg = S[tid]
     tt = cfg.get("TaskType")
@@ -121,11 +121,16 @@ def completable(S, T, E, tid):
     if tt == 6:
         return True, "链式（check_chain_tasks）"
     if tt == 0:
-        # ★ 阶段 E 结论：无证据，明确阻塞。0/270 有 Parameter1；
-        #   客户端对 type0 的完成上报调用点为 0；TaskBgStory 只是显示文本；
-        #   dgareaId -> MainlineData 只能表达「打过这个区域」，
-        #   但主线尾段 11 条连续 type0 共用同一个 dgareaId，不可能各打一次。
-        return False, "type0 无可判定完成条件（阻塞，见 docs/P1 阶段 E）"
+        # 阶段 J 修正（推翻阶段 E 的结论）：type0 有完成路径。
+        # SpaceTaskData.avatarTask 指向剧情任务，270 条 type0 全部被指向。
+        # 客户端 battlecontainer/base/player.lua:416-425 finishSpaceTask 发
+        # FinishSpaceTask_Directly_CS {taskId}，服务端按 avatarTask 完成剧情任务。
+        # 阶段 E 只看 StoryTaskData 就下了「无完成条件」的结论，漏了 SpaceTask 这层。
+        if SP and tid in SP:
+            return True, "SpaceTask 驱动（SpaceTask %s，副本 %s 关卡 %s）" % (
+                SP[tid].get("id"), SP[tid].get("dungeonId"),
+                SP[tid].get("levelId"))
+        return False, "type0 但没有 SpaceTask.avatarTask 指向它"
     if tt == 4:
         # ★ 阶段 E 已实现：完成信号 = StreetInteract{actorId == GuideParam[0]}
         #   13 条全部有 GuideParam 且命中 StreetActorInfoData.actorId
@@ -170,6 +175,22 @@ def main():
     args = ap.parse_args()
 
     S, T, E = build()
+    # SpaceTask -> 剧情任务 的反查表（阶段 J）
+    SP = {}
+    _sp = _table("SpaceTaskData")
+    for _dg, _group in (_sp or {}).items():
+        if not isinstance(_group, dict):
+            continue
+        for _tid, _row in _group.items():
+            if not isinstance(_row, dict):
+                continue
+            _a = _row.get("avatarTask")
+            if _a is None:
+                continue
+            try:
+                SP.setdefault(int(_a), _row)
+            except Exception:
+                continue
     if not S:
         print("[coverage] StoryTaskData 读不到，退出", file=sys.stderr)
         return 2
@@ -180,7 +201,7 @@ def main():
     # 可完成判定
     ok_ids, blocked = [], collections.defaultdict(list)
     for t in sorted(reach):
-        good, why = completable(S, T, E, t)
+        good, why = completable(S, T, E, t, SP)
         if good:
             ok_ids.append(t)
         else:

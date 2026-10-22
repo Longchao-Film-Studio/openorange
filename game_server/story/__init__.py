@@ -550,6 +550,39 @@ def event_matches(event_cfg, event_type, params):
     return True
 
 
+def space_task_avatar_task(space_task_id):
+    """SpaceTask id -> 它要驱动的剧情任务 id（SpaceTaskData.avatarTask）。
+
+    ★ 这是 TaskType=0 的完成路径（P1 阶段 J 取证）。
+
+      证据链：
+        1. `SpaceTaskData` 909 条，`avatarTask` 字段指向剧情任务 id；
+           实测 **270 条 type0 全部**被某个 SpaceTask 指向（100% 覆盖），
+           而其它 TaskType 只有 1 条（type5）被指向 —— 说明这个字段
+           就是为 type0 设计的。
+        2. `battlecontainer/base/player.lua:416-425` finishSpaceTask：
+           SpaceTask 完成时，若它有 avatarTask 就走 startSyncAvatarTask，
+           最终发 `FinishSpaceTask_Directly_CS {taskId}` 给游戏服。
+        3. `battle/public/system/task/spacetasklogicdatamgr.lua:47-52`：
+           有 avatarTask 的 SpaceTask 会把 (avatarTaskType, avatarTask)
+           放进 sync_space_task_ids，即「战斗内完成 -> 同步到剧情任务」。
+        4. 客户端对 type0 **没有任何**完成上报调用点（阶段 E 实测），
+           所以 type0 只可能是被 SpaceTask 反推完成的。
+
+    返回剧情任务 id 或 None。
+    """
+    row = gamedata.space_task(space_task_id)
+    if not isinstance(row, dict):
+        return None
+    a = row.get("avatarTask")
+    if a is None:
+        return None
+    try:
+        return int(a)
+    except Exception:
+        return None
+
+
 def street_task_npc(task_id):
     """Type4 任务要交互的 NPC actorId（GuideParam 第一个），没有返回 None。
 

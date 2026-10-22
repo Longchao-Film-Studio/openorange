@@ -234,6 +234,65 @@ def gameplay(type_id, mode_id=None):
     return None
 
 
+def space_task(task_id):
+    """SpaceTaskData[taskId] —— 战斗内空间任务配置（按 taskId 全局唯一查）。
+
+    ★ 为什么这个函数很关键（P1 阶段 J 取证结论）
+
+      `SpaceTaskData` 是「副本内任务」表，嵌套结构是 {dungeonId: {taskId: row}}。
+      实测 909 条 taskId **跨 58 个副本全局唯一**（0 重复），所以可以只按
+      taskId 查，不需要先知道当前副本。
+
+      字段：{id, dungeonId, levelId, finishType, avatarTask, avatarTaskType,
+             actorList, stateList, PreTaskList, Tag, TaskName, ...}
+
+    ★ `avatarTask` 是**剧情任务 id**：270 条 TaskType=0 的剧情任务
+      **全部**被某个 SpaceTask.avatarTask 指向（100% 覆盖）。
+      这就是 type0 的完成路径 —— 见 `story.space_task_avatar_task()`。
+    """
+    raw = table("SpaceTaskData") or {}
+    try:
+        tid = int(task_id)
+    except Exception:
+        return None
+    for _dg, group in raw.items():
+        if not isinstance(group, dict):
+            continue
+        row = group.get(str(tid))
+        if isinstance(row, dict):
+            return row
+    return None
+
+
+def space_task_of_avatar(story_task_id):
+    """反查：哪个 SpaceTask 的 avatarTask 指向这个剧情任务。
+
+    返回 SpaceTask 行（dict）或 None。同一剧情任务可能被多个 SpaceTask 指向
+    （实测有重复），这里返回第一条（按 taskId 升序，保证可复现）。
+    """
+    raw = table("SpaceTaskData") or {}
+    try:
+        want = int(story_task_id)
+    except Exception:
+        return None
+    hits = []
+    for _dg, group in raw.items():
+        if not isinstance(group, dict):
+            continue
+        for tid, row in group.items():
+            if not isinstance(row, dict):
+                continue
+            try:
+                if int(row.get("avatarTask")) == want:
+                    hits.append((int(tid), row))
+            except Exception:
+                continue
+    if not hits:
+        return None
+    hits.sort(key=lambda x: x[0])
+    return hits[0][1]
+
+
 def task_data(task_id):
     """TaskData[task_id] —— 通用任务表，带 TriggerEventList（完成条件）。"""
     return row("TaskData", task_id)

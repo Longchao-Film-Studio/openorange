@@ -34,6 +34,12 @@ RPC_INDEX = {
     "RequestLeaveStreet_CS": 1707898947,
     # --- 剧情任务 avatarstorytaskcomp / avatarstreetcomp（3 条） ---
     "RequestDoneStoryTaskParamInt_CS": 544079713,
+    # ★ P1 阶段 J：战斗内 SpaceTask 完成上报。
+    #   依据 battlecontainer/base/player.lua:416-452 ——
+    #   SpaceTask 完成时客户端发 FinishSpaceTask_Directly_CS {taskId}；
+    #   服务端按 SpaceTaskData[taskId].avatarTask 完成对应剧情任务。
+    #   这是 270 条 TaskType=0 剧情任务**唯一**的完成路径（见 docs 阶段 J）。
+    "FinishSpaceTask_Directly_CS": 964136682,
     "RequestDoneStoryTaskParamStr_CS": 1517361152,
     "RequestStreetActor_CS": 200553260,
     # --- 通用任务 avatartaskcomp（5 条） ---
