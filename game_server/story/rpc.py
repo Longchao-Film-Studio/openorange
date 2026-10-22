@@ -159,7 +159,7 @@ def _emit_get_item(st, item_id, count):
         print("[story] GetItem 事件失败 %s: %s" % (item_id, e), flush=True)
         return []
 
-def _finish_story_tasks(st, task_ids, depth=0):
+def _finish_story_tasks(st, task_ids, depth=0, param=None):
     """完成若干剧情任务，返回全部同步帧。
 
     ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线。
@@ -173,7 +173,7 @@ def _finish_story_tasks(st, task_ids, depth=0):
     finished_now = []
     try:
         return _finish_story_tasks_inner(st, task_ids, depth, frames, now,
-                                         finished_now)
+                                         finished_now, param)
     finally:
         if depth == 0:
             try:
@@ -181,7 +181,8 @@ def _finish_story_tasks(st, task_ids, depth=0):
             except Exception as e:
                 print("[story] 保存失败: %s" % e, flush=True)
 
-def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
+def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
+                              param=None):
     done_bag = st.props.get("done_story_tasks")
     if not isinstance(done_bag, dict):
         done_bag = {}
@@ -193,6 +194,9 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
         #   否则「标记完成 -> 发奖失败」留下的 bag-state-6 任务会被永远跳过，
         #   既不会重试发奖，也不会归档。
         if isinstance(done_bag.get(int(tid)), dict):
+            continue
+        # ★ 能不能完成由唯一入口判定（在包里 / 多目标集齐 / 防伪造）
+        if not _ready_to_finish(st, tid, param, frames):
             continue
         # ★ P1 阶段 A：完成拆成三步，发奖插在中间
         #   1) →Finished(6)：一条 OP_CHANGE，客户端靠它触发场记板/章节提示/清红点
@@ -256,25 +260,39 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now):
     frames.extend(_recalc_story_unlocks(st))
     return frames
 
-def _accumulate_multi_target(st, tid, param, frames):
-    """多目标任务：先把 param 记进 finish_parameter；没集齐返回 False（暂不完成）。
+def _ready_to_finish(st, tid, param, frames):
+    """判定任务是否**真的可以完成**；顺便把本次 param 记进 finish_parameter。
 
-    ★ 数据依据：StoryTaskData 里 Parameter1 多于 1 项的任务共 11 条（8 条带 GuideParam）。
-      客户端每完成一个目标就发一次 RequestDoneStoryTaskParamInt_CS(taskId, param)，
-      而服务端以前收到第一个就把整个任务完成了 —— 剩下两个目标被直接吞掉，
-      追踪箭头也会提前全消失（streettasktrackcomp.lua:108-134 靠 finish_parameter 判断）。
+    ★ 这个判定必须放在 _finish_story_tasks（唯一落状态入口）里，不能放在各个 RPC 调用点。
+      审计实测：真实 NPC 路径走 street/interact.py:_actor_interact，它以前直接
+      _finish_story_tasks(st,[task_id]) 不经过累积 —— 4 条 TaskType 2 的多目标任务照样「第一个就完成」。
+      修在调用点 = 补丁（R3）；修在入口 = 模型。
+
+    规则：
+      1. 任务**必须已在 story_task_bag 里**（否则拒绝，防伪造完成 Type0/Type4）。
+      2. Parameter1 只有 1 项：直接可以完成。
+      3. Parameter1 多项：param 非空时先记 finish_parameter；只有集齐全部才允许完成。
+         param 为空且没集齐 -> 拒绝（审计 P0-3：以前 param=None 直接放行）。
     """
+    tid = int(tid)
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
+        print("[story] 忽略：任务 %s 不在 story_task_bag 里" % tid, flush=True)
+        return False
     cfg = gamedata.story_task(tid) or {}
     p1 = cfg.get("Parameter1") or []
-    if not isinstance(p1, list) or len(p1) <= 1 or param is None:
+    if not isinstance(p1, list) or len(p1) <= 1:
         return True
-    frames.extend(_story_sync_frames(
-        st, story.mark_finish_parameter(st, tid, param)))
-    bag = st.props.get("story_task_bag") or {}
-    item = bag.get(int(tid))
+    if param is not None:
+        frames.extend(_story_sync_frames(
+            st, story.mark_finish_parameter(st, tid, param)))
+    item = (st.props.get("story_task_bag") or {}).get(tid)
     got = story.finish_parameters_of(item)
-    return all(int(x) in got for x in p1)
-
+    missing = [int(x) for x in p1 if int(x) not in got]
+    if missing:
+        print("[story] 任务 %s 多目标未集齐，还差 %s" % (tid, missing), flush=True)
+        return False
+    return True
 
 def _done_story_task(rid, params, uid=None):
     """RequestDoneStoryTaskParamInt_CS / ParamStr_CS —— 参数第 0 项是 taskId。"""
@@ -305,9 +323,7 @@ def _done_story_task(rid, params, uid=None):
             param = int(vals[1])
         except Exception:
             param = None
-    if not _accumulate_multi_target(st, tid, param, frames):
-        return frames
-    frames.extend(_finish_story_tasks(st, [tid]))
+    frames.extend(_finish_story_tasks(st, [tid], param=param))
     return frames
 
 def _street_actor(rid, params, uid=None):
@@ -328,10 +344,8 @@ def _street_actor(rid, params, uid=None):
         return frames
     st = state(uid)
     hits = _find_story_tasks_by_param(st, actor_id, 2)
-    ready = [tid for tid in hits
-             if _accumulate_multi_target(st, tid, actor_id, frames)]
-    if ready:
-        frames.extend(_finish_story_tasks(st, ready))
+    if hits:
+        frames.extend(_finish_story_tasks(st, hits, param=actor_id))
     return frames
 
 def _find_story_tasks_by_param(st, param_int, task_type):

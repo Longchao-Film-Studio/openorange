@@ -60,11 +60,11 @@ def _actor_interact(rid, params, uid=None):
                                         street_id=street_id))
     # 命中剧情任务就顺手完成
     if task_id:
-        frames.extend(_finish_story_tasks(st, [task_id]))
+        frames.extend(_finish_story_tasks(st, [task_id], param=interact_id))
     else:
         hits = _find_story_tasks_by_param(st, interact_id, 2)
         if hits:
-            frames.extend(_finish_story_tasks(st, hits))
+            frames.extend(_finish_story_tasks(st, hits, param=interact_id))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         frames.extend(_finish_story_tasks(st, nxt))

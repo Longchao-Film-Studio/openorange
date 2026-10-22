@@ -153,8 +153,11 @@ def mark_finish_parameter(st, task_id, param):
     ★ 只有 Parameter1 多于 1 项的任务才有意义（全表 11 条，其中 8 条带 GuideParam）。
       单目标任务永远不需要它。
 
-    ★ 表示形式：CustomList（spec.py:132 —— list 类型的键是 "#N"，序列化后是 msgpack 数组），
-      所以这里是 {"__id__": N, "#1": v1, "#2": v2, ...}。
+    ★ 表示形式：CustomList（spec.py:132，key_kind == "list"）。
+      **键必须是整数 1..N**，不能是 "#1" 字符串 —— 存档层 `_keys_to_json` 只把
+      **整数键**转成 "#N"，字符串键原样写；读回时 "#N" 又被转回整数。
+      用 "#1" 存会变成：内存 "#1" -> 盘上 "#1" -> 读回整数 1，键型不一致，
+      进度就丢了（审计 P0-1 实测）。
     """
     task_id = int(task_id)
     bag = st.props.get("story_task_bag")
@@ -165,13 +168,17 @@ def mark_finish_parameter(st, task_id, param):
         return []
     fp = item.get("finish_parameter")
     if not isinstance(fp, dict):
-        fp = {"__id__": st.next_property_id()}
-    for k, v in fp.items():
-        if str(k).startswith("#") and int(v) == int(param):
+        # ★ 不能在这里凭空建 finish_parameter：客户端 _changeSubProperty 对
+        #   oldVal=nil 会在 puppetpropertycomponent.lua:209-210 崩。
+        #   正常存档（avatar_init.json / 新建 item）都带这个字段，缺了说明数据异常。
+        print("[story] 警告：任务 %s 没有 finish_parameter，跳过进度记录" % task_id,
+              flush=True)
+        return []
+    for k, v in _fp_items(fp):
+        if int(v) == int(param):
             return []
-    used = [int(str(k)[1:]) for k in fp
-            if str(k).startswith("#") and str(k)[1:].isdigit()]
-    fp["#%d" % ((max(used) + 1) if used else 1)] = int(param)
+    used = [int(k) for k, _v in _fp_items(fp)]
+    fp[(max(used) + 1) if used else 1] = int(param)
     item["finish_parameter"] = fp
     st.set("story_task_bag", bag)
     return [("child", item, "finish_parameter", fp)]
@@ -212,18 +219,33 @@ def drop_award_log(st, task_id):
     st.set(_AWARD_LOG, log)
 
 
+def _fp_items(fp):
+    """遍历 finish_parameter 的 (键, 值) 对，兼容整数键与旧存档的 "#N" 键。"""
+    out = []
+    for k, v in fp.items():
+        if str(k) in ("__id__", "__tp__"):
+            continue
+        kk = None
+        if isinstance(k, int) and not isinstance(k, bool):
+            kk = k
+        elif isinstance(k, str) and k.startswith("#") and k[1:].isdigit():
+            kk = int(k[1:])
+        if kk is not None:
+            out.append((kk, v))
+    return out
+
+
 def finish_parameters_of(item):
-    """读出 finish_parameter 里的值集合。"""
+    """读出 finish_parameter 里的值集合（键型无关）。"""
     fp = item.get("finish_parameter") if isinstance(item, dict) else None
     if not isinstance(fp, dict):
         return set()
     out = set()
-    for k, v in fp.items():
-        if str(k).startswith("#"):
-            try:
-                out.add(int(v))
-            except Exception:
-                pass
+    for _k, v in _fp_items(fp):
+        try:
+            out.add(int(v))
+        except Exception:
+            pass
     return out
 
 

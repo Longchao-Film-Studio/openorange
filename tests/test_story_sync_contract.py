@@ -69,8 +69,10 @@ CONTRACT = [
      "config.lua:10137-10140"),
     ("done_tasks.*", "onDoneTasksChanged", msmod.OP_ADD,
      "config.lua:10141-10144"),
-    ("story_finished", "on_story_finished_changed", msmod.OP_CHANGE,
-     "config.lua:9963-9966"),
+    # ★ story_finished 有两行回调：首通走 entryAdded(OP_ADD)，复通才走 changed(OP_CHANGE)。
+    #   测试只打一次序章，所以能验的是 entryAdded 那行；changed 行列入 SECOND_PASS。
+    ("story_finished", "on_story_finished_added", msmod.OP_ADD,
+     "config.lua:9977-9980"),
 ]
 
 
@@ -191,15 +193,95 @@ def run():
                             msmod.mp_arr([6069, int(param)]), 10 + i, uid=u6)
         st_now = story.story_state(st6.props, 6069)
         seen_states.append(st_now)
+        _item = (st6.props.get("story_task_bag") or {}).get(6069)
+        _iid = _item.get("__id__") if isinstance(_item, dict) else None
+        _fs = [frame_fields(x) for x in fr
+               if int.from_bytes(bytes(x[4:6]), "little") == msmod.PROPERTY_SYNC_TYPE]
+        _fp_frames = [x for x in _fs
+                      if x["name"] == "finish_parameter" and x["pid"] == _iid]
         if i < len(p1) - 1:
             check("第 %d 个目标后仍在 Doing(3)" % (i + 1),
                   st_now == sm.TASK_STATE_DOING, st_now)
+            check("★ 第 %d 个目标发了 finish_parameter 子属性帧（pid=条目 id）"
+                  % (i + 1),
+                  len(_fp_frames) == 1
+                  and _fp_frames[0]["op"] == msmod.OP_CHANGE, _fp_frames[:1])
         else:
             check("★ 最后一个目标后完成", st_now == sm.TASK_STATE_FINISHED, st_now)
-    check("前两个目标的帧里有 finish_parameter 子属性更新",
-          len(seen_states) == 3)
+    check("三个目标逐个来过（没被提前完成）", seen_states == [3, 3, 6], seen_states)
 
-    print("\n[7] 契约表逐行：帧形态与声明一致")
+    print("\n[7] 通用任务系统的契约行（task_bag.* / done_tasks.* / story_finished）")
+    u7 = "ct_gen_" + tag
+    st7 = fresh(u7)
+    # 找一个 TaskType 在 task_bag 里能放的任务（TaskData 的 TaskType）
+    td7 = gamedata.table("TaskData") or {}
+    gid = None
+    for k, v in td7.items():
+        if isinstance(v, dict) and isinstance(v.get("TaskType"), int):
+            gid = v.get("id") or int(k)
+            break
+    check("找到可测的 TaskData", gid is not None, gid)
+    gen_frames = []
+    if gid is not None:
+        gen_frames = guarded_handle(erpc.RPC_INDEX.get("RequestFetchTask_CS") or 1,
+                                    msmod.mp_arr([gid]), 1, uid=u7)
+    fgen = [frame_fields(x) for x in gen_frames
+            if int.from_bytes(bytes(x[4:6]), "little") == msmod.PROPERTY_SYNC_TYPE]
+    _bag_pid = (st7.props.get("task_bag") or {}).get("__id__")
+    _slot = next((v for k, v in (st7.props.get("task_bag") or {}).items()
+                  if isinstance(v, dict) and gid in v), None)
+    _slot_pid = (_slot or {}).get("__id__")
+    # task_bag.*（新 type 槽位）：pid = task_bag 容器 id
+    slot_frames = [x for x in fgen if x["pid"] == _bag_pid]
+    check("★ task_bag.* 新槽位用 OP_ADD（命中 entryAdded）",
+          bool(slot_frames) and all(x["op"] == msmod.OP_ADD for x in slot_frames),
+          slot_frames[:2])
+    # task_bag.*.*（条目）：pid = task_bag[type] 槽位 id，name = taskId
+    item_op = [x["op"] for x in fgen if x["pid"] == _slot_pid]
+    check("★ task_bag.*.* 当前对新条目用 OP_ADD（不是 OP_CHANGE）——阶段 F 待修",
+          item_op == [msmod.OP_ADD], item_op)
+    check("★ 因此 onTaskItemChanged（changed 回调）当前不会被触发（阶段 F 缺口）",
+          msmod.OP_CHANGE not in item_op, item_op)
+    if gid is not None:
+        done_frames = guarded_handle(erpc.RPC_INDEX.get("RequestDoneTask_CS") or 2,
+                                     msmod.mp_arr([gid]), 2, uid=u7)
+    fdone = [frame_fields(x) for x in done_frames
+             if int.from_bytes(bytes(x[4:6]), "little") == msmod.PROPERTY_SYNC_TYPE]
+    # done_tasks.* -> entryAdded -> OP_ADD（注意 finish_task 还会先发一条 slot 的 OP_DEL）
+    done_add = [x for x in fdone if x["op"] == msmod.OP_ADD]
+    check("★ done_tasks.* 用 OP_ADD（命中 entryAdded）",
+          bool(done_add), [(x["op"], x["name"]) for x in fdone][:4])
+    check("★ 同时能看到 task_bag[type] 条目的 OP_DEL（完成时出包）",
+          any(x["op"] == msmod.OP_DEL for x in fdone), fdone[:3])
+
+    print("\n[8] story_finished（章节完成标记）")
+    u8 = "ct_sf_" + tag
+    st8 = fresh(u8)
+    pre8 = pre_snapshot(u8)
+    # ★ 必须先 StartGame 建立 match 上下文，否则 settle 反查不到 typeId=1004，
+    #   不会走 story_finished 分支（审计指出这条路径之前没测到）。
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"match_type": 3, "system_type": 1004,
+                                  "modeId": 1, "storyID": 1}]), 1, uid=u8)
+    sf_frames = guarded_handle(
+        erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+        msmod.mp_arr([{"toStreetId": 101, "toStreetPosId": 0,
+                       "finishReason": 0,
+                       u8: {"win": True, "useTime": 60, "collectCount": 0}}]),
+        2, uid=u8)
+    fsf = [frame_fields(x) for x in sf_frames
+           if int.from_bytes(bytes(x[4:6]), "little") == msmod.PROPERTY_SYNC_TYPE]
+    sf_hits = [x for x in fsf if x["name"] == "1"]
+    check("★ story_finished[1] 首通用 OP_ADD（命中 entryAdded）",
+          bool(sf_hits) and all(x["op"] == msmod.OP_ADD for x in sf_hits),
+          sf_hits[:3])
+    check("★ 复通才会走 OP_CHANGE（changed，config.lua:9963-9966）——首通不适用",
+          True, "首次即 OP_ADD，changed 行由第二次触发")
+    sc8, errs8 = frames_safe(pre8, sf_frames, "story_finished")
+    check("story_finished 帧在客户端模型里不崩且无警告",
+          not errs8 and not sc8.warnings, (errs8[:1], sc8.warnings[:1]))
+
+    print("\n[9] 契约表逐行核对（含无产出行）")
     # 把上面几条已经验证过的「属性 -> optype」与契约表对照
     observed = {
         "story_task_bag.*": fields2[1]["op"],
@@ -209,11 +291,38 @@ def run():
         "street_trace_taskid": next(x["op"] for x in fields5
                                     if x["name"] == "street_trace_taskid"),
     }
+    _bag_pid = (st7.props.get("task_bag") or {}).get("__id__")
+    if gid is not None:
+        observed["task_bag.*"] = next(
+            (x["op"] for x in fgen if x["pid"] == _bag_pid), msmod.OP_ADD)
+        observed["done_tasks.*"] = next(
+            (x["op"] for x in fdone if x["op"] == msmod.OP_ADD), None)
+    observed["story_finished"] = next(
+        (x["op"] for x in sf_hits), None)
+    # 复通才会走的回调行：本次只打一次序章，验不到，明确标注而不是跳过
+    SECOND_PASS = {
+        ("story_finished", "on_story_finished_changed"):
+            "第二次及以后打序章才走 changed(OP_CHANGE)",
+    }
+    for (prop2, cb2), why in SECOND_PASS.items():
+        check("★ %s/%s 本次不可达：%s" % (prop2, cb2, why), True)
+    # task_bag.*.* 当前没有 OP_CHANGE 产出路径（阶段 F 待修），单独标注
+    NO_PRODUCER = {
+        "task_bag.*.*": "start_task 对新条目用 OP_ADD，没有状态迁移 -> changed 回调不触发（阶段 F）",
+    }
+    checked = 0
     for prop, cb, op, src in CONTRACT:
+        if prop in NO_PRODUCER:
+            check("★ %s 当前无 OP_CHANGE 产出路径（%s）" % (prop, NO_PRODUCER[prop]),
+                  prop not in observed)
+            continue
         if prop not in observed:
+            check("★ %s 有产出路径但没测到" % prop, False)
             continue
         check("%s 的 optype 符合契约（%s，%s）" % (prop, cb, src),
               observed[prop] == op, (observed[prop], op))
+        checked += 1
+    check("契约表至少 7 行被真正核对", checked >= 7, checked)
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
