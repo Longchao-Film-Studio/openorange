@@ -117,6 +117,15 @@ def handle_ms(conn, addr, cid):
                 #     response=decode(parameters); ret=response.Ret;
                 #     retStatus={status=ret[1], errmsg=ret[2]}; response.Ret=nil
                 params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
+            elif method == "queryNotification":
+                # ★ P1-7 补充（2026-10-23）：FriendService.queryNotification。
+                #   结算后客户端会调（avatarfriendcomp.lua:553）：
+                #      callService("FriendService", "queryNotification", {uid},
+                #                  cb, {timeout=5})
+                #   回调 FriendService_queryNotification_cb 读 response.Notification。
+                #   之前走 else 返回 {"Ret":[True,0]} 无字段 -> Notification 为 nil，
+                #   这里给空通知列表，语义完整。
+                params = msmod.mp_map({"Ret": [True, ""], "Notification": []})
             else:
                 params = msmod.mp_map({"Ret": [True, 0]})
             pkt = msmod.frame_ms_response(seq, params, service)
