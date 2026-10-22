@@ -134,21 +134,24 @@ def run():
     print("\n[3] 嵌套容器新建：先父后子（container_add -> child_add）")
     st3 = state("txopt_b")
     t = _tx.Tx(st3.props)
-    t.set(("task_bag", 1), {"__tp__": "TaskBag"})
-    slot_id = st3.props["task_bag"][1]["__id__"]
+    t.set(("task_bag", 4), {"__tp__": "TaskBag"})
+    # ★ 用槽位 4（TaskType.Suspend，数据里 0 条任务 -> 登录播种不会建它）
+    #   阶段 N-a2 之后登录会播种通用任务，槽位 1/3/5/9/10 都已存在，
+    #   而这一项测的是「嵌套容器新建：先父后子」，必须用不存在的槽位。
+    slot_id = st3.props["task_bag"][4]["__id__"]
     # ★ 同一个 Tx 里往刚建的父容器塞子对象：父帧的 value 是 props 的活引用，
     #   已经带着这个子对象了，所以**不能再给子对象单独发一条 OP_ADD**
     #   （否则客户端收到两遍同一个 __id__ -> "id repeated!" 并覆盖缓存）。
     # 嵌套的自定义属性必须带 __id__（客户端 roinit 会 assert）；生产代码
     # tasks.make_task_item 也是这么手工补的，Tx 只保证顶层对象有 __id__。
-    t.set(("task_bag", 1, 1001), {"__tp__": "TaskItem", "id": 1001,
+    t.set(("task_bag", 4, 1001), {"__tp__": "TaskItem", "id": 1001,
                                   "state": 3, "get_time": 0,
                                   "complete_count": 0,
                                   "cache": {"__id__": _ids.alloc_id(st3.props)}})
     frames = t.frames(strict=True)
     check("父容器 OP_ADD 时，子对象不再单独发帧", len(frames) == 1, len(frames))
     pid0, op0, name0, v0 = op_of(frames[0])
-    check("这一帧是父容器 OP_ADD", op0 == _tx.OP_ADD and name0 == "1",
+    check("这一帧是父容器 OP_ADD", op0 == _tx.OP_ADD and name0 == "4",
           (pid0, op0, name0))
     check("父帧的 propertyId 指向 task_bag 根容器",
           pid0 == st3.props["task_bag"]["__id__"], pid0)
@@ -157,7 +160,7 @@ def run():
           list(v0.keys())[:5] if isinstance(v0, dict) else v0)
     # 父容器已存在时，再往里面加子对象 -> 子对象自己发 OP_ADD，pid 指向父
     t2 = _tx.Tx(st3.props)
-    t2.set(("task_bag", 1, 1002), {"__tp__": "TaskItem", "id": 1002,
+    t2.set(("task_bag", 4, 1002), {"__tp__": "TaskItem", "id": 1002,
                                    "state": 3, "get_time": 0,
                                    "complete_count": 0,
                                    "cache": {"__id__": _ids.alloc_id(st3.props)}})

@@ -46,6 +46,7 @@
 from . import ms as msmod
 from .rpc_common import decode_params, state
 from .rpc_index import ACK_OK
+from .story.tasks import drain_event_task_sync
 
 # NameErrorCode（common/systemconst.lua）
 NAME_OK = 8001
@@ -105,9 +106,8 @@ def _emit_sign(st, frames):
     ★ 这条事件是 TaskData[10]「完成取名」的唯一完成信号
       （TaskEventData[1000]，EventType=Sign，无 EventParam）。
 
-    注意：目前事件总线只喂**剧情任务**（story.evaluate_event），
-    通用任务（task_bag）的进度推进属阶段 N-a3，尚未接入 ——
-    所以这一步现在是「先把事件发出去」，等 N-a3 接上才有实际效果。
+    ★ P1 阶段 N-a3 已接入：事件总线会把事件同时喂给通用任务（task_bag），
+      达到 TriggerTimes 的通用任务会被自动完成，同步帧由调用方 drain 出去。
     """
     from .story import events as _events
     from .story.rpc import _finish_story_tasks
@@ -116,6 +116,7 @@ def _emit_sign(st, frames):
     except Exception as e:
         print("[avatar] Sign 事件失败: %s" % e, flush=True)
         return
+    frames.extend(drain_event_task_sync(st, res))
     hits = list(getattr(res, "hits", []) or [])
     if hits:
         frames.extend(_finish_story_tasks(st, hits, source="event"))

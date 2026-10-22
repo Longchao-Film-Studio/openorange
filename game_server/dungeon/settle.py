@@ -23,6 +23,7 @@ from ..rpc_index import ACK_OK
 from ..story import events as _events
 from .. import story as story_mod
 from ..story.rpc import _finish_story_tasks
+from ..story.tasks import drain_event_task_sync
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
 RPC_AVATAR_SPACE_FINISH_SC = 1634212414   # AvatarSpace_SpaceFinish_SC
@@ -182,6 +183,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
                               source="rpc:Cmd_Avatar_FinishGame_CS"))
     hits = result.hits
     out = []
+    out.extend(drain_event_task_sync(st, result))
     if hits:
         out.extend(_finish_story_tasks(st, hits, source="event"))
     # ★ P1 阶段 G：副本打通过 -> 对应 StoryLineData.id 记到 story_finished。

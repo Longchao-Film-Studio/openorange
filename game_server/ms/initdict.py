@@ -247,6 +247,25 @@ def _live_init_dict(uid=None):
         except Exception as e:
             print("[init] 剧情播种失败: %s" % e, flush=True)
 
+    # ★ P1 阶段 N-a2：通用任务播种（TaskData 那套 -> task_bag）。
+    #
+    #   实机取证（2026-10-22）：task_bag 之前实测 0 槽位、0 任务，
+    #   于是 getSystemTaskState(任意) 恒 -1，
+    #   而 AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口
+    #   判的就是 getSystemTaskState(1) == Finished -> 数据条件永假。
+    #
+    #   ★ 这里在「快照返回之前」跑（_public 在本函数末尾才构建），
+    #     所以播进去的任务直接进初始快照，不需要额外推帧。
+    #   seed_tasks 是幂等的（跳过已在 task_bag / done_tasks 的）。
+    try:
+        from .. import tasks as _tasks_mod
+        _gt = _tasks_mod.seed_tasks(st)
+        if _gt:
+            print("[init] 通用任务播种：%d 条同步描述（已进初始快照）" % len(_gt),
+                  flush=True)
+    except Exception as e:
+        print("[init] 通用任务播种失败: %s" % e, flush=True)
+
     # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
     #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
     #   以前服务端从来不写 -> 章节 UI 的收集进度/奖励状态恒为空。

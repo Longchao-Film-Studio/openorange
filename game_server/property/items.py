@@ -196,6 +196,8 @@ def _submit_item(rid, params, uid=None):
     st = state(uid)
     res = _events.apply_event(
         st, _events.ev_submit_item(item_id, count, submit_id, item_ids))
+    from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
+    frames.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         frames.extend(_finish_story_tasks(st, nxt, source="event"))
@@ -250,6 +252,8 @@ def _record_item_obtain(rid, params, uid=None):
     st = state(uid)
     res = _events.apply_event(
         st, _events.ev_get_item(item_id, count, item_type, level, grade))
+    from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
+    frames.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         frames.extend(_finish_story_tasks(st, nxt))

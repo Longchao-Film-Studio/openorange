@@ -220,3 +220,140 @@ def tasks_of_type(st, task_type):
     if not isinstance(slot, dict):
         return []
     return [k for k in slot if isinstance(k, int)]
+
+
+# ---------------------------------------------------------------- N-a2 播种
+
+def _all_task_ids():
+    """TaskData 全部 uiD（升序，保证可复现）。"""
+    d = gamedata.table("TaskData") or {}
+    out = []
+    for v in (d.values() if isinstance(d, dict) else d):
+        if isinstance(v, dict) and v.get("uiD") is not None:
+            try:
+                out.append(int(v["uiD"]))
+            except Exception:
+                pass
+    return sorted(out)
+
+
+def pre_satisfied(st, task_id):
+    """PreTask 是否满足。
+
+    ★ PreTaskType 语义【实测，两张表一致】：
+        1 -> 前置在 TaskData
+        2 -> 前置在 StoryTaskData
+      核对数据：StoryTaskData 958 条 =2 全在 StoryTaskData；5 条 =1 全在 TaskData；
+               TaskData 145 条 =1 全在 TaskData；35 条 =2 全在 StoryTaskData。
+    """
+    cfg = gamedata.task(task_id) or {}
+    pre = cfg.get("PreTask")
+    if pre is None:
+        return True
+    try:
+        pre = int(pre)
+    except Exception:
+        return False
+    pt = cfg.get("PreTaskType") or 1
+    try:
+        pt = int(pt)
+    except Exception:
+        pt = 1
+    if pt == 2:
+        from . import story
+        return story.story_state(st.props, pre) == TASK_STATE_FINISHED
+    return task_state(st.props, pre) == TASK_STATE_FINISHED
+
+
+def seed_tasks(st, now=None, limit=400):
+    """把「前置满足 + 不在包 + 未完成」的通用任务播进 task_bag。
+
+    返回同步描述列表（格式同 start_task，交给 story/tasks.py:_task_sync_frames 编帧）。
+
+    ★ 为什么必须播种（P1 阶段 N-a2）
+      之前 task_bag 实测 0 槽位、0 任务 —— 通用任务一条都不存在，于是：
+        getSystemTaskState(任意) 恒 -1
+        -> AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口数据条件永假
+      见 docs/P1-剧情任务状态机.md 阶段 N 的 N2.1 ④。
+    """
+    now = int(now if now is not None else time.time())
+    out = []
+    seeded = 0
+    cands = []
+    for tid in _all_task_ids():
+        if task_state(st.props, tid) != -1:
+            continue
+        if not pre_satisfied(st, tid):
+            continue
+        cands.append(tid)
+    for tid in cands:
+        if seeded >= limit:
+            print("[task] 播种达到上限 %d，还剩 %d 个候选未播"
+                  % (limit, len(cands) - seeded), flush=True)
+            break
+        ch = start_task(st, tid, now)
+        if ch:
+            out.extend(ch)
+            seeded += 1
+    if seeded:
+        print("[task] 通用任务播种：%d 个进包（候选 %d 个）" % (seeded, len(cands)),
+              flush=True)
+    return out
+
+
+# ---------------------------------------------------------------- N-a3 进度推进
+
+def evaluate_event(st, event_type, params):
+    """把一条游戏事件喂给通用任务，推进 doing_targets。
+
+    返回 (completed_ids, sync_changes)：
+      completed_ids  已达到完成条件的 taskId（调用方负责 finish_task）
+      sync_changes   进度变化的同步描述
+
+    客户端依据（avatartaskcomp.lua:23-45 / directortitlehelper + 面板）：
+      doing_targets = {eventId: 已完成次数}，进度 = 求和，分母 = TaskData.TriggerTimes[0]。
+    """
+    from .story import event_matches
+    done_ids = []
+    syncs = []
+    bag = st.props.get("task_bag")
+    if not isinstance(bag, dict):
+        return done_ids, syncs
+    for tt, slot in list(bag.items()):
+        if not isinstance(tt, int) or not isinstance(slot, dict):
+            continue
+        for tid, item in list(slot.items()):
+            if not isinstance(tid, int) or not isinstance(item, dict):
+                continue
+            if int(item.get("state") or 0) != TASK_STATE_DOING:
+                continue
+            cfg = gamedata.task(tid) or {}
+            evs = cfg.get("TriggerEventList") or []
+            times = cfg.get("TriggerTimes") or [1]
+            try:
+                need = int(times[0]) if times else 1
+            except Exception:
+                need = 1
+            hit_eid = None
+            for eid in evs:
+                if event_matches(gamedata.task_event(eid), event_type, params):
+                    try:
+                        hit_eid = int(eid)
+                    except Exception:
+                        hit_eid = None
+                    break
+            if hit_eid is None:
+                continue
+            dt = item.get("doing_targets")
+            if not isinstance(dt, dict):
+                dt = {"__id__": st.next_property_id()}
+                item["doing_targets"] = dt
+            cur = int(dt.get(hit_eid) or 0)
+            dt[hit_eid] = cur + 1
+            total = sum(int(v) for k, v in dt.items() if isinstance(k, int))
+            syncs.append(_sync(slot.get("__id__"), OP_CHANGE, tid, item))
+            if total >= need:
+                done_ids.append(tid)
+    if syncs:
+        st.set("task_bag", st.props.get("task_bag"))
+    return done_ids, syncs

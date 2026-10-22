@@ -221,6 +221,12 @@ def run():
             gid = v.get("id") or int(k)
             break
     check("找到可测的 TaskData", gid is not None, gid)
+    # ★ P1 阶段 N-a2 之后登录就会播种通用任务，槽位可能已经存在。
+    #   这一项测的是「新槽位用 OP_ADD」，所以先把 task_bag 的槽位清空。
+    _tb7 = st7.props.get("task_bag")
+    if isinstance(_tb7, dict):
+        for _k in [k for k in _tb7 if isinstance(k, int)]:
+            _tb7.pop(_k, None)
     gen_frames = []
     if gid is not None:
         gen_frames = guarded_handle(erpc.RPC_INDEX.get("RequestFetchTask_CS") or 1,

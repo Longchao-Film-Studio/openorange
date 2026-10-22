@@ -21,6 +21,7 @@ from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
+from ..story.tasks import drain_event_task_sync
 from .info import _street_info_of, _street_tx_begin
 def _actor_interact(rid, params, uid=None):
     """Street_Actor_InteractID_Update_CS {actor_id, interact_group, interact_id, taskId?, interact_id}。"""
@@ -59,6 +60,7 @@ def _actor_interact(rid, params, uid=None):
     res = _events.apply_event(
         st, _events.ev_street_interact(actor_id, interact_id,
                                         street_id=street_id))
+    frames.extend(drain_event_task_sync(st, res))
     # 命中剧情任务就顺手完成
     if task_id:
         frames.extend(_finish_story_tasks(st, [task_id], param=interact_id,

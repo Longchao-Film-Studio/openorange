@@ -234,6 +234,17 @@ SOURCE_ALLOWED_TYPES = {
 }
 
 
+def drain_event_task_sync(st, res):
+    """转发到 story.tasks.drain_event_task_sync。
+
+    ★ 为什么是转发而不是模块级 import：story/tasks.py 在模块级
+      `from .rpc import _story_sync_frames`，rpc 反向模块级导入会成环。
+      局部导入是安全的（模块已缓存，开销可忽略）。
+    """
+    from .tasks import drain_event_task_sync as _d
+    return _d(st, res)
+
+
 def _finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
     """完成若干剧情任务，返回全部同步帧。
 
@@ -344,6 +355,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
             try:
                 res = _events.apply_event(
                     st, _events.ev_finish_task(tid, source="internal"))
+                frames.extend(drain_event_task_sync(st, res))
                 nxt = list(res.hits) + list(res.chain_hits)
                 if nxt:
                     frames.extend(_finish_story_tasks(st, nxt, depth + 1))

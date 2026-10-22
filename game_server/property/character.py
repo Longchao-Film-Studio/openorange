@@ -70,6 +70,8 @@ def _upgrade_character(rid, params, uid=None):
     res = _events.apply_event(
         st, _events.ev_char_data(level=int(char["CharLevel"]),
                                  char_id=key))
+    from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
+    frames.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         frames.extend(_finish_story_tasks(st, nxt, source="event"))

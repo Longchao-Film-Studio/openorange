@@ -53,6 +53,22 @@ def _task_sync_frames(st, changes):
                 value if kind == "sub2" else None))
     return frames
 
+def drain_event_task_sync(st, res):
+    """把 apply_event 返回的通用任务同步描述编成帧（P1 阶段 N-a3）。
+
+    ★ 每个 apply_event 调用点都必须调它 —— 否则客户端 task_bag 缓存与服务器不一致
+      （进度条不动、任务完成后按钮不消失）。有元测试守着：
+      tests/test_task_event_sync.py。
+
+    apply_event 内部已经把达到完成条件的通用任务 finish 掉了（见
+    story/events.py 第 4 段），所以这里的描述既含进度变化也含完成动作。
+    """
+    ch = getattr(res, "task_sync", None) or []
+    if not ch:
+        return []
+    return _task_sync_frames(st, ch)
+
+
 def _task_fetch(rid, params, uid=None):
     """RequestFetchTask_CS {task_id} —— 接任务（放进 task_bag）。"""
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]

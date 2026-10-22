@@ -90,12 +90,21 @@ class EventResult(object):
 
     hits        检测到可以完成的剧情任务 id 列表（TaskType 3/7）
     chain_hits  检测到可以完成的链式任务 id 列表（TaskType 6）
+    task_hits   检测到达到完成条件的通用任务 id（TaskData 那套）
+    task_sync   通用任务的进度/完成同步描述
     deduped     是不是因为 event_id 重复被跳过
     """
 
-    __slots__ = ("hits", "chain_hits", "deduped", "event")
+    __slots__ = ("hits", "chain_hits", "task_hits", "task_sync",
+                 "deduped", "event")
 
-    def __init__(self, hits=None, chain_hits=None, deduped=False, event=None):
+    def __init__(self, hits=None, chain_hits=None, deduped=False, event=None,
+                 task_hits=None, task_sync=None):
+        # ★ P1 阶段 N-a3：通用任务（task_bag）的事件推进结果
+        #   task_hits  达到完成条件的通用任务 id
+        #   task_sync  进度变化 / 完成动作产生的同步描述（交给 _task_sync_frames 编帧）
+        self.task_hits = task_hits or []
+        self.task_sync = task_sync or []
         self.hits = hits or []
         self.chain_hits = chain_hits or []
         self.deduped = deduped
@@ -174,7 +183,22 @@ def apply_event(st, event, now=None):
         print("[story] 链式检查失败: %s" % e, flush=True)
         chain = []
 
-    return EventResult(hits=hits, chain_hits=chain, event=event)
+    # 4) 通用任务（TaskData 那套，P1 阶段 N-a3）
+    #    ★ 和剧情任务分开：剧情走 evaluate_event（只检测，不落状态），
+    #      通用任务这里**连进度带完成一起做**，因为它的进度值 doing_targets
+    #      只能由事件驱动写入（客户端只读不写）。
+    task_hits, task_sync = [], []
+    try:
+        from .. import tasks as _tasks
+        task_hits, task_sync = _tasks.evaluate_event(st, event.type, event.params)
+        for _tid in list(task_hits):
+            task_sync.extend(_tasks.finish_task(st, _tid, now))
+    except Exception as e:
+        print("[task] 通用任务事件推进失败 %s: %s" % (event.type, e), flush=True)
+        task_hits, task_sync = [], []
+
+    return EventResult(hits=hits, chain_hits=chain, event=event,
+                       task_hits=task_hits, task_sync=task_sync)
 
 
 def tick(st, now=None):
