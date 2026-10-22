@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""game_server.avatar —— 玩家资料类 RPC（取名 / 改名）。
+
+逆向依据 `entities/avatarcomponent/namecomp.lua`：
+
+```lua
+  :7-9    CheckNickName(name, cb)      -> serverRpc("RpcCheckNickName", {name})
+  :20-22  ChangeNickName(name, cb)     -> serverRpc("RpcChangeNickName", {name})
+  :33-36  CommitNameGender(name, gender, cb)
+                                       -> serverRpc("RpcCommitNameGender", {name, gender})
+```
+
+取名面板调用点：`ui/panel/creatingrolepanel/creatingrolepanel.lua:95`
+→ `GlobalData.Avatar:CommitNameGender(self.signName, self.gender, cb)`
+
+★ 为什么必须实现（P1 阶段 N-a1，2026-10-22 取证发现）
+
+这 3 个 RPC 之前**全缺**，造成一条完整断链：
+
+```
+取名面板 -> RpcCommitNameGender（未实现，静默失败）
+  -> player_name 永远是默认值 "未具名导演"
+  -> TaskEventData[1000] 的 Sign 事件从不发出
+  -> TaskData[10]「完成取名」永不完成（TriggerEventList=[1000]）
+  -> TaskData[1]「完成序章」永不进包（PreTask=10）
+  -> task_bag[1][1] 永不存在
+  -> getSystemTaskState(1) 恒返回 -1
+  -> AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口数据条件永假
+```
+
+错误码（`common/systemconst.lua` 的 `NameErrorCode`）：
+
+| 值 | 名字 | 含义 |
+|---|---|---|
+| 8001 | `WordCheck_OK` | 通过 |
+| 8002 | `WordCheck_NameInVaild` | 名字含非法字符 |
+| 8003 | `WordCheck_NameAlreadyExisted` | 重名 |
+| 8004 | `WordCheck_NameLengthInVaild` | 长度不合法 |
+| 8005 | `WordCheck_Exception` | 异常 |
+| 8007 | `WordCheck_ChangePlayerNameInCD` | 改名冷却中 |
+
+客户端 `checkNameResult(ret)`（namecomp.lua:46-67）的判定顺序：
+`ret.status` 为真即成功；否则看 `ret.errorcode`。所以成功时回 `{status: True}` 就够。
+"""
+from . import ms as msmod
+from .rpc_common import decode_params, state
+from .rpc_index import ACK_OK
+
+# NameErrorCode（common/systemconst.lua）
+NAME_OK = 8001
+NAME_INVALID = 8002
+NAME_LENGTH = 8004
+
+# 名字长度上限：客户端没给出明确常量【待查真实配置】，这里取保守值。
+# 参考：SignatureMaxLen=100 / FormationNameByteLimit=12，玩家名一般 <= 12。
+NAME_MAX_LEN = 12
+
+
+def _clean_name(v):
+    """把客户端传来的名字转成 str 并去掉首尾空白。"""
+    if v is None:
+        return ""
+    if isinstance(v, (bytes, bytearray)):
+        try:
+            v = bytes(v).decode("utf-8")
+        except Exception:
+            return ""
+    return str(v).strip()
+
+
+def _validate_name(name):
+    """返回 (ok, errorcode)。"""
+    if not name:
+        return False, NAME_INVALID
+    if len(name) > NAME_MAX_LEN:
+        return False, NAME_LENGTH
+    for ch in name:
+        o = ord(ch)
+        if o < 0x20 or o == 0x7f:
+            return False, NAME_INVALID
+    return True, NAME_OK
+
+
+def _set_name(st, name, gender=None):
+    """写 player_name（可选 gender）。返回是否真的改了。"""
+    changed = False
+    if st.props.get("player_name") != name:
+        st.props["player_name"] = name
+        changed = True
+    if gender is not None:
+        try:
+            g = int(gender)
+        except Exception:
+            g = None
+        if g in (1, 2) and st.props.get("gender") != g:
+            st.props["gender"] = g
+            changed = True
+    return changed
+
+
+def _emit_sign(st, frames):
+    """发 Sign 事件（完成取名）。
+
+    ★ 这条事件是 TaskData[10]「完成取名」的唯一完成信号
+      （TaskEventData[1000]，EventType=Sign，无 EventParam）。
+
+    注意：目前事件总线只喂**剧情任务**（story.evaluate_event），
+    通用任务（task_bag）的进度推进属阶段 N-a3，尚未接入 ——
+    所以这一步现在是「先把事件发出去」，等 N-a3 接上才有实际效果。
+    """
+    from .story import events as _events
+    from .story.rpc import _finish_story_tasks
+    try:
+        res = _events.apply_event(st, _events.ev_sign())
+    except Exception as e:
+        print("[avatar] Sign 事件失败: %s" % e, flush=True)
+        return
+    hits = list(getattr(res, "hits", []) or [])
+    if hits:
+        frames.extend(_finish_story_tasks(st, hits, source="event"))
+
+
+def _name_rpc_common(rid, params, uid, want_gender):
+    """三个取名 RPC 的公共骨架。返回 (frames, st, name, ok, code)。"""
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames, None, "", False, NAME_INVALID
+    name = _clean_name(vals[0])
+    ok, code = _validate_name(name)
+    if not ok:
+        # 客户端 checkNameResult 会读 ret.errorcode 弹对应提示
+        return ([msmod.build_entity_response(
+            rid, ret={"status": False, "errorcode": code})],
+                None, name, False, code)
+    st = state(uid)
+    return frames, st, name, True, code
+
+
+def _check_nickname(rid, params, uid=None):
+    """RpcCheckNickName {name} —— 取名前的合法性检查（不落库）。"""
+    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    if ok:
+        print("[avatar] 名字检查通过: %s" % name, flush=True)
+    else:
+        print("[avatar] 名字检查不通过: %r code=%s" % (name, code), flush=True)
+    return frames
+
+
+def _change_nickname(rid, params, uid=None):
+    """RpcChangeNickName {name} —— 改名（已取过名之后的修改）。
+
+    ★ 改名**不发 Sign 事件**：Sign 语义是「完成取名」，只在首次取名时发。
+    """
+    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    if not ok:
+        return frames
+    old = st.props.get("player_name")
+    changed = _set_name(st, name)
+    if changed:
+        st.save()
+        print("[avatar] 改名 %r -> %r" % (old, name), flush=True)
+    else:
+        print("[avatar] 改名：名字没变（%r）" % name, flush=True)
+    return frames
+
+
+def _commit_name_gender(rid, params, uid=None):
+    """RpcCommitNameGender {name, gender} —— 首次取名 + 性别，并触发 Sign 事件。
+
+    这是 TaskData[10]「完成取名」的触发点（见 _emit_sign 的说明）。
+    """
+    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, True)
+    if not ok:
+        return frames
+    vals = decode_params(params)
+    gender = vals[1] if len(vals) > 1 else None
+    old = st.props.get("player_name")
+    changed = _set_name(st, name, gender)
+    if changed:
+        st.save()
+        print("[avatar] 取名 %r -> %r gender=%s" % (old, name, gender), flush=True)
+    # ★ 无论名字是否变化都发 Sign：客户端可能重试同一次取名请求
+    _emit_sign(st, frames)
+    st.save()
+    return frames

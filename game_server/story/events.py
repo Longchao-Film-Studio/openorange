@@ -59,6 +59,7 @@ EV_SUBMIT_ITEM = "SubmitItem"
 EV_AVATAR_ATTR = "AvatarAttr"
 EV_GET_ITEM = "GetItem"
 EV_CHAR_DATA = "CharData"
+EV_SIGN = "Sign"                 # 完成取名（TaskEventData[1000]，无 EventParam）
 
 # P0-D 明确要覆盖的 4 种（合计覆盖 26 条剧情任务）
 CORE_TYPES = (EV_SUBMIT_ITEM, EV_AVATAR_ATTR, EV_GET_ITEM, EV_CHAR_DATA)
@@ -225,6 +226,19 @@ def ev_finish_task(task_id, source="internal"):
                      event_id="FinishTask:%d" % int(task_id))
 
 
+
+def ev_sign(source="rpc:RpcCommitNameGender"):
+    """完成取名。
+
+    ★ TaskEventData[1000] 的 EventType="Sign"，**没有 EventParam** ——
+      event_matches 对空 EventParam 视为「任意参数都匹配」，所以只要发这条事件，
+      引用它的任务（实测只有 TaskData[10]「完成取名」）就会命中。
+
+    客户端依据：entities/avatarcomponent/namecomp.lua:33-36
+      CommitNameGender -> serverRpc("RpcCommitNameGender", {name, gender})
+      取名面板调用点 ui/panel/creatingrolepanel/creatingrolepanel.lua:95
+    """
+    return GameEvent(EV_SIGN, {}, source=source, event_id="Sign")
 def ev_street_interact(actor_id, interact_id, street_id=None, actor_type=None,
                        source="rpc:Street_Actor_InteractID_Update_CS"):
     """街区 NPC 交互。

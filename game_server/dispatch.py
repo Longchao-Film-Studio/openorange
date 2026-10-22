@@ -131,6 +131,13 @@ from .story.tasks import (  # noqa: F401  (re-export)
     _task_sync_frames,
 )
 
+# ★ P1 阶段 N-a1：取名链路（之前 3 个 RPC 全缺，见 game_server/avatar.py 的说明）
+from .avatar import (  # noqa: F401  (re-export)
+    _change_nickname,
+    _check_nickname,
+    _commit_name_gender,
+)
+
 # 业务域模块（P0-E2 第 3 步）：dungeon / 背包 / 角色 / 登录查询
 from .dungeon.context import _STORY_TYPE_MAINSTORY, _remember_dungeon  # noqa: F401
 from .dungeon.enter import (  # noqa: F401  (re-export)
@@ -263,6 +270,10 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("RequestRefreshTitleDailyTask_CS", _ack_only),
                    ("RequestDoneTitleTask_CS", _ack_only),
                    ("RollbackSpaceTask_CS", _ack_only),
+                   # ★ P1 阶段 N-a1：取名（namecomp.lua:7-36）
+                   ("RpcCheckNickName", _check_nickname),
+                   ("RpcChangeNickName", _change_nickname),
+                   ("RpcCommitNameGender", _commit_name_gender),
                    # ★ P1 阶段 J：战斗内 SpaceTask 完成 -> 剧情任务（type0 的唯一完成路径）
                    ("FinishSpaceTask_Directly_CS", _finish_space_task),
                    ("Cmd_OfflineSpace_Finish_CS", _dungeon_finish),

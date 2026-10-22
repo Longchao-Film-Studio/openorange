@@ -26,6 +26,12 @@ RPC_INDEX = {
     "SetChoosenChar_CS": 524477307,
     "SetCharacterList_CS": 811745113,
     "SetCharacterListName_CS": 414235078,
+    # ★ P1 阶段 N-a1：取名链路（namecomp.lua:7-36）。之前 3 个都缺，
+    #   导致 player_name 永远是默认值 -> Sign 事件不发 -> TaskData[10] 永不完成
+    #   -> TaskData[1] 永不进包 -> 40 条 unlockType=1 的系统入口数据条件永假。
+    "RpcCheckNickName": 586398124,
+    "RpcChangeNickName": 1344002661,
+    "RpcCommitNameGender": 288358305,
     # --- 街区切换 avatarstreetcomp（3 条） ---
     # 客户端发完会自己 JumpToStreetStage 加载场景，但小地图按服务端
     # street_id 取图，所以必须改属性并推同步（见 _switch_street 注释）。
