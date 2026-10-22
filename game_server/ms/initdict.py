@@ -246,6 +246,18 @@ def _live_init_dict(uid=None):
                 story_mod.init_new_player(st)
         except Exception as e:
             print("[init] 剧情播种失败: %s" % e, flush=True)
+    # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
+    #   只在「天序号变了」时才动，同一天多次登录幂等。
+    #   必须在通用任务播种**之前**跑，否则重置会把刚播的日常任务又清掉。
+    try:
+        from .. import tasks as _tasks_d
+        _rt, _rch = _tasks_d.daily_reset(st)
+        if _rt:
+            print("[init] 跨天重置 %s（%d 条同步描述，已进初始快照）"
+                  % (list(_rt), len(_rch)), flush=True)
+    except Exception as e:
+        print("[init] 跨天重置失败: %s" % e, flush=True)
+
 
     # ★ P1 阶段 N-a2：通用任务播种（TaskData 那套 -> task_bag）。
     #

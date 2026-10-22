@@ -222,6 +222,11 @@ def _refresh_title_daily_task(rid, params, uid=None):
     except Exception:
         return frames
     st = state(uid)
+    # ★ N-d：每天只能刷新 1 次（防反复刷奖励）
+    if not tasks.can_refresh_daily(st):
+        print("[task] 刷新头衔日常被拒：今天已经刷新过", flush=True)
+        return [msmod.build_entity_response(rid, ret={"status": False})]
+    tasks.mark_daily_refreshed(st)
     ch = []
     reset = []
     bag = st.props.get("task_bag")
