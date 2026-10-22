@@ -131,9 +131,19 @@ def completable(S, T, E, tid):
         #   13 条全部有 GuideParam 且命中 StreetActorInfoData.actorId
         return True, "街区型（StreetInteract 命中 GuideParam NPC）"
     if tt in (3, 7):
+        # 阶段 I 修正：Parameter1 对 type3/7 不总是指向 TaskData。
+        # 实测 92 条指向 TaskData（有 TriggerEventList，可判定），
+        # 66 条指向 LevelData / EquipmentData / HonorWallData / CommodityData /
+        # 2V2* / ActivityData 等玩法表 —— 那是地图导航目标
+        # （avatarstorytaskcomp.lua:116 GetLevelData(Parameter1[1])），
+        # 不是完成条件，没有 TriggerEventList 可匹配。
+        p1 = cfg.get("Parameter1") or []
+        in_taskdata = [int(x) for x in p1 if int(x) in T]
+        if not in_taskdata:
+            return False, "Parameter1 指向玩法表（导航目标，无完成条件）"
         ets = event_types_needed(S, T, E, tid)
         if not ets:
-            return False, "Parameter1 指向的 TaskData 不存在（%d 条同类）" % 0
+            return False, "Parameter1 在 TaskData 里但没有 TriggerEventList"
         ok = [e for e in ets
               if e in IMPL_EVENTS
               and _keys_of(E_by_type(E, e), "EventParam")
