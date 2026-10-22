@@ -246,6 +246,26 @@ def _live_init_dict(uid=None):
                 story_mod.init_new_player(st)
         except Exception as e:
             print("[init] 剧情播种失败: %s" % e, flush=True)
+
+    # ★ 修复「结算后无缝切街区」崩溃（2026-10-23 实机日志实锤）：
+    #   客户端进街区 StreetSystemMgrBase.lua:111-114 getStreetBgm() 读
+    #     self:getStreetInfoByID(curr_street_id)  -> street_info[street_id]
+    #   而结算走 jumpToStreetStage（纯客户端，不发切街 RPC），
+    #   服务端从不创建 street_info[101] -> 客户端拿 nil ->
+    #   "attempt to index local streetInfo (a nil value)" FATAL -> 弹神秘力量。
+    #   重登能进是因为走登录 initDict，但 initDict 的 street_info 也是空容器。
+    #   所以登录时对当前 street_id 建条目，任何到街区的路径都有数据。
+    try:
+        from ..street.info import _street_info_of as _sio
+        _sid = int(st.props.get("street_id") or 0)
+        if _sid:
+            _si, _entry = _sio(st, _sid)
+            if _si is not None:
+                print("[init] 确保 street_info[%s] 条目存在%s"
+                      % (_sid, "（新建）" if _entry else ""), flush=True)
+    except Exception as e:
+        print("[init] street_info 条目补齐失败: %s" % e, flush=True)
+
     # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
     #   只在「天序号变了」时才动，同一天多次登录幂等。
     #   必须在通用任务播种**之前**跑，否则重置会把刚播的日常任务又清掉。

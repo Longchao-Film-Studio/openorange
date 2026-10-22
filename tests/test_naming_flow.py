@@ -205,6 +205,25 @@ def run():
     _resp = {k: v for k, v in _dec.items() if k != "Ret"}
     check("★ 剥掉 Ret 后客户端拿到 Friends", _resp.get("Friends") == [], _resp)
 
+
+    print("\n[10] 街区初始化数据：登录后 street_info 必须有当前街道条目")
+    # ★ 修复「结算后无缝切街区」崩溃（2026-10-23 实机日志实锤）
+    #   客户端进街区 getStreetBgm（StreetSystemMgrBase.lua:111-114）读
+    #   getStreetInfoByID(street_id) -> street_info[street_id]，nil 会崩
+    st10, u10 = fresh("streetinfo")
+    si10 = st10.props.get("street_info") or {}
+    sid10 = st10.props.get("street_id")
+    check("★ 登录后 street_info[street_id] 存在（结算切街区不崩）",
+          sid10 in si10, (sid10, [k for k in si10 if not str(k).startswith("__")]))
+    e10 = si10.get(sid10) or {}
+    check("★ 条目有 cd_choose（getStreetBgm 读它）", "cd_choose" in e10, list(e10.keys()))
+    for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
+               "treasure_box_info", "inter_actor_info"):
+        check("★ 嵌套字段 %s 带 __id__" % _k,
+              isinstance(e10.get(_k), dict) and "__id__" in e10[_k], e10.get(_k))
+    # 模拟客户端 getStreetBgm：streetInfo 非 nil
+    check("★ 模拟 getStreetBgm：streetInfo 非 nil", si10.get(sid10) is not None)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
