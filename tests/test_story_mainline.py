@@ -119,10 +119,13 @@ def walk(S, st, chain):
             story.mark_story_task_finished(st, tid, NOW)
             story.archive_story_task(st, tid, NOW)
         elif t == 4:
-            npc = story.street_task_npc(tid)
-            r2 = SEV.apply_event(st, SEV.ev_street_interact(npc, 1))
-            if tid not in r2.hits:
-                return walked, tid, "type4 NPC %s 未命中" % npc
+            # ★ 阶段 P：type4 的完成条件是「切街到 Parameter1[0]」，
+            #   不再是「交互 GuideParam[0] 那个 NPC」（旧实现对 1045 恒假）。
+            p1 = S[tid].get("Parameter1") or []
+            want = int(p1[0]) if p1 else None
+            hits = story.street_arrival_tasks(st, want)
+            if tid not in hits:
+                return walked, tid, "type4 切街到 %s 未命中" % want
             story.finish_story_task(st, tid, NOW)
         elif t in (3, 7):
             return walked, tid, "TaskType %s 需要玩法事件" % t

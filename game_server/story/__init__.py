@@ -509,7 +509,7 @@ def story_award(st, task_id, now=None):
 TASK_TYPE_CLIENT = (1, 2, 5)   # 客户端驱动
 TASK_TYPE_EVENT = (3, 7)       # 服务端按 TaskData -> TaskEventData 判定
 TASK_TYPE_CHAIN = (6,)         # 前置剧情任务全完成
-TASK_TYPE_STREET = (4,)        # 街区 id：靠 StreetInteract 命中 GuideParam 里的 NPC
+TASK_TYPE_STREET = (4,)        # 街区 id：完成条件 = street_id 变成 Parameter1[0]（切街到达）
 TASK_TYPE_NONE = (0,)          # 副本内目标：无可判定完成条件（见 docs/P1 阶段 E）
 
 
@@ -584,15 +584,17 @@ def space_task_avatar_task(space_task_id):
 
 
 def street_task_npc(task_id):
-    """Type4 任务要交互的 NPC actorId（GuideParam 第一个），没有返回 None。
+    """Type4 任务的 `GuideParam[0]`（**只用于追踪标点显示，不是完成条件**）。
 
-    ★ 依据（2026-10-22 阶段 E 实测）：
-      - 13 条 type4 全部有 Parameter1 = StreetData 键 + GuideParam
-      - GuideParam 的值全部命中 StreetActorInfoData.actorId
-      - StreetActorInfoData.preTask = {taskId: 需要的状态}，
-        例如 NPC 40210 的 preTask = {4006:3, 4063:3} ——
-        也就是说 NPC 要「任务正在做」才出现，玩家交互它之后任务完成。
-      - 完成信号就是服务端已经在发的 StreetInteract 事件（带 actorId）。
+    ★ 2026-10-22 阶段 P 纠正（原实现把它当完成条件，是错的）：
+      - 13 条 type4 里 **12 条**的 GuideParam[0] 恰好也是传送门 NPC，
+        所以「和它交互」碰巧能对上；但 **1045 的 GuideParam[0]=13164 在
+        StreetActorInteractData 里根本没有条目**，客户端永远发不出这个交互，
+        导致 1045 永远完不成（实机断链，见 docs/storytaskresearch.md §19）。
+      - 正确定义见 street_arrival_tasks()：**切街到 Parameter1[0] 即完成**。
+      - GuideParam 的真实用途只有两个：
+        ① 客户端追踪标点（streettasktrackcomp.lua:116-134 读它画标记）
+        ② 地图定位（avatarstorytaskcomp.lua:76-137）
     """
     cfg = gamedata.story_task(task_id) or {}
     gp = cfg.get("GuideParam") or []
@@ -602,6 +604,46 @@ def street_task_npc(task_id):
         return int(gp[0])
     except Exception:
         return None
+
+
+def street_arrival_tasks(st, street_id):
+    """切街到 street_id 时应该完成的 Type4 任务列表。
+
+    ★ 2026-10-22 阶段 P：这是 Type4 的**唯一正确完成条件**。
+
+      客户端证据（docs/storytaskresearch.md §16）：
+        - 13 条 type4 的 `Parameter1` 全是「目标街区 id」
+        - 其中 4 条能找到带 `transferStreet` 的交互，**4/4 与 Parameter1 完全一致**：
+            1045 -> 100、4006 -> 101、4063 -> 101、6064 -> 102
+        - 客户端切街一定经过服务端（`AvatarStreet_SwitchStreet` ->
+          `RequestSwitchStreet_CS`），所以服务端在 `_apply_street_change` 里
+          就能可靠地判定「玩家到了目标街」。
+        - 客户端**不上报** type4（`getTaskIdByParamInt` 只筛 type2），
+          所以服务端必须自己判。
+
+    返回 taskId 列表（只含 Doing 且在包里的）。
+    """
+    hits = []
+    try:
+        want = int(street_id)
+    except Exception:
+        return hits
+    if want <= 0:
+        return hits
+    for task_id, _item in _active_story_tasks(st):
+        cfg = gamedata.story_task(task_id) or {}
+        if cfg.get("TaskType") not in TASK_TYPE_STREET:
+            continue
+        p1 = cfg.get("Parameter1")
+        if not isinstance(p1, list) or not p1:
+            continue
+        try:
+            target = int(p1[0])
+        except Exception:
+            continue
+        if target == want:
+            hits.append(task_id)
+    return hits
 
 
 def evaluate_event(st, event_type, params, now=None):
@@ -618,12 +660,10 @@ def evaluate_event(st, event_type, params, now=None):
         cfg = gamedata.story_task(task_id) or {}
         tt = cfg.get("TaskType")
         if tt in TASK_TYPE_STREET:
-            # Type4：到指定街区交互 GuideParam 里的 NPC。
-            # 完成信号 = StreetInteract 事件带这个 actorId。
-            npc = street_task_npc(task_id)
-            if (event_type == "StreetInteract" and npc is not None
-                    and int(params.get("actorId") or -1) == npc):
-                hits.append(task_id)
+            # ★ 2026-10-22 阶段 P：Type4 **不在这里判定**。
+            #   完成条件是「切街到 Parameter1[0]」，见 street_arrival_tasks()。
+            #   原实现用 GuideParam[0] 当交互 NPC，对 1045 恒假（13164 无交互数据），
+            #   导致主线在 1045 断链（docs/storytaskresearch.md §19）。
             continue
         if tt not in TASK_TYPE_EVENT:
             continue

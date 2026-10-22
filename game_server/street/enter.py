@@ -128,6 +128,21 @@ def _apply_street_change(frames, new_id, uid):
             tx.set(("street_info", new_id), _make_street_info_entry(st))
     st.save()
     frames.extend(tx.frames())
+    # ★ 阶段 P：切街到达目标街 -> 完成 type4 剧情任务（唯一正确路径）。
+    #   客户端证据见 docs/storytaskresearch.md §16 / §19：
+    #     - 13 条 type4 的 Parameter1 全是「目标街区 id」
+    #     - 能验证的 4 条 transferStreet 与 Parameter1 4/4 一致
+    #     - 客户端不上报 type4，必须服务端在切街时自己判
+    #   实机断点：1045「回龙潮阁复命」Parameter1=[100]，玩家从 101 切到 100
+    #   时应该完成它，之后 1004 才能进包 -> actor 40005 -> playTimeline 7。
+    try:
+        from ..story import street_arrival_tasks
+        from ..story.rpc import _finish_story_tasks
+        _hits = street_arrival_tasks(st, new_id)
+        if _hits:
+            frames.extend(_finish_story_tasks(st, _hits, source="street_arrival"))
+    except Exception as _e:
+        print("[street] 切街完成 type4 失败: %s" % _e, flush=True)
     # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）
     _refresh_trace_on_street_change(st, new_id, frames)
     print("[street] %s -> %s" % (old, new_id), flush=True)

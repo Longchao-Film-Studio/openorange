@@ -166,9 +166,10 @@ def run():
             story.mark_story_task_finished(st, tid, NOW)
             story.archive_story_task(st, tid, NOW)
         elif t == 4:
-            r2 = SEV.apply_event(st, SEV.ev_street_interact(
-                story.street_task_npc(tid), 1))
-            if tid in r2.hits:
+            # ★ 阶段 P：type4 完成条件 = 切街到 Parameter1[0]（不再靠交互 NPC）
+            p1 = S[tid].get("Parameter1") or []
+            want = int(p1[0]) if p1 else None
+            if tid in story.street_arrival_tasks(st, want):
                 story.finish_story_task(st, tid, NOW)
             else:
                 break

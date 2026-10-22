@@ -225,9 +225,10 @@ def _emit_get_item(st, item_id, count):
 #   没列出的来源 = None = 不限制（服务端内部路径：发奖联动、GM、种子）。
 SOURCE_ALLOWED_TYPES = {
     "client": story.TASK_TYPE_CLIENT,          # 1/2/5 客户端主动上报
-    "street_interact": (2, 4),                  # NPC 交互：type2（对话）+ type4（街区任务，靠 GuideParam NPC）
+    "street_interact": (2,),                  # NPC 交互只能完成 type2（type4 已改为「切街到达」）
+    "street_arrival": (4,),                     # ★ 切街到达目标街 -> type4（唯一正确路径）
     "space_task": (0,),                         # 战斗内 SpaceTask 只能完成 type0
-    "event": story.TASK_TYPE_EVENT + (4,),      # 3/7 事件判定 + 4（街区任务也是事件驱动）
+    "event": story.TASK_TYPE_EVENT,               # 3/7 事件判定（type4 不再走这里）
     "chain": story.TASK_TYPE_CHAIN,             # 6 链式闸门
     "internal": None,                           # 不限制
 }
