@@ -374,7 +374,8 @@ def story_award(st, task_id, now=None):
 TASK_TYPE_CLIENT = (1, 2, 5)   # 客户端驱动
 TASK_TYPE_EVENT = (3, 7)       # 服务端按 TaskData -> TaskEventData 判定
 TASK_TYPE_CHAIN = (6,)         # 前置剧情任务全完成
-TASK_TYPE_STREET = (4,)        # 街区 id（暂未接）
+TASK_TYPE_STREET = (4,)        # 街区 id：靠 StreetInteract 命中 GuideParam 里的 NPC
+TASK_TYPE_NONE = (0,)          # 副本内目标：无可判定完成条件（见 docs/P1 阶段 E）
 
 
 def _active_story_tasks(st):
@@ -414,6 +415,27 @@ def event_matches(event_cfg, event_type, params):
     return True
 
 
+def street_task_npc(task_id):
+    """Type4 任务要交互的 NPC actorId（GuideParam 第一个），没有返回 None。
+
+    ★ 依据（2026-10-22 阶段 E 实测）：
+      - 13 条 type4 全部有 Parameter1 = StreetData 键 + GuideParam
+      - GuideParam 的值全部命中 StreetActorInfoData.actorId
+      - StreetActorInfoData.preTask = {taskId: 需要的状态}，
+        例如 NPC 40210 的 preTask = {4006:3, 4063:3} ——
+        也就是说 NPC 要「任务正在做」才出现，玩家交互它之后任务完成。
+      - 完成信号就是服务端已经在发的 StreetInteract 事件（带 actorId）。
+    """
+    cfg = gamedata.story_task(task_id) or {}
+    gp = cfg.get("GuideParam") or []
+    if not gp:
+        return None
+    try:
+        return int(gp[0])
+    except Exception:
+        return None
+
+
 def evaluate_event(st, event_type, params, now=None):
     """按游戏事件推进剧情任务（TaskType 3/7），返回 (完成的taskId列表, 同步列表)。
 
@@ -426,7 +448,16 @@ def evaluate_event(st, event_type, params, now=None):
     hits = []
     for task_id, _item in _active_story_tasks(st):
         cfg = gamedata.story_task(task_id) or {}
-        if cfg.get("TaskType") not in TASK_TYPE_EVENT:
+        tt = cfg.get("TaskType")
+        if tt in TASK_TYPE_STREET:
+            # Type4：到指定街区交互 GuideParam 里的 NPC。
+            # 完成信号 = StreetInteract 事件带这个 actorId。
+            npc = street_task_npc(task_id)
+            if (event_type == "StreetInteract" and npc is not None
+                    and int(params.get("actorId") or -1) == npc):
+                hits.append(task_id)
+            continue
+        if tt not in TASK_TYPE_EVENT:
             continue
         p1 = cfg.get("Parameter1") or []
         if not isinstance(p1, list):

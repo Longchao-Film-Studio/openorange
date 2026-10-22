@@ -121,9 +121,15 @@ def completable(S, T, E, tid):
     if tt == 6:
         return True, "链式（check_chain_tasks）"
     if tt == 0:
-        return False, "type0 无完成条件（阶段 E 待定）"
+        # ★ 阶段 E 结论：无证据，明确阻塞。0/270 有 Parameter1；
+        #   客户端对 type0 的完成上报调用点为 0；TaskBgStory 只是显示文本；
+        #   dgareaId -> MainlineData 只能表达「打过这个区域」，
+        #   但主线尾段 11 条连续 type0 共用同一个 dgareaId，不可能各打一次。
+        return False, "type0 无可判定完成条件（阻塞，见 docs/P1 阶段 E）"
     if tt == 4:
-        return False, "type4 街区条件（阶段 E 待定）"
+        # ★ 阶段 E 已实现：完成信号 = StreetInteract{actorId == GuideParam[0]}
+        #   13 条全部有 GuideParam 且命中 StreetActorInfoData.actorId
+        return True, "街区型（StreetInteract 命中 GuideParam NPC）"
     if tt in (3, 7):
         ets = event_types_needed(S, T, E, tid)
         if not ets:
