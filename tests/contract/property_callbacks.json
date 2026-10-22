@@ -1,0 +1,144 @@
+{
+ "_source": "..\\archive\\game_data\\LuaAll_Decompiled2\\generated\\config.lua",
+ "_optype_map": {
+  "changed": 1,
+  "entryAdded": 2,
+  "entryDeleted": 3,
+  "itemInserted": 4,
+  "itemRemoved": 5
+ },
+ "_note": "由 tools/gen_contract.py 从客户端 config.lua 生成，勿手改",
+ "properties": {
+  "act_type_task_prop.*.act_taskbag.*.state": [
+   {
+    "component": "AvatarTaskComp",
+    "property": "act_type_task_prop.*.act_taskbag.*.state",
+    "section": "changed",
+    "optype": 1,
+    "callback": "onActivityTaskItemChanged"
+   }
+  ],
+  "daily_active_value": [
+   {
+    "component": "AvatarTaskComp",
+    "property": "daily_active_value",
+    "section": "changed",
+    "optype": 1,
+    "callback": "onDailyActiveValueChanged"
+   }
+  ],
+  "done_story_tasks": [
+   {
+    "component": "AvatarStoryTaskComp",
+    "property": "done_story_tasks",
+    "section": "entryAdded",
+    "optype": 2,
+    "callback": "onDoneStoryTasksChanged"
+   }
+  ],
+  "done_tasks.*": [
+   {
+    "component": "AvatarTaskComp",
+    "property": "done_tasks.*",
+    "section": "entryAdded",
+    "optype": 2,
+    "callback": "onDoneTasksChanged"
+   }
+  ],
+  "story_act_p.task_bag": [
+   {
+    "component": "AvatarTroupeActComp",
+    "property": "story_act_p.task_bag",
+    "section": "changed",
+    "optype": 1,
+    "callback": "On_Troupe_Act_Task_Changed"
+   }
+  ],
+  "story_finished": [
+   {
+    "component": "AvatarStorylineComp",
+    "property": "story_finished",
+    "section": "changed",
+    "optype": 1,
+    "callback": "on_story_finished_changed"
+   },
+   {
+    "component": "AvatarStorylineComp",
+    "property": "story_finished",
+    "section": "entryAdded",
+    "optype": 2,
+    "callback": "on_story_finished_added"
+   }
+  ],
+  "story_max_collect_num": [
+   {
+    "component": "AvatarStorylineComp",
+    "property": "story_max_collect_num",
+    "section": "changed",
+    "optype": 1,
+    "callback": "on_story_max_collect_num_changed"
+   }
+  ],
+  "story_reward_list": [
+   {
+    "component": "AvatarStorylineComp",
+    "property": "story_reward_list",
+    "section": "changed",
+    "optype": 1,
+    "callback": "on_story_reward_list_changed"
+   }
+  ],
+  "story_task_bag.*": [
+   {
+    "component": "AvatarStoryTaskComp",
+    "property": "story_task_bag.*",
+    "section": "changed",
+    "optype": 1,
+    "callback": "onStoryTaskItemChanged"
+   },
+   {
+    "component": "AvatarStoryTaskComp",
+    "property": "story_task_bag.*",
+    "section": "entryAdded",
+    "optype": 2,
+    "callback": "onStoryTaskBagInserted"
+   }
+  ],
+  "story_task_bag.*.finish_parameter": [
+   {
+    "component": "AvatarStoryTaskComp",
+    "property": "story_task_bag.*.finish_parameter",
+    "section": "changed",
+    "optype": 1,
+    "callback": "on_story_task_item_finish_parameter_changed"
+   }
+  ],
+  "street_trace_taskid": [
+   {
+    "component": "AvatarStoryTaskComp",
+    "property": "street_trace_taskid",
+    "section": "changed",
+    "optype": 1,
+    "callback": "on_street_tracing_task_id_changed"
+   }
+  ],
+  "task_bag.*": [
+   {
+    "component": "AvatarTaskComp",
+    "property": "task_bag.*",
+    "section": "entryAdded",
+    "optype": 2,
+    "callback": "onTaskBagInserted"
+   }
+  ],
+  "task_bag.*.*": [
+   {
+    "component": "AvatarTaskComp",
+    "property": "task_bag.*.*",
+    "section": "changed",
+    "optype": 1,
+    "callback": "onTaskItemChanged"
+   }
+  ]
+ }
+}
