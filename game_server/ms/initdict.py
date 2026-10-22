@@ -223,24 +223,29 @@ def _live_init_dict(uid=None):
             except Exception:
                 pass
 
-    # ★ 新号的剧情起点（正式路径，不是脚手架）：
-    #   把 StoryTaskData[1000] 设为进行中。街景 NPC 的 preTask 命中
-    #   Doing(3) 才会出现，所以这一步决定「街上有没有 NPC」。
-    #   脚手架开了「任务全完成」时跳过，避免和假数据打架。
-    if getattr(st, "is_new", False):
+    # ★ 剧情任务播种（每次登录都跑，幂等）。
+    #
+    #   阶段 C 的错误（2026-10-22 实机发现）：以前这整块包在
+    #   `if getattr(st, "is_new", False):` 里 —— 只有**新号**才播种。
+    #   老号（比如 ootest001）永远不会补播，任务面板永远只有 1 个任务。
+    #
+    #   而 seed() 本身是幂等的（跳过已在 story_task_bag / done_story_tasks 的），
+    #   所以每次登录都跑是正确且安全的。
+    #   实机证据：服务端日志里有「[init] 章节属性补全」但没有「[story] 播种」，
+    #   说明 init_new_player 根本没被调用。
+    try:
+        from .. import story as story_mod
+    except Exception:
         try:
-            from .. import story as story_mod
+            import story as story_mod
         except Exception:
-            try:
-                import story as story_mod
-            except Exception:
-                story_mod = None
-        if story_mod is not None:
-            try:
-                if not ooconf.SCAFFOLD.all_tasks_done:
-                    story_mod.init_new_player(st)
-            except Exception as e:
-                print("[init] 剧情起点设置失败: %s" % e, flush=True)
+            story_mod = None
+    if story_mod is not None:
+        try:
+            if not ooconf.SCAFFOLD.all_tasks_done:
+                story_mod.init_new_player(st)
+        except Exception as e:
+            print("[init] 剧情播种失败: %s" % e, flush=True)
 
     # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
     #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，

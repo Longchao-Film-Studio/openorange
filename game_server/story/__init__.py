@@ -114,7 +114,7 @@ def init_new_player(st, now=None):
         if ch[0] == "add" and ch[1] == "story_task_bag":
             out.append(int(ch[2]))
     if out:
-        print("[story] 新号剧情起点：播种 %d 个根任务" % len(out), flush=True)
+        print("[story] 剧情播种：%d 个根任务进包" % len(out), flush=True)
     return out
 
 def story_state(props, task_id):

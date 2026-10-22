@@ -156,6 +156,75 @@ def run():
           (before6, story.story_state(st6.props, 1000)))
 
     print("")
+    print("[7] 老号登录也必须播种（阶段 C 的调用条件 bug）")
+    # 实机证据：ootest001 是已有存档，以前 init_new_player 只在 is_new 时调用，
+    # 所以老号永远只有 1 个任务。现在改成每次登录都播种（seed 本身幂等）。
+    # ★ 关键：必须从「只有 1 个任务的老存档」开始，否则测试是假阳性
+    #   （第一次播完 bag 已经是 83，再登录即使不播种也还是 83 ——
+    #    这个假阳性是破坏性验证抓出来的，审计也提过同类问题）。
+    u7 = "ti_" + _TAG
+    msmod._live_init_dict(u7)
+    st7 = pstate.get_state(uid=u7)
+    # 手工把 bag 削成「只有 1000」+ 清空 done，模拟旧代码留下的存档
+    bag7 = st7.props.get("story_task_bag")
+    for k in [k for k in bag7 if k not in ("__id__", "__tp__")]:
+        bag7.pop(k, None)
+    done7 = st7.props.get("done_story_tasks")
+    for k in [k for k in done7 if k not in ("__id__", "__tp__")]:
+        done7.pop(k, None)
+    story.start_story_task(st7, 1000, NOW)
+    n7a = sum(1 for k in bag7 if k not in ("__id__", "__tp__"))
+    check("模拟老存档：bag 只有 1 个任务", n7a == 1, n7a)
+    st7.save()
+    # 模拟「老号再次登录」：清缓存 + 重新走 _live_init_dict
+    pstate._STATES.clear()
+    msmod._live_init_dict(u7)
+    st7b = pstate.get_state(uid=u7)
+    n7b = sum(1 for k in (st7b.props.get("story_task_bag") or {})
+              if k not in ("__id__", "__tp__"))
+    check("★ 老号登录时补播到 83（以前只在 is_new 时播种）",
+          n7b == 83, n7b)
+
+    print("")
+    print("[8] 切街区后追踪标点要刷新 / 换到当前街区能做的任务")
+    u8, st8 = fresh("tj")
+    guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"],
+                   msmod.mp_arr([101]), 1, uid=u8)
+    check("先进街区 101", st8.props.get("street_id") == 101,
+          st8.props.get("street_id"))
+    guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
+                   msmod.mp_arr([1045]), 2, uid=u8)
+    check("追踪 1045（GuideSceneId=101）",
+          st8.props.get("street_trace_taskid") == 1045,
+          st8.props.get("street_trace_taskid"))
+    frames8 = guarded_handle(rpc_index.RPC_INDEX["RequestSwitchStreet_CS"],
+                             msmod.mp_arr([100]), 3, uid=u8)
+    check("切到街区 100", st8.props.get("street_id") == 100,
+          st8.props.get("street_id"))
+    newt = st8.props.get("street_trace_taskid")
+    check("★ 追踪目标被换掉（1045 在 101 做不了）", newt != 1045, newt)
+    if newt:
+        cfg = gamedata.story_task(newt) or {}
+        check("★ 新追踪任务的 GuideSceneId = 100",
+              cfg.get("GuideSceneId") == 100, cfg.get("GuideSceneId"))
+    # 必须推了 street_trace_taskid 的 OP_CHANGE（否则客户端不刷新标点）
+    pushed = False
+    for f in frames8:
+        if not isinstance(f, (bytes, bytearray)) or len(f) < 6:
+            continue
+        if int.from_bytes(bytes(f[4:6]), "little") != msmod.PROPERTY_SYNC_TYPE:
+            continue
+        fl = msmod.pb_parse(bytes(f[6:]))
+        nm = fl.get(4, [b""])[0]
+        if isinstance(nm, (bytes, bytearray)):
+            nm = nm.decode("utf-8", "replace")
+        if nm == "street_trace_taskid":
+            pushed = True
+            break
+    check("★ 切街区推了 street_trace_taskid 同步帧（客户端靠它刷新）",
+          pushed)
+
+    print("")
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

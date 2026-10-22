@@ -17,7 +17,9 @@
 """
 from .. import ms as msmod
 from ..property import tx as _tx
-from ..rpc_common import decode_params, state, throttled_save
+from .. import gamedata
+from .. import story
+from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame, throttled_save
 from ..rpc_index import ACK_OK
 from .info import _make_street_info_entry
 def _switch_street(rid, params, uid=None):
@@ -36,6 +38,75 @@ def _leave_street(rid, params, uid=None):
     """RequestLeaveStreet_CS {id} —— 离开街区，street_id 归 0。"""
     frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     return _apply_street_change(frames, 0, uid)
+
+def _refresh_trace_on_street_change(st, new_id, frames):
+    """★ 切街区后重算追踪目标，并强制客户端刷新标点。
+
+    实机反馈（2026-10-22）：「跟随任务指引到了下一个场景之后，
+    任务还是在上一个场景标点，重过它还是一直在上一个的标点，压根无法进行」。
+
+    客户端证据：
+      ui/panel/streetv2panel/streettasktrackcomp.lua:14
+        ui.addEvent(EUIEventDefine.EStreetTaskTracking, self.onTrackingTaskRefresh, self)
+      —— 标点刷新**只**绑在 EStreetTaskTracking 事件上，
+      而该事件由 on_street_tracing_task_id_changed 触发（属性 OP_CHANGE 时）。
+      切街区**不会**触发它 -> 旧标点留在旧位置。
+
+    服务端能做的两件事：
+      1. 切街区时**重推一次** street_trace_taskid（哪怕值没变），
+         客户端收到 OP_CHANGE 就会重算标点 —— 这一步就能修「标点不刷新」。
+      2. 如果当前追踪的任务 `GuideSceneId` 不是新街区（在别的场景做不了），
+         换成一个「在新街区、且正在做」的任务（GuideSceneId 覆盖 type1/2/4 达 92-100%）。
+         找不到就保持原样（客户端会显示「前往 XX」提示）。
+    """
+    try:
+        cur = int(st.props.get("street_trace_taskid") or 0)
+    except Exception:
+        cur = 0
+    bag = st.props.get("story_task_bag")
+    if not isinstance(bag, dict):
+        bag = {}
+
+    def _doing(t):
+        it = bag.get(t)
+        return isinstance(it, dict) and it.get("state") == story.TASK_STATE_DOING
+
+    def _scene_of(t):
+        cfg = gamedata.story_task(t) or {}
+        gs = cfg.get("GuideSceneId")
+        try:
+            return int(gs) if gs is not None else None
+        except Exception:
+            return None
+
+    nxt = cur
+    if cur > 0 and new_id:
+        cs = _scene_of(cur)
+        if cs is not None and cs != int(new_id):
+            cur_cfg = gamedata.story_task(cur) or {}
+            cur_chapter = cur_cfg.get("ChapterId")
+            cands = [int(t) for t in bag
+                     if str(t).lstrip("-").isdigit()
+                     and _doing(int(t))
+                     and _scene_of(int(t)) == int(new_id)]
+
+            def _rank(t):
+                cfg = gamedata.story_task(t) or {}
+                ch = cfg.get("ChapterId")
+                # 同章节最优先（玩家本来就在这条线上）
+                same = 0 if (cur_chapter and ch == cur_chapter) else 1
+                # 其次主线章节（main_*）
+                is_main = 0 if str(ch or "").startswith("main") else 1
+                return (same, is_main, t)
+
+            if cands:
+                nxt = sorted(cands, key=_rank)[0]
+                print("[street] 追踪目标 %s 不在街区 %s，切到 %s"
+                      % (cur, new_id, nxt), flush=True)
+    st.props["street_trace_taskid"] = nxt
+    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                             "street_trace_taskid", nxt))
+
 
 def _apply_street_change(frames, new_id, uid):
     """改 street_id + 保证 street_info 有条目 + 推同步。
@@ -57,6 +128,8 @@ def _apply_street_change(frames, new_id, uid):
             tx.set(("street_info", new_id), _make_street_info_entry(st))
     st.save()
     frames.extend(tx.frames())
+    # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）
+    _refresh_trace_on_street_change(st, new_id, frames)
     print("[street] %s -> %s" % (old, new_id), flush=True)
     return frames
 
