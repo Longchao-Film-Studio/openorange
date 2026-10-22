@@ -25,19 +25,19 @@
   "player_card_id": 0,
   "player_card_frame_id": 0,
   "chat_bubble_id": 0,
-  "portrait_id": 0,
+  "portrait_id": 1,
   "portrait_frame_id": 0,
   "background_id": 0,
   "player_stage_id": 0,
   "is_account_create_time_hidden": false,
   "signature": "",
   "is_char_list_shown": false,
-  "gender": 1,
+  "gender": 0,
   "canScore": 0,
   "hasScore": 0,
   "create_account_step": 0,
   "player_id": "",
-  "player_name": "未具名导演",
+  "player_name": "",
   "enable_being_searched": 0,
   "enable_being_recommended": 0,
   "shown_honor_wall_char_id": 0,
@@ -205,7 +205,17 @@
   },
   "portrait_bag": {
    "__tp__": "FashionBag",
-   "__id__": 1033
+   "__id__": 1033,
+   "#1": {
+    "__id__": 1365,
+    "id": 1,
+    "expiration_time": 0
+   },
+   "#2": {
+    "__id__": 1366,
+    "id": 2,
+    "expiration_time": 0
+   }
   },
   "player_title_bag": {
    "__tp__": "FashionBag",
@@ -225,7 +235,17 @@
   },
   "player_card_bag": {
    "__tp__": "FashionBag",
-   "__id__": 1038
+   "__id__": 1038,
+   "#1": {
+    "__id__": 1367,
+    "id": 1,
+    "expiration_time": 0
+   },
+   "#2": {
+    "__id__": 1368,
+    "id": 2,
+    "expiration_time": 0
+   }
   },
   "player_card_frame_bag": {
    "__tp__": "FashionBag",

@@ -61,6 +61,19 @@ DONE_STORY_TASK_IDS = [
 # 覆盖后的玩家等级（Level 类门槛有 4/5/6/7）
 SCAFFOLD_LEVEL = 10
 
+# ★ P0-3：脚手架模式下的「已取名」占位名字。
+#
+# 为什么必须有：initDict 里 player_name="" / gender=0 是**官方默认值**
+#   （generated/config.lua:9073-9078 / 9001-9006），表示「这个号还没取名」。
+#   而脚手架语义是「模拟一个已经玩通的老号」，所以必须把这两个也置成已取名，
+#   否则 stage/streetstage.lua:167-185 checkIsCanEnterStreet() 四条件里有两条不满足
+#   -> ClientUtils.returnToLogin() -> 被踢回登录页。
+#
+# 为什么不用 CommonConstData.Default_PlayerName「未具名导演」：
+#   那是客户端显示占位符（名字为空时显示什么），用了以后
+#   分不清「真取名」和「占位符」，和这次的 bug 是同一个坑。
+SCAFFOLD_PLAYER_NAME = "\u6d4b\u8bd5\u5bfc\u6f14"   # 测试导演
+
 # GlobalConst.TaskState.Finished
 TASK_STATE_FINISHED = 6
 
@@ -188,5 +201,24 @@ def apply(props, cfg=None):
         if isinstance(sf, dict):
             sf[1] = True
             changed.append("story_finished[1]=true（跳过序章）")
+
+        # ★ P0-3：补齐「已取名」状态（见 SCAFFOLD_PLAYER_NAME 的说明）。
+        #
+        # checkIsCanEnterStreet() 的四个条件：
+        #   1. story_finished[1]                  -- 上面刚设
+        #   2. player_name 非空                    -- ★ 这里补
+        #   3. gender != nil and gender != 0       -- ★ 这里补
+        #   4. characterBag[male|female] 存在      -- STARTER_CHARS 已给 9001
+        #
+        # 不补会怎样：LoginSuccess -> doLoginSuccess -> JumpToStreetStage
+        #   -> checkIsCanEnterStreet() 失败 -> returnToLogin() -> 被踢回登录页。
+        props["player_name"] = SCAFFOLD_PLAYER_NAME
+        props["gender"] = 1
+        # 名片跟性别走（男=2，见 CommonConstData.male_player_card）。
+        # 正常流程里这一步是 avatar.py::_set_default_card 在取名时做的；
+        # 脚手架跳过了取名，所以这里等价补上。
+        props["player_card_id"] = 2
+        changed.append("player_name=%r gender=1 player_card_id=2（已取名，进街区用）"
+                       % SCAFFOLD_PLAYER_NAME)
 
     return changed

@@ -74,9 +74,22 @@ def run():
     check("每个条目都有 id/num", all("id" in v and "num" in v for v in entries.values()))
 
     print("\n[5] 1-3 玩家数据")
-    check("player_name 非空", isinstance(props.get("player_name"), str)
-          and props["player_name"] != "", props.get("player_name"))
-    check("gender = 1（男）", props.get("gender") == 1, props.get("gender"))
+    # ★ P0-4（2026-10-22 修复）：这两条原来断言的是
+    #     check("player_name 非空", ...)
+    #     check("gender = 1（男）", ...)
+    #   而官方默认值是 player_name="" / gender=0
+    #   （generated/config.lua:9073-9078 / 9001-9006）。
+    #   等于「断言 bug 是正确的」—— 任何人想改成正确值测试就红，
+    #   测试成了缺陷的守护者（和 unlocked_system 那条同一个毛病）。
+    #
+    #   为什么必须是 "" 和 0（客户端判据）：
+    #     battle/public/system/nodeskill/viewnode/viewuinode.lua:1402-1416
+    #       if string.isNilOrEmpty(playerName) or gender == 0 then Undone  -- 弹取名
+    #       else Done                                                       -- 跳过取名
+    check("player_name 是空串（官方默认 config.lua:9073-9078）",
+          props.get("player_name") == "", props.get("player_name"))
+    check("gender = 0（官方默认 config.lua:9001-9006；0=未选 1=男 2=女）",
+          props.get("gender") == 0, props.get("gender"))
     # ★ 2026-10-21 改：序章副本已实现，基础 initDict 里 story_finished 留空，
     #   新号会真的走序章（clientavatar.lua:178-203 CheckEnterPrologue）。
     #   想跳过序章用 --unlock-all，脚手架会把 story_finished[1] 置真。

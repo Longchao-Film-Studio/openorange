@@ -44,7 +44,7 @@
 `ret.status` 为真即成功；否则看 `ret.errorcode`。所以成功时回 `{status: True}` 就够。
 """
 from . import ms as msmod
-from .rpc_common import decode_params, state
+from .rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from .rpc_index import ACK_OK
 from .story.tasks import drain_event_task_sync
 
@@ -167,6 +167,46 @@ def _change_nickname(rid, params, uid=None):
     return frames
 
 
+def _set_default_card(st, gender, frames):
+    """按性别设默认名片（P0-7b）。
+
+    ★ 为什么必须在这里写、不能在 initDict 里定死：
+      名片 id 依赖 gender（男=2 女=1），而新号 gender=0（未选）。
+      initDict 只给 portrait_id（Default_PlayerHead=1，不依赖性别），
+      名片必须等取名拿到 gender 之后再写。
+
+    ★ 证据（为什么是 2/1）：
+      TableData.CommonData.CommonConstData
+        male_player_card   = 2
+        female_player_card = 1
+      TableData.CommonData.PlayerCardData[1] / [2] 都是 type=2 name=导演
+        （男女主的默认名片）
+
+    ★ 为什么必须给 bag 又给 id：
+      PlayerCardData **没有 type=0 默认项**（82 条全是 type 1/2），
+      客户端 isCardUnlock(id) = bag:find(id)，空 bag 下完全不能选。
+      bag 由 tools/build_avatar_init.py 的 STARTER_FASHIONS 给 {1,2}，
+      这里补的是「选中哪一张」。
+    """
+    try:
+        g = int(gender)
+    except Exception:
+        return
+    if g not in (1, 2):
+        return
+    card_id = 2 if g == 1 else 1
+    if st.props.get("player_card_id") == card_id:
+        return
+    st.props["player_card_id"] = card_id
+    try:
+        frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                 "player_card_id", card_id))
+    except Exception as e:
+        print("[avatar] 名片同步失败: %s" % e, flush=True)
+    print("[avatar] 按性别设默认名片 gender=%s -> player_card_id=%s"
+          % (g, card_id), flush=True)
+
+
 def _commit_name_gender(rid, params, uid=None):
     """RpcCommitNameGender {name, gender} —— 首次取名 + 性别，并触发 Sign 事件。
 
@@ -182,6 +222,8 @@ def _commit_name_gender(rid, params, uid=None):
     if changed:
         st.save()
         print("[avatar] 取名 %r -> %r gender=%s" % (old, name, gender), flush=True)
+    # P0-7b：按性别设默认名片（男2/女1，见 _set_default_card 的说明）
+    _set_default_card(st, gender, frames)
     # ★ 无论名字是否变化都发 Sign：客户端可能重试同一次取名请求
     _emit_sign(st, frames)
     st.save()

@@ -42,10 +42,16 @@ def run():
     check("Uid 是字符串（客户端严格比较）", isinstance(info.get("Uid"), str), type(info.get("Uid")))
     check("Uid 值正确", info.get("Uid") == "OO00000001", info.get("Uid"))
     amap = info.get("AttributesMap") or {}
-    check("player_name 有值", isinstance(amap.get("player_name"), str), amap.get("player_name"))
+    # ★ P0-1：新号 player_name 是空串（官方默认），不是显示占位符。
+    check("player_name 是空串（官方默认 config.lua:9073-9078）",
+          amap.get("player_name") == "", repr(amap.get("player_name")))
     # level 是客户端声明默认值 1；脚手架要拉高请用 --unlock-all（运行时覆盖）
     check("level = 1", amap.get("level") == 1, amap.get("level"))
-    check("gender = 1", amap.get("gender") == 1, amap.get("gender"))
+    # ★ P0-4（2026-10-22）：原来断言 gender == 1，那是在断言 bug。
+    #   官方默认 gender = 0（generated/config.lua:9001-9006），0=未选/1=男/2=女。
+    #   取名面板靠 gender==0 才判定「未取名」并弹出（viewuinode.lua:1402-1416）。
+    check("gender = 0（官方默认，未选）", amap.get("gender") == 0,
+          amap.get("gender"))
     check("signature 存在", "signature" in amap, list(amap.keys()))
 
     print("\n[2] 自定义类型必须跳过")

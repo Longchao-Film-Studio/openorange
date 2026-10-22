@@ -347,6 +347,42 @@ STARTER_ITEMS = {
     ],
 }
 
+# 初始装扮（头像 / 名片）。
+#
+# 为什么只有这两项：
+#   客户端判「能不能选」是 `isUnlock = (data.type == 0 or bag:find(id))`
+#   （ui/panel/playerinformationpanel/node_pop_playerinformation_head/
+#     node_pop_playerinformation_headgroup.lua:56）。
+#   实测各配置表的 type 分布：
+#     PlayerPortraitData       164 条  {1:104, 2:60}    <- 没有 type=0
+#     PlayerCardData            82 条  {1:69,  2:13}    <- 没有 type=0
+#     PlayerPortraitFrameData   23 条  {0:1, 1:5, 2:17} <- 有默认项
+#     PlayerChatBubbleData      15 条  {0:1, ...}       <- 有默认项
+#     PlayerCardFrameData        1 条  {0:1}            <- 有默认项
+#     PlayerTitleData           34 条  {0:2, ...}       <- 有默认项
+#     PlayerBackgroundData      30 条  {0:1, ...}       <- 有默认项
+#   所以**只有头像和名片**在空 bag 下完全不能选；其余五种有 type=0 兜底，
+#   官方默认就是空 bag（generated/config.lua:8911 portrait_bag = {"FashionBag", {}}）。
+#
+# 为什么是 id 1/2：
+#   TableData.CommonData.PlayerPortraitData
+#     [1] type=2 name=导演 accessWayDesc="初始头像"
+#     [2] type=2 name=导演 accessWayDesc="初始头像"
+#   TableData.CommonData.PlayerCardData
+#     [1] type=2 name=导演   <- CommonConstData.female_player_card = 1
+#     [2] type=2 name=导演   <- CommonConstData.male_player_card   = 2
+#
+# 注意：player_card_id 依赖 gender，而新号 gender=0（未选），
+#   所以**不能在这里定死**，由 game_server/avatar.py::_commit_name_gender
+#   在取名拿到 gender 之后写（男=2 女=1）。
+STARTER_FASHIONS = {
+    "portrait_bag": [1, 2],
+    "player_card_bag": [1, 2],
+}
+
+# CommonConstData.Default_PlayerHead = 1（默认头像 id）
+STARTER_HEAD_ID = 1
+
 _uid = [1000]
 
 
@@ -532,18 +568,59 @@ def main():
             info.update(ent)
             node[ent["id"]] = info
 
+    # 初始装扮（见 STARTER_FASHIONS 注释）
+    for prop, ids in STARTER_FASHIONS.items():
+        node = props.get(prop)
+        if not isinstance(node, dict):
+            raise SystemExit("STARTER_FASHIONS 目标属性不存在: %s" % prop)
+        for fid in ids:
+            ent = gen_nested(types, "Fashion")
+            ent["id"] = fid
+            # FashionBag 的 __IntTypeKey__ = true -> JSON 里用 "#N" 表示整数键
+            node["#%d" % fid] = ent
+
     # 关键简单值
     props["uid"] = "OO00000001"
     props["username"] = "oologin"
     # 玩家等级：客户端声明默认值。
     # 脚手架要拉高等级请用 --unlock-all（game_server/scaffold.py），不要改这里。
     props["level"] = 1
+    # 默认头像：CommonConstData.Default_PlayerHead = 1。
+    # 对应 PlayerPortraitData[1].accessWayDesc = "初始头像"。
+    # 注意：名片 id（player_card_id）不在这里定，它依赖 gender，
+    #   由 avatar.py::_commit_name_gender 在取名后写。
+    props["portrait_id"] = STARTER_HEAD_ID
     props["entityType"] = "Avatar"
-    # 玩家名/性别：streetstage.lua:172-177 的 checkIsCanEnterStreet 要求
-    # player_name 非空、gender 非 0。名字取 CommonConstData.Default_PlayerName，
-    # gender=1 是男性（loginmanager.lua:142-148 switchVoice 用 1=男 2=女）。
-    props["player_name"] = "未具名导演"
-    props["gender"] = 1
+    # 玩家名/性别：**恢复 generated/config.lua 声明的官方默认值**（不是我们拍的）。
+    #
+    # 证据：
+    #   generated/config.lua:9073-9078
+    #     player_name = { "string", "", "OwnClient", "PER" }   <- 官方默认 ""
+    #   generated/config.lua:9001-9006
+    #     gender = { "int", 0, "OwnClient", "PER" }            <- 官方默认 0
+    #
+    # 为什么必须是这两个值（客户端判据）：
+    #   battle/public/system/nodeskill/viewnode/viewuinode.lua:1402-1416
+    #     NamingCheckTemp:onStartFlowIn()
+    #       if string.isNilOrEmpty(playerName) or gender == 0 then
+    #         Undone   <- 走取名流程（弹 CreatingRolePanel）
+    #       else
+    #         Done     <- 跳过取名
+    #
+    # 为什么不能填 "未具名导演"：
+    #   CommonConstData.Default_PlayerName = "未具名导演" 是**显示占位符**
+    #   （名字为空时界面显示什么），把它写进属性 = 把显示层塞进数据层。
+    #   之前写死它 + gender=1，客户端判定「已取名」-> 取名面板永不出现。
+    #
+    # 为什么不是 nil：
+    #   属性声明是 "string"，给 null 会让客户端 initProperty 类型不匹配。
+    #
+    # 注意：进街区需要 player_name 非空 + gender != 0
+    #   （stage/streetstage.lua:172-177 checkIsCanEnterStreet）。
+    #   但那是「取名完成后」的状态；新号本来就该先走序章取名。
+    #   想跳过序章用 --unlock-all，由 game_server/scaffold.py 补这两个值。
+    props["player_name"] = ""
+    props["gender"] = 0
 
     data = {"__Properties__": props}
     tmp = OUT + ".tmp"

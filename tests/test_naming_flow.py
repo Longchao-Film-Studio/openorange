@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""取名流程断链 P0 整改的守护测试（2026-10-22）。
+
+★ 背景：新号进序章不弹取名面板。根因是 initDict 把「已取名」的状态预填了。
+  详见 docs/整改清单-取名流程断链.md。
+
+★ 本测试锁住的东西（每项都对应一个 P0）
+  [1] P0-1/P0-2  initDict 必须是「未取名」状态（官方默认 "" / 0）
+  [2] P0-1/P0-2  按客户端 NamingCheckTemp 的判据模拟，必须判 Undone
+  [3] P0-7       portrait_bag / player_card_bag 有 {1,2}，其余 5 个 bag 保持空
+  [4] P0-7b      取名后按性别写 player_card_id（男2/女1）
+  [5]          取名后判据变 Done（下不再弹面板）
+  [6] P0-3      scaffold(--unlock-all) 必须满足 checkIsCanEnterStreet 四条件
+  [7]          新号不该满足 checkIsCanEnterStreet（它还没取名/没过序章）
+
+用法: python tests/test_naming_flow.py
+"""
+import os
+import random
+import sys
+import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_naming_")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from game_server import entity_rpc as erpc  # noqa: E402
+from game_server import ms as msmod  # noqa: E402
+from game_server import player_state as pstate  # noqa: E402
+from game_server import rpc_index  # noqa: E402
+from game_server import scaffold  # noqa: E402
+from tests.frame_guard import guarded_handle  # noqa: E402
+
+passed, failed = [], []
+_TAG = ""
+
+_CN = "\u672a\u5177\u540d\u5bfc\u6f14"   # "未具名导演"
+
+
+def check(name, cond, detail=None):
+    if cond:
+        passed.append(name)
+        print("  PASS  " + name)
+    else:
+        failed.append(name)
+        print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
+
+
+def uid_of(name):
+    return "%s_%s" % (name, _TAG)
+
+
+def fresh(name):
+    u = uid_of(name)
+    msmod._live_init_dict(u)
+    return pstate.get_state(uid=u), u
+
+
+def _is_nil_or_empty(v):
+    return v is None or v == ""
+
+
+def naming_needs_input(st):
+    """照抄客户端 NamingCheckTemp:onStartFlowIn() 的判据
+    （battle/public/system/nodeskill/viewnode/viewuinode.lua:1402-1416）。
+
+    返回 True 表示「需要取名」（客户端走 Undone 分支、会弹 CreatingRolePanel）。
+    """
+    name = st.props.get("player_name")
+    gender = st.props.get("gender")
+    return _is_nil_or_empty(name) or gender == 0
+
+
+def can_enter_street(st):
+    """照抄客户端 StreetStage:checkIsCanEnterStreet()
+    （stage/streetstage.lua:167-185）的四个条件。"""
+    sf = st.props.get("story_finished") or {}
+    c1 = any(not str(k).startswith("__") for k in sf)
+    c2 = not _is_nil_or_empty(st.props.get("player_name"))
+    g = st.props.get("gender")
+    c3 = g is not None and g != 0
+    cb = st.props.get("characterBag") or {}
+    c4 = any(not str(k).startswith("__") for k in cb)
+    return c1 and c2 and c3 and c4, (c1, c2, c3, c4)
+
+
+def _bag_keys(st, prop):
+    d = st.props.get(prop) or {}
+    return [k for k in d if not str(k).startswith("__")]
+
+
+def run():
+    global _TAG
+    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    del passed[:]
+    del failed[:]
+
+    print("\n[1] P0-1/P0-2：新号 initDict 必须是「未取名」状态")
+    st1, _u1 = fresh("newbie")
+    check("★ player_name 是空串（官方默认）",
+          st1.props.get("player_name") == "", repr(st1.props.get("player_name")))
+    check("★ player_name 不是显示占位符 %r" % _CN,
+          st1.props.get("player_name") != _CN, repr(st1.props.get("player_name")))
+    check("★ gender == 0（官方默认，0=未选）",
+          st1.props.get("gender") == 0, st1.props.get("gender"))
+    check("story_finished 为空（新号走序章）",
+          _bag_keys(st1, "story_finished") == [], _bag_keys(st1, "story_finished"))
+
+    print("\n[2] 按客户端 NamingCheckTemp 判据模拟")
+    check("★ 新号判定为「需要取名」（会弹 CreatingRolePanel）",
+          naming_needs_input(st1) is True)
+
+    print("\n[3] P0-7：装扮 bag 初始状态")
+    pb = _bag_keys(st1, "portrait_bag")
+    cb = _bag_keys(st1, "player_card_bag")
+    check("★ portrait_bag 有 2 项（初始头像 id=1/2）", len(pb) == 2, pb)
+    check("★ player_card_bag 有 2 项（男女主默认名片）", len(cb) == 2, cb)
+    check("★ portrait_id = 1（Default_PlayerHead）",
+          st1.props.get("portrait_id") == 1, st1.props.get("portrait_id"))
+    check("player_card_id 初始为 0（等取名后按性别写）",
+          st1.props.get("player_card_id") == 0, st1.props.get("player_card_id"))
+    for prop in ("portrait_frame_bag", "player_card_frame_bag",
+                 "player_title_bag", "chat_bubble_bag", "background_bag"):
+        check("%s 保持空（有 type=0 默认项兜底）" % prop,
+              _bag_keys(st1, prop) == [], _bag_keys(st1, prop))
+
+    print("\n[4] P0-7b：取名后按性别写 player_card_id")
+    st4, u4 = fresh("male")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u963f\u5149", 1]), 1, uid=u4)
+    check("★ 男(gender=1) -> player_card_id=2",
+          st4.props.get("player_card_id") == 2, st4.props.get("player_card_id"))
+    check("取名后 player_name 已写入",
+          st4.props.get("player_name") == "\u963f\u5149",
+          repr(st4.props.get("player_name")))
+    check("取名后 gender 已写入", st4.props.get("gender") == 1,
+          st4.props.get("gender"))
+
+    st4b, u4b = fresh("female")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u963f\u5f71", 2]), 2, uid=u4b)
+    check("★ 女(gender=2) -> player_card_id=1",
+          st4b.props.get("player_card_id") == 1,
+          st4b.props.get("player_card_id"))
+
+    print("\n[5] 取名后判据变 Done（下不再弹面板）")
+    check("★ 取名后 NamingCheckTemp 判 Done",
+          naming_needs_input(st4) is False)
+
+    print("\n[6] P0-3：scaffold(--unlock-all) 必须满足进街区四条件")
+    st6, _u6 = fresh("scaffold")
+    cfg = type("C", (), {"level": None, "unlock_all": False,
+                         "all_tasks_done": True})()
+    changed = scaffold.apply(st6.props, cfg)
+    ok6, parts6 = can_enter_street(st6)
+    check("★ scaffold 后能进街区（四条件全满足）", ok6, parts6)
+    check("★ scaffold 补了 player_name",
+          st6.props.get("player_name") == scaffold.SCAFFOLD_PLAYER_NAME,
+          repr(st6.props.get("player_name")))
+    check("★ scaffold 的 player_name 不是显示占位符 %r" % _CN,
+          st6.props.get("player_name") != _CN)
+    check("★ scaffold 补了 gender=1", st6.props.get("gender") == 1,
+          st6.props.get("gender"))
+    check("scaffold 记录了改动", len(changed) > 0, len(changed))
+
+    print("\n[7] 新号不该满足进街区四条件（还没取名/没过序章）")
+    ok7, parts7 = can_enter_street(st1)
+    check("★ 新号不能直接进街区", ok7 is False, parts7)
+
+    print("\n" + "=" * 56)
+    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    return 0 if not failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())
