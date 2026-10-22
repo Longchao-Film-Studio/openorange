@@ -149,7 +149,16 @@ def run():
         check("StoryTask 1000 = 6", res.get("story_task_1000") == 6, res)
         check("story_finished[1] = True",
               res.get("story_finished_1") is True, res)
-        check("进行中任务只剩 1003", res.get("story_task_bag") == [1003], res)
+        # ★ P1 阶段 C：init_new_player 现在播全部 83 个根，
+        #   所以跳过序章后 bag 里是 83 个根任务减去已归档的，不再是只剩 1003。
+        bag_now = res.get("story_task_bag") or []
+        check("★ 播种后包里任务数 > 50（全部根已进包）", len(bag_now) > 50, len(bag_now))
+        check("★ 1003 在包里（PostTasks 自动启动）", 1003 in bag_now, bag_now[:6])
+        check("★ 1000 不在包里（已归档）", 1000 not in bag_now, bag_now[:6])
+        check("★ 23 个 type6 章节闸门都在包里",
+              all(g in bag_now for g in (2000, 4000, 5000, 6000, 7000, 8000)),
+              [g for g in (2000, 4000, 5000, 6000, 7000, 8000)
+               if g not in bag_now])
 
         print("\n[8] 跳过之后查询状态")
         r = cmds.execute("/prologue @", ctx(actor="cmd_p"))

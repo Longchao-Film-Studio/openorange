@@ -258,7 +258,20 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
         print("[story] 事件链超过 %d 层，停止递归（任务 %s）"
               % (EVENT_MAX_DEPTH, finished_now[:5]), flush=True)
     frames.extend(_recalc_story_unlocks(st))
+    # ★ 阶段 C：增量播种。只扫「PreTask 指向刚完成的任务」的那些，不是全表重扫
+    #   （全表重扫是阶段 D 的事）。depth==0 才做，避免递归里反复播。
+    if depth == 0:
+        from . import seed as _seed
+        try:
+            _extra = []
+            for _tid in finished_now:
+                _extra.extend(_seed.seed(st, now, only_children_of=int(_tid)))
+            if _extra:
+                frames.extend(_story_sync_frames(st, _extra))
+        except Exception as e:
+            print("[story] 增量播种失败: %s" % e, flush=True)
     return frames
+
 
 def _ready_to_finish(st, tid, param, frames):
     """判定任务是否**真的可以完成**；顺便把本次 param 记进 finish_parameter。

@@ -95,24 +95,27 @@ _AWARD_LOG = "_oo_story_award_log"
 
 
 def init_new_player(st, now=None):
-    """新号的剧情起点：把第一环设为进行中。
+    """新号的剧情起点：播种全部根任务（阶段 C）。
 
-    这是**正式路径**，不是脚手架：真实玩家进游戏时，服务端本来就该
-    把第一个剧情任务放进 story_task_bag 并设为 Doing(3)。
-    街景 NPC 的 preTask 命中 Doing(3) 才会出现，所以这一步同时
-    决定了「街上有没有 NPC」。
+    ★ 为什么从「只播 1000」改成「播全部根」：
+      StoryTaskData 有 83 个无 PreTask 的根，其中 23 个是 type6 章节闸门。
+      只播 1000 时实测只能到达 140/1047；播全部根可达 1032/1047。
+      根任务没有上游 PostTasks 指向它 —— 不播种就永远不进包，
+      主线第 2 章以后永远不开（章节闸门死锁）。
 
     返回启动的任务 id 列表。
     """
     import time as _t
     now = int(now if now is not None else _t.time())
+    from . import seed as _seed
     out = []
-    changes = start_story_task(st, FIRST_STORY_TASK, now)
-    if changes:
-        out.append(FIRST_STORY_TASK)
-        print("[story] 新号剧情起点：任务 %s 设为进行中" % FIRST_STORY_TASK, flush=True)
+    changes = _seed.seed(st, now)
+    for ch in changes:
+        if ch[0] == "add" and ch[1] == "story_task_bag":
+            out.append(int(ch[2]))
+    if out:
+        print("[story] 新号剧情起点：播种 %d 个根任务" % len(out), flush=True)
     return out
-
 
 def story_state(props, task_id):
     """任务状态；-1 = 不在包里也不在 done。实现在 state_machine.current_state。"""
