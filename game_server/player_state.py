@@ -202,6 +202,29 @@ def load(uid=DEFAULT_UID):
         return None
 
 
+def _clear_session_context(st):
+    """从盘里加载存档后，清掉「只在本会话内有效」的临时字段。
+
+    ★ 为什么必须清（P1 阶段 L 发现）：
+
+      `_oo_cur_copy` / `_oo_cur_level` / `_oo_cur_area` 是 StartGame 时记下、
+      结算时 pop 的副本上下文，但它们**会被存盘**（save 不过滤 `_oo_` 前缀）。
+
+      后果：玩家在副本里断线 -> 重连回到街区 -> 服务端仍认为他在副本里 ->
+      可以继续发 `FinishSpaceTask_Directly_CS` 完成 270 条 type0，
+      等于用「断线」绕过全部副本内容。
+
+      ★ 为什么放在「从盘加载」而不是「登录函数」：
+        登录函数（ms/initdict.py 的 _live_init_dict）也被测试当作「取状态」调用，
+        在那里清会误伤「刚设好副本上下文、又取一次状态」的用例。
+        而「从盘加载」精确等于「新会话开始」—— 一次新会话不可能还在副本里
+        （我们没有战斗断线重连）。
+    """
+    for k in ("_oo_cur_copy", "_oo_cur_level", "_oo_cur_area", "_oo_cur_match"):
+        st.props.pop(k, None)
+    return st
+
+
 def get_state(init_props=None, uid=DEFAULT_UID):
     """取某个账号的玩家状态；第一次调用时优先读盘，没有盘就用 init_props 建一份。
 
@@ -221,6 +244,7 @@ def get_state(init_props=None, uid=DEFAULT_UID):
                 st.is_new = True
             else:
                 st.is_new = False
+                _clear_session_context(st)
             _STATES[uid] = st
         return st
 
@@ -241,6 +265,7 @@ def peek(uid=DEFAULT_UID):
         if st is None:
             return None
         st.is_new = False
+        _clear_session_context(st)
         _STATES[uid] = st
         return st
 

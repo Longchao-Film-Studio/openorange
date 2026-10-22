@@ -258,6 +258,32 @@ def run():
     check("★ 无 avatarTask 的 SpaceTask 不产生任何剧情完成", before == after,
           (before, after))
 
+    print("\n[6.5] 防伪造：断线重连后副本上下文必须清空")
+    uid_r = "str_" + _TAG
+    msmod._live_init_dict(uid_r)
+    st_r = pstate.get_state(uid=uid_r)
+    SD.seed(st_r, NOW)
+    story.start_story_task(st_r, 1102, NOW)
+    guarded_handle(rpc_index.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"system_type": 3, "dungeonId": 10103}]), 11,
+                   uid=uid_r)
+    check("6.5a 进副本后 cur_copy 已设",
+          st_r.props.get("_oo_cur_copy") == "dgarea_linglongge",
+          st_r.props.get("_oo_cur_copy"))
+    st_r.save()
+    # 模拟断线重连：清内存缓存 + 重新登录
+    pstate._STATES.clear()
+    msmod._live_init_dict(uid_r)
+    st_r2 = pstate.get_state(uid=uid_r)
+    check("★ 6.5b 重连后 _oo_cur_copy / _oo_cur_level 被清空",
+          st_r2.props.get("_oo_cur_copy") is None
+          and st_r2.props.get("_oo_cur_level") is None,
+          (st_r2.props.get("_oo_cur_copy"), st_r2.props.get("_oo_cur_level")))
+    guarded_handle(rpc_index.RPC_INDEX[RPC], msmod.mp_arr([10101]), 12, uid=uid_r)
+    check("★ 6.5c 重连后发 FinishSpaceTask 被拒（1102 未完成）",
+          story.story_state(st_r2.props, 1102) != sm.TASK_STATE_FINISHED,
+          story.story_state(st_r2.props, 1102))
+
     print("\n[7] 端到端：进副本 -> SpaceTask -> 剧情推进 -> 结算")
     uid4 = "st4_" + _TAG
     msmod._live_init_dict(uid4)
