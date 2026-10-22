@@ -134,13 +134,67 @@ def _advance_trace_after_finish(st, finished, frames):
           flush=True)
 
 
-def _recalc_story_unlocks(st):
-    """按 AllSystemCatalogueData 的 unlockType=2(StoryTask) 重算系统解锁位。
+def _unlock_data_satisfied(st, row):
+    """这个系统入口的**数据条件**是否满足。
 
-    客户端判定在 ui/panel/streetv2panel/node_menu_item/node_menu_itemgroup.lua:231：
-      unlock = getTaskStateByTaskID(taskId) == Finished
-               and isSysEntryUnlock(sysId)
-    后者读 system_p.unlocked_system[sysId]，所以服务端两样都要维护。
+    和客户端 `ui/panel/streetv2panel/node_menu_item/node_menu_itemgroup.lua:231-256`
+    的 `checkSystemUnlockState` 前半段一一对应：
+
+      unlockType == 1 (Task)      -> getSystemTaskState(unlockParam) == Finished
+      unlockType == 2 (StoryTask) -> getTaskStateByTaskID(unlockParam) == Finished
+      unlockType == 3 (Level)     -> level >= unlockParam
+      其它取值                     -> 客户端 `local unlock = true`（不参与判定）
+
+    返回 True/False。
+    """
+    ut = row.get("unlockType")
+    up = row.get("unlockParam")
+    if ut == 1:
+        from .. import tasks as _tasks
+        if not isinstance(up, int):
+            return False
+        return _tasks.task_state(st.props, up) == _tasks.TASK_STATE_FINISHED
+    if ut == 2:
+        if not isinstance(up, int):
+            return False
+        return story.story_state(st.props, up) == story.TASK_STATE_FINISHED
+    if ut == 3:
+        try:
+            need = int(up or 0)
+        except Exception:
+            return False
+        try:
+            lv = int(st.props.get("level") or 0)
+        except Exception:
+            lv = 0
+        return lv >= need
+    # 未知 unlockType：客户端默认 unlock=true，所以数据条件视为满足
+    return True
+
+
+def _recalc_system_unlocks(st):
+    """按 AllSystemCatalogueData 重算 system_p.unlocked_system（三类 unlockType 全覆盖）。
+
+    ★ 这是系统解锁的**唯一写入口**。客户端判定在
+      `ui/panel/streetv2panel/node_menu_item/node_menu_itemgroup.lua:231-256`：
+
+        unlock = <数据条件>  and  isSysEntryUnlock(sysId)
+        isSysEntryUnlock -> system_p.unlocked_system[sysId] == true
+
+      也就是说**两样都得维护**：数据条件由客户端本地算，`unlocked_system` 只能服务端推。
+
+    ★ 2026-10-22 修复前的状态（roadmap 队列第 2 项）：
+      本函数只处理 `unlockType == 2`，另外两类（1 通用任务 40 条 / 3 等级 21 条）
+      从来不解锁 —— 61/83 个系统入口永远没有按钮。
+      见 docs/功能解锁research.md。
+
+    ★ 双向维护：数据条件不满足时会把 `unlocked_system[sid]` 摘掉（防误解锁）。
+      正常玩法里条件只会「变真」（升级/完成任务），所以反向极少触发；
+      一旦触发会打日志，便于发现异常。
+
+    ★ 客户端对 `system_p.unlocked_system` 只声明了 changed/entryAdded，没有
+      entryDeleted（generated/config.lua:10328-10360），所以「摘掉」这条同步
+      客户端收不到 —— 服务端状态是对的，但要下次登录才可见。已在日志里标注。
     """
     frames = []
     sp = st.props.get("system_p")
@@ -150,27 +204,41 @@ def _recalc_story_unlocks(st):
     if not isinstance(us, dict):
         return frames
     us_id = us.get("__id__") or 0
-    changed = []
+    added = []
+    removed = []
     for row in gamedata.all_system_catalogue():
-        if row.get("unlockType") != 2:
+        if not isinstance(row, dict):
             continue
-        tid = row.get("unlockParam")
         sid = row.get("id")
-        if not isinstance(tid, int) or not isinstance(sid, int):
+        if not isinstance(sid, int):
             continue
-        if us.get(sid) is True:
+        want = _unlock_data_satisfied(st, row)
+        cur = us.get(sid) is True
+        if want == cur:
             continue
-        if story.story_state(st.props, tid) != story.TASK_STATE_FINISHED:
-            continue
-        us[sid] = True
-        changed.append(sid)
-    if changed:
+        if want:
+            us[sid] = True
+            added.append(sid)
+        else:
+            us.pop(sid, None)
+            removed.append(sid)
+    if added or removed:
         st.set("system_p", sp)
-        for sid in changed:
+        for sid in added:
             frames.append(sync_frame(
                 SYNC_SELF, us_id, msmod.OP_CHANGE, str(sid), True))
-        print("[story] 解锁系统 %s" % changed, flush=True)
+        if added:
+            print("[story] 解锁系统 %s" % added, flush=True)
+        if removed:
+            # 客户端没有 entryDeleted 回调，只能下次登录生效
+            print("[story] ★ 摘除系统解锁 %s（客户端需重登才可见）" % removed,
+                  flush=True)
     return frames
+
+
+# 兼容旧名字（dispatch / 测试里用过 _recalc_story_unlocks）
+_recalc_story_unlocks = _recalc_system_unlocks
+
 
 def _emit_get_item(st, item_id, count):
     """发一条 GetItem 事件（覆盖 4 条剧情任务）。

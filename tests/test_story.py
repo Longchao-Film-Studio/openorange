@@ -122,8 +122,16 @@ def run():
     print("\n[9] 系统解锁按剧情重算")
     sp = st.props.get("system_p") or {}
     us = sp.get("unlocked_system") or {}
-    check("1005 完成后 头衔(2)/龙胤(4)/成就(55) 应解锁", True)
-    # 1005 是 StoryTask 解锁 2/4/55 的那条
+    # ★ 2026-10-22 修复空断言：原来是 check(..., True)，条件写死永远不红。
+    #   改成「从数据表核实 2/4/55 确实是 unlockType=2 且 unlockParam=1005」。
+    #   这条假阳性是 docs/检讨-功能解锁遗漏.md 里点名的那一条。
+    from game_server import gamedata as _gd
+    _rows = {r.get("id"): r for r in _gd.all_system_catalogue()
+             if isinstance(r, dict)}
+    _want = sorted(sid for sid, r in _rows.items()
+                   if r.get("unlockType") == 2 and r.get("unlockParam") == 1005)
+    check("数据里 unlockType=2 且 unlockParam=1005 的入口是 [2, 4, 55]",
+          _want == [2, 4, 55], _want)
     story.start_story_task(st, 1005, now)
     guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                 msmod.mp_arr([1005, 0]), 4, uid="story_test")

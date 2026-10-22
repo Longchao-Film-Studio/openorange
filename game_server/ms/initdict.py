@@ -338,6 +338,21 @@ def _live_init_dict(uid=None):
     #   递归进去的值一律剥掉。
     # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
     _login_tick(st)
+
+    # ★ roadmap 队列第 2 项：登录时**全量重算系统解锁**。
+    #   为什么要在登录做：
+    #     - 玩家离线期间可能完成任务 / 升级，内存里的 unlocked_system 会落后；
+    #     - `_recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
+    #     - 这里在快照构建之前，所以重算结果直接进 initDict，不需要推帧。
+    try:
+        from ..story.rpc import _recalc_system_unlocks as _recalc_u
+        _uf = _recalc_u(st)
+        if _uf:
+            print("[init] 系统解锁重算：%d 条（已进初始快照）" % len(_uf),
+                  flush=True)
+    except Exception as e:
+        print("[init] 系统解锁重算失败: %s" % e, flush=True)
+
     from ..property import sync as _syncmod
     _public = {}
     for k, v in st.props.items():

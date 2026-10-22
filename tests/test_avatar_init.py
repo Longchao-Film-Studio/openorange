@@ -123,7 +123,11 @@ def run():
     sysp = props.get("system_p")
     check("system_p 存在", isinstance(sysp, dict), type(sysp))
     us = (sysp or {}).get("unlocked_system") or {}
-    check("unlocked_system 是空的（脚手架默认关）",
+    # ★ 2026-10-22 检讨修正：这条原来叫「unlocked_system 是空的（脚手架默认关）」，
+    #   断言本身没错（initDict 里确实应该空），但它**只证明了「初始为空」**，
+    #   却让人误以为「解锁机制没问题」—— 实际当时 73% 入口永远解不开。
+    #   现在改名点明它只是基线，真正的解锁验证在 tests/test_feature_unlock.py。
+    check("unlocked_system 初始为空（基线；真实解锁验证见 test_feature_unlock.py）",
           len([k for k in us if k.startswith("#")]) == 0,
           len([k for k in us if k.startswith("#")]))
     check("level = 1（客户端声明默认值）", props.get("level") == 1, props.get("level"))

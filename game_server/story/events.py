@@ -95,16 +95,18 @@ class EventResult(object):
     deduped     是不是因为 event_id 重复被跳过
     """
 
-    __slots__ = ("hits", "chain_hits", "task_hits", "task_sync",
+    __slots__ = ("hits", "chain_hits", "task_hits", "task_sync", "frames",
                  "deduped", "event")
 
     def __init__(self, hits=None, chain_hits=None, deduped=False, event=None,
-                 task_hits=None, task_sync=None):
+                 task_hits=None, task_sync=None, frames=None):
         # ★ P1 阶段 N-a3：通用任务（task_bag）的事件推进结果
         #   task_hits  达到完成条件的通用任务 id
         #   task_sync  进度变化 / 完成动作产生的同步描述（交给 _task_sync_frames 编帧）
         self.task_hits = task_hits or []
         self.task_sync = task_sync or []
+        # ★ 队列第 2 项：系统解锁重算产生的现成帧（bytes），由 drain 一并吐出
+        self.frames = frames or []
         self.hits = hits or []
         self.chain_hits = chain_hits or []
         self.deduped = deduped
@@ -205,8 +207,19 @@ def apply_event(st, event, now=None):
         print("[task] 通用任务事件推进失败 %s: %s" % (event.type, e), flush=True)
         task_hits, task_sync = [], []
 
+    # 5) 系统解锁重算（roadmap 队列第 2 项）
+    #    通用任务完成 / 等级变化都可能让某个系统入口的数据条件变真，
+    #    这里重算一次并把现成帧带回，由 drain_event_task_sync 统一吐出。
+    unlock_frames = []
+    try:
+        from .rpc import _recalc_system_unlocks
+        unlock_frames = _recalc_system_unlocks(st)
+    except Exception as e:
+        print("[story] 系统解锁重算失败: %s" % e, flush=True)
+
     return EventResult(hits=hits, chain_hits=chain, event=event,
-                       task_hits=task_hits, task_sync=task_sync)
+                       task_hits=task_hits, task_sync=task_sync,
+                       frames=unlock_frames)
 
 
 def tick(st, now=None):

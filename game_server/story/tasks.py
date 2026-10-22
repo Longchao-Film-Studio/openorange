@@ -67,7 +67,8 @@ def drain_event_task_sync(st, res):
     ch = getattr(res, "task_sync", None) or []
     if not ch:
         return []
-    return _task_sync_frames(st, ch)
+    # 通用任务的进度/完成同步 + 系统解锁重算的现成帧
+    return _task_sync_frames(st, ch) + list(getattr(res, "frames", None) or [])
 
 
 def _task_fetch(rid, params, uid=None):
