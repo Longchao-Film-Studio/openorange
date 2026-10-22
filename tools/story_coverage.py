@@ -112,6 +112,20 @@ def event_types_needed(S, T, E, tid):
     return out
 
 
+# 阶段 P 修正：type4 的完成条件是「切街到 Parameter1[0]」，
+# 所以需要知道哪些 id 是合法街区。StreetData 是 dict（键是街区 id 字符串）。
+_STREET_IDS = None
+
+
+def street_ids():
+    """合法街区 id 集合（StreetData 的键）。"""
+    global _STREET_IDS
+    if _STREET_IDS is None:
+        _STREET_IDS = {int(k) for k in _table("StreetData").keys()
+                       if str(k).lstrip("-").isdigit()}
+    return _STREET_IDS
+
+
 def completable(S, T, E, tid, SP=None):
     """按当前实现，这个任务有没有完成路径。"""
     cfg = S[tid]
@@ -132,9 +146,23 @@ def completable(S, T, E, tid, SP=None):
                 SP[tid].get("levelId"))
         return False, "type0 但没有 SpaceTask.avatarTask 指向它"
     if tt == 4:
-        # ★ 阶段 E 已实现：完成信号 = StreetInteract{actorId == GuideParam[0]}
-        #   13 条全部有 GuideParam 且命中 StreetActorInfoData.actorId
-        return True, "街区型（StreetInteract 命中 GuideParam NPC）"
+        # ★ 阶段 P 修正（推翻阶段 E 的结论）：完成信号 = 切街到 Parameter1[0]。
+        #   依据 docs/storytaskresearch.md §16 / §19：
+        #     - 13 条 type4 的 Parameter1 全是目标街区 id
+        #     - 能验证的 4 条 transferStreet 与 Parameter1 4/4 一致
+        #     - 客户端不上报 type4（getTaskIdByParamInt 只筛 type2）
+        #   旧结论「StreetInteract 命中 GuideParam[0]」是错的：
+        #     1045 的 GuideParam[0]=13164 在 StreetActorInteractData 里一条都没有。
+        p1 = cfg.get("Parameter1") or []
+        if not p1:
+            return False, "type4 但没有 Parameter1（无目标街区）"
+        try:
+            want = int(p1[0])
+        except Exception:
+            return False, "type4 的 Parameter1[0] 不是整数"
+        if want not in street_ids():
+            return False, "type4 的 Parameter1[0]=%s 不是合法 StreetData 键" % want
+        return True, "街区型（切街到 Parameter1[0]=%s）" % want
     if tt in (3, 7):
         # 阶段 I 修正：Parameter1 对 type3/7 不总是指向 TaskData。
         # 实测 92 条指向 TaskData（有 TriggerEventList，可判定），
