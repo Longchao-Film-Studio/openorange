@@ -76,6 +76,19 @@ def _battle_teach_activate(rid, params, uid=None):
     except Exception:
         return frames
     st = state(uid)
+    # ★ 2026-10-23 实机日志实锤：防客户端崩。
+    #   序章技能节点 ActivateBattleTeach 的 instructionID=312，
+    #   但 InstructionData 表没有 312（原始表 45 条，300-314 缺 312）。
+    #   照常写 battle_teach_state[312]=0 并推同步的话，客户端
+    #   onChangedBattleTeachState 读 InstructionData[312]=nil ->
+    #   Battle_Main_Panel.lua:625 "attempt to index local instructionData"
+    #   -> 弹「神秘力量」。表里没有的教学直接拒绝（回 ACK + 日志），
+    #   客户端不会收到这条同步，就不会崩。
+    if gamedata.table("InstructionData").get(str(iid)) is None:
+        print("[dungeon] 教学 %s 不在 InstructionData 表，拒绝激活（防客户端崩）"
+              % iid, flush=True)
+        return frames
+
     bts = st.props.get("battle_teach_state")
     if not isinstance(bts, dict):
         return frames

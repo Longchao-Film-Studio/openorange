@@ -30,6 +30,7 @@ from game_server import entity_rpc as erpc  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import rpc_index  # noqa: E402
+from game_server import gamedata  # noqa: E402
 from game_server import scaffold  # noqa: E402
 from tests.frame_guard import guarded_handle  # noqa: E402
 
@@ -223,6 +224,29 @@ def run():
               isinstance(e10.get(_k), dict) and "__id__" in e10[_k], e10.get(_k))
     # 模拟客户端 getStreetBgm：streetInfo 非 nil
     check("★ 模拟 getStreetBgm：streetInfo 非 nil", si10.get(sid10) is not None)
+
+
+    print("\n[11] 战斗教学：不在 InstructionData 表的 id 拒绝激活（防客户端崩）")
+    # ★ 2026-10-23 实机日志实锤：序章 ActivateBattleTeach 节点 instructionID=312，
+    #   但 InstructionData 表没有 312。若写 battle_teach_state[312]=0 并同步，
+    #   客户端 onChangedBattleTeachState -> InstructionData[312]=nil ->
+    #   Battle_Main_Panel.lua:625 崩 -> 神秘力量。
+    _itab = gamedata.table("InstructionData") or {}
+    check("★ InstructionData 没有 312（这就是崩源）",
+          _itab.get("312") is None, "312" in _itab)
+    check("★ InstructionData 有 101（合法教学）",
+          _itab.get("101") is not None)
+    st11, u11 = fresh("teach")
+    guarded_handle(rpc_index.RPC_INDEX["BattleTeach_Activate_CS"],
+                   msmod.mp_arr([312]), 11, uid=u11)
+    _bts = st11.props.get("battle_teach_state") or {}
+    check("★ 312 被拒绝（battle_teach_state 无 312，不推同步）",
+          312 not in _bts, [k for k in _bts if isinstance(k, int)])
+    guarded_handle(rpc_index.RPC_INDEX["BattleTeach_Activate_CS"],
+                   msmod.mp_arr([101]), 12, uid=u11)
+    _bts = st11.props.get("battle_teach_state") or {}
+    check("★ 101 正常激活（值=0 弹教学 UI）",
+          _bts.get(101) == 0, _bts.get(101))
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
