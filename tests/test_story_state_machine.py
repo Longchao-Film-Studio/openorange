@@ -304,7 +304,10 @@ def run():
         ("game_server/story/state_machine.py", "make_story_task_item"): "构造 StoryTaskItem（唯一构造点）",
         ("game_server/story/state_machine.py", "transition"): "唯一迁移入口",
         ("game_server/story/__init__.py", "make_active_task"): "ActiveTask，不是 StoryTaskItem",
-        ("game_server/tasks.py", "make_task_item"): "TaskItem（通用任务），不是 StoryTaskItem",
+        ("game_server/tasks.py", "make_task_item"): "构造 TaskItem（通用任务）",
+        # ★ 阶段 F：通用任务也走同一套状态机，所以 tasks.py 是合法的 state 写入口。
+        ("game_server/tasks.py", "start_task"): "通用任务迁移 Init->Doing",
+        ("game_server/tasks.py", "finish_task"): "通用任务迁移 ->Finished",
         # 脚手架：默认关闭（config.SCAFFOLD 开关），只写 done_story_tasks 里的 StoryTaskItem。
         # 到期条件：阶段 C（播种器）完成后删掉 scaffold.py，这条豁免随之消失。
         ("game_server/scaffold.py", "apply"): "脚手架（默认关闭）写 done 的 StoryTaskItem；阶段 C 删除",

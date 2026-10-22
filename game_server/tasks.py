@@ -33,6 +33,11 @@ avatartaskcomp.lua:256-284：
 import time
 
 from . import gamedata
+from .story.state_machine import (
+    TASK_STATE_CLOSED, TASK_STATE_DOING, TASK_STATE_DONE, TASK_STATE_FAILED,
+    TASK_STATE_FINISHED, TASK_STATE_IDLE, TASK_STATE_INIT, TASK_STATE_WAIT_DONE,
+    TransitionError, can_transition,
+)
 
 TASK_STATE_DOING = 3
 TASK_STATE_FINISHED = 6
@@ -139,11 +144,29 @@ def start_task(st, task_id, now=None):
         # 新槽位：先让客户端建出 task_bag[t]
         out.append(_sync(bag.get("__id__"), OP_ADD, t, slot))
     item_is_new = task_id not in slot
-    item = make_task_item(st, task_id, t, TASK_STATE_DOING, now)
-    slot[task_id] = item
-    st.set("task_bag", st.props.get("task_bag"))
-    out.append(_sync(slot.get("__id__"),
-                     OP_ADD if item_is_new else OP_CHANGE, task_id, item))
+    if item_is_new:
+        # ★ P1 阶段 F：新任务必须先 OP_ADD 建 Init(2) 条目，再 OP_CHANGE 到 Doing(3)。
+        #   以前直接建 Doing 并只发 OP_ADD —— 而客户端 config.lua:10123-10126 的
+        #   changed["task_bag.*.*"] -> onTaskItemChanged 只对 OP_CHANGE 触发，
+        #   entryAdded["task_bag.*"] -> onTaskBagInserted 是空函数。
+        #   所以「接任务」这个动作在客户端一点反应都没有（任务面板不刷新）。
+        item = make_task_item(st, task_id, t, TASK_STATE_INIT, now)
+        slot[task_id] = item
+        st.set("task_bag", st.props.get("task_bag"))
+        out.append(_sync(slot.get("__id__"), OP_ADD, task_id, item))
+        # Init -> Doing：触发 onTaskItemChanged
+        item["state"] = TASK_STATE_DOING
+        st.set("task_bag", st.props.get("task_bag"))
+        out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
+    else:
+        # 已在包里：只做状态迁移（Done -> Doing 之类）
+        item = slot[task_id]
+        cur = int(item.get("state") or 0)
+        if cur not in (TASK_STATE_DOING, TASK_STATE_FINISHED):
+            if can_transition(cur, TASK_STATE_DOING):
+                item["state"] = TASK_STATE_DOING
+                st.set("task_bag", st.props.get("task_bag"))
+                out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
     return out
 
 
@@ -158,6 +181,15 @@ def finish_task(st, task_id, now=None):
     if isinstance(bag, dict):
         slot = bag.get(t)
         if isinstance(slot, dict) and task_id in slot:
+            # ★ P1 阶段 F：完成也要走迁移 —— 先 OP_CHANGE 到 Finished(6)，
+            #   再 OP_DEL 出包。以前直接 DEL，客户端 onTaskItemChanged 不触发，
+            #   「任务完成」在 UI 上没有任何反馈。
+            item = slot[task_id]
+            cur = int(item.get("state") or 0)
+            if cur != TASK_STATE_FINISHED and can_transition(cur, TASK_STATE_FINISHED):
+                item["state"] = TASK_STATE_FINISHED
+                st.set("task_bag", bag)
+                out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
             del slot[task_id]
             st.set("task_bag", bag)
             out.append(_sync(slot.get("__id__"), OP_DEL, task_id, None))

@@ -33,7 +33,19 @@ def check(name, cond, detail=None):
         failed.append(name)
         print("  FAIL  " + name + ("  <- " + str(detail) if detail else ""))
 
+def slot_holder(props, ttype):
+    """取 task_bag[ttype] 槽位。"""
+    bag = props.get("task_bag") or {}
+    slot = bag.get(ttype)
+    return slot if isinstance(slot, dict) else None
+
+
 def run():
+    import random
+    tag = "%04x" % random.randint(0, 0xFFFF)
+    U = "task_test_" + tag
+    del passed[:]
+    del failed[:]
     print("\n[1] task_bag 类型必须是 TaskTypeBag（两层）")
     import json
     init = json.load(open(os.path.join(os.path.dirname(os.path.dirname(
@@ -51,11 +63,29 @@ def run():
     # ★ 不能用 --unlock-all：脚手架会把 Task 1 / 15 标成已完成，
     #   那正是要淘汰的假数据，会把这里要测的真流程挡住。
     config.configure_scaffold()
-    msmod._live_init_dict("task_test")
-    st = pstate.get_state(uid="task_test")
+    msmod._live_init_dict(U)
+    st = pstate.get_state(uid=U)
     frames = guarded_handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
-                         msmod.mp_arr([1]), 1, uid="task_test")
+                         msmod.mp_arr([1]), 1, uid=U)
     check("返回同步帧", len(frames) >= 2, len(frames))
+    # ★ P1 阶段 F：接任务必须是 OP_ADD(Init) + OP_CHANGE(Doing) 两条。
+    #   客户端 changed["task_bag.*.*"] -> onTaskItemChanged 只对 OP_CHANGE 触发，
+    #   entryAdded["task_bag.*"] -> onTaskBagInserted 是空函数。
+    #   只发 OP_ADD 的话「接任务」在客户端一点反应都没有。
+    _ops = []
+    for _f in frames:
+        if not isinstance(_f, (bytes, bytearray)) or len(_f) < 6:
+            continue
+        if int.from_bytes(bytes(_f[4:6]), "little") != msmod.PROPERTY_SYNC_TYPE:
+            continue
+        _fl = msmod.pb_parse(bytes(_f[6:]))
+        _ops.append((_fl.get(2, [None])[0], _fl.get(3, [None])[0]))
+    _slot_pid = (slot_holder(st.props, t1) or {}).get("__id__")
+    _entry_ops = [op for pid, op in _ops if pid == _slot_pid]
+    check("★ 条目帧是 OP_ADD(2) + OP_CHANGE(1) 两条",
+          _entry_ops == [msmod.OP_ADD, msmod.OP_CHANGE], _entry_ops)
+    check("★ 有 OP_CHANGE（onTaskItemChanged 能触发）",
+          msmod.OP_CHANGE in _entry_ops, _entry_ops)
     tb = st.props.get("task_bag") or {}
     check("task_bag 有类型槽位", t1 in tb, list(tb.keys())[:5])
     slot = tb.get(t1) or {}
@@ -71,8 +101,22 @@ def run():
 
     print("\n[4] 完成任务 1")
     frames = guarded_handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
-                         msmod.mp_arr([1]), 2, uid="task_test")
+                         msmod.mp_arr([1]), 2, uid=U)
     check("返回同步帧", len(frames) >= 2, len(frames))
+    # ★ 阶段 F：完成也要先 OP_CHANGE 到 Finished(6)，再 OP_DEL 出包。
+    _ops2 = []
+    for _f in frames:
+        if not isinstance(_f, (bytes, bytearray)) or len(_f) < 6:
+            continue
+        if int.from_bytes(bytes(_f[4:6]), "little") != msmod.PROPERTY_SYNC_TYPE:
+            continue
+        _fl = msmod.pb_parse(bytes(_f[6:]))
+        _ops2.append((_fl.get(2, [None])[0], _fl.get(3, [None])[0],
+                     _fl.get(4, [b""])[0]))
+    _chg = [o for o in _ops2 if o[1] == msmod.OP_CHANGE]
+    _del = [o for o in _ops2 if o[1] == msmod.OP_DEL]
+    check("★ 完成时有 OP_CHANGE（→Finished）", bool(_chg), _ops2)
+    check("★ 完成时有 OP_DEL（出包）", bool(_del), _ops2)
     check("task_bag[type] 里没有 1 了", 1 not in (st.props["task_bag"].get(t1) or {}))
     check("done_tasks[type][1] 有值",
           (st.props["done_tasks"].get(t1) or {}).get(1) is not None,
@@ -81,7 +125,7 @@ def run():
 
     print("\n[5] 幂等：再完成一次不出错")
     guarded_handle(erpc.RPC_INDEX["RequestDoneTask_CS"],
-                msmod.mp_arr([1]), 3, uid="task_test")
+                msmod.mp_arr([1]), 3, uid=U)
     check("状态仍是 6", tasks.task_state(st.props, 1) == 6)
 
     print("\n[6] RequestDoneSomeTypeTask_CS 批量完成")
@@ -96,14 +140,14 @@ def run():
     for tid in same:
         tasks.start_task(st, tid)
     guarded_handle(erpc.RPC_INDEX["RequestDoneSomeTypeTask_CS"],
-                msmod.mp_arr([t1]), 4, uid="task_test")
+                msmod.mp_arr([t1]), 4, uid=U)
     for tid in same:
         check("任务 %d 已完成" % tid, tasks.task_state(st.props, tid) == 6,
               tasks.task_state(st.props, tid))
 
     print("\n[7] 未知任务不崩")
     frames = guarded_handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
-                         msmod.mp_arr([999999]), 5, uid="task_test")
+                         msmod.mp_arr([999999]), 5, uid=U)
     check("返回应答帧", len(frames) >= 1, len(frames))
 
     print("\n" + "=" * 56)

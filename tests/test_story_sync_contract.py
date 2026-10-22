@@ -238,10 +238,10 @@ def run():
           slot_frames[:2])
     # task_bag.*.*（条目）：pid = task_bag[type] 槽位 id，name = taskId
     item_op = [x["op"] for x in fgen if x["pid"] == _slot_pid]
-    check("★ task_bag.*.* 当前对新条目用 OP_ADD（不是 OP_CHANGE）——阶段 F 待修",
-          item_op == [msmod.OP_ADD], item_op)
-    check("★ 因此 onTaskItemChanged（changed 回调）当前不会被触发（阶段 F 缺口）",
-          msmod.OP_CHANGE not in item_op, item_op)
+    check("★ task_bag.*.* 新条目用 OP_ADD(Init) + OP_CHANGE(Doing) 两条",
+          item_op == [msmod.OP_ADD, msmod.OP_CHANGE], item_op)
+    check("★ onTaskItemChanged（changed 回调）能被触发",
+          msmod.OP_CHANGE in item_op, item_op)
     if gid is not None:
         done_frames = guarded_handle(erpc.RPC_INDEX.get("RequestDoneTask_CS") or 2,
                                      msmod.mp_arr([gid]), 2, uid=u7)
@@ -297,6 +297,11 @@ def run():
             (x["op"] for x in fgen if x["pid"] == _bag_pid), msmod.OP_ADD)
         observed["done_tasks.*"] = next(
             (x["op"] for x in fdone if x["op"] == msmod.OP_ADD), None)
+        # task_bag.*.* 现在有两条帧：OP_ADD(建 Init) + OP_CHANGE(迁到 Doing)。
+        # 契约行声明的是 changed 回调（OP_CHANGE），所以取 OP_CHANGE 那条来核对。
+        _item_ops = [x["op"] for x in fgen if x["pid"] == _slot_pid]
+        observed["task_bag.*.*"] = (msmod.OP_CHANGE
+                                    if msmod.OP_CHANGE in _item_ops else None)
     observed["story_finished"] = next(
         (x["op"] for x in sf_hits), None)
     # 复通才会走的回调行：本次只打一次序章，验不到，明确标注而不是跳过
@@ -306,10 +311,8 @@ def run():
     }
     for (prop2, cb2), why in SECOND_PASS.items():
         check("★ %s/%s 本次不可达：%s" % (prop2, cb2, why), True)
-    # task_bag.*.* 当前没有 OP_CHANGE 产出路径（阶段 F 待修），单独标注
-    NO_PRODUCER = {
-        "task_bag.*.*": "start_task 对新条目用 OP_ADD，没有状态迁移 -> changed 回调不触发（阶段 F）",
-    }
+    # ★ 阶段 F 之后所有契约行都有产出路径了；这个字典留着给将来新增的行用。
+    NO_PRODUCER = {}
     checked = 0
     for prop, cb, op, src in CONTRACT:
         if prop in NO_PRODUCER:
