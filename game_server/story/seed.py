@@ -173,6 +173,118 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
     return out
 
 
+def _broken_pre_tasks():
+    """PreTask 在 StoryTaskData 和 TaskData 里都查不到的清单（真断链）。
+
+    ★ 只算「两张表都没有」的。指向 TaskData 的是跨表前置（PreTaskType=1），
+      那是正常数据，不是缺陷 —— seed_cross_table 专门处理它。
+    """
+    _build_index()
+    from .. import gamedata as _gd
+    T = _gd.table("TaskData") or {}
+    T = {int(v["uiD"]) for v in T.values()
+         if isinstance(v, dict) and v.get("uiD") is not None}
+    out = []
+    for t, v in (_INDEX or {}).items():
+        pre = v.get("PreTask")
+        if pre is None:
+            continue
+        try:
+            pre = int(pre)
+        except Exception:
+            continue
+        if pre not in (_INDEX or {}) and pre not in T:
+            out.append((t, pre))
+    return sorted(out)
+
+
+def _dangling_task_data_ids():
+    """被 type3/7 任务引用但 TaskData 里查不到的 id（数据缺陷，只算一次）。"""
+    _build_index()
+    from .. import gamedata as _gd
+    T = _gd.table("TaskData") or {}
+    T = {int(v["uiD"]): v for v in T.values()
+         if isinstance(v, dict) and v.get("uiD") is not None}
+    out = []
+    for t, v in (_INDEX or {}).items():
+        if v.get("TaskType") not in (3, 7):
+            continue
+        for pid in (v.get("Parameter1") or []):
+            try:
+                pid = int(pid)
+            except Exception:
+                continue
+            if pid not in T:
+                out.append((t, pid))
+    return sorted(out)
+
+
+_WARNED = set()
+
+
+def _warn_once(key, msg):
+    if key in _WARNED:
+        return
+    _WARNED.add(key)
+    print("[story] " + msg, flush=True)
+
+
+def rescan(st, now=None, limit=SEED_LIMIT):
+    """阶段 D：把「没人触发」的任务重新检查一遍，返回同步描述列表。
+
+    ★ 为什么需要它（阶段 C 实测后发现）
+
+      PostTasks 与 PreTask 字段 958/958 完全一致，所以「线性推进」覆盖了绝大多数任务。
+      真正漏的只有三类：
+
+        1. **跨表前置**（PreTaskType=1，6 条）：上游是 TaskData，
+           StoryTaskData.PostTasks 不会启动它。seed_cross_table 以前只在登录时调，
+          通用任务完成后不会触发 -> 这 6 条链永远不动。
+        2. **链式闸门**（TaskType 6，24 条）：判定在 check_chain_tasks，
+           由 events.tick 调用；tick 只在登录和副本结算时跑，
+           通用任务完成后不跑。
+        3. **断链**（400006 -> 1124 不存在）：扫描必须容错，不能崩。
+
+    ★ 不是「扫描 1047 条找下一步」——线性推进走 PostTasks 就够。
+      这里只补上面三类。
+
+    幂等：重复调用不产生重复帧（candidate_tasks / check_chain_tasks 都自带判断）。
+    """
+    now = int(now if now is not None else __import__("time").time())
+    out = []
+
+    # 数据缺陷告警（一次性）
+    for t, pre in _broken_pre_tasks():
+        _warn_once("broken:%d" % t,
+                   "数据缺陷：任务 %s 的 PreTask=%s 在 StoryTaskData/TaskData 里都不存在，"
+                   "该任务永远不可达" % (t, pre))
+    dangling = _dangling_task_data_ids()
+    if dangling:
+        _warn_once("dangling",
+                   "数据缺陷：%d 个 type3/7 任务引用的 TaskData id 不存在，"
+                   "这些任务的完成条件无法判定（例：%s）"
+                   % (len(dangling), dangling[:5]))
+
+    # ① 跨表前置
+    try:
+        out.extend(seed_cross_table(st, now))
+    except Exception as e:
+        print("[story] rescan 跨表播种失败: %s" % e, flush=True)
+
+    # ② 链式闸门（TaskType 6）
+    from . import events as _events
+    try:
+        tick_res = _events.tick(st, now)
+        hits = list(tick_res.chain_hits)
+        if hits:
+            from .rpc import _finish_story_tasks
+            out.extend(_finish_story_tasks(st, hits))
+    except Exception as e:
+        print("[story] rescan 链式检查失败: %s" % e, flush=True)
+
+    return out
+
+
 def seed_cross_table(st, now=None):
     """跨表前置的增量播种：TaskData 完成后，检查哪些剧情任务的 PreTask 指向它。
 

@@ -18,6 +18,7 @@ from .. import tasks
 from ..property import sync as _sync
 from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
+from .rpc import _story_sync_frames as _story_frames
 
 def _task_sync_frames(st, changes):
     """把 tasks 模块的同步描述转成帧（支持两层嵌套 sub2/del2）。"""
@@ -80,6 +81,18 @@ def _task_done(rid, params, uid=None):
         return frames
     st = state(uid)
     frames.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
+    # ★ 阶段 D：通用任务完成后要重扫剧情任务。
+    #   实测：跨表前置（PreTaskType=1，6 条）的上游是 TaskData，
+    #   StoryTaskData.PostTasks 不会启动它；而 seed_cross_table 以前只在登录时调，
+    #   所以这 6 条链（共 14+ 条任务）在玩家做通用任务时永远不动。
+    #   链式闸门（TaskType 6）同理 —— events.tick 只在登录和副本结算跑。
+    from . import seed as _seed
+    try:
+        _extra = _seed.rescan(st)
+        if _extra:
+            frames.extend(_story_frames(st, _extra))
+    except Exception as e:
+        print("[task] 剧情重扫失败: %s" % e, flush=True)
     st.save()
     print("[task] 完成任务 %s" % tid, flush=True)
     return frames
@@ -97,6 +110,13 @@ def _task_done_type(rid, params, uid=None):
     st = state(uid)
     for tid in tasks.tasks_of_type(st, ttype):
         frames.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
+    from . import seed as _seed
+    try:
+        _extra = _seed.rescan(st)
+        if _extra:
+            frames.extend(_story_frames(st, _extra))
+    except Exception as e:
+        print("[task] 剧情重扫失败: %s" % e, flush=True)
     st.save()
     print("[task] 完成类型 %s 的全部任务" % ttype, flush=True)
     return frames
