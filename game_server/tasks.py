@@ -41,6 +41,8 @@ from .story.state_machine import (
 
 TASK_STATE_DOING = 3
 TASK_STATE_FINISHED = 6
+TASK_STATE_WAIT_DONE = 4   # 目标已达成、等玩家领奖（客户端只把 4 状态发领奖 RPC）
+TASK_STATE_DONE = 5        # 已交付
 
 # 同步描述里的 optype（和客户端 puppetpropertycomponent.lua 一致）
 # 由本模块自己决定，不让上层猜 —— 审计发现上层一律用 OP_CHANGE，
@@ -357,3 +359,61 @@ def evaluate_event(st, event_type, params):
     if syncs:
         st.set("task_bag", st.props.get("task_bag"))
     return done_ids, syncs
+
+
+# ---------------------------------------------------------------- N-c 领奖流程
+
+def needs_claim(cfg):
+    """这个通用任务需不需要玩家手动领奖。
+
+    判据（客户端证据）：
+      - 头衔面板的领奖按钮 `node_challenge_task_itemgroup.lua:151-170`
+        只把 state == WaitDone(4) 的任务发进 `RequestDoneTitleTask_CS`；
+        也就是说「有奖励的任务」必须停在 WaitDone 等玩家点。
+      - `getDirectorTasks` / `sortChanllegeTask` 也用 WaitDone 当「可领取」标记
+        （`sortChanllegeTask` 里 `(state - WaitDone) * 10000`）。
+
+    所以：有 `AwardItemList` 且属于头衔类（9/10）的任务 -> 进 WaitDone 等领取；
+    其余（含无奖励的 Beginner 任务）-> 直接完成，因为对应面板没有领奖入口
+    （Beginner 面板还因数据缺 PanelName 而不可见，见阶段 N 的 N2.1 ①）。
+    """
+    if not isinstance(cfg, dict):
+        return False
+    if not cfg.get("AwardItemList"):
+        return False
+    return cfg.get("TaskType") in (9, 10)
+
+
+def move_to_wait_done(st, task_id, now=None):
+    """Doing(3) -> WaitDone(4)：目标达成，等玩家领奖。返回同步描述。"""
+    task_id = int(task_id)
+    bag = st.props.get("task_bag")
+    if not isinstance(bag, dict):
+        return []
+    cfg = gamedata.task(task_id) or {}
+    slot = bag.get(cfg.get("TaskType"))
+    if not isinstance(slot, dict):
+        return []
+    item = slot.get(task_id)
+    if not isinstance(item, dict):
+        return []
+    cur = int(item.get("state") or 0)
+    if cur == TASK_STATE_WAIT_DONE:
+        return []
+    if not can_transition(cur, TASK_STATE_WAIT_DONE):
+        return []
+    item["state"] = TASK_STATE_WAIT_DONE
+    st.set("task_bag", bag)
+    return [_sync(slot.get("__id__"), OP_CHANGE, task_id, item)]
+
+
+def claim_task(st, task_id, now=None):
+    """WaitDone(4) -> Finished(6) 并出包。返回同步描述。
+
+    ★ 只接受 WaitDone 状态 —— 客户端也只会在 WaitDone 时发领奖 RPC
+      （node_challenge_task_itemgroup.lua:156）。
+    """
+    task_id = int(task_id)
+    if task_state(st.props, task_id) != TASK_STATE_WAIT_DONE:
+        return []
+    return finish_task(st, task_id, now)

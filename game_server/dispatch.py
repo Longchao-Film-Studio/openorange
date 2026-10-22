@@ -129,6 +129,8 @@ from .story.tasks import (  # noqa: F401  (re-export)
     _task_done_type,
     _task_fetch,
     _task_sync_frames,
+    _done_title_task,
+    _refresh_title_daily_task,
 )
 
 # ★ P1 阶段 N-a1：取名链路（之前 3 个 RPC 全缺，见 game_server/avatar.py 的说明）
@@ -267,8 +269,8 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("RequestUpgradeDungeonMainPower_CS", _ack_only),
                    ("RequestGetStreetLevelAchieveAward_CS", _ack_only),
                    ("Street_CD_Update_CS", _street_cd_update),
-                   ("RequestRefreshTitleDailyTask_CS", _ack_only),
-                   ("RequestDoneTitleTask_CS", _ack_only),
+                   ("RequestRefreshTitleDailyTask_CS", _refresh_title_daily_task),
+                   ("RequestDoneTitleTask_CS", _done_title_task),
                    ("RollbackSpaceTask_CS", _ack_only),
                    # ★ P1 阶段 N-a1：取名（namecomp.lua:7-36）
                    ("RpcCheckNickName", _check_nickname),

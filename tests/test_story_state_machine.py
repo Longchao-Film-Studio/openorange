@@ -308,6 +308,7 @@ def run():
         # ★ 阶段 F：通用任务也走同一套状态机，所以 tasks.py 是合法的 state 写入口。
         ("game_server/tasks.py", "start_task"): "通用任务迁移 Init->Doing",
         ("game_server/tasks.py", "finish_task"): "通用任务迁移 ->Finished",
+        ("game_server/tasks.py", "move_to_wait_done"): "通用任务迁移 Doing->WaitDone（N-c 领奖流程）",
         # 脚手架：默认关闭（config.SCAFFOLD 开关），只写 done_story_tasks 里的 StoryTaskItem。
         # 到期条件：阶段 C（播种器）完成后删掉 scaffold.py，这条豁免随之消失。
         ("game_server/scaffold.py", "apply"): "脚手架（默认关闭）写 done 的 StoryTaskItem；阶段 C 删除",

@@ -192,7 +192,15 @@ def apply_event(st, event, now=None):
         from .. import tasks as _tasks
         task_hits, task_sync = _tasks.evaluate_event(st, event.type, event.params)
         for _tid in list(task_hits):
-            task_sync.extend(_tasks.finish_task(st, _tid, now))
+            # ★ P1 阶段 N-c：有道具奖励的头衔类任务（9/10）停在 WaitDone(4)，
+            #   等玩家点「领取」-> RequestDoneTitleTask_CS -> claim_task。
+            #   其余任务直接完成（对应面板没有领奖入口）。
+            #   依据 node_challenge_task_itemgroup.lua:151-170（只发 WaitDone 的）。
+            _cfg = gamedata.task(_tid) or {}
+            if _tasks.needs_claim(_cfg):
+                task_sync.extend(_tasks.move_to_wait_done(st, _tid, now))
+            else:
+                task_sync.extend(_tasks.finish_task(st, _tid, now))
     except Exception as e:
         print("[task] 通用任务事件推进失败 %s: %s" % (event.type, e), flush=True)
         task_hits, task_sync = [], []

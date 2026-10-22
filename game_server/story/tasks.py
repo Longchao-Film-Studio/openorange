@@ -14,6 +14,7 @@
 所以同步要打在 TaskBag 的 __id__ 上，name = taskId。
 """
 from .. import ms as msmod
+from .. import gamedata
 from .. import tasks
 from ..property import sync as _sync
 from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
@@ -135,4 +136,123 @@ def _task_done_type(rid, params, uid=None):
         print("[task] 剧情重扫失败: %s" % e, flush=True)
     st.save()
     print("[task] 完成类型 %s 的全部任务" % ttype, flush=True)
+    return frames
+
+
+# ---------------------------------------------------------------- N-c 头衔 RPC
+
+def _grant_awards(st, cfg):
+    """发通用任务 AwardItemList 的奖励，返回 (同步帧, 奖励列表)。"""
+    awards = cfg.get("AwardItemList")
+    if not isinstance(awards, dict) or not awards:
+        return [], []
+    try:
+        from ..dungeon.reward import _grant_battle_items
+        return _grant_battle_items(st, awards)
+    except Exception as e:
+        print("[task] 发奖失败: %s" % e, flush=True)
+        return [], []
+
+
+def _done_title_task(rid, params, uid=None):
+    """RequestDoneTitleTask_CS {title_tasks, titel_vit} —— 领取头衔挑战任务奖励。
+
+    客户端依据 `ui/panel/directortitlev3panel/node_challenge_task_item/
+    node_challenge_task_itemgroup.lua:147-171`：
+      - 遍历 getDirectorChallengeTasks()（即 task_bag[10]），
+        只把 **state == WaitDone(4)** 的 id 放进 title_tasks；
+      - 体力假任务（fakeTask）存在时 titel_vit = 1，否则 -1。
+
+    服务端：只处理「在 task_bag[10] 且状态是 WaitDone」的 id，逐个 claim + 发奖。
+    titel_vit 对应的体力任务属另一套机制（CommonConstData.TitleLoopTaskCost），
+    本阶段不实现（见 N8 的范围说明）。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    raw_ids = vals[0] if isinstance(vals[0], list) else []
+    vit = vals[1] if len(vals) > 1 else -1
+    st = state(uid)
+    ch = []
+    got = []
+    for raw in raw_ids:
+        try:
+            tid = int(raw)
+        except Exception:
+            continue
+        cfg = gamedata.task(tid) or {}
+        if cfg.get("TaskType") != 10:
+            print("[task] 拒绝领奖 %s：不是头衔挑战任务" % tid, flush=True)
+            continue
+        if tasks.task_state(st.props, tid) != tasks.TASK_STATE_WAIT_DONE:
+            print("[task] 拒绝领奖 %s：状态不是 WaitDone（当前 %s）"
+                  % (tid, tasks.task_state(st.props, tid)), flush=True)
+            continue
+        _af, _rl = _grant_awards(st, cfg)
+        ch.extend(_af)
+        ch.extend(tasks.claim_task(st, tid))
+        got.append(tid)
+        if _rl:
+            print("[task] 领奖 %s -> %s" % (tid, _rl), flush=True)
+    if ch:
+        frames.extend(_task_sync_frames(st, ch))
+    st.save()
+    print("[task] 头衔领奖：%s（titel_vit=%s）" % (got, vit), flush=True)
+    return frames
+
+
+def _refresh_title_daily_task(rid, params, uid=None):
+    """RequestRefreshTitleDailyTask_CS {type} —— 刷新头衔日常任务。
+
+    客户端依据 `ui/panel/directortitlev3panel/node_daily_task_item/
+    node_daily_task_itemgroup.lua:200-206`：参数是 `_cfgData.DailyType`（1 或 2）。
+    刷新后客户端会重读 `getDirectorDailyTasks()`（即 task_bag[9]）。
+
+    服务端做法：把该 DailyType 下**已完成**的任务重置回 Doing（重新可做）。
+    ⚠️ 已知局限：目前没有「每天只能刷新一次」的限制，理论上可反复刷奖励。
+       正确的每日限额要等 N-d（每日重置）一起做，这里先按「能刷新」实现并留痕。
+    """
+    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return frames
+    try:
+        daily_type = int(vals[0])
+    except Exception:
+        return frames
+    st = state(uid)
+    ch = []
+    reset = []
+    bag = st.props.get("task_bag")
+    done = st.props.get("done_tasks")
+    # 该 DailyType 下、当前不在包里的任务 -> 重新播
+    for tid in tasks._all_task_ids():
+        cfg = gamedata.task(tid) or {}
+        if cfg.get("TaskType") != 9:
+            continue
+        try:
+            if int(cfg.get("DailyType") or -1) != daily_type:
+                continue
+        except Exception:
+            continue
+        cur = tasks.task_state(st.props, tid)
+        if cur in (tasks.TASK_STATE_DOING, tasks.TASK_STATE_WAIT_DONE):
+            continue
+        # 已完成 / 已出包 -> 清掉完成记录，重新播
+        # （见函数 docstring 里「可反复刷奖励」的已知局限）
+        if cur == tasks.TASK_STATE_FINISHED:
+            _d = st.props.get("done_tasks")
+            if isinstance(_d, dict):
+                _dslot = _d.get(cfg.get("TaskType"))
+                if isinstance(_dslot, dict):
+                    _dslot.pop(tid, None)
+                    st.set("done_tasks", _d)
+        ch.extend(tasks.start_task(st, tid))
+        reset.append(tid)
+    if ch:
+        frames.extend(_task_sync_frames(st, ch))
+    st.save()
+    print("[task] 刷新头衔日常 DailyType=%s -> 重置 %s" % (daily_type, reset),
+          flush=True)
     return frames

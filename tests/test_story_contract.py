@@ -294,6 +294,7 @@ def run():
         ("game_server/tasks.py", "make_task_item"): "构造 TaskItem",
         ("game_server/tasks.py", "start_task"): "通用任务迁移",
         ("game_server/tasks.py", "finish_task"): "通用任务迁移",
+        ("game_server/tasks.py", "move_to_wait_done"): "通用任务迁移 Doing->WaitDone（N-c 领奖流程）",
         ("game_server/scaffold.py", "apply"): "脚手架（默认关闭）",
     }
     bad = []
