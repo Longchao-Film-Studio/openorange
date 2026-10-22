@@ -331,9 +331,102 @@ local function probe_phonestcore_keys()
     LOG('phkeys| ' .. keys[i])
   end
 end
+-- ★ P1 阶段 I：给 AvatarStoryTaskComp 的 onStoryTaskItemChanged 打钩子。
+--   这是本次开发的核心未证事项：服务端发的 OP_CHANGE 到底能不能让客户端
+--   这个回调真的触发。以前只能证到「客户端登录进街区无报错」（见 docs A6/B6），
+--   「帧被回调接受」一直是未证状态，所以必须真的挂一次钩子数一数。
+--   依据：generated/config.lua:9933-9936  changed["story_task_bag.*"] ->
+--         onStoryTaskItemChanged（avatarstorytaskcomp.lua:100-109）
+local function install_story_cb_hook()
+  if pc.storycb then return end
+  pcall(function()
+    local comp = GlobalData.Avatar
+    if comp == nil then return end
+    local orig = comp.onStoryTaskItemChanged
+    if type(orig) ~= 'function' then
+      LOG('storycb| Avatar 上没有 onStoryTaskItemChanged（类型=' .. type(orig) .. '）')
+      return
+    end
+    pc.storycb = true
+    pc.storycb_hits = 0
+    pc.storycb_last = ''
+    comp.onStoryTaskItemChanged = function(self, old, new)
+      pc.storycb_hits = pc.storycb_hits + 1
+      local function desc(x)
+        if type(x) ~= 'table' then return tostring(x) end
+        local tid = rawget(x, 'id')
+        local stt = rawget(x, 'state')
+        return 'task=' .. tostring(tid) .. ' state=' .. tostring(stt)
+      end
+      pc.storycb_last = desc(old) .. ' -> ' .. desc(new)
+      LOG('storycb| 第 ' .. pc.storycb_hits .. ' 次触发 ' .. pc.storycb_last)
+      return orig(self, old, new)
+    end
+    LOG('storycb| onStoryTaskItemChanged 钩子已安装')
+  end)
+end
+
+-- 汇报钩子累计触发次数（进街区后过几秒调一次）
+local function report_story_cb()
+  if pc.storycbrep then return end
+  pcall(function()
+    local stage = game.stageMgr:getCurStage()
+    if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
+    pc.storycbrep = true
+    if not pc.storycb then
+      LOG('storycb| 报告：钩子未安装成功')
+      return
+    end
+    LOG('storycb| 报告：累计触发 ' .. tostring(pc.storycb_hits) .. ' 次，最后一次 ' .. tostring(pc.storycb_last))
+    -- 顺带报另外三个回调面，确认它们也通了
+    local A = GlobalData.Avatar
+    if A then
+      pcall(function()
+        local n = 0
+        for k in pairs(A.story_task_bag or {}) do
+          if k ~= '__id__' and k ~= '__tp__' then n = n + 1 end
+        end
+        LOG('storycb| story_task_bag 条目数 = ' .. n)
+      end)
+      pcall(function()
+        local n = 0
+        for k in pairs(A.done_story_tasks or {}) do
+          if k ~= '__id__' and k ~= '__tp__' then n = n + 1 end
+        end
+        LOG('storycb| done_story_tasks 条目数 = ' .. n)
+      end)
+      pcall(function()
+        LOG('storycb| story_finished[1] = ' .. tostring((A.story_finished or {})[1]))
+      end)
+      pcall(function()
+        local n = 0
+        for k in pairs(A.story_max_collect_num or {}) do
+          if k ~= '__id__' and k ~= '__tp__' then n = n + 1 end
+        end
+        LOG('storycb| story_max_collect_num 条目数 = ' .. n)
+      end)
+      pcall(function()
+        local n = 0
+        for k in pairs(A.story_reward_list or {}) do
+          if k ~= '__id__' and k ~= '__tp__' then n = n + 1 end
+        end
+        LOG('storycb| story_reward_list 条目数 = ' .. n)
+      end)
+      pcall(function()
+        local n = 0
+        for k, v in pairs(A.task_bag or {}) do
+          if k ~= '__id__' and k ~= '__tp__' then n = n + 1 end
+        end
+        LOG('storycb| task_bag 槽位数 = ' .. n)
+      end)
+    end
+  end)
+end
+
 -- 探针开关：需要跑 1-3 端到端 RPC 验证时置 true
 OO_PROBE_RPC = false    -- Set* 系列端到端探针（会改数据，默认关）
 OO_PROBE_WRITE = false  -- UseItem / UpgradeCharacter 写操作探针（会改数据）
+OO_PROBE_STORY_CB = true   -- P1-I：onStoryTaskItemChanged 钩子（默认开，只读不改数据）
 OO_PROBE_MAP = false    -- 地图面板探针（会自动弹地图）
 OO_PROBE_STREET = false -- 街区切换探针（会主动发切街区 RPC）
 OO_PROBE_STORY_ADV = false -- 剧情推进探针（会模拟副本结算）

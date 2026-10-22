@@ -22,6 +22,12 @@ local function install_cb_wrappers()
           if pc.frames == 60 then pcall(probe_phonestcore_keys) end
           if (pc.frames % 30) == 0 then pcall(probe_street_actor) end
           if (pc.frames % 30) == 15 then pcall(probe_p1_accept) end
+          -- ★ P1 阶段 I：onStoryTaskItemChanged 钩子。只读不改数据，默认开。
+          --   这是本次开发的核心未证事项（服务端发的 OP_CHANGE 客户端收不收）。
+          if OO_PROBE_STORY_CB then
+            if pc.frames == 30 then pcall(install_story_cb_hook) end
+            if (pc.frames % 30) == 20 then pcall(report_story_cb) end
+          end
           -- 端到端 RPC 探针默认关（会连发 20 条，刷日志）；需要时改成 pcall(probe_p1_setrpc)
           if OO_PROBE_RPC then pcall(probe_p1_setrpc) end
           if (pc.frames % 30) == 25 then pcall(probe_encode_response) end
