@@ -225,6 +225,40 @@ def run():
           pushed)
 
     print("")
+    print("[9] 追踪一个「不在当前街区」的任务 -> 不写进 street_trace_taskid")
+    # 客户端 getStreetActorByUniqName 只在当前场景找 NPC（streettasktrackcomp.lua:99），
+    # 找不到就 setTrackingInfo(nil) -> 标点停在原地。所以跨街区任务不能写进去。
+    u9, st9 = fresh("tk")
+    guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"],
+                   msmod.mp_arr([100]), 1, uid=u9)
+    check("9a 在街区 100", st9.props.get("street_id") == 100,
+          st9.props.get("street_id"))
+    # 1045 的 GuideSceneId = 101，在街区 100 做不了
+    guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
+                   msmod.mp_arr([1045]), 2, uid=u9)
+    check("★ 9b 跨街区任务的 street_trace_taskid 被置 0（不留错误标点）",
+          st9.props.get("street_trace_taskid") == 0,
+          st9.props.get("street_trace_taskid"))
+    check("★ 9c 但玩家意图被记住（_oo_trace_wanted = 1045）",
+          st9.props.get("_oo_trace_wanted") == 1045,
+          st9.props.get("_oo_trace_wanted"))
+    # 走到正确街区 101 -> 自动恢复
+    guarded_handle(rpc_index.RPC_INDEX["RequestSwitchStreet_CS"],
+                   msmod.mp_arr([101]), 3, uid=u9)
+    check("★ 9d 到街区 101 后自动恢复追踪 1045",
+          st9.props.get("street_trace_taskid") == 1045,
+          st9.props.get("street_trace_taskid"))
+    # 同街区追踪正常生效
+    u9b, st9b = fresh("tl")
+    guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"],
+                   msmod.mp_arr([101]), 1, uid=u9b)
+    guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
+                   msmod.mp_arr([1045]), 2, uid=u9b)
+    check("★ 9e 同街区追踪照常生效",
+          st9b.props.get("street_trace_taskid") == 1045,
+          st9b.props.get("street_trace_taskid"))
+
+    print("")
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

@@ -368,8 +368,22 @@ local function install_story_cb_hook()
       pc.storycb_hits = pc.storycb_hits + 1
       local function desc(x)
         if type(x) ~= 'table' then return tostring(x) end
-        local tid = rawget(x, 'id')
-        local stt = rawget(x, 'state')
+        -- ★ 不能用 rawget：客户端的属性对象是带元表的自定义类型，
+        --   字段走 __index（实机踩过：rawget 全返回 nil，日志只有 task=nil）。
+        local tid, stt
+        pcall(function() tid = x.id end)
+        pcall(function() stt = x.state end)
+        if tid == nil and stt == nil then
+          -- 兜底：扫一遍已知字段名
+          pcall(function()
+            for _, k in ipairs({"id","state","taskId","task_id"}) do
+              if x[k] ~= nil then
+                if k == "id" or k == "taskId" or k == "task_id" then tid = x[k] end
+                if k == "state" then stt = x[k] end
+              end
+            end
+          end)
+        end
         return 'task=' .. tostring(tid) .. ' state=' .. tostring(stt)
       end
       pc.storycb_last = desc(old) .. ' -> ' .. desc(new)
