@@ -21,6 +21,7 @@ from .. import ms as msmod
 from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from ..story import events as _events
+from .. import story as story_mod
 from ..story.rpc import _finish_story_tasks
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
@@ -156,19 +157,24 @@ def _advance_story_on_finish(st, info=None, uid=None):
     out = []
     if hits:
         out.extend(_finish_story_tasks(st, hits))
-    # 序章（SystemType.MainStory = 1004）打完 -> story_finished[1] = True，
-    # 下次登录 clientavatar.lua:180 的 CheckEnterPrologue 就会跳过序章进街区。
-    if type_id == _STORY_TYPE_MAINSTORY:
-        sf = st.props.get("story_finished")
-        if isinstance(sf, dict) and sf.get(1) is not True:
-            is_new = 1 not in sf
-            sf[1] = True
-            st.set("story_finished", sf)
-            out.append(sync_frame(
-                SYNC_SELF, sf.get("__id__") or 0,
-                msmod.OP_ADD if is_new else msmod.OP_CHANGE,
-                "1", True))
-            print("[dungeon] 序章完成，story_finished[1]=True", flush=True)
+    # ★ P1 阶段 G：副本打通过 -> 对应 StoryLineData.id 记到 story_finished。
+    #   以前这里写死 story_finished[1]=True（只对序章），其它 16 条线永远是 false。
+    #   客户端 clientavatar.lua:180 / streetstage.lua:169 / loginmanager.lua:130
+    #   都读 story_finished[1]；avatarstorylinecomp.lua:105-107 按 storyLineID 读。
+    # _oo_cur_copy 是 StartGame 时记下的 copyId（下面才 pop，所以这里拿得到）
+    _copy = st.props.get("_oo_cur_copy")
+    if not _copy and type_id == _STORY_TYPE_MAINSTORY:
+        # ★ 兼容没有 StartGame 的调用（测试 / 手工构造）：
+        #   序章的 typeId=1004 固定对应 StoryLineData[1]（dungeonId=guide_01）。
+        #   以前就是靠这个判断写死 story_finished[1]=True 的。
+        _copy = "guide_01"
+    if _copy:
+        _sl = story_mod.mark_story_line_finished(st, _copy)
+        if _sl:
+            out.extend(_sl)
+            print("[dungeon] 章节线 %s 完成（copyId=%s）"
+                  % ((story_mod.story_line_of_copy(_copy) or {}).get("id"),
+                     _copy), flush=True)
     # ★ P0-D：链式任务也走事件总线。这里用 tick() 而不是 apply_event()，
     #   因为刚完成的任务可能让链式任务的前置条件满足了。
     tick_res = _events.tick(st)

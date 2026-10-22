@@ -242,6 +242,21 @@ def _live_init_dict(uid=None):
             except Exception as e:
                 print("[init] 剧情起点设置失败: %s" % e, flush=True)
 
+    # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
+    #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
+    #   以前服务端从来不写 -> 章节 UI 的收集进度/奖励状态恒为空。
+    try:
+        from .. import story as _story_mod
+        try:
+            _sl = _story_mod.sync_story_max_collect_num(st)
+            _sl += _story_mod.sync_story_reward_list(st)
+            if _sl:
+                print("[init] 章节属性补全 %d 项" % len(_sl), flush=True)
+        except Exception as e:
+            print("[init] 章节属性补全失败: %s" % e, flush=True)
+    except Exception:
+        pass
+
     # ★ 体力：新号拉满；每次登录按离线时间补。
     #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
     #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。

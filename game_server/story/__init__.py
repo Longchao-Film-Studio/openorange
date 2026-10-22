@@ -187,6 +187,141 @@ def mark_finish_parameter(st, task_id, param):
     return [("child", item, "finish_parameter", fp)]
 
 
+def story_line_of_copy(copy_id):
+    """copyId -> StoryLineData 行（副本所属的章节线）。"""
+    for row in (gamedata.table("StoryLineData") or {}).values():
+        if isinstance(row, dict) and row.get("dungeonId") == copy_id:
+            return row
+    return None
+
+
+def mark_story_line_finished(st, copy_id):
+    """副本打通过 -> 对应 StoryLineData.id 记到 story_finished。
+
+    ★ 依据（客户端）：
+      - avatarstorylinecomp.lua:105-107  getLevelIsCompleteByID(storyLineID)
+        读 self.story_finished[storyLineID]
+      - avatarstorylinecomp.lua:80-88  on_story_finished_added(key, value)
+        会 setCanShowUnlockAnimState + processLevelItem + 发 EStoryLineFinishedChanged
+      - clientavatar.lua:180 / streetstage.lua:169 / loginmanager.lua:130
+        都读 story_finished[1] 决定「走序章还是直接进街区」
+
+    ★ 以前只有 dungeon/settle.py 里写死 story_finished[1]=True（只对序章），
+      其它 16 条 StoryLineData 永远是 false -> 章节 UI 显示「未通关」。
+
+    返回同步描述列表（OP_ADD 首次 / OP_CHANGE 复通）。
+    """
+    row = story_line_of_copy(copy_id)
+    if not row:
+        return []
+    try:
+        sid = int(row.get("id"))
+    except Exception:
+        return []
+    sf = st.props.get("story_finished")
+    if not isinstance(sf, dict):
+        return []
+    if sf.get(sid) is True:
+        return []
+    is_new = sid not in sf
+    sf[sid] = True
+    st.set("story_finished", sf)
+    # story_finished 是 BooleanDictKeyInt：键 int、值 bool
+    # 首次用 OP_ADD（entryAdded -> on_story_finished_added），复通用 OP_CHANGE
+    from ..rpc_common import SYNC_SELF, sync_frame
+    from .. import ms as _ms
+    return [sync_frame(SYNC_SELF, sf.get("__id__") or 0,
+                       _ms.OP_ADD if is_new else _ms.OP_CHANGE,
+                       str(sid), True)]
+
+
+def story_max_collect_num_of(story_line_id):
+    """章节的收集目标数（story_max_collect_num 的值）。
+
+    依据：StoryLineData.collectItem 是收集物 id，collectAward1 是收集奖励。
+    客户端 avatarstorylinecomp.lua:97-99 getMaxCollectNumByLevel(storyLineID)
+    读 self.story_max_collect_num[storyLineID]。
+    这个值的语义是「本线最多能收集多少个」，由服务端算好推下来。
+    """
+    row = None
+    for r in (gamedata.table("StoryLineData") or {}).values():
+        if isinstance(r, dict) and r.get("id") == story_line_id:
+            row = r
+            break
+    if not row:
+        return 0
+    # 没有收集配置就是 0（客户端 or 0 兜底）
+    if not row.get("collectItem"):
+        return 0
+    # 目前只有一档收集（collectAward1），目标数按 1 计；
+    # 多档收集（collectAward2/3）数据里没有，先不猜。
+    return 1
+
+
+def sync_story_max_collect_num(st):
+    """把 story_max_collect_num 补全并返回同步描述。"""
+    out = []
+    mc = st.props.get("story_max_collect_num")
+    if not isinstance(mc, dict):
+        return out
+    from ..rpc_common import SYNC_SELF, sync_frame
+    from .. import ms as _ms
+    changed = False
+    for row in (gamedata.table("StoryLineData") or {}).values():
+        if not isinstance(row, dict):
+            continue
+        try:
+            sid = int(row.get("id"))
+        except Exception:
+            continue
+        want = story_max_collect_num_of(sid)
+        if want <= 0 or mc.get(sid) == want:
+            continue
+        is_new = sid not in mc
+        mc[sid] = want
+        changed = True
+        out.append(sync_frame(SYNC_SELF, mc.get("__id__") or 0,
+                              _ms.OP_ADD if is_new else _ms.OP_CHANGE,
+                              str(sid), want))
+    if changed:
+        st.set("story_max_collect_num", mc)
+    return out
+
+
+def sync_story_reward_list(st):
+    """把 story_reward_list 补全并返回同步描述。
+
+    结构：IntListDictKeyInt = Dict<int, List<int>>，
+    客户端 avatarstorylinecomp.lua:101-103 getLevelRewardedList(storyLineID)
+    读 self.story_reward_list[storyLineID] —— 已领取的章节奖励 id 列表。
+    服务端初始化成空列表（客户端 or {} 兜底），领奖时再往里加。
+    """
+    out = []
+    rl = st.props.get("story_reward_list")
+    if not isinstance(rl, dict):
+        return out
+    from ..rpc_common import SYNC_SELF, sync_frame
+    from .. import ms as _ms
+    changed = False
+    for row in (gamedata.table("StoryLineData") or {}).values():
+        if not isinstance(row, dict):
+            continue
+        try:
+            sid = int(row.get("id"))
+        except Exception:
+            continue
+        if sid in rl:
+            continue
+        # IntList 的键是 "#N"（见 story/finish_parameter 的同类处理）
+        rl[sid] = {"__id__": st.next_property_id()}
+        changed = True
+        out.append(sync_frame(SYNC_SELF, rl.get("__id__") or 0,
+                              _ms.OP_ADD, str(sid), rl[sid]))
+    if changed:
+        st.set("story_reward_list", rl)
+    return out
+
+
 def has_award_items(task_id):
     """这个任务的 AwardItemList 是不是非空。"""
     cfg = gamedata.story_task(task_id) or {}
