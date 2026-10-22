@@ -51,5 +51,5 @@ def _grant_battle_items(st, battle_items):
     for _iid, _cnt in granted:
         _hits = _emit_get_item(st, _iid, _cnt)
         if _hits:
-            frames.extend(_finish_story_tasks(st, _hits))
+            frames.extend(_finish_story_tasks(st, _hits, source="event"))
     return frames, reward_list

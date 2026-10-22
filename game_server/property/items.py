@@ -198,7 +198,7 @@ def _submit_item(rid, params, uid=None):
         st, _events.ev_submit_item(item_id, count, submit_id, item_ids))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        frames.extend(_finish_story_tasks(st, nxt))
+        frames.extend(_finish_story_tasks(st, nxt, source="event"))
     print("[story] 提交道具 submit_id=%s item=%s x%s 需求=%s"
           % (submit_id, item_id, count, item_ids), flush=True)
     st.save()

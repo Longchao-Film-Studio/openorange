@@ -88,6 +88,9 @@ def run():
 
     print("\n[6] 走 RPC：Cmd_OfflineSpace_Finish_CS 完成闭环")
     st2 = fresh("se_b")
+    # ★ P1 阶段 N（审计 P0-4）：结算必须对应一次 StartGame（以前这里走的是伪造路径）
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                msmod.mp_arr([{"system_type": 1004, "storyID": 1}]), 1, uid="se_b")
     frames = guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                          msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
                          1, uid="se_b")
@@ -169,6 +172,9 @@ def run():
     pt = npc.get("preTask") or {}
     check("NPC 40004 preTask[1003] = 3", pt.get(1003) == 3 or pt.get("1003") == 3, pt)
     st8 = fresh("se_g")
+    # ★ P1 阶段 N：先 StartGame（结算只信服务端副本上下文）
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                msmod.mp_arr([{"system_type": 1004, "storyID": 1}]), 1, uid="se_g")
     check("推进前 1003 不满足（-1）",
           story.story_state(st8.props, 1003) != 3,
           story.story_state(st8.props, 1003))

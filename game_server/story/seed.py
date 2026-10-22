@@ -278,7 +278,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
         hits = list(tick_res.chain_hits)
         if hits:
             from .rpc import _finish_story_tasks
-            out.extend(_finish_story_tasks(st, hits))
+            out.extend(_finish_story_tasks(st, hits, source="chain"))
     except Exception as e:
         print("[story] rescan 链式检查失败: %s" % e, flush=True)
 

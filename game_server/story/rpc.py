@@ -78,6 +78,62 @@ def _story_sync_frames(st, changes):
                 SYNC_SELF, c.get("__id__") or 0, msmod.OP_DEL, str(key), None))
     return frames
 
+def _advance_trace_after_finish(st, finished, frames):
+    """★ P1 阶段 N（实机反馈 Bug D）：任务完成后自动切换追踪目标。
+
+    实机现象（用户 2026-10-22 反馈）：
+      「我追踪了主线之后，换地了，追踪还是在旧的那个标点上面，
+        导致我得反复的点击任务追踪」
+
+    原因：`street_trace_taskid` 只在客户端主动点「追踪」时才更新（
+    `updateStreetTraceTask_CS`）。任务完成后它仍指向那个已完成的任务，
+    客户端按它算地图标点 -> 标点停在旧地方。
+
+    修法：完成的正好是当前追踪的任务时，把追踪切到「下一环」：
+      优先用刚完成任务的 PostTasks 里已经 Doing 的那个（这才是玩家该去的地方），
+      没有就取包里第一个 Doing 的任务，都没有就置 0（不追踪）。
+    """
+    if not finished:
+        return
+    try:
+        cur = int(st.props.get("street_trace_taskid") or 0)
+    except Exception:
+        cur = 0
+    if cur not in [int(x) for x in finished]:
+        return   # 追踪的不是刚完成的任务，不动
+    bag = st.props.get("story_task_bag") or {}
+
+    def _is_doing(t):
+        it = bag.get(t)
+        return (isinstance(it, dict)
+                and it.get("state") == story.TASK_STATE_DOING)
+
+    nxt = 0
+    # 1) 刚完成任务的 PostTasks 里已经在 Doing 的（最准确：这就是剧情下一环）
+    for tid in finished:
+        cfg = gamedata.story_task(tid) or {}
+        for post in (cfg.get("PostTasks") or []):
+            try:
+                post = int(post)
+            except Exception:
+                continue
+            if _is_doing(post):
+                nxt = post
+                break
+        if nxt:
+            break
+    # 2) 兜底：包里第一个 Doing 的任务（按 id 升序，保证可复现）
+    if not nxt:
+        doing = sorted(int(k) for k in bag
+                       if str(k).lstrip("-").isdigit() and _is_doing(int(k)))
+        nxt = doing[0] if doing else 0
+    st.props["street_trace_taskid"] = nxt
+    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                             "street_trace_taskid", nxt))
+    print("[story] 追踪自动切换 %s -> %s（原任务已完成）" % (cur, nxt),
+          flush=True)
+
+
 def _recalc_story_unlocks(st):
     """按 AllSystemCatalogueData 的 unlockType=2(StoryTask) 重算系统解锁位。
 
@@ -159,7 +215,25 @@ def _emit_get_item(st, item_id, count):
         print("[story] GetItem 事件失败 %s: %s" % (item_id, e), flush=True)
         return []
 
-def _finish_story_tasks(st, task_ids, depth=0, param=None):
+# ★ P1 阶段 N（审计 P0-1 修复）：完成剧情任务的「来源 -> 允许的 TaskType」白名单。
+#
+#   为什么必须有：审计实测 `Street_Actor_InteractID_Update_CS` 的第 4 个参数
+#   被当成 taskId 直接喂给 _finish_story_tasks，可以在街区里完成任意在包任务
+#   （含 3 条 type0 根）—— 因为那条路径绕过了 _done_story_task 的 TaskType 白名单。
+#
+#   修在唯一入口而不是各调用点（R3）：每个来源只能完成它语义上该完成的任务类型。
+#   没列出的来源 = None = 不限制（服务端内部路径：发奖联动、GM、种子）。
+SOURCE_ALLOWED_TYPES = {
+    "client": story.TASK_TYPE_CLIENT,          # 1/2/5 客户端主动上报
+    "street_interact": (2, 4),                  # NPC 交互：type2（对话）+ type4（街区任务，靠 GuideParam NPC）
+    "space_task": (0,),                         # 战斗内 SpaceTask 只能完成 type0
+    "event": story.TASK_TYPE_EVENT + (4,),      # 3/7 事件判定 + 4（街区任务也是事件驱动）
+    "chain": story.TASK_TYPE_CHAIN,             # 6 链式闸门
+    "internal": None,                           # 不限制
+}
+
+
+def _finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
     """完成若干剧情任务，返回全部同步帧。
 
     ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线。
@@ -168,6 +242,24 @@ def _finish_story_tasks(st, task_ids, depth=0, param=None):
     ★ 审计 P1-4：save 放进 finally —— 之前只在 depth==0 的**正常返回**路径
       调 save，递归里抛异常就完全不落盘，内存改了但盘上没改。
     """
+    # ★ 来源白名单：先把不该由这个来源完成的任务剔掉（R3：修在唯一入口）
+    allowed = SOURCE_ALLOWED_TYPES.get(source)
+    if allowed is not None:
+        keep = []
+        for _tid in task_ids:
+            try:
+                _tid = int(_tid)
+            except Exception:
+                continue
+            _tt = (gamedata.story_task(_tid) or {}).get("TaskType")
+            if _tt in allowed:
+                keep.append(_tid)
+            else:
+                print("[story] 拒绝完成：任务 %s 的 TaskType=%s 不允许由「%s」完成"
+                      % (_tid, _tt, source), flush=True)
+        task_ids = keep
+        if not task_ids:
+            return []
     frames = []
     now = int(time.time())
     finished_now = []
@@ -239,6 +331,8 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
             st, story.archive_story_task(st, tid, now)))
         print("[story] 完成剧情任务 %s" % tid, flush=True)
         finished_now.append(tid)
+    # ★ Bug D：把追踪从已完成的任务上挪走（否则地图标点停在旧地方）
+    _advance_trace_after_finish(st, finished_now, frames)
     # ★ P0-D：把「完成了哪些任务」作为事件发出去。
     #   审计 P1-2 实测：116 条 FinishTask 事件里**没有任何一条**被
     #   TaskType 3/7 的剧情任务引用，所以这段对剧情任务 0 命中；
@@ -342,7 +436,7 @@ def _done_story_task(rid, params, uid=None):
             param = int(vals[1])
         except Exception:
             param = None
-    frames.extend(_finish_story_tasks(st, [tid], param=param))
+    frames.extend(_finish_story_tasks(st, [tid], param=param, source="client"))
     return frames
 
 def _finish_space_task(rid, params, uid=None):
@@ -409,7 +503,7 @@ def _finish_space_task(rid, params, uid=None):
               % (sid, cur_level, want_level), flush=True)
         return frames
     print("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid), flush=True)
-    frames.extend(_finish_story_tasks(st, [tid]))
+    frames.extend(_finish_story_tasks(st, [tid], source="space_task"))
     return frames
 
 
@@ -432,7 +526,7 @@ def _street_actor(rid, params, uid=None):
     st = state(uid)
     hits = _find_story_tasks_by_param(st, actor_id, 2)
     if hits:
-        frames.extend(_finish_story_tasks(st, hits, param=actor_id))
+        frames.extend(_finish_story_tasks(st, hits, param=actor_id, source="street_interact"))
     return frames
 
 def _find_story_tasks_by_param(st, param_int, task_type):

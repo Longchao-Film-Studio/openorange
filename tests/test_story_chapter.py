@@ -143,6 +143,10 @@ def run():
     st3 = clear_story(fresh("ch_b"))
     pre3 = pre_snapshot(uid_of("ch_b"))
     story.start_story_task(st3, 1000, NOW)
+    # ★ P1 阶段 N（审计 P0-4）：结算必须对应一次 StartGame
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                   msmod.mp_arr([{"system_type": 1004, "storyID": 1}]), 1,
+                   uid=uid_of("ch_b"))
     pre3 = pre_snapshot(uid_of("ch_b"))
     frames3 = guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                           msmod.mp_arr([{"typeId": 1004, "modeId": 1,

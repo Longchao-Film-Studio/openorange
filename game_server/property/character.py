@@ -72,7 +72,7 @@ def _upgrade_character(rid, params, uid=None):
                                  char_id=key))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        frames.extend(_finish_story_tasks(st, nxt))
+        frames.extend(_finish_story_tasks(st, nxt, source="event"))
     st.save()
     frames.append(sync_frame(
         SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))

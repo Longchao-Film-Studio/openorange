@@ -111,6 +111,15 @@ def run():
 
     print("\n[4] 结算 -> 剧情推进 + story_finished[1] 置真")
     st2 = fresh("dg_b")
+    # ★ P1 阶段 N（审计 P0-4）：结算必须对应一次 StartGame。
+    #   以前这里不 StartGame 直接发结算，那是**伪造路径**（审计实测能凭空完成 1000）。
+    #   现在服务端只信 _oo_cur_match，所以必须先 StartGame。
+    guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
+                msmod.mp_arr([{"system_type": 1004, "storyID": 1}]),
+                1, uid="dg_b")
+    check("StartGame 后 _oo_cur_copy = guide_01",
+          st2.props.get("_oo_cur_copy") == "guide_01",
+          st2.props.get("_oo_cur_copy"))
     guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 1004, "modeId": 1, "level": 1}]),
                 2, uid="dg_b")
@@ -131,11 +140,14 @@ def run():
           1 in (d.get("story_finished") or {}),
           list((d.get("story_finished") or {}).keys())[:5])
 
-    print("\n[6] 参数不匹配不推进剧情")
+    print("\n[6] 没 StartGame 直接结算 -> 不推进剧情（P0-4 防伪造）")
     st3 = fresh("dg_c")
     guarded_handle(erpc.RPC_INDEX["Cmd_OfflineSpace_Finish_CS"],
                 msmod.mp_arr([{"typeId": 9999, "modeId": 1, "level": 1}]),
                 3, uid="dg_c")
+    check("★ 没 StartGame 时客户端伪造的 typeId 被忽略（1000 仍 Doing）",
+          story.story_state(st3.props, 1000) == story.TASK_STATE_DOING,
+          story.story_state(st3.props, 1000))
     check("1000 仍是 Doing",
           story.story_state(st3.props, 1000) == story.TASK_STATE_DOING,
           story.story_state(st3.props, 1000))

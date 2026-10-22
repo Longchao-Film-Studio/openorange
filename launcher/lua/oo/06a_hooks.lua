@@ -25,7 +25,9 @@ local function install_cb_wrappers()
           -- ★ P1 阶段 I：onStoryTaskItemChanged 钩子。只读不改数据，默认开。
           --   这是本次开发的核心未证事项（服务端发的 OP_CHANGE 客户端收不收）。
           if OO_PROBE_STORY_CB then
-            if pc.frames == 30 then pcall(install_story_cb_hook) end
+            -- ★ 每 30 帧重试安装（不是 pc.frames == 30 精确相等）：
+            --   实机踩过 —— 精确相等一旦错过那一帧就永远装不上。
+            if (pc.frames % 30) == 0 then pcall(install_story_cb_hook) end
             if (pc.frames % 30) == 20 then pcall(report_story_cb) end
           end
           -- 端到端 RPC 探针默认关（会连发 20 条，刷日志）；需要时改成 pcall(probe_p1_setrpc)

@@ -102,25 +102,52 @@ def _advance_story_on_finish(st, info=None, uid=None):
     type_id = 0
     mode_id = 0
     level = 1
-    # 1) finishInfo 自带（旧格式 / 测试用）
-    if isinstance(info, dict):
+    # ★ P1 阶段 N（审计 P0-4 修复）：只信服务端 StartGame 记的上下文，
+    #   不再用客户端 finishInfo 里的 typeId/modeId/level 构造事件。
+    #
+    #   漏洞：以前 finishInfo 优先，攻击者发一个
+    #     Cmd_OfflineSpace_Finish_CS {typeId:1004, modeId:1, level:1}
+    #   就能在没进任何副本时伪造 FinishDungeon{typeId:1004}，
+    #   直接完成 type3 的序章任务 1000（审计实测可行）。
+    #
+    #   语义：一次结算必然对应一次 StartGame。没有 _oo_cur_match 就说明
+    #   「这个结算不属于任何已开始的副本」，不应该推进剧情。
+    #   客户端 finishInfo 只用于战斗内统计（道具/胜负/用时），不参与事件构造。
+    # ★ typeId 严格只信服务端（它决定「哪个副本的事件能命中」，是安全关键）；
+    #   modeId / level 缺失时才回退到客户端 finishInfo（它们只是战斗模式/关卡序号，
+    #   在 typeId 已固定的前提下无法伪造成别的副本）。
+    m = st.props.get("_oo_cur_match")
+    if isinstance(m, dict):
         try:
-            type_id = int(info.get("typeId") or 0)
-            mode_id = int(info.get("modeId") or 0)
-            level = int(info.get("level") or 1)
+            type_id = int(m.get("system_type") or 0)
         except Exception:
             type_id = 0
-    # 2) 回退到 StartGame 存的 match_info
+        try:
+            mode_id = int(m.get("modeId") or 0)
+        except Exception:
+            mode_id = 0
+        try:
+            level = int(m.get("level") or 0)
+        except Exception:
+            level = 0
     if not type_id:
-        m = st.props.get("_oo_cur_match")
-        if isinstance(m, dict):
-            try:
-                type_id = int(m.get("system_type") or 0)
-                mode_id = int(m.get("modeId") or 0)
-            except Exception:
-                type_id = 0
-    if not type_id:
+        print("[dungeon] 结算没有服务端副本上下文（未 StartGame），不推进剧情",
+              flush=True)
         return []
+    # 回退：match_info 没给的字段用 finishInfo 补（不覆盖服务端已有的值）
+    if isinstance(info, dict):
+        if not mode_id:
+            try:
+                mode_id = int(info.get("modeId") or 0)
+            except Exception:
+                mode_id = 0
+        if not level:
+            try:
+                level = int(info.get("level") or 0)
+            except Exception:
+                level = 0
+    if not level:
+        level = 1
     # ★ 把能拿到的参数都给上。event_matches 要求事件配置里的每个键都在
     #   params 里，所以参数越全，能匹配上的事件越多：
     #     areaid        57 个事件需要（区域 id，用 copyId 查 MainlineData）
@@ -156,7 +183,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
     hits = result.hits
     out = []
     if hits:
-        out.extend(_finish_story_tasks(st, hits))
+        out.extend(_finish_story_tasks(st, hits, source="event"))
     # ★ P1 阶段 G：副本打通过 -> 对应 StoryLineData.id 记到 story_finished。
     #   以前这里写死 story_finished[1]=True（只对序章），其它 16 条线永远是 false。
     #   客户端 clientavatar.lua:180 / streetstage.lua:169 / loginmanager.lua:130
@@ -179,7 +206,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
     #   因为刚完成的任务可能让链式任务的前置条件满足了。
     tick_res = _events.tick(st)
     if tick_res.chain_hits:
-        out.extend(_finish_story_tasks(st, tick_res.chain_hits))
+        out.extend(_finish_story_tasks(st, tick_res.chain_hits, source="chain"))
     # 首通记录（下次同关卡就不是 first_pass 了）
     if lv and win:
         cleared[lv_key] = 1

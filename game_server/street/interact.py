@@ -60,14 +60,20 @@ def _actor_interact(rid, params, uid=None):
                                         street_id=street_id))
     # 命中剧情任务就顺手完成
     if task_id:
-        frames.extend(_finish_story_tasks(st, [task_id], param=interact_id))
+        frames.extend(_finish_story_tasks(st, [task_id], param=interact_id,
+                                          source="street_interact"))
     else:
         hits = _find_story_tasks_by_param(st, interact_id, 2)
         if hits:
-            frames.extend(_finish_story_tasks(st, hits, param=interact_id))
-    nxt = list(res.hits) + list(res.chain_hits)
-    if nxt:
-        frames.extend(_finish_story_tasks(st, nxt))
+            frames.extend(_finish_story_tasks(st, hits, param=interact_id,
+                                          source="street_interact"))
+    # ★ P1 阶段 N：`res.hits` 是**事件型**命中（type3/7 + type4 街区任务），
+    #   `res.chain_hits` 是**链式**命中（type6）。两者来源不同，必须分开传，
+    #   否则白名单会把 type4 挡掉（实机回归实测：1045 完不成）。
+    if res.hits:
+        frames.extend(_finish_story_tasks(st, list(res.hits), source="event"))
+    if res.chain_hits:
+        frames.extend(_finish_story_tasks(st, list(res.chain_hits), source="chain"))
     st.save()
     return frames
 
@@ -109,6 +115,14 @@ def _street_trace_task(rid, params, uid=None):
     try:
         tid = int(vals[0] or 0)
     except Exception:
+        tid = 0
+    # ★ P1 阶段 N（实机反馈 Bug C）：客户端「取消追踪」发的是
+    #   SystemConst.StreetIllegalStreetID = -1000（systemconst.lua:130，
+    #   调用点 streettaskv2panel.lua:151）。以前原样存下来，
+    #   而客户端画标记要求 0 < task_id（trackingcommon.lua:33）->
+    #   负数被当成「不追踪」，但存档里留下一个非法值，语义混乱。
+    #   统一归一化成 0（= 不追踪）。
+    if tid < 0:
         tid = 0
     st = state(uid)
     st.props["street_trace_taskid"] = tid

@@ -330,7 +330,25 @@ def _drain_pending_chain(uid=None):
     if not pending:
         return []
     try:
-        return _finish_story_tasks(st, [int(x) for x in pending])
+        # ★ P1 阶段 N：`_oo_pending_chain` 里混了两种来源 ——
+        #   登录 tick 的**事件命中**（type3/4/7）和**链式命中**（type6）。
+        #   以前统一按 chain 传，白名单会把 type3/4/7 全挡掉
+        #   （回归实测：400015 是 type3，永远完不成）。
+        from . import gamedata as _gd
+        _ids = [int(x) for x in pending]
+        _ev, _ch = [], []
+        for _t in _ids:
+            _tt = (_gd.story_task(_t) or {}).get("TaskType")
+            if _tt == 6:
+                _ch.append(_t)
+            else:
+                _ev.append(_t)
+        _out = []
+        if _ev:
+            _out.extend(_finish_story_tasks(st, _ev, source="event"))
+        if _ch:
+            _out.extend(_finish_story_tasks(st, _ch, source="chain"))
+        return _out
     except Exception as e:
         print("[story] 补完成链式任务失败: %s" % e, flush=True)
         return []

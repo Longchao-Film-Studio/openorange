@@ -341,10 +341,24 @@ local function install_story_cb_hook()
   if pc.storycb then return end
   pcall(function()
     local comp = GlobalData.Avatar
-    if comp == nil then return end
+    if comp == nil then
+      -- ★ 不要静默 return：以前这里不打日志，导致「钩子没装上」时
+      --   日志里一条线索都没有，只能靠猜（2026-10-22 实机就踩了）。
+      --   现在留痕，且不设 pc.storycb，下一轮会重试。
+      if (pc.storycb_nolog or 0) < 3 then
+        pc.storycb_nolog = (pc.storycb_nolog or 0) + 1
+        LOG('storycb| 暂不装钩子：GlobalData.Avatar 还是 nil（第 '
+          .. pc.storycb_nolog .. ' 次，稍后重试）')
+      end
+      return
+    end
     local orig = comp.onStoryTaskItemChanged
     if type(orig) ~= 'function' then
-      LOG('storycb| Avatar 上没有 onStoryTaskItemChanged（类型=' .. type(orig) .. '）')
+      if (pc.storycb_nolog or 0) < 3 then
+        pc.storycb_nolog = (pc.storycb_nolog or 0) + 1
+        LOG('storycb| 暂不装钩子：Avatar 上没有 onStoryTaskItemChanged（类型='
+          .. type(orig) .. '，第 ' .. pc.storycb_nolog .. ' 次，稍后重试）')
+      end
       return
     end
     pc.storycb = true
@@ -372,11 +386,14 @@ local function report_story_cb()
   pcall(function()
     local stage = game.stageMgr:getCurStage()
     if stage == nil or stage.name ~= GlobalConst.EGameStage.Street then return end
-    pc.storycbrep = true
+    -- ★ 只有钩子真的装上了才报告并锁存（2026-10-22 实机踩的坑：
+    --   以前在 frame 20 就报「未安装」并置 pc.storycbrep = true，
+    --   而安装是在 frame 30 —— 报告先于安装，且锁死后再也不报，
+    --   于是日志里只剩一条误导性的「未安装」。）
     if not pc.storycb then
-      LOG('storycb| 报告：钩子未安装成功')
-      return
+      return   -- 不锁存，等钩子装好下一轮再报
     end
+    pc.storycbrep = true
     LOG('storycb| 报告：累计触发 ' .. tostring(pc.storycb_hits) .. ' 次，最后一次 ' .. tostring(pc.storycb_last))
     -- 顺带报另外三个回调面，确认它们也通了
     local A = GlobalData.Avatar

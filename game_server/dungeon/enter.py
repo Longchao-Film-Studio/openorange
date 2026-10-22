@@ -39,10 +39,19 @@ def _resolve_copy_id(match_info):
         if isinstance(ml, dict) and ml.get("dungeonid"):
             return ml["dungeonid"]
     # 其它系统：先看调用方有没有直接给 copyId / dungeonId（字符串形式）
+    #
+    # ★ P1 阶段 N（审计 P0-2 修复）：必须校验这个 copyId 真的存在。
+    #   以前直接返回客户端给的任意字符串 —— 攻击者给个不存在的 copyId 就能
+    #   把 _oo_cur_copy 设成任意值，再配合 FinishSpaceTask_Directly_CS 完成
+    #   任意副本的 type0（L2 的副本校验形同虚设）。
     for k in ("copyId", "dungeonid", "dungeonId"):
         v = match_info.get(k)
         if isinstance(v, str) and v and not v.isdigit():
-            return v
+            if gamedata.level_copy(v):
+                return v
+            print("[dungeon] 拒绝：copyId=%s 不在 Level_CopyData 里" % v,
+                  flush=True)
+            return None
     return None
 
 def _avatar_start_game(rid, params, uid=None):
@@ -145,9 +154,17 @@ def _single_start_match(rid, params, uid=None):
     st.props["_oo_cur_copy"] = copy_id
     st.props["_oo_cur_match"] = match_info
     # 客户端请求里带了具体关卡就用它，否则用副本首关
+    # ★ P1 阶段 N（审计 P0-2 修复）：levelId 必须是该副本 rootLevel 里的一个。
+    #   以前直接信任客户端给的整数，攻击者可以填任意值把 _oo_cur_level 设成
+    #   某个 SpaceTask 要求的关卡，从而在没进战斗的情况下完成 type0。
     want_level = match_info.get("levelId")
+    root_ints = [int(x) for x in roots if isinstance(x, int)]
     if not isinstance(want_level, int):
-        want_level = roots[0] if roots else None
+        want_level = root_ints[0] if root_ints else None
+    elif root_ints and int(want_level) not in root_ints:
+        print("[dungeon] 拒绝：levelId=%s 不在 %s 的 rootLevel %s 里，改用首关"
+              % (want_level, copy_id, root_ints[:4]), flush=True)
+        want_level = root_ints[0]
     _remember_dungeon(st, copy_id, want_level)
     st.props.pop("_oo_cur_teach", None)
     st.save()
