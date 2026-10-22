@@ -269,10 +269,14 @@ def _ready_to_finish(st, tid, param, frames):
       修在调用点 = 补丁（R3）；修在入口 = 模型。
 
     规则：
+      0. **TaskType 6（链式闸门）直接放行** —— 它的 Parameter1 是「前置 story 任务 id 列表」，
+         完成条件已由 check_chain_tasks 的 all(...) 判完（story/__init__.py:469）。
+         这里若再按「多目标集齐」判一次，链式任务会被自己的判定挡住，永远卡 Doing。
+         （审计 P1-A 实测：4000/5000/417607 三条全被误伤，其中 417607 可达。）
       1. 任务**必须已在 story_task_bag 里**（否则拒绝，防伪造完成 Type0/Type4）。
       2. Parameter1 只有 1 项：直接可以完成。
-      3. Parameter1 多项：param 非空时先记 finish_parameter；只有集齐全部才允许完成。
-         param 为空且没集齐 -> 拒绝（审计 P0-3：以前 param=None 直接放行）。
+      3. Parameter1 多项（且非 TaskType 6）：param 非空时先记 finish_parameter；
+         只有集齐全部才允许完成；param 为空且没集齐 -> 拒绝（审计 P0-3）。
     """
     tid = int(tid)
     bag = st.props.get("story_task_bag")
@@ -280,6 +284,8 @@ def _ready_to_finish(st, tid, param, frames):
         print("[story] 忽略：任务 %s 不在 story_task_bag 里" % tid, flush=True)
         return False
     cfg = gamedata.story_task(tid) or {}
+    if cfg.get("TaskType") == 6:
+        return True
     p1 = cfg.get("Parameter1") or []
     if not isinstance(p1, list) or len(p1) <= 1:
         return True

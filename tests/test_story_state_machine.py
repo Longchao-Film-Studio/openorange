@@ -40,6 +40,7 @@ from game_server import player_state as pstate  # noqa: E402
 from game_server import story  # noqa: E402
 from game_server.story import state_machine as sm  # noqa: E402
 from game_server.story.rpc import _story_sync_frames  # noqa: E402
+from tests import frame_guard as fg  # noqa: E402
 from tests.frame_guard import pre_snapshot  # noqa: E402
 from tests.shadow_cache import frames_safe  # noqa: E402
 
@@ -515,6 +516,95 @@ def run():
         r2 = story.story_award(st11, award_task)
         check("第一次发奖有产出", bool(r1), len(r1))
         check("★ 第二次发奖被账本拦住（返回空）", r2 == [], r2)
+
+    print("\n[14] P1-3 负向：伪造 taskId 必须被拒（删掉判定这些会红）")
+    # ★ 审计 P0-A：以前删掉「任务必须在 story_task_bag 里」整段判定，
+    #   8 个相关套件全绿 —— 安全边界没有能失败的测试。这里补上。
+    st14 = fresh("sm_forge")
+    bag14 = st14.props.get("item_bag") or {}
+    before14 = {g.get("itemId"): g.get("num")
+                for g in bag14.values() if isinstance(g, dict)}
+    # ① 走真实 NPC 路径伪造一个带奖励的 Type0 任务（不在包里）
+    _forge = None
+    for _tid in (300332, 1118, 1102):
+        _cfg = gamedata.story_task(_tid) or {}
+        if _cfg.get("TaskType") == 0 and story.has_award_items(_tid):
+            _forge = _tid
+            break
+    check("找到一个带奖励的 Type0 任务用于伪造", _forge is not None, _forge)
+    idx14 = erpc.RPC_INDEX.get("Street_Actor_InteractID_Update_CS")
+    if _forge is not None:
+        fg.guarded_handle(idx14, msmod.mp_arr([1, 1, 0, _forge, 0]), 1, uid=uid_of("sm_forge"))
+        check("★ 伪造 NPC taskId=%s 被拒（不在包里）" % _forge,
+              story.story_state(st14.props, _forge) == -1,
+              story.story_state(st14.props, _forge))
+        check("★ 伪造后没有进 done", _forge not in st14.props["done_story_tasks"])
+    # ② 走 RequestDoneStoryTaskParamInt_CS 伪造同一个 taskId
+    if _forge is not None:
+        fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                    msmod.mp_arr([_forge, 0]), 2, uid=uid_of("sm_forge"))
+        check("★ 伪造 ParamInt taskId=%s 被拒" % _forge,
+              story.story_state(st14.props, _forge) == -1,
+              story.story_state(st14.props, _forge))
+    # ③ 奖励零变化
+    bag14b = st14.props.get("item_bag") or {}
+    after14 = {g.get("itemId"): g.get("num")
+               for g in bag14b.values() if isinstance(g, dict)}
+    check("★ 背包没有任何变化（没领到奖励）", before14 == after14,
+          {k: (before14.get(k), after14.get(k))
+           for k in set(before14) | set(after14)
+           if before14.get(k) != after14.get(k)})
+    # ④ 合法任务仍然能完成（防止判定过严）
+    story.start_story_task(st14, 1005, NOW)
+    fr14 = fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                       msmod.mp_arr([1005, 10103]), 3, uid=uid_of("sm_forge"))
+    check("★ 合法任务（在包里、Type1）仍能完成",
+          story.story_state(st14.props, 1005) == sm.TASK_STATE_FINISHED,
+          story.story_state(st14.props, 1005))
+
+    print("\n[15] P1-A 回归：Type6 链式任务不被多目标判定误伤")
+    # Type6 的 Parameter1 是前置 story id 列表，完成条件由 check_chain_tasks 的 all() 判完。
+    # _ready_to_finish 必须对 TaskType 6 放行，否则链式任务被自己的判定挡住、永远卡 Doing。
+    # 注意：Type6 不是客户端上报型，必须走 check_chain_tasks -> _finish_story_tasks 这条真实路径。
+    for gate in (201000, 4000, 5000, 417607):
+        cfg_g = gamedata.story_task(gate) or {}
+        if cfg_g.get("TaskType") != 6:
+            continue
+        p1_g = [int(x) for x in (cfg_g.get("Parameter1") or [])]
+        stg = fresh("sm_gate_%d" % gate)
+        story.start_story_task(stg, gate, NOW)
+        # 把前置全部标成 Finished（模拟前置都完成）
+        for pre in p1_g:
+            if story.story_state(stg.props, pre) != -1:
+                continue
+            story.mark_story_task_finished(stg, pre, NOW)
+            story.archive_story_task(stg, pre, NOW)
+        # 走真实路径：链式检查 -> 落状态
+        hits_g, _ = story.check_chain_tasks(stg, NOW)
+        check("Type6 闸门 %s 被链式检查命中" % gate, gate in hits_g, hits_g[:4])
+        if gate in hits_g:
+            erpc._finish_story_tasks(stg, list(hits_g))
+        check("★ Type6 闸门 %s 前置满足后能完成（不被多目标挡住）" % gate,
+              story.story_state(stg.props, gate) == sm.TASK_STATE_FINISHED,
+              story.story_state(stg.props, gate))
+
+    print("\n[16] P1-B 回归：归档后 finish_parameter 的值不丢")
+    st16 = fresh("sm_fpkeep")
+    story.start_story_task(st16, 6069, NOW)
+    story.mark_finish_parameter(st16, 6069, 106051)
+    story.mark_finish_parameter(st16, 6069, 10662)
+    story.mark_finish_parameter(st16, 6069, 10663)
+    fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+                msmod.mp_arr([6069, 10663]), 5, uid=uid_of("sm_fpkeep"))
+    done_item16 = st16.props["done_story_tasks"].get(6069)
+    check("★ 归档后 done 的 finish_parameter 仍读得到已完成的 3 个目标",
+          done_item16 is not None
+          and story.finish_parameters_of(done_item16) == {106051, 10662, 10663},
+          story.finish_parameters_of(done_item16) if done_item16 else None)
+    check("★ done 的 finish_parameter 用了新的 __id__（不是复用 bag 那条）",
+          done_item16 is not None
+          and (done_item16.get("finish_parameter") or {}).get("__id__") is not None,
+          (done_item16 or {}).get("finish_parameter"))
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

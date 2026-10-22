@@ -236,6 +236,22 @@ def move_to_done(st, task_id, now=None):
                                      start_time or int(now or 0))
     done_item["start_time"] = start_time
     done_item["get_time"] = get_time
+    # ★ P1-B：三个嵌套容器的**值**也要搬过去。
+    #   finish_parameter 记的是「已完成的 Parameter1 值」—— 多目标任务集齐后归档，
+    #   这些值是进过 finish_parameter 的历史事实；只搬时间戳会把它们抹平，
+    #   「存盘往返进度不丢」这条数据链在归档这一跳又断了（审计 P1-B 实测 set()）。
+    #   注意搬的是**值**，__id__ 保持新的（P0-1：复用 id 会被客户端缓存顶掉）。
+    for field in ("doing_targets", "finish_targets", "finish_parameter"):
+        src = item.get(field)
+        if not isinstance(src, dict):
+            continue
+        dst = done_item.get(field)
+        if not isinstance(dst, dict):
+            continue
+        for k, v in src.items():
+            if k in ("__id__", "__tp__"):
+                continue
+            dst[k] = v
     done[task_id] = done_item
     bag.pop(task_id, None)
     st.set("done_story_tasks", done)
