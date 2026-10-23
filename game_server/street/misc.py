@@ -59,15 +59,15 @@ def _finish_storyline(rid, params, uid=None):
 
 def _street_cd_update(rid, params, uid=None):
     """Street_CD_Update_CS {street_id, street_cd_id} —— 记录当前选的 CD 并回成功。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         street_id = int(vals[0] or 0)
         cd_id = int(vals[1] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
     tx, si, entry, is_new = _street_tx_begin(st, street_id)
@@ -77,6 +77,6 @@ def _street_cd_update(rid, params, uid=None):
         if not is_new:
             tx.set(("street_info", street_id, "cd_choose"), cd_id)
         st.save()
-        frames.extend(tx.frames())
+        syncs.extend(tx.frames())
     print("[street] CD 选择 street=%s cd=%s" % (street_id, cd_id), flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)

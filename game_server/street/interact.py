@@ -18,22 +18,21 @@ from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import tx as _tx
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .info import _street_info_of, _street_tx_begin
 def _actor_interact(rid, params, uid=None):
     """Street_Actor_InteractID_Update_CS {actor_id, interact_group, interact_id, taskId?, interact_id}。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 3):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         actor_id = int(vals[0])
         interact_id = int(vals[2])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     task_id = None
     if len(vals) >= 4:
         try:
@@ -53,50 +52,50 @@ def _actor_interact(rid, params, uid=None):
         st.set("street_info", si)
         if not is_new:
             tx.set(("street_info", street_id, "inter_actor_info"), ia)
-        frames.extend(tx.frames())
+        syncs.extend(tx.frames())
     print("[street] NPC %s 交互 %s" % (actor_id, interact_id), flush=True)
     # ★ P0-D：走事件总线发 StreetInteract（11 条剧情任务靠它推进）。
     #   event_id 用 actor+interact 组合，重复交互不会重复走一遍。
     res = _events.apply_event(
         st, _events.ev_street_interact(actor_id, interact_id,
                                         street_id=street_id))
-    frames.extend(drain_event_task_sync(st, res))
+    syncs.extend(drain_event_task_sync(st, res))
     # 命中剧情任务就顺手完成
     if task_id:
-        frames.extend(_finish_story_tasks(st, [task_id], param=interact_id,
+        syncs.extend(_finish_story_tasks(st, [task_id], param=interact_id,
                                           source="street_interact"))
     else:
         hits = _find_story_tasks_by_param(st, interact_id, 2)
         if hits:
-            frames.extend(_finish_story_tasks(st, hits, param=interact_id,
+            syncs.extend(_finish_story_tasks(st, hits, param=interact_id,
                                           source="street_interact"))
     # ★ P1 阶段 N：`res.hits` 是**事件型**命中（type3/7 + type4 街区任务），
     #   `res.chain_hits` 是**链式**命中（type6）。两者来源不同，必须分开传，
     #   否则白名单会把 type4 挡掉（实机回归实测：1045 完不成）。
     if res.hits:
-        frames.extend(_finish_story_tasks(st, list(res.hits), source="event"))
+        syncs.extend(_finish_story_tasks(st, list(res.hits), source="event"))
     if res.chain_hits:
-        frames.extend(_finish_story_tasks(st, list(res.chain_hits), source="chain"))
+        syncs.extend(_finish_story_tasks(st, list(res.chain_hits), source="chain"))
     st.save()
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _street_redpoint(rid, params, uid=None):
     """Street_Redpoint_Update_CS {key, value} —— 存在 street_info.street_redpoint。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         key = int(vals[0])
         value = int(vals[1])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     # street_redpoint 是 StreetInfoDict 自身的字段（混合类型的「结构体」那一半），
     # 所以 propertyId 是 street_info 的 __id__，name 是字段名。
     si = st.props.get("street_info")
     if not isinstance(si, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     rp = si.get("street_redpoint")
     if not isinstance(rp, dict):
         rp = {"__id__": _ids.alloc_id(st.props)}
@@ -106,8 +105,8 @@ def _street_redpoint(rid, params, uid=None):
     st.save()
     tx = _tx.Tx(st.props)
     tx.set(("street_info", "street_redpoint"), rp)
-    frames.extend(tx.frames())
-    return frames
+    syncs.extend(tx.frames())
+    return respond_after_sync(rid, syncs)
 
 def _effective_trace(st, wanted):
     """玩家想追踪 wanted，但只有在当前街区做得了时才真正生效。

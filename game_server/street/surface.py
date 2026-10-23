@@ -13,8 +13,7 @@
 import time
 
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, state, sync_frame
 def _set_surface_time(st, value):
     """改 street_info.surface_enter_time 并推同步。"""
     si = st.props.get("street_info")
@@ -50,7 +49,7 @@ def _enter_surface(rid, params, uid=None):
     syncs = _set_surface_time(st, int(time.time()))
     st.save()
     print("[street] 进入阴界", flush=True)
-    return list(syncs) + [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    return respond_after_sync(rid, syncs)
 
 def _leave_surface(params, uid=None):
     """RequestLeaveStreetSurface_CS {} —— 回阳界（单向）。"""
