@@ -41,6 +41,34 @@ _STATES = {}
 #   _live_init_dict 每次登录把 _oo_pending_chain 记进状态，dispatch 在
 #   第一条 RPC 里 drain 补完。以前**每条 RPC 都跑** _state()+pop，虽然幂等
 #   但浪费。现在改成「每登录一次只补完一次」：登录时 reset，首条 RPC 后 mark。
+# ★ 雷5（2026-10-23）：per-uid 可重入锁。
+#   背景：PlayerState 按 uid 共享，而业务 handler 大量直接写 st.props[...]
+#   （grid["num"] += / st.props["_oo_street_pos"] = ...），player_state._LOCK
+#   只保护 get/set/save，挡不住「读-改-写」交错。
+#   同一账号开两个客户端（或重连竞态）时会丢物品/丢任务状态。
+#
+#   用法：在**入口**（dispatch.handle / 心跳 / 登录初始化 / 管理接口）加锁，
+#   锁内只改状态、构造帧，不要做 socket I/O（避免慢客户端把同号连接串行化）。
+_UID_LOCKS = {}
+
+
+def lock_for(uid=None):
+    """取某个账号的可重入锁（首次调用时创建）。"""
+    key = uid or DEFAULT_UID
+    with _LOCK:
+        lk = _UID_LOCKS.get(key)
+        if lk is None:
+            lk = threading.RLock()
+            _UID_LOCKS[key] = lk
+        return lk
+
+
+def clear_uid_locks():
+    """测试用：清掉锁表。"""
+    with _LOCK:
+        _UID_LOCKS.clear()
+
+
 _DRAINED = set()
 
 

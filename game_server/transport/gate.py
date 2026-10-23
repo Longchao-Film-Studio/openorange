@@ -174,21 +174,30 @@ def _on_heartbeat(conn, cid):
     uid = accounts.uid_of(cid)
     if uid != ooconf.FALLBACK_UID:
         try:
+            from .. import player_state as _pstate
             from .. import stamina as stamina_mod
-            st = erpc._state(uid)
-            lv = int(st.props.get("level") or 1)
-            gained, _ = stamina_mod.apply_recovery(st.props, lv)
+            # ★ 雷5：体力恢复是「读-改-写」，和 RPC 并发时会丢更新。
+            #   锁内只改状态 + 造帧，sendall 放到锁外（不锁 I/O）。
+            frames = []
+            gained = 0
+            with _pstate.lock_for(uid):
+                st = erpc._state(uid)
+                lv = int(st.props.get("level") or 1)
+                gained, _ = stamina_mod.apply_recovery(st.props, lv)
+                if gained:
+                    st.save()
+                    for prop in (stamina_mod.PROP_KEYS, stamina_mod.PROP_NEXT,
+                                 stamina_mod.PROP_TOTAL):
+                        # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
+                        frames.append(erpc._sync_frame(
+                            SYNC_SELF, 0, msmod.OP_CHANGE, prop,
+                            st.props.get(prop)))
+                    keys_now = st.props.get(stamina_mod.PROP_KEYS)
+            for pkt in frames:
+                conn.sendall(pkt)
             if gained:
-                st.save()
-                for prop in (stamina_mod.PROP_KEYS, stamina_mod.PROP_NEXT,
-                             stamina_mod.PROP_TOTAL):
-                    # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
-                    conn.sendall(erpc._sync_frame(
-                        SYNC_SELF, 0, msmod.OP_CHANGE, prop,
-                        st.props.get(prop)))
                 print("[GATE] #%03d 体力恢复 +%d -> %s"
-                      % (cid, gained, st.props.get(stamina_mod.PROP_KEYS)),
-                      flush=True)
+                      % (cid, gained, keys_now), flush=True)
         except Exception as _e:
             print("[GATE] #%03d 体力恢复失败: %s" % (cid, _e), flush=True)
     print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)

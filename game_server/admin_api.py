@@ -300,15 +300,19 @@ class _Handler(BaseHTTPRequestHandler):
                 uid = str(payload.get("uid") or "").strip()
                 if not uid:
                     return self._send(400, {"ok": False, "error": "missing uid"})
-                lv = _set_player_force_level(uid, payload.get("level"))
+                from . import player_state as _pstate
+                with _pstate.lock_for(uid):
+                    lv = _set_player_force_level(uid, payload.get("level"))
                 return self._send(200, {"ok": True, "uid": uid,
                                          "force_level": lv})
             if path == "/player/skip-prologue":
                 uid = str(payload.get("uid") or "").strip()
                 if not uid:
                     return self._send(400, {"ok": False, "error": "missing uid"})
-                return self._send(200, {"ok": True,
-                                        "result": _do_skip_prologue(uid)})
+                from . import player_state as _pstate
+                with _pstate.lock_for(uid):
+                    res = _do_skip_prologue(uid)
+                return self._send(200, {"ok": True, "result": res})
             if path == "/player/grant":
                 # ★ GM 命令诚实化：/give /money 的真写入入口
                 uid = str(payload.get("uid") or "").strip()
@@ -317,8 +321,10 @@ class _Handler(BaseHTTPRequestHandler):
                 items = payload.get("items")
                 if not isinstance(items, dict):
                     return self._send(400, {"ok": False, "error": "items 需是 {itemId: 数量}"})
-                return self._send(200, {"ok": True,
-                                        "result": _grant_player(uid, items=items)})
+                from . import player_state as _pstate
+                with _pstate.lock_for(uid):
+                    res = _grant_player(uid, items=items)
+                return self._send(200, {"ok": True, "result": res})
             if path == "/player/level":
                 # ★ GM 命令诚实化：/lv 的真写入入口
                 uid = str(payload.get("uid") or "").strip()
@@ -331,8 +337,10 @@ class _Handler(BaseHTTPRequestHandler):
                     return self._send(400, {"ok": False, "error": "level 需是整数"})
                 if lv is None or lv < 1:
                     return self._send(400, {"ok": False, "error": "level 需 >= 1"})
-                return self._send(200, {"ok": True,
-                                        "result": _grant_player(uid, level=lv)})
+                from . import player_state as _pstate
+                with _pstate.lock_for(uid):
+                    res = _grant_player(uid, level=lv)
+                return self._send(200, {"ok": True, "result": res})
             return self._send(404, {"ok": False, "error": "no such path"})
         except Exception as e:
             return self._send(500, {"ok": False, "error": "%s: %s"

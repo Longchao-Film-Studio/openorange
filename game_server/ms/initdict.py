@@ -154,6 +154,17 @@ def _login_tick(st):
         print("[init] 登录事件 tick 失败: %s" % e, flush=True)
 
 def _live_init_dict(uid=None):
+    """登录时的 initDict（雷5：整段在 per-uid 锁内执行）。
+
+    ★ 登录初始化会写很多状态（脚手架 / 播种 / 跨天重置 / 系统解锁重算），
+      同一账号重连竞态时和 RPC 并发会互相覆盖，所以入口统一加锁。
+    """
+    from .. import player_state as _pstate
+    with _pstate.lock_for(uid):
+        return _live_init_dict_impl(uid)
+
+
+def _live_init_dict_impl(uid=None):
     """登录时的 initDict 用服务端可变状态（player_state）。
 
     这样 Set* 改过的值、以及落盘后重启的存档，都会在下次登录时生效。

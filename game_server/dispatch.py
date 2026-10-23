@@ -435,6 +435,14 @@ def handle(index, params, rid, uid=None):
     """
     if index is None:
         return []
+    # ★ 雷5：同一 uid 的所有 RPC 串行执行（心跳/登录初始化也走同一把锁）。
+    #   锁内只改状态 + 构造帧；发送在 gate 里做，不在锁内。
+    from . import player_state as _pstate
+    with _pstate.lock_for(uid):
+        return _handle_locked(index, params, rid, uid)
+
+
+def _handle_locked(index, params, rid, uid=None):
     # ★ 单向消息（serverMsg / CallServer，rid = 0）以前在这里直接 return []，
     #   处理器根本没被调用 —— 但服务端**必须**处理它们（位置上报、红点、
     #   清理等全是单向的），只是不能回应答帧。
