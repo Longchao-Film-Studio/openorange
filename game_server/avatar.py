@@ -84,12 +84,30 @@ def _validate_name(name):
     return True, NAME_OK
 
 
-def _set_name(st, name, gender=None):
-    """写 player_name（可选 gender）。返回是否真的改了。"""
+def _set_name(st, name, gender=None, frames=None):
+    """写 player_name（可选 gender）+ 下发属性同步帧。返回是否真的改了。
+
+    ★ 为什么必须下发同步帧（2026-10-23 实机客户端日志实锤）：
+      客户端 creatingrolepanel.lua:92-115 submitNameAndGender 成功后**不在本地
+      设 player_name / gender**，只播动画 + 上报 SDK，完全依赖服务端同步帧。
+      以前这里只写 st.props、不发帧，于是客户端 GlobalData.Avatar.player_name
+      一直是 ""、gender 一直是 0，导致：
+        stage/streetstage.lua:167 checkIsCanEnterStreet 条件 2/3 失败
+        -> 弹 SysTextData[29]「未知的神秘力量干扰了加载进程」-> returnToLogin
+      重登后靠 initDict 快照才正常，所以表现为「第一次进街区失败、重登能进」。
+
+    frames 为 None 时只写状态（给不关心同步的调用方/测试用）。
+    """
     changed = False
     if st.props.get("player_name") != name:
         st.props["player_name"] = name
         changed = True
+        if frames is not None:
+            try:
+                frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                         "player_name", name))
+            except Exception as e:
+                print("[avatar] 玩家名同步失败: %s" % e, flush=True)
     if gender is not None:
         try:
             g = int(gender)
@@ -98,6 +116,12 @@ def _set_name(st, name, gender=None):
         if g in (1, 2) and st.props.get("gender") != g:
             st.props["gender"] = g
             changed = True
+            if frames is not None:
+                try:
+                    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                             "gender", g))
+                except Exception as e:
+                    print("[avatar] 性别同步失败: %s" % e, flush=True)
     return changed
 
 
@@ -159,7 +183,7 @@ def _change_nickname(rid, params, uid=None):
     if not ok:
         return frames
     old = st.props.get("player_name")
-    changed = _set_name(st, name)
+    changed = _set_name(st, name, None, frames)
     if changed:
         st.save()
         print("[avatar] 改名 %r -> %r" % (old, name), flush=True)
@@ -294,7 +318,7 @@ def _commit_name_gender(rid, params, uid=None):
     vals = decode_params(params)
     gender = vals[1] if len(vals) > 1 else None
     old = st.props.get("player_name")
-    changed = _set_name(st, name, gender)
+    changed = _set_name(st, name, gender, frames)
     if changed:
         st.save()
         print("[avatar] 取名 %r -> %r gender=%s" % (old, name, gender), flush=True)

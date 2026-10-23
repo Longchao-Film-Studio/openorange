@@ -248,6 +248,40 @@ def run():
     check("★ 101 正常激活（值=0 弹教学 UI）",
           _bts.get(101) == 0, _bts.get(101))
 
+
+    print("\n[12] 取名必须下发 player_name / gender 属性同步帧（否则进街区弹神秘力量）")
+    # ★ 2026-10-23 实机客户端日志实锤：
+    #   客户端 creatingrolepanel.lua:92-115 取名成功后不在本地设 player_name/gender，
+    #   只依赖服务端同步帧。以前 _set_name 只写 props 不发帧 -> 客户端这两个值一直是
+    #   ""/0 -> streetstage.lua:167 checkIsCanEnterStreet 条件 2/3 失败 ->
+    #   SysTextData[29]「未知的神秘力量干扰了加载进程」-> 回登录。
+    #   重登后靠 initDict 才正常（表现为「重登能进街区」）。
+    def _sync_names(frames):
+        out = []
+        for fr in frames:
+            f = bytes(fr)
+            if len(f) < 6:
+                continue
+            if int.from_bytes(f[4:6], "little") != msmod.PROPERTY_SYNC_TYPE:
+                continue
+            fields = msmod.pb_parse(f[6:])
+            nm = fields.get(4, [b""])[0]
+            if isinstance(nm, (bytes, bytearray)):
+                nm = nm.decode("utf-8", "replace")
+            out.append(nm)
+        return out
+
+    st12, u12 = fresh("namesync")
+    _fr12 = guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                           msmod.mp_arr(["\u5973\u5bfc\u6f14\u6d4b\u8bd5", 2]), 13, uid=u12)
+    _names = _sync_names(_fr12)
+    check("★ 取名响应含 player_name 同步帧", "player_name" in _names, _names)
+    check("★ 取名响应含 gender 同步帧", "gender" in _names, _names)
+    check("★ 取名响应含 player_card_id 同步帧",
+          "player_card_id" in _names, _names)
+    check("★ 取名响应含 character_choosen_char 同步帧",
+          "character_choosen_char" in _names, _names)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
