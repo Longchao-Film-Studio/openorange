@@ -32,6 +32,7 @@ from game_server import player_state as pstate  # noqa: E402
 from game_server import rpc_index  # noqa: E402
 from game_server import gamedata  # noqa: E402
 from game_server import scaffold  # noqa: E402
+from game_server import avatar as avatar_mod  # noqa: E402
 from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
@@ -281,6 +282,55 @@ def run():
           "player_card_id" in _names, _names)
     check("★ 取名响应含 character_choosen_char 同步帧",
           "character_choosen_char" in _names, _names)
+
+
+    print("\n[13] 编队（队伍切换头像）随性别：取名女->9002；老号登录校正")
+    # ★ 2026-10-23 实机反馈：街区右下角队伍切换头像显示男主。
+    #   客户端 StreetV2Panel:initFormation（streetv2panel.lua:1311-1341）
+    #   用 character_list[choosen_index].value[i]（charId）设队员头像
+    #   （CharData[charId].DefaultSkin -> CharAppearanceData.FacialDrawing）。
+    #   老号取名早于编队修复，编队仍 [9001,0,0] -> 男主头像。
+    def _formation_ids(st0):
+        cl0 = st0.props.get("character_list") or {}
+        return {int(k): v for team in cl0.values() if isinstance(team, dict)
+                for k, v in (team.get("value") or {}).items()
+                if not str(k).startswith("__") and isinstance(v, int)}
+
+    # 1) 取名女 -> 编队主角 9002（覆盖原 [9001,0,0]）
+    st13, u13 = fresh("fmgirlf")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u7f16\u961f\u5973\u4e3b", 2]), 15, uid=u13)
+    _f13 = _formation_ids(st13)
+    check("★ 取名女后队1主角是 9002（队伍切换显示女主头像）",
+          _f13.get(1) == 9002, _f13)
+
+    # 2) 老号校正：gender=2 但编队是 9001（旧数据），登录时应被改回 9002
+    st13b, u13b = fresh("oldhero")
+    _cl = st13b.props.get("character_list") or {}
+    for _team in _cl.values():
+        if isinstance(_team, dict):
+            _lst = _team.get("value") or {}
+            for _k in list(_lst.keys()):
+                if not str(_k).startswith("__") and int(_lst[_k] or 0) == 9001:
+                    _lst[_k] = 9001  # 保持 9001（模拟旧号）
+    st13b.props["gender"] = 2
+    st13b.props["character_choosen_char"] = 9002
+    st13b.set("character_list", _cl)
+    st13b.save()
+    # 重新走登录流程（initdict 里的校正块）
+    msmod._live_init_dict(u13b)
+    _stB = pstate.get_state(uid=u13b)
+    _f13b = _formation_ids(_stB)
+    check("★ 老号登录后编队 9001->9002 校正",
+          _f13b.get(1) == 9002, _f13b)
+
+    # 3) 取名男保持不变 9001
+    st13c, u13c = fresh("fmboyf")
+    guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
+                   msmod.mp_arr(["\u7f16\u961f\u7537\u4e3b", 1]), 16, uid=u13c)
+    _f13c = _formation_ids(st13c)
+    check("★ 取名男后队1仍是 9001",
+          _f13c.get(1) == 9001, _f13c)
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

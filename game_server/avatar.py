@@ -251,7 +251,62 @@ def _ensure_hero_by_gender(st, gender, frames):
               % (g, want), flush=True)
     if changed:
         st.set("characterBag", cb)
+    # ★ 2026-10-23 实机反馈：街区右下角队伍切换头像还是男主。
+    #   客户端 StreetV2Panel:initFormation（streetv2panel.lua:1311-1341）
+    #   用 formation.value[i] 当 charId 给队员设头像，而编队（character_list）
+    #   里第一队还是 initDict 的 [9001,0,0]（男主）。这里把「另一性别的导演」
+    #   换成主角 want。
+    _set_formation_hero(st, want, frames)
+
     return changed
+
+
+def _set_formation_hero(st, want, frames):
+    """把编队（character_list）里「另一性别的导演」换成 want，并下发同步。
+
+    依据 game_server/property/setters.py::_set_character_list 的同步方式：
+      propertyId = character_list.__id__，name = 队伍下标，value = 整队对象。
+
+    为什么：客户端 StreetV2Panel:initFormation 用 formation.value[i] 当 charId
+    给每个队员设头像（streetv2panel.lua:1311-1341），编队里若还是 9001
+    （男主），街区右下角队伍切换就会显示男主头像。
+    """
+    cl = st.props.get("character_list")
+    if not isinstance(cl, dict):
+        return
+    other = 9001 if want == 9002 else 9002
+    changed_teams = []
+    for idx, team in list(cl.items()):
+        if str(idx).startswith("__") or not isinstance(team, dict):
+            continue
+        lst = team.get("value")
+        if not isinstance(lst, dict):
+            continue
+        hit = False
+        for k, v in list(lst.items()):
+            if str(k).startswith("__"):
+                continue
+            try:
+                if int(v) == other:
+                    lst[k] = want
+                    hit = True
+            except Exception:
+                continue
+        if hit:
+            changed_teams.append((idx, team))
+    if not changed_teams:
+        return
+    st.set("character_list", cl)
+    st.save()
+    for idx, team in changed_teams:
+        try:
+            if frames is not None:
+                frames.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
+                                         msmod.OP_CHANGE, str(idx), team))
+        except Exception as e:
+            print("[avatar] 编队同步失败: %s" % e, flush=True)
+    print("[avatar] 编队主角切换 -> %s（%d 队）" % (want, len(changed_teams)),
+          flush=True)
 
 
 def _realloc_ids(obj, st):

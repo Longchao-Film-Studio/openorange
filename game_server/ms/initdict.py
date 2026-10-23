@@ -266,6 +266,24 @@ def _live_init_dict(uid=None):
     except Exception as e:
         print("[init] street_info 条目补齐失败: %s" % e, flush=True)
 
+    # ★ 2026-10-23 实机反馈：街区「队伍切换」头像显示男主。
+    #   客户端 StreetV2Panel:initFormation 用 character_list[choosen_index].value[i]
+    #   （charId）当队员头像（CharData[charId].DefaultSkin -> CharAppearanceData.
+    #   FacialDrawing）。老号（取名早于编队修复）的编队仍可能是 [9001,0,0]，
+    #   即使 gender=2 / character_choosen_char=9002。
+    #   登录时统一按 gender 修正：主角 + 编队 + characterBag（幂等，无帧，快照自带）。
+    if int(st.props.get("gender") or 0) in (1, 2):
+        try:
+            from ..avatar import _ensure_hero_by_gender as _eh, _set_formation_hero as _sfh
+            _eh(st, st.props.get("gender"), None)
+            _want = 9002 if int(st.props.get("gender")) == 2 else 9001
+            _sfh(st, _want, None)
+            print("[init] 按 gender=%s 校正主角/编队（want=%s）"
+                  % (st.props.get("gender"), _want), flush=True)
+        except Exception as e:
+            print("[init] 主角/编队校正失败: %s" % e, flush=True)
+
+
     # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
     #   只在「天序号变了」时才动，同一天多次登录幂等。
     #   必须在通用任务播种**之前**跑，否则重置会把刚播的日常任务又清掉。
