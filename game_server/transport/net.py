@@ -40,11 +40,24 @@ def hexdump(data, width=16, limit=None):
     return "\n".join(out)
 
 
+def maybe_hexdump(data, limit=None):
+    """按 PACKET_LOG 开关返回 hexdump 文本；关闭时返回空串（日志降噪）。
+
+    ★ 2026-10-23：原来每帧都 print hexdump，控制台被刷爆、排障时真实错误
+      被淹没。开 OO_PACKET_LOG=1 恢复完整 hexdump。
+    """
+    from .. import config as ooconf
+    if not ooconf.packet_log_enabled():
+        return ""
+    return hexdump(data, limit=limit)
+
+
 def log_packet(cid, direction, data, t0, f):
     """打印一帧，并（可选）写进 .bin 抓包文件。"""
     dt = int((time.time() - t0) * 1000)
     print("[game] #%03d %s +%dms  %d B" % (cid, direction, dt, len(data)), flush=True)
-    print(hexdump(data, limit=512), flush=True)
+    if ooconf.packet_log_enabled():
+        print(hexdump(data, limit=512), flush=True)
     if f is not None:
         try:
             f.write(("%s %d %d\n" % (direction, dt, len(data))).encode())

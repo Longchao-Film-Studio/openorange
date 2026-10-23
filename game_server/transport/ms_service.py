@@ -16,7 +16,7 @@ import time
 from .. import config as ooconf
 from .. import ms as msmod
 from . import accounts
-from .net import CAPTURE_DIR, hexdump, recv_exact
+from .net import CAPTURE_DIR, hexdump, maybe_hexdump, recv_exact
 
 
 def handle_ms(conn, addr, cid):
@@ -59,7 +59,7 @@ def handle_ms(conn, addr, cid):
                 fields = msmod.pb_parse(body)
             except Exception as e:
                 print("[ms] #%03d protobuf parse failed: %s" % (cid, e), flush=True)
-                print(hexdump(payload, limit=256), flush=True)
+                print(maybe_hexdump(payload, limit=256), flush=True)
                 continue
 
             seq = fields.get(1, [0])[0]
@@ -73,7 +73,7 @@ def handle_ms(conn, addr, cid):
 
             print("[ms] #%03d RX type=%d seq=%s service=%s method=%s  (%d B)"
                   % (cid, mtype, seq, service, method, len(payload)), flush=True)
-            print(hexdump(payload, limit=256), flush=True)
+            print(maybe_hexdump(payload, limit=256), flush=True)
 
             # 按方法名区分负载：
             #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，

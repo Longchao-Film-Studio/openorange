@@ -26,13 +26,31 @@ def _set_surface_time(st, value):
         SYNC_SELF, si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
 
 def _enter_surface(rid, params, uid=None):
-    """RequestEnterStreetSurface_CS {worldId} —— 进阴界。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    """RequestEnterStreetSurface_CS {worldId} —— 进阴界 / 切昼夜。
+
+    ★★ 不变量（R1，不许改顺序）：属性同步帧必须在应答帧【之前】。
+
+    依据（客户端，逐条可指）：
+      1. core/client/gateclientrpchandler.lua:entityMessageResponse
+         收到应答帧就【同步】执行回调：SafeCallback(callback, retStatus, response)。
+      2. system/streetsystem/manager/streetsystemmgrbase.lua:tryChangeWorld
+         回调里立刻读 getCurStreetYinYangEnterTime() 判定：
+           local nextWorldIndex = self.worldIndex == 0 and 1 or 0
+           local serverWorld    = getCurStreetYinYangEnterTime() == 0 and 0 or 1
+           if nextWorldIndex ~= serverWorld then
+             error("服务器和客户端数据不同步")   -- 然后 return
+      3. entities/avatarcomponent/avatarstreetcomp.lua:560-562
+         getCurStreetYinYangEnterTime() = self.street_info.surface_enter_time or 0
+
+    若应答帧在前：回调读到的是【旧】surface_enter_time -> 判定不等 -> error
+    -> switchWorld 不执行、昼夜不切、对话队列中断（任务也推进不了）。
+    2026-10-23「铁窗泪」实测：10101 播完切天气失败 -> 重播一遍 -> 第二次才通过。
+    """
     st = state(uid)
-    frames.extend(_set_surface_time(st, int(time.time())))
+    syncs = _set_surface_time(st, int(time.time()))
     st.save()
     print("[street] 进入阴界", flush=True)
-    return frames
+    return list(syncs) + [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
 
 def _leave_surface(params, uid=None):
     """RequestLeaveStreetSurface_CS {} —— 回阳界（单向）。"""

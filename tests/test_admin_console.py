@@ -122,7 +122,10 @@ def run():
     check("管理员能执行 /help", r.get("ok") is True, r.get("msg"))
     text = "\n".join(r.get("lines") or [])
     check("帮助里有 /give", "/give" in text, text[:120])
-    check("帮助里 GM 命令都已实现", "未实现" not in text, text[:300])
+    # ★ 诚实化：未接后端的命令在帮助里明确标「(未实现)」，
+    #   不再假装全部已实现。
+    check("帮助里未实现命令有标注", "未实现" in text, text[:300])
+    check("帮助里 give 已实现（无标注）", "/give " in text and "give" in text, text[:300])
 
     print("\n[3] 玩家权限边界")
     r = run_cmd(tok_p, "/account %s" % ADMIN)
@@ -185,9 +188,11 @@ def run():
     check("管理员能给玩家提 GM", r.get("ok") is True, r.get("lines"))
     r = run_cmd(tok_p, "/give @ 1001 1")
     _gv = "\n".join(r.get("lines") or [])
-    check("提权后能执行 GM 命令", r.get("ok") is True, _gv)
-    check("GM 命令能解析物品", "长命锁" in _gv, _gv)
-    check("GM 命令标注未实际生效", "未实际生效" in _gv, _gv)
+    check("提权后能执行 GM 命令（真接线）", r.get("ok") is True, _gv)
+    check("GM 命令真发放了物品", "长命锁" in _gv and "已发放" in _gv, _gv)
+    check("GM 命令不再标『未生效』", "未生效" not in _gv, _gv)
+    check("GM 命令标记 applied=True", (r.get("data") or {}).get("applied") is True,
+          (r.get("data") or {}))
     r = run_cmd(tok_a, "/account %s perm 2" % PLAYER)
     check("管理员能提到管理员", r.get("ok") is True, r.get("lines"))
     r = run_cmd(tok_p, "/account %s" % ADMIN)
@@ -238,10 +243,30 @@ def main():
     BASE = "http://127.0.0.1:%d" % port
     tmpdir = tempfile.mkdtemp(prefix="oo_admin_")
     db_path = os.path.join(tmpdir, "test.db")
+    state_dir = os.path.join(tmpdir, "player_state")
 
+    # ★ 2026-10-23：/give /lv /money 已真接线到游戏服管理接口。
+    #   为了让「GM 命令能真发放」有真实后端可打，测试进程里也起一个
+    #   admin_api（像 test_gm_commands 那样），web 子进程连它。
+    admin_port = _free_port()
+    admin_token = "oo-test-admin-token"
     env = dict(os.environ)
     env["OO_DB_PATH"] = db_path
+    env["OO_STATE_DIR"] = state_dir
+    env["OO_ADMIN_PORT"] = str(admin_port)
+    env["OO_ADMIN_TOKEN"] = admin_token
+    env["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % admin_port
     env["PYTHONIOENCODING"] = "utf-8"
+
+    os.environ["OO_DB_PATH"] = db_path
+    os.environ["OO_STATE_DIR"] = state_dir
+    os.environ["OO_ADMIN_PORT"] = str(admin_port)
+    os.environ["OO_ADMIN_TOKEN"] = admin_token
+    os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % admin_port
+
+    # 在测试进程内起 admin_api（线程），web 子进程通过 HTTP 连它
+    from game_server import admin_api as _adm
+    srv, _th = _adm.start(host="127.0.0.1", port=admin_port)
 
     print("root =", ROOT)
     print("port =", port)
@@ -277,6 +302,10 @@ def main():
                 proc.kill()
             except Exception:
                 pass
+        try:
+            srv.shutdown()
+        except Exception:
+            pass
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     print("\n" + "=" * 56)

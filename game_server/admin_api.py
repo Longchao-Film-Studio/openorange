@@ -155,6 +155,70 @@ def _set_player_force_level(uid, level):
     return v
 
 
+def _ensure_player_state(uid):
+    """确保某账号有完整存档（别留空壳）。返回 (st, ok)。"""
+    from . import ms as msmod, player_state
+    st = player_state.peek(uid)
+    if st is None or not isinstance(st.props.get("story_task_bag"), dict):
+        player_state.reset_state(
+            msmod._conv_int_keys(
+                msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+            uid=uid)
+        player_state.peek(uid).is_new = True
+        msmod._live_init_dict(uid)
+    return player_state.get_state(uid=uid)
+
+
+def _grant_player(uid, items=None, level=None, level_add=None):
+    """GM 命令的真写入入口：发物品 / 设等级。
+
+    ★ 诚实化（2026-10-23）：/give /lv /money 不再「解析+预览+未生效」，
+      走这里真改玩家存档，返回实际结果。
+
+    items: {item_id_str: count}   —— 与结算发奖同一入口 story.add_item
+    level: 直接设为该等级（>=1）
+    level_add: 在现有等级上加（>=1）
+    """
+    from . import story as _story
+    st = _ensure_player_state(uid)
+    granted = []
+    if items:
+        bag = st.props.get("item_bag")
+        if isinstance(bag, dict):
+            for k, v in (items or {}).items():
+                try:
+                    iid = int(k)
+                    cnt = int(v)
+                except (TypeError, ValueError):
+                    continue
+                if cnt <= 0:
+                    continue
+                got = _story.add_item(st.props, iid, cnt)
+                if got:
+                    granted.append({"item_id": iid, "count": cnt,
+                                    "now": got[0]})
+    if level:
+        try:
+            lv = int(level)
+        except (TypeError, ValueError):
+            lv = 0
+        if lv >= 1:
+            st.props["level"] = lv
+            granted.append({"level": lv})
+    if level_add:
+        try:
+            add = int(level_add)
+        except (TypeError, ValueError):
+            add = 0
+        if add >= 1:
+            cur = int(st.props.get("level") or 1)
+            st.props["level"] = cur + add
+            granted.append({"level": cur + add})
+    st.save()
+    return {"uid": uid, "granted": granted}
+
+
+# ---------------------------------------------------------------- HTTP 层
 # ---------------------------------------------------------------- HTTP 层
 class _Handler(BaseHTTPRequestHandler):
     server_version = "OOAdmin/1.0"
@@ -239,6 +303,30 @@ class _Handler(BaseHTTPRequestHandler):
                     return self._send(400, {"ok": False, "error": "missing uid"})
                 return self._send(200, {"ok": True,
                                         "result": _do_skip_prologue(uid)})
+            if path == "/player/grant":
+                # ★ GM 命令诚实化：/give /money 的真写入入口
+                uid = str(payload.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "missing uid"})
+                items = payload.get("items")
+                if not isinstance(items, dict):
+                    return self._send(400, {"ok": False, "error": "items 需是 {itemId: 数量}"})
+                return self._send(200, {"ok": True,
+                                        "result": _grant_player(uid, items=items)})
+            if path == "/player/level":
+                # ★ GM 命令诚实化：/lv 的真写入入口
+                uid = str(payload.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "missing uid"})
+                lv = payload.get("level")
+                try:
+                    lv = int(lv) if lv is not None else None
+                except (TypeError, ValueError):
+                    return self._send(400, {"ok": False, "error": "level 需是整数"})
+                if lv is None or lv < 1:
+                    return self._send(400, {"ok": False, "error": "level 需 >= 1"})
+                return self._send(200, {"ok": True,
+                                        "result": _grant_player(uid, level=lv)})
             return self._send(404, {"ok": False, "error": "no such path"})
         except Exception as e:
             return self._send(500, {"ok": False, "error": "%s: %s"

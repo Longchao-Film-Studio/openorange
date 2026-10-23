@@ -37,6 +37,28 @@ _LOCK = threading.RLock()
 # 以前只有一个 _CURRENT，多开时所有客户端会共用同一份数据。
 _STATES = {}
 
+# ★ 登录后首条 RPC 的剧情补完标记（P0-D / 2026-10-23 优化）：
+#   _live_init_dict 每次登录把 _oo_pending_chain 记进状态，dispatch 在
+#   第一条 RPC 里 drain 补完。以前**每条 RPC 都跑** _state()+pop，虽然幂等
+#   但浪费。现在改成「每登录一次只补完一次」：登录时 reset，首条 RPC 后 mark。
+_DRAINED = set()
+
+
+def drain_done(uid=None):
+    with _LOCK:
+        return (uid or "") in _DRAINED
+
+
+def mark_drain(uid=None):
+    with _LOCK:
+        _DRAINED.add(uid or "")
+
+
+def reset_drain(uid=None):
+    with _LOCK:
+        _DRAINED.discard(uid or "")
+
+
 # 兜底 uid（账号关联失败时才用）。正常路径 uid = 登录名。
 DEFAULT_UID = _cfg.FALLBACK_UID
 

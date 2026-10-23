@@ -20,7 +20,7 @@ from .. import entity_rpc as erpc
 from .. import ms as msmod
 from ..rpc_common import SYNC_SELF
 from . import accounts
-from .net import hexdump
+from .net import hexdump, maybe_hexdump
 
 try:
     from shared import db as shared_db
@@ -72,7 +72,7 @@ def handle_gate(conn, addr, cid):
                 print("[GATE] #%03d peer closed" % cid, flush=True)
                 break
             print("[GATE] #%03d RX %d B:" % (cid, len(data)), flush=True)
-            print(hexdump(data, limit=512), flush=True)
+            print(maybe_hexdump(data, limit=512), flush=True)
 
             frame_type = None
             proto_req = None
@@ -120,18 +120,27 @@ def handle_gate(conn, addr, cid):
 def _bind_account(cid, proto_req, fields):
     """把这条连接和账号绑起来。
 
-    ★ 多账号：新连接（reqType=0）到达时从待关联队列里领一个账号名，
-      必须在回 ConnectServerResp 之前领，后面整条链路都要用这个 uid。
-      绑定链的后续连接（reqType 2/3/4）是新 cid，从 auth 里的 mailbox 名字还原。
+    ★ 多账号（P0 修复，2026-10-23）：**优先认 auth，猜队列只当兜底**。
+      注入 Lua 已给 NEW_CONNECTION（reqType=0）的 connectServer 补上
+      Mailbox{1:"account_<account_id>"}，服务端在这里直接还原账号——
+      两个客户端同时登录不再靠 30 秒窗口猜，也不会串号。
+      旧链路（reqType 2/3/4）本来就是从 auth 还原，逻辑不变。
     """
     if proto_req == 0:
-        # claim + bind 在 accounts 内部同一把锁里完成（check-then-act 原子）
+        # ★ 新路径：从 auth 认号（account_id -> 登录名）。认不到才走队列。
+        uid = accounts.uid_from_auth_display(fields)
+        if uid and not accounts.is_bound(cid):
+            accounts.bind(cid, uid)
+            print("[GATE] #%03d 从 auth 绑定账号 %s（reqType=0）"
+                  % (cid, uid), flush=True)
+            return
+        # 兜底：老客户端 / auth 没带上时，退回「ms query 时序 + 30 秒窗口」猜队列
         claimed = accounts.claim_and_bind(cid)
-        print("[GATE] #%03d 关联账号 %s"
+        print("[GATE] #%03d 关联账号 %s（队列兜底）"
               % (cid, claimed or "(队列为空，回退 %s)" % accounts.DEFAULT_UID),
               flush=True)
     elif proto_req in (2, 3, 4) and not accounts.is_bound(cid):
-        uid = accounts.uid_from_auth(fields)
+        uid = accounts.uid_from_auth_display(fields)
         if uid:
             accounts.bind(cid, uid)
             print("[GATE] #%03d 从 auth 还原账号 %s" % (cid, uid), flush=True)
@@ -195,7 +204,7 @@ def _on_connect(conn, cid):
     conn.sendall(pkt)
     print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:%s, 5:MSGPACK} (%d B)"
           % (cid, sid, len(pkt)), flush=True)
-    print(hexdump(pkt, limit=256), flush=True)
+    print(maybe_hexdump(pkt, limit=256), flush=True)
 
 
 def _on_entity_rpc(conn, cid, data, frame_type):
@@ -259,7 +268,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
     for pkt in pkts:
         conn.sendall(pkt)
         print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(pkt)), flush=True)
-        print(hexdump(pkt, limit=256), flush=True)
+        print(maybe_hexdump(pkt, limit=256), flush=True)
     if len(pkts) > 1:
         print("[GATE] #%03d TX %s + %d 条属性同步"
               % (cid, label, len(pkts) - 1), flush=True)
@@ -305,7 +314,7 @@ def _push_bind_message(conn, addr, cid, proto_req):
     conn.sendall(bpkt)
     print("[GATE] #%03d TX %s  (reqType=%d) (%d B)"
           % (cid, label, proto_req, len(bpkt)), flush=True)
-    print(hexdump(bpkt, limit=256), flush=True)
+    print(maybe_hexdump(bpkt, limit=256), flush=True)
     # ★ 上报游戏内在线：createChannelEntity 一发出去，
     #   客户端就已经在实体层了（onBecomePlayer 随后触发）。
     if label == "createChannelEntity" and shared_db is not None:

@@ -137,6 +137,17 @@ def configure_scaffold(unlock_all=False, level=None, all_tasks_done=None):
     return SCAFFOLD
 
 
+# ------------------------------------------------------------------ 抓包日志
+# ★ 日志降噪（2026-10-23）：默认不开 hexdump。
+#   - 开：每帧打印十六进制大块（旧行为），排障用，控制台输出巨大
+#   - 关：只打印一行摘要（长度/方向），不刷屏
+# 环境变量 OO_PACKET_LOG=1 打开；也可在运行中改 config.PACKET_LOG = True。
+PACKET_LOG = os.environ.get("OO_PACKET_LOG") in ("1", "true", "yes", "on")
+
+def packet_log_enabled():
+    return bool(PACKET_LOG)
+
+
 # ------------------------------------------------------------------ 副本调试
 #
 # DUNGEON_LAST_ONLY = True 时，进副本只把**最后一关**下发给客户端

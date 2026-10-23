@@ -334,11 +334,25 @@ def _drain_pending_chain(uid=None):
     为什么要攒：ms._live_init_dict 里跑 events.tick() 时还不知道要怎么发奖、
     怎么推同步（那是 entity_rpc 的事）。所以只把命中的任务 id 记在
     _oo_pending_chain 里，等第一条 RPC 进来时在这里补完。
+
+    ★ 2026-10-23 优化：不再**每条 RPC 都跑**。用 player_state 的 per-uid
+      标记「本登录已补完」，登录（_live_init_dict）时 reset，首条 RPC 后 mark，
+      之后直接跳过 _state()+pop。
     """
+    try:
+        from .. import player_state as pstate
+    except Exception:
+        pstate = None
+    if pstate is not None and pstate.drain_done(uid):
+        return []
     try:
         st = _state(uid)
     except Exception:
         return []
+    if pstate is not None:
+        # 本轮登录已经取到过状态：无论有没有 pending，都算「补完过」，
+        # 后续 RPC 不再重复查。pending 为空则无事可做，标记照常。
+        pstate.mark_drain(uid)
     pending = st.props.pop("_oo_pending_chain", None)
     if not pending:
         return []

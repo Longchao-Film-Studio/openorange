@@ -140,6 +140,9 @@ def uid_from_auth(fields):
       reqType=4 -> auth = Mailbox{1:"account_<uid>", 2:ip, 3:port, 4:...}
       reqType=3 -> auth = Mailbox{1:"avatar_<uid>",  ...}
     所以剥掉前缀就能把账号带过整条链路。
+
+    ★ P0-账号绑定（2026-10-23）：reqType=0（NEW_CONNECTION）也被注入 Lua 补了
+      Mailbox{1:"account_<account_id>"}，所以这里同时是 reqType=0 的认号入口。
     """
     raw = fields.get(5)
     if not raw:
@@ -155,4 +158,18 @@ def uid_from_auth(fields):
     except Exception:
         pass
     return None
+
+
+def uid_from_auth_display(fields):
+    """从 auth 还原出**登录名**（游戏内 uid）。
+
+    auth 里可能是 account_id（oo_xxx，注入 Lua 填的）也可能是登录名
+    （旧链路 bindAccount 回传的），统一再过一遍 resolve_display_uid：
+      真实路径 = uid_from_auth(fields) -> resolve_display_uid(...)
+    这样无论客户端塞哪种标识，下游 _state(uid) / 实体 id 都落在登录名上。
+    """
+    uid = uid_from_auth(fields)
+    if not uid:
+        return None
+    return resolve_display_uid(uid) or uid
 

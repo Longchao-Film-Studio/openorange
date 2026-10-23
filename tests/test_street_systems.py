@@ -112,6 +112,30 @@ def run():
     check("记录了 emoji", st.props.get("_oo_last_emoji") == 5,
           st.props.get("_oo_last_emoji"))
 
+
+    print("\n[8] 昼夜切换：属性同步帧必须排在应答帧【之前】")
+    # ★ R1 不变量：客户端 core/client/gateclientrpchandler.lua:entityMessageResponse
+    #   收到应答就**同步**执行回调（SafeCallback），而回调里
+    #   streetsystemmgrbase.lua:tryChangeWorld 立刻读
+    #   getCurStreetYinYangEnterTime() = street_info.surface_enter_time 做判定：
+    #       if nextWorldIndex ~= serverWorld then
+    #           error("服务器和客户端数据不同步")
+    #   若应答在前 -> 读到旧值 -> error -> switchWorld 不执行、对话队列中断。
+    #   实测事故：2026-10-23「铁窗泪」10101 播完切昼夜失败 -> 重播一遍 -> 第二次才通过。
+    _dframes = guarded_handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
+                              msmod.mp_arr([1]), 8, uid="sx")
+    _dtypes = [int.from_bytes(bytes(f)[4:6], "little") for f in _dframes]
+    check("有属性同步帧(type=%d)" % msmod.PROPERTY_SYNC_TYPE,
+          msmod.PROPERTY_SYNC_TYPE in _dtypes, _dtypes)
+    check("有应答帧(type=2)", 2 in _dtypes, _dtypes)
+    if msmod.PROPERTY_SYNC_TYPE in _dtypes and 2 in _dtypes:
+        check("★ 属性同步帧在应答帧之前（顺序不变量）",
+              _dtypes.index(msmod.PROPERTY_SYNC_TYPE) < _dtypes.index(2), _dtypes)
+    _dsi = st.props.get("street_info") or {}
+    check("surface_enter_time 已写非 0",
+          int(_dsi.get("surface_enter_time") or 0) != 0,
+          _dsi.get("surface_enter_time"))
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     if failed:

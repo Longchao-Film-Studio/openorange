@@ -144,6 +144,37 @@ def run():
     check("回了 ConnectServerResp(type=1)", 1 in types, types)
     check("回了 bindAccount(type=6)", 6 in types, types)
 
+    print("\n[1b] gate reqType=0 带 auth（P0-账号绑定：不再靠猜队列）")
+    # ★ 注入 Lua 会给 NEW_CONNECTION 的 connectServer 补上
+    #   Mailbox{1:"account_<account_id>"}；服务端 _bind_account 优先认 auth，
+    #   不再依赖「ms query 时序 + 30 秒窗口」猜队列。
+    #   这里 account 名直接给登录名形式，resolve_display_uid 查不到退回原串。
+    auth0 = msmod.pb_bytes_field(1, b"account_authbind_u")
+    data, _err = run_ok(handle_gate, [connect_frame(0, auth=auth0)], cid=101,
+                        label="reqType=0 带 auth")
+    fs = frames_of(data)
+    types = [t for t, _ in fs]
+    check("reqType=0 带 auth 回 ConnectServerResp", 1 in types, types)
+    ba = [b for ty, b in fs if ty == 6]
+    check("reqType=0 带 auth 回 bindAccount(type=6)", bool(ba), types)
+    mb_name = b""
+    if ba:
+        f = msmod.pb_parse(ba[0])
+        mb = msmod.pb_parse(f.get(1, [b""])[0])
+        mb_name = mb.get(1, [b""])[0]
+    # ★ 关键断言：bindAccount 下发的 mailbox 是 account_authbind_u，
+    #   说明服务端从 auth 认出了账号（不是回退 DEFAULT_UID / 猜队列）。
+    check("从 auth 认出账号 authbind_u（mailbox 是 account_authbind_u）",
+          mb_name == b"account_authbind_u", mb_name)
+
+    print("\n[1c] gate reqType=0 无 auth -> 回退猜队列（老客户端兼容）")
+    accounts.bind(102, None)
+    data, _err = run_ok(handle_gate, [connect_frame(0)], cid=102,
+                        label="reqType=0 无 auth")
+    fs = frames_of(data)
+    check("无 auth 也回 ConnectServerResp", 1 in [t for t, _ in fs],
+          [t for t, _ in fs])
+
     print("\n[2] gate reqType=4（auth 里带 account_ 名字）-> bindAvatar")
     auth = msmod.pb_bytes_field(1, b"account_transport_u")
     data, _err = run_ok(handle_gate, [connect_frame(4, auth=auth)], cid=2, label="reqType=4")

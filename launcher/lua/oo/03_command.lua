@@ -113,6 +113,9 @@ local function deliver(raw)
   if type(result.data) == 'table' then
     pc.ticket = result.data.ticket
     pc.web_base = result.data.web_base
+    -- ★ P0-账号绑定：connectServer 的 NEW_CONNECTION 要拿 account_id 当 auth
+    --   （06b_hooks 的 authbind 用它拼 Mailbox{1:"account_<account_id>"}）。
+    pc.account_id = result.data.account_id
     LOG('account: command channel ready, web_base=' .. tostring(pc.web_base))
   end
 

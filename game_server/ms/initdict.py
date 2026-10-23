@@ -174,6 +174,10 @@ def _live_init_dict(uid=None):
         #   改数据、算同步的 name 时对不上。
         st = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
                               uid=uid)
+        # ★ P0-D / 2026-10-23：每次登录重置「剧情补完」标记，
+        #   让本轮登录的**首条 RPC** 重新 drain 一次 _oo_pending_chain。
+        #   （旧实现不重置，靠重复跑撑正确性；现在按登录粒度精确触发。）
+        pstate.reset_drain(uid)
     except Exception:
         return DEFAULT_INIT_DICT
     # 账号 uid 写进状态本身（多账号时每个账号用自己的 uid）

@@ -145,7 +145,45 @@ function require(name)
   --   客户端这边不需要再包。
   elseif key == 'core.client.gateclientrpchandler' and not pc.rpchook then
     pc.rpchook = true
-    LOG('lua: GateClientRpcHandler 已加载（不做方法包装）')
+    -- ★ P0-账号绑定（2026-10-23）：给 NEW_CONNECTION（reqType=0）补账号。
+    --
+    --   背景：客户端原生 GateClient:OnSessionKeyOk() 建第一条连接时把 auth 写死
+    --   成 ""（core/client/gateclient.lua 的 NEW_CONNECTION 分支），服务端只能靠
+    --   「ms query 时序 + 30 秒窗口队列」猜是哪个账号，两个客户端同时登录会串号。
+    --
+    --   这里在 connectServer 出口把 auth 换成 Mailbox{1:"account_<account_id>"}
+    --   （服务端 gate.py 的 uid_from_auth 能剥前缀还原），让服务端直接认号。
+    --
+    --   ★ 为什么不触发「repeat attr」：这里不改 m.connectServer（那会走 classType
+    --     的 __newindex 校验，游戏报 class ... has repeat attr），而是拿到
+    --     底层 vtbl 表（classType.__objMetatable.__index）直接 rawset。
+    --     loginpanel 包装 onRefreshServerList / setServerText 用的就是同一个套路。
+    local vtbl = nil
+    pcall(function()
+      local mt = rawget(m, '__objMetatable')
+      if type(mt) == 'table' then vtbl = mt.__index end
+    end)
+    if type(vtbl) == 'table' and type(vtbl.connectServer) == 'function' then
+      local orig_connectServer = vtbl.connectServer
+      vtbl.connectServer = function(self, reqType, auth, entMbBin, version)
+        if reqType == 0 then
+          -- ★ 只改第一条连接；bindAccount(4)/bindAvatar(3) 的 auth 原样保留
+          --   （那条链路客户端本来就回传正确的 mailbox）。
+          local acct = pc.account_id
+          if type(acct) == 'string' and acct ~= '' then
+            -- Mailbox{1:"account_<account_id>"} 的 protobuf 字节
+            local name = 'account_' .. acct
+            auth = string.char(0x0A, #name) .. name
+            LOG('authbind: reqType=0 auth -> account_' .. acct)
+          end
+        end
+        return orig_connectServer(self, reqType, auth, entMbBin, version)
+      end
+      LOG('lua: GateClientRpcHandler.connectServer 已包裹（reqType=0 带账号）')
+    else
+      LOG('lua: GateClientRpcHandler vtbl 不可用，跳过 auth 注入（回退猜队列）')
+    end
+    LOG('lua: GateClientRpcHandler 已加载')
 
   -- (5b) ServerListComp：同样不再包装
   --
