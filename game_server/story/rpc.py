@@ -30,7 +30,6 @@ from .. import story
 from ..rpc_common import (
     SYNC_SELF, EVENT_MAX_DEPTH, decode_params, respond_after_sync, state,
     sync_frame)
-from ..rpc_index import ACK_OK
 from . import events as _events
 
 def _story_sync_frames(st, changes):

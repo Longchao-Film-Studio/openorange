@@ -10,9 +10,7 @@
 客户端 avatarspacecomp.lua:93-118 的 RpcOnEnterSpace 里会
   JumpToEdenStage("StreetData", 502, ...) 加载伊甸场景。
 """
-from .. import ms as msmod
 from ..rpc_common import decode_params, respond_after_sync
-from ..rpc_index import ACK_OK
 from .space import SPACE_EDEN, _enter_space
 
 def _enter_eden(params, uid=None):

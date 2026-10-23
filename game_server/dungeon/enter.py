@@ -14,7 +14,6 @@ from .. import config as ooconf
 from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import decode_params, respond_after_sync, state
-from ..rpc_index import ACK_OK
 from .context import _STORY_TYPE_MAINSTORY, _remember_dungeon
 def _resolve_copy_id(match_info):
     """按 match_info 解析出 Level_CopyData 的 copyId。"""

@@ -23,7 +23,6 @@ from ..property import sync as _sync
 from ..property import tx as _tx
 from ..rpc_common import (
     SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
-from ..rpc_index import ACK_OK
 from .info import _street_info_of
 def _prestige_info(st, street_id=None):
     """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。

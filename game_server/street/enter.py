@@ -22,7 +22,6 @@ from .. import story
 from ..rpc_common import (
     SYNC_SELF, decode_params, respond_after_sync, state, sync_frame,
     throttled_save)
-from ..rpc_index import ACK_OK
 from .info import _make_street_info_entry
 def _switch_street(rid, params, uid=None):
     """RequestSwitchStreet_CS {streetId, streetParams} / RpcEnterStreet {id, streetParams}。"""

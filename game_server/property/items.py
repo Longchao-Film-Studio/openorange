@@ -13,7 +13,6 @@
 from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 #   真正用到的地方做函数内延迟导入。

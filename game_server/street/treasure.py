@@ -17,7 +17,6 @@ from .. import story
 from ..property import ids as _ids
 from ..rpc_common import (
     SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
-from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
 def _grant_treasure_reward(st, tid):

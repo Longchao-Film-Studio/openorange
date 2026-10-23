@@ -45,7 +45,6 @@
 """
 from . import ms as msmod
 from .rpc_common import SYNC_SELF, decode_params, state, respond_after_sync, sync_frame
-from .rpc_index import ACK_OK
 from .story.tasks import drain_event_task_sync
 
 # NameErrorCode（common/systemconst.lua）

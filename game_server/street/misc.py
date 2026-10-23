@@ -11,7 +11,6 @@
 """
 from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 def _mainline_levelup(rid, params, uid=None):
     """Street_Mainline_Levelup_CS {area_id} —— 主线关卡等级 +1。"""
