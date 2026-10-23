@@ -12,7 +12,7 @@
 """
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
@@ -30,21 +30,21 @@ def _use_item(rid, params, uid=None):
       propertyId = item_bag 的 __id__，name = 格子键，value = 整个格子。
     客户端 _changeSubProperty 里会比对 __id__，命中就原地 rochange。
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, syncs)
     item_id = vals[0]
     try:
         count = int(vals[1])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     if count <= 0:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     bag = st.get("item_bag")
     if not isinstance(bag, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     bag_id = bag.get("__id__") or 0
     grid_key = None
     grid = None
@@ -56,11 +56,11 @@ def _use_item(rid, params, uid=None):
             break
     if grid is None:
         # 背包里没有这个道具：不动数据，只回成功（客户端只看 status）
-        return frames
+        return respond_after_sync(rid, syncs)
 
     old_num = grid.get("num") or 0
     if old_num < count:
-        return frames
+        return respond_after_sync(rid, syncs)
 
     # ---- 1) 扣数量 ----
     grid["num"] = old_num - count
@@ -74,14 +74,14 @@ def _use_item(rid, params, uid=None):
     st.save()
 
     # ---- 3) 推同步 ----
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         # ★ name 必须是字符串（ms.pb_bytes_field 里对 int 会 len() 抛 TypeError）
         #   审计 P0-5：旧存档的整数键会让这条 RPC 无应答 -> 客户端弱网转圈。
         SYNC_SELF, bag_id, msmod.OP_CHANGE, str(grid_key), grid))
     for prop, value in changed_props:
-        frames.append(sync_frame(
+        syncs.append(sync_frame(
             SYNC_SELF, 0, msmod.OP_CHANGE, prop, value))
-    return frames
+    return respond_after_sync(rid, syncs)
 
 # useParam 的键（PascalCase）-> 属性名（snake_case）。
 # 只列「简单计数器」类的；Portrait/StickerId/Card/Background/Title/

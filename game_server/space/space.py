@@ -20,8 +20,7 @@ space_p 结构（initDict）：
 SpaceConst.SPACE_EDEN = 1000（gamecommon/consts/spaceconst.lua:2）
 """
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 
 SPACE_EDEN = 1000
 
@@ -111,11 +110,11 @@ def _scene_loaded(params, uid=None):
 
 def _leave_space_rpc(rid, params, uid=None):
     """RpcLeaveSpace —— 离开空间（带回调，需要回应答）。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     st = state(uid)
     sp = _space_prop(st)
     if sp is None:
-        return frames
+        return respond_after_sync(rid, syncs)
     old = int(sp.get("spaceno") or 0)
     sp["spaceno"] = 0
     sp["seqno"] = int(sp.get("seqno") or 0) + 1
@@ -124,8 +123,8 @@ def _leave_space_rpc(rid, params, uid=None):
     st.set("space_p", sp)
     st.save()
     print("[space] 离开空间 %s" % old, flush=True)
-    frames.extend(_space_sync_frames(st, sp))
+    syncs.extend(_space_sync_frames(st, sp))
     if old:
-        frames.append(_s2c_entity(
+        syncs.append(_s2c_entity(
             "RpcOnTeleportOut", RPC_ON_TELEPORT_OUT, [old]))
-    return frames
+    return respond_after_sync(rid, syncs)

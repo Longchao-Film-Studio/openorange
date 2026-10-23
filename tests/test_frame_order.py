@@ -50,6 +50,14 @@ def frame_types(frames):
 def run():
     uid = "frameorder"
     msmod._live_init_dict(uid)
+    # _use_item 需要背包里有该道具，否则会早退（只回应答），用例就测不到顺序。
+    _st = pstate.get_state(uid=uid)
+    _st.props["item_bag"] = {
+        "__tp__": "ItemBag", "__id__": 1324,
+        "1": {"__id__": 1357, "id": "1", "itemId": 101, "num": 1000,
+              "ext": {"__id__": 1358}},
+    }
+    _st.save()
 
     print("\n[1] 已迁移 handler：同步帧必须先于应答帧")
     # 每条 = (RPC 名, 参数, 是否必须产生同步帧)
@@ -68,6 +76,9 @@ def run():
         ("RequestDoneTitleTask_CS", [1], False),
         ("RequestRefreshTitleDailyTask_CS", [], False),
         ("Street_Mainline_Levelup_CS", [], False),
+        ("UpgradeCharacter_CS", [9001, {}], True),
+        ("UseItem_CS", [101, 100, None], True),
+        ("RpcLeaveSpace", [], True),
     ]
     covered = 0
     for i, (rpc, params, must_sync) in enumerate(cases):
@@ -89,7 +100,7 @@ def run():
                   (must_sync, ts))
 
     print("\n[2] 测试有效性：必须真的覆盖到同步帧（防恒真）")
-    check("★ 至少 9 条用例真的产生了同步帧", covered >= 9, covered)
+    check("★ 至少 12 条用例真的产生了同步帧", covered >= 12, covered)
 
     print("\n[3] 昼夜切换（实证事故点）也必须是同步在前")
     _fr = guarded_handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],

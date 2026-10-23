@@ -12,8 +12,7 @@ characterBag 结构（initDict 实测）：
 所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
 """
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 def _upgrade_character(rid, params, uid=None):
@@ -37,15 +36,15 @@ def _upgrade_character(rid, params, uid=None):
     # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
     from ..story import events as _events
     from ..story.rpc import _finish_story_tasks
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     char_id = vals[0]
     st = state(uid)
     bag = st.get("characterBag")
     if not isinstance(bag, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     bag_id = bag.get("__id__") or 0
     key = None
     if char_id in bag:
@@ -55,10 +54,10 @@ def _upgrade_character(rid, params, uid=None):
     elif isinstance(char_id, str) and char_id.isdigit() and int(char_id) in bag:
         key = int(char_id)
     if key is None:
-        return frames
+        return respond_after_sync(rid, syncs)
     char = bag.get(key)
     if not isinstance(char, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         old_level = int(char.get("CharLevel") or 1)
     except Exception:
@@ -71,11 +70,11 @@ def _upgrade_character(rid, params, uid=None):
         st, _events.ev_char_data(level=int(char["CharLevel"]),
                                  char_id=key))
     from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
-    frames.extend(drain_event_task_sync(st, res))
+    syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        frames.extend(_finish_story_tasks(st, nxt, source="event"))
+        syncs.extend(_finish_story_tasks(st, nxt, source="event"))
     st.save()
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))
-    return frames
+    return respond_after_sync(rid, syncs)
