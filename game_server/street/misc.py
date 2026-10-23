@@ -10,31 +10,31 @@
     SC 回调 responseCb(status)
 """
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 def _mainline_levelup(rid, params, uid=None):
     """Street_Mainline_Levelup_CS {area_id} —— 主线关卡等级 +1。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         area_id = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     ml = st.props.get("mainline_level")
     if not isinstance(ml, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     cur = int(ml.get(area_id) or 0)
     ml[area_id] = cur + 1
     st.set("mainline_level", ml)
     st.save()
     print("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1), flush=True)
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _finish_storyline(rid, params, uid=None):
     """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""

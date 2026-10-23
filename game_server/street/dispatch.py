@@ -15,8 +15,7 @@ street_dispatch 是 StreetDispatchDict（Dict<int, StreetDispatchInfo>），
 import time
 
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 _DISPATCH_DEFAULT_DURATION = 3600
 
 def _dispatch_dict(st):
@@ -27,19 +26,19 @@ def _dispatch_dict(st):
 
 def _dispatch_char(rid, params, uid=None):
     """RequestDispatchChar_CS {char_id, dip_id}。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         char_id = int(vals[0] or 0)
         dip_id = int(vals[1] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     d = _dispatch_dict(st)
     if d is None:
-        return frames
+        return respond_after_sync(rid, syncs)
     now = int(time.time())
     entry = {
         "__tp__": "StreetDispatchInfo",
@@ -54,51 +53,51 @@ def _dispatch_char(rid, params, uid=None):
     st.set("street_dispatch", d)
     st.save()
     print("[street] 派遣 char=%s dip=%s" % (char_id, dip_id), flush=True)
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _finish_dispatch(rid, params, uid=None):
     """RequestFinishDispatch_CS {dip_id} —— 完成派遣，把 end_time 提前到 now。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         dip_id = int(vals[0] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     d = _dispatch_dict(st)
     if d is None or not isinstance(d.get(dip_id), dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     entry = d[dip_id]
     entry["end_time"] = int(time.time())
     st.set("street_dispatch", d)
     st.save()
     print("[street] 完成派遣 dip=%s" % dip_id, flush=True)
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _cancel_dispatch(rid, params, uid=None):
     """RequestCancelDispatchChar_CS {dip_id} —— 取消派遣。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         dip_id = int(vals[0] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     d = _dispatch_dict(st)
     if d is None or dip_id not in d:
-        return frames
+        return respond_after_sync(rid, syncs)
     del d[dip_id]
     st.set("street_dispatch", d)
     st.save()
     print("[street] 取消派遣 dip=%s" % dip_id, flush=True)
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
-    return frames
+    return respond_after_sync(rid, syncs)

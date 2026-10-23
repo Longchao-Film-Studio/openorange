@@ -17,7 +17,7 @@ from .. import gamedata
 from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import tx as _tx
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
@@ -141,10 +141,10 @@ def _effective_trace(st, wanted):
 
 def _street_trace_task(rid, params, uid=None):
     """updateStreetTraceTask_CS {trackingTaskID} —— 存追踪中的任务 id。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         tid = int(vals[0] or 0)
     except Exception:
@@ -177,9 +177,9 @@ def _street_trace_task(rid, params, uid=None):
         print("[street] 追踪 %s 不在街区 %s，暂不显示标点（到对应街区自动恢复）"
               % (tid, st.props.get("street_id")), flush=True)
     st.save()
-    frames.append(sync_frame(
+    syncs.append(sync_frame(
         SYNC_SELF, 0, msmod.OP_CHANGE, "street_trace_taskid", eff))
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _clear_treasure_actor(params, uid=None):
     """RequestClearStreetTreasureActor_CS {streetID} —— 单向，清掉该街区的宝箱 actor。"""

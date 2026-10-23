@@ -17,8 +17,7 @@ from .. import ms as msmod
 from .. import gamedata
 from .. import tasks
 from ..property import sync as _sync
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from .rpc import _story_sync_frames as _story_frames
 
 def _task_sync_frames(st, changes):
@@ -73,32 +72,32 @@ def drain_event_task_sync(st, res):
 
 def _task_fetch(rid, params, uid=None):
     """RequestFetchTask_CS {task_id} —— 接任务（放进 task_bag）。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         tid = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
-    frames.extend(_task_sync_frames(st, tasks.start_task(st, tid)))
+    syncs.extend(_task_sync_frames(st, tasks.start_task(st, tid)))
     st.save()
     print("[task] 接任务 %s" % tid, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _task_done(rid, params, uid=None):
     """RequestDoneTask_CS / RequestCompleteTask_CS / RequestCompleteUnitlTask_CS。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         tid = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
-    frames.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
+    syncs.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
     # ★ 阶段 D：通用任务完成后要重扫剧情任务。
     #   实测：跨表前置（PreTaskType=1，6 条）的上游是 TaskData，
     #   StoryTaskData.PostTasks 不会启动它；而 seed_cross_table 以前只在登录时调，
@@ -108,36 +107,36 @@ def _task_done(rid, params, uid=None):
     try:
         _extra = _seed.rescan(st)
         if _extra:
-            frames.extend(_story_frames(st, _extra))
+            syncs.extend(_story_frames(st, _extra))
     except Exception as e:
         print("[task] 剧情重扫失败: %s" % e, flush=True)
     st.save()
     print("[task] 完成任务 %s" % tid, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _task_done_type(rid, params, uid=None):
     """RequestDoneSomeTypeTask_CS {type} —— 把该类型所有进行中任务标完成。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         ttype = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     for tid in tasks.tasks_of_type(st, ttype):
-        frames.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
+        syncs.extend(_task_sync_frames(st, tasks.finish_task(st, tid)))
     from . import seed as _seed
     try:
         _extra = _seed.rescan(st)
         if _extra:
-            frames.extend(_story_frames(st, _extra))
+            syncs.extend(_story_frames(st, _extra))
     except Exception as e:
         print("[task] 剧情重扫失败: %s" % e, flush=True)
     st.save()
     print("[task] 完成类型 %s 的全部任务" % ttype, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 
 # ---------------------------------------------------------------- N-c 头衔 RPC
@@ -168,10 +167,10 @@ def _done_title_task(rid, params, uid=None):
     titel_vit 对应的体力任务属另一套机制（CommonConstData.TitleLoopTaskCost），
     本阶段不实现（见 N8 的范围说明）。
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     raw_ids = vals[0] if isinstance(vals[0], list) else []
     vit = vals[1] if len(vals) > 1 else -1
     st = state(uid)
@@ -197,10 +196,10 @@ def _done_title_task(rid, params, uid=None):
         if _rl:
             print("[task] 领奖 %s -> %s" % (tid, _rl), flush=True)
     if ch:
-        frames.extend(_task_sync_frames(st, ch))
+        syncs.extend(_task_sync_frames(st, ch))
     st.save()
     print("[task] 头衔领奖：%s（titel_vit=%s）" % (got, vit), flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 
 def _refresh_title_daily_task(rid, params, uid=None):
@@ -214,14 +213,14 @@ def _refresh_title_daily_task(rid, params, uid=None):
     ⚠️ 已知局限：目前没有「每天只能刷新一次」的限制，理论上可反复刷奖励。
        正确的每日限额要等 N-d（每日重置）一起做，这里先按「能刷新」实现并留痕。
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         daily_type = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     # ★ N-d：每天只能刷新 1 次（防反复刷奖励）
     if not tasks.can_refresh_daily(st):
@@ -257,8 +256,8 @@ def _refresh_title_daily_task(rid, params, uid=None):
         ch.extend(tasks.start_task(st, tid))
         reset.append(tid)
     if ch:
-        frames.extend(_task_sync_frames(st, ch))
+        syncs.extend(_task_sync_frames(st, ch))
     st.save()
     print("[task] 刷新头衔日常 DailyType=%s -> 重置 %s" % (daily_type, reset),
           flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
