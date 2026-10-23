@@ -107,32 +107,34 @@ unsafe extern "C" fn b0_detour(this: *mut c_void, _error: *mut c_void) {
 /// 路径与客户端一致：{PersistentPath}/HybridData/patch_info.json(.temp)。
 /// PersistentPath 无法在 native 侧直接拿到（Unity 内部值），用客户端日志实证的绝对路径：
 /// 游戏目录相对路径 —— 通过 GameAssembly 所在目录推导：../GuiLongchao_Data/PersistentPath/HybridData。
+/// 播种 patch_info.json.temp（b__0 成功分支会 File.Delete(json) + File.Move(temp→json)）。
+///
+/// ★ 实测教训（2026-10-24 三次验收）：
+///   1) 客户端成功路径会先 Delete 已存在的 json 再 Move —— 所以 json 每次启动都会被吃掉；
+///   2) 因此不能依赖 json 存在，必须把正确内容（5740B 加密形态）内嵌进 DLL 无条件写 temp。
+/// 内容来源：work/oo_analysis/cdn/patch_info_release.json（与原 PersistentPath 文件字节一致）。
 fn prepare_temp_file() {
     use std::path::PathBuf;
+    const PATCH_INFO: &[u8] = include_bytes!("data/patch_info.json");
     let Some(base) = game_assembly_base() else { return; };
-    // GameAssembly.dll 的模块路径
     let mut buf = [0u16; 512];
-    unsafe {
-        let n = windows::Win32::System::LibraryLoader::GetModuleFileNameW(
+    let n = unsafe {
+        windows::Win32::System::LibraryLoader::GetModuleFileNameW(
             Some(windows::Win32::Foundation::HMODULE(base)),
             &mut buf,
-        );
-        if n == 0 { return; }
-    }
+        )
+    };
+    if n == 0 { return; }
     let exe_path = PathBuf::from(String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(0)]));
-    // <game>/GameAssembly.dll -> <game>/GuiLongchao_Data/PersistentPath/HybridData
     let Some(game_dir) = exe_path.parent() else { return };
     let hyb = game_dir.join("GuiLongchao_Data").join("PersistentPath").join("HybridData");
-    let json = hyb.join("patch_info.json");
     let temp = hyb.join("patch_info.json.temp");
-    if json.exists() && !temp.exists() {
-        match std::fs::copy(&json, &temp) {
-            Ok(n) => log::write(&format!("patch_hook: seeded patch_info.json.temp ({} bytes)", n)),
-            Err(e) => log::write(&format!("patch_hook: seed temp failed: {}", e)),
-        }
+    // 无条件写（客户端每次启动都会 Delete json，temp 必须每次都新鲜）
+    match std::fs::write(&temp, PATCH_INFO) {
+        Ok(()) => log::write(&format!("patch_hook: seeded patch_info.json.temp ({} bytes)", PATCH_INFO.len())),
+        Err(e) => log::write(&format!("patch_hook: seed temp failed: {}", e)),
     }
 }
-
 /// 取 GameAssembly.dll 模块基址。
 fn game_assembly_base() -> Option<*mut c_void> {
     let w: Vec<u16> = "GameAssembly.dll".encode_utf16().chain(std::iter::once(0)).collect();
