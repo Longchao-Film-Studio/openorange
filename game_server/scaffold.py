@@ -35,7 +35,7 @@
 - 自定义类型形状：generated/config.lua 里 StoryTaskItem / ActiveTask 的 Properties
 """
 from . import config
-from .property import ids as _ids
+from .property import factory as _factory
 
 # ---------------------------------------------------------------- 常量表
 
@@ -79,48 +79,13 @@ TASK_STATE_FINISHED = 6
 
 # ---------------------------------------------------------------- 类型形状
 #
-# 自定义类型实例必须带 __id__，嵌套的自定义属性也要带（只是不带 __tp__）。
-# 这些形状照抄 generated/config.lua 里对应类型的 Properties 默认值。
-
-_STORY_TASK_ITEM = {
-    "id": 0, "state": 0, "get_time": 0, "start_time": 0,
-    "doing_targets": {}, "finish_targets": {}, "finish_parameter": {},
-}
-
-_ACTIVE_TASK = {
-    "id": 0, "type": 0, "state": 0, "get_time": 0,
-    "complete_count": 0, "cache": {},
-}
-
-_INT_DICT_KEY_INT = {}
-
-
-# ---------------------------------------------------------------- 工具
-
-class _IdGen(object):
-    """脚手架种数据用的 id 生成器。
-
-    ★ 2026-10-21 审计：这里以前自己扫 max + 自增，是**第三个** __id__ 分配器。
-      现在统一委托给 `property.ids.alloc_id()`，和 story / player_state 共用
-      同一个单调计数器（存在 props 的 `_oo_next_id` 里），不会再撞号。
-    """
-
-    def __init__(self, props):
-        self.props = props
-
-    def next(self):
-        return _ids.alloc_id(self.props)
-
-
-
-def _make(shape, gen):
-    """按形状造一个自定义类型实例（带 __id__，嵌套的自定义属性递归处理）。"""
-    out = {"__id__": gen.next()}
-    for k, v in shape.items():
-        out[k] = _make(v, gen) if isinstance(v, dict) else v
-    return out
-
-
+# ★ 2026-10-23：原来这里有三份手抄的字段表（_STORY_TASK_ITEM / _ACTIVE_TASK /
+#   _INT_DICT_KEY_INT）+ 自己实现的 _make/_IdGen。客户端改表就会漂移，而且
+#   同一个类型在 story/tasks/street 里还各抄一份。
+#   现在统一走 property.factory（字段来自 spec_data.json，config.lua 机械生成）：
+#     factory.new_instance(props, "StoryTaskItem")   -> 完整结构体（嵌套 __id__ 自动分）
+#     factory.new_container(props)                   -> 空容器（只要 __id__）
+#
 # ---------------------------------------------------------------- 应用
 
 def apply(props, cfg=None):
@@ -147,8 +112,6 @@ def apply(props, cfg=None):
                 changed.append("系统解锁 %d 项" % len(SYSTEM_UNLOCKS))
 
     if cfg.all_tasks_done:
-        gen = _IdGen(props)
-
         # task_bag：getSystemTaskState 会先看 task_bag[taskType] 是否存在，
         # 为空就直接返回 -1，根本走不到 done_tasks 的判断。
         tb = props.get("task_bag")
@@ -161,7 +124,7 @@ def apply(props, cfg=None):
                     #   实测表现为 initProperty 提前中断 -> item_bag 没建出来 ->
                     #   AvatarBagComp:refreshLocalBagData 里 pairs(nil) 报错 ->
                     #   ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页的死循环。
-                    tb[tt] = _make({}, gen)
+                    tb[tt] = _factory.new_container(props)
             changed.append("task_bag 槽位 %s" % DONE_TASK_TYPES)
 
         # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt
@@ -170,7 +133,7 @@ def apply(props, cfg=None):
             for tt in DONE_TASK_TYPES:
                 slot = dt.get(tt)
                 if not isinstance(slot, dict):
-                    slot = _make(_INT_DICT_KEY_INT, gen)
+                    slot = _factory.new_container(props)
                     dt[tt] = slot
                 for tid in DONE_TASK_IDS:
                     slot[tid] = 1
@@ -181,7 +144,7 @@ def apply(props, cfg=None):
         dst = props.get("done_story_tasks")
         if isinstance(dst, dict):
             for tid in DONE_STORY_TASK_IDS:
-                item = _make(_STORY_TASK_ITEM, gen)
+                item = _factory.new_instance(props, "StoryTaskItem")
                 item["id"] = tid
                 item["state"] = TASK_STATE_FINISHED
                 dst[tid] = item

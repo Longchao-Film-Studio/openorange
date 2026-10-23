@@ -56,20 +56,14 @@ from .state_machine import current_state as _sm_current_state
 from .state_machine import move_to_done as _sm_move_to_done
 from .state_machine import transition as _sm_transition
 
-# 自定义类型形状（generated/config.lua:186 ActiveTask）
-_ACTIVE_TASK = {
-    "id": 0, "type": 0, "state": 0, "get_time": 0,
-    "complete_count": 0, "cache": {},
-}
-
-
-def _next_id(st):
-    return st.next_property_id()
-
-
 def make_active_task(st, task_id, task_type, state, now):
-    item = {"__tp__": "ActiveTask", "__id__": _next_id(st)}
-    item.update(_ACTIVE_TASK)
+    """建一条 ActiveTask（形状由 property.factory 按客户端声明生成）。
+
+    ★ 2026-10-23：字段表不再手抄，走 factory（数据来自 spec_data.json）。
+      state 仍在这里写（本函数在 AST 守卫的白名单里）。
+    """
+    from ..property import factory as _factory
+    item = _factory.new_instance(st.props, "ActiveTask", with_tp=True)
     item["id"] = int(task_id)
     item["type"] = int(task_type)
     item["state"] = int(state)

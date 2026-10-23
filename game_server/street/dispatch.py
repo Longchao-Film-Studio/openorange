@@ -40,15 +40,13 @@ def _dispatch_char(rid, params, uid=None):
     if d is None:
         return respond_after_sync(rid, syncs)
     now = int(time.time())
-    entry = {
-        "__tp__": "StreetDispatchInfo",
-        "__id__": st.next_property_id(),
-        "street_id": int(st.props.get("street_id") or 0),
-        "dispatch_id": dip_id,
-        "char_id": char_id,
-        "beg_time": now,
-        "end_time": now + _DISPATCH_DEFAULT_DURATION,
-    }
+    from ..property import factory as _factory
+    entry = _factory.new_instance(st.props, "StreetDispatchInfo", with_tp=True)
+    entry["street_id"] = int(st.props.get("street_id") or 0)
+    entry["dispatch_id"] = dip_id
+    entry["char_id"] = char_id
+    entry["beg_time"] = now
+    entry["end_time"] = now + _DISPATCH_DEFAULT_DURATION
     d[dip_id] = entry
     st.set("street_dispatch", d)
     st.save()

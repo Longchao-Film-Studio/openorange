@@ -43,9 +43,8 @@
 客户端 `checkNameResult(ret)`（namecomp.lua:46-67）的判定顺序：
 `ret.status` 为真即成功；否则看 `ret.errorcode`。所以成功时回 `{status: True}` 就够。
 """
-import copy
 from . import ms as msmod
-from .rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from .rpc_common import SYNC_SELF, decode_params, state, respond_after_sync, sync_frame
 from .rpc_index import ACK_OK
 from .story.tasks import drain_event_task_sync
 
@@ -84,7 +83,7 @@ def _validate_name(name):
     return True, NAME_OK
 
 
-def _set_name(st, name, gender=None, frames=None):
+def _set_name(st, name, gender=None, syncs=None):
     """写 player_name（可选 gender）+ 下发属性同步帧。返回是否真的改了。
 
     ★ 为什么必须下发同步帧（2026-10-23 实机客户端日志实锤）：
@@ -96,16 +95,16 @@ def _set_name(st, name, gender=None, frames=None):
         -> 弹 SysTextData[29]「未知的神秘力量干扰了加载进程」-> returnToLogin
       重登后靠 initDict 快照才正常，所以表现为「第一次进街区失败、重登能进」。
 
-    frames 为 None 时只写状态（给不关心同步的调用方/测试用）。
+    syncs 为 None 时只写状态（给不关心同步的调用方/测试用）。
     """
     changed = False
     if st.props.get("player_name") != name:
         st.props["player_name"] = name
         changed = True
-        if frames is not None:
+        if syncs is not None:
             try:
-                frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                         "player_name", name))
+                syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                        "player_name", name))
             except Exception as e:
                 print("[avatar] 玩家名同步失败: %s" % e, flush=True)
     if gender is not None:
@@ -116,16 +115,16 @@ def _set_name(st, name, gender=None, frames=None):
         if g in (1, 2) and st.props.get("gender") != g:
             st.props["gender"] = g
             changed = True
-            if frames is not None:
+            if syncs is not None:
                 try:
-                    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                             "gender", g))
+                    syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                            "gender", g))
                 except Exception as e:
                     print("[avatar] 性别同步失败: %s" % e, flush=True)
     return changed
 
 
-def _emit_sign(st, frames):
+def _emit_sign(st, syncs):
     """发 Sign 事件（完成取名）。
 
     ★ 这条事件是 TaskData[10]「完成取名」的唯一完成信号
@@ -141,37 +140,37 @@ def _emit_sign(st, frames):
     except Exception as e:
         print("[avatar] Sign 事件失败: %s" % e, flush=True)
         return
-    frames.extend(drain_event_task_sync(st, res))
+    syncs.extend(drain_event_task_sync(st, res))
     hits = list(getattr(res, "hits", []) or [])
     if hits:
-        frames.extend(_finish_story_tasks(st, hits, source="event"))
+        syncs.extend(_finish_story_tasks(st, hits, source="event") or [])
 
 
 def _name_rpc_common(rid, params, uid, want_gender):
-    """三个取名 RPC 的公共骨架。返回 (frames, st, name, ok, code)。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    """三个取名 RPC 的公共骨架。返回 (syncs, st, name, ok, code)。"""
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames, None, "", False, NAME_INVALID
+        return syncs, None, "", False, NAME_INVALID
     name = _clean_name(vals[0])
     ok, code = _validate_name(name)
     if not ok:
         # 客户端 checkNameResult 会读 ret.errorcode 弹对应提示
-        return ([msmod.build_entity_response(
-            rid, ret={"status": False, "errorcode": code})],
+        return (respond_after_sync(rid, [],
+                                  ret={"status": False, "errorcode": code}),
                 None, name, False, code)
     st = state(uid)
-    return frames, st, name, True, code
+    return syncs, st, name, True, code
 
 
 def _check_nickname(rid, params, uid=None):
     """RpcCheckNickName {name} —— 取名前的合法性检查（不落库）。"""
-    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
     if ok:
         print("[avatar] 名字检查通过: %s" % name, flush=True)
     else:
         print("[avatar] 名字检查不通过: %r code=%s" % (name, code), flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 
 def _change_nickname(rid, params, uid=None):
@@ -179,17 +178,17 @@ def _change_nickname(rid, params, uid=None):
 
     ★ 改名**不发 Sign 事件**：Sign 语义是「完成取名」，只在首次取名时发。
     """
-    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
     if not ok:
-        return frames
+        return syncs
     old = st.props.get("player_name")
-    changed = _set_name(st, name, None, frames)
+    changed = _set_name(st, name, None, syncs)
     if changed:
         st.save()
         print("[avatar] 改名 %r -> %r" % (old, name), flush=True)
     else:
         print("[avatar] 改名：名字没变（%r）" % name, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)
 
 
 
@@ -209,11 +208,12 @@ def _change_nickname(rid, params, uid=None):
 #   TableData.CommonData.CharData
 #     9001 -> DefaultSkin 900101 / 9002 -> DefaultSkin 900201
 #   clientavatar 主角 = character_choosen_char
-def _ensure_hero_by_gender(st, gender, frames):
+def _ensure_hero_by_gender(st, gender, syncs):
     """取名时按性别确保主角存在并切换 character_choosen_char。
 
     gender=1 -> 男主 9001（initDict 已给，无需改）
-    gender=2 -> 女主 9002（深拷贝 9001 结构 + 换 useSkinId=900201）
+    gender=2 -> 女主 9002（按客户端 CharacterInfo 声明新建，皮肤取
+                CharData[9002].DefaultSkin）
     返回是否改动（好让调用方决定 save）。
     """
     try:
@@ -227,24 +227,24 @@ def _ensure_hero_by_gender(st, gender, frames):
     if not isinstance(cb, dict):
         return False
     changed = False
-    if want == 9002 and 9002 not in cb:
-        # 深拷贝 9001 结构，重分配所有嵌套 __id__，改女主皮肤
-        src = cb.get(9001)
-        if isinstance(src, dict):
-            dst = copy.deepcopy(src)
-            _realloc_ids(dst, st)
-            dst["useSkinId"] = 900201
-            cb[9002] = dst
-            changed = True
-            print("[avatar] 补女主角色 9002 进 characterBag（useSkinId=900201）",
-                  flush=True)
+    if want not in cb:
+        # ★ 2026-10-23：不再「深拷贝另一个角色再改皮肤号」。
+        #   深拷贝会把源角色的装备/皮肤/养成进度一起复制（9001 玩过之后再建
+        #   9002 就会继承），而且 193 个角色不可能逐个特例。
+        #   现在按客户端声明的 CharacterInfo 建干净实例，useSkinId 取
+        #   CharData[want].DefaultSkin（9001 -> 900101 / 9002 -> 900201）。
+        from .property import factory as _factory
+        cb[want] = _factory.make_character(st.props, want)
+        changed = True
+        print("[avatar] 按 CharacterInfo 声明建角色 %s（useSkinId=%s）"
+              % (want, cb[want].get("useSkinId")), flush=True)
     cur = st.props.get("character_choosen_char")
     if int(cur or 0) != want:
         st.props["character_choosen_char"] = want
         changed = True
         try:
-            frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                     "character_choosen_char", want))
+            syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                    "character_choosen_char", want))
         except Exception as e:
             print("[avatar] 主角同步失败: %s" % e, flush=True)
         print("[avatar] 主角切换 gender=%s -> character_choosen_char=%s"
@@ -256,12 +256,12 @@ def _ensure_hero_by_gender(st, gender, frames):
     #   用 formation.value[i] 当 charId 给队员设头像，而编队（character_list）
     #   里第一队还是 initDict 的 [9001,0,0]（男主）。这里把「另一性别的导演」
     #   换成主角 want。
-    _set_formation_hero(st, want, frames)
+    _set_formation_hero(st, want, syncs)
 
     return changed
 
 
-def _set_formation_hero(st, want, frames):
+def _set_formation_hero(st, want, syncs):
     """把编队（character_list）里「另一性别的导演」换成 want，并下发同步。
 
     依据 game_server/property/setters.py::_set_character_list 的同步方式：
@@ -300,8 +300,8 @@ def _set_formation_hero(st, want, frames):
     st.save()
     for idx, team in changed_teams:
         try:
-            if frames is not None:
-                frames.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
+            if syncs is not None:
+                syncs.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
                                          msmod.OP_CHANGE, str(idx), team))
         except Exception as e:
             print("[avatar] 编队同步失败: %s" % e, flush=True)
@@ -309,20 +309,7 @@ def _set_formation_hero(st, want, frames):
           flush=True)
 
 
-def _realloc_ids(obj, st):
-    """递归给自定义对象的 __id__ 重新分配（避免与已有对象撞号）。"""
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if k == "__id__" and isinstance(v, int):
-                obj[k] = st.next_property_id()
-            else:
-                _realloc_ids(v, st)
-    elif isinstance(obj, list):
-        for v in obj:
-            _realloc_ids(v, st)
-
-
-def _set_default_card(st, gender, frames):
+def _set_default_card(st, gender, syncs):
     """按性别设默认名片（P0-7b）。
 
     ★ 为什么必须在这里写、不能在 initDict 里定死：
@@ -354,8 +341,8 @@ def _set_default_card(st, gender, frames):
         return
     st.props["player_card_id"] = card_id
     try:
-        frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                 "player_card_id", card_id))
+        syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                                "player_card_id", card_id))
     except Exception as e:
         print("[avatar] 名片同步失败: %s" % e, flush=True)
     print("[avatar] 按性别设默认名片 gender=%s -> player_card_id=%s"
@@ -367,21 +354,21 @@ def _commit_name_gender(rid, params, uid=None):
 
     这是 TaskData[10]「完成取名」的触发点（见 _emit_sign 的说明）。
     """
-    frames, st, name, ok, code = _name_rpc_common(rid, params, uid, True)
+    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, True)
     if not ok:
-        return frames
+        return syncs
     vals = decode_params(params)
     gender = vals[1] if len(vals) > 1 else None
     old = st.props.get("player_name")
-    changed = _set_name(st, name, gender, frames)
+    changed = _set_name(st, name, gender, syncs)
     if changed:
         st.save()
         print("[avatar] 取名 %r -> %r gender=%s" % (old, name, gender), flush=True)
     # P0-7b：按性别设默认名片（男2/女1，见 _set_default_card 的说明）
-    _set_default_card(st, gender, frames)
+    _set_default_card(st, gender, syncs)
     # P1-2：按性别设街区/战斗主角（女=9002，男=9001）
-    _ensure_hero_by_gender(st, gender, frames)
+    _ensure_hero_by_gender(st, gender, syncs)
     # ★ 无论名字是否变化都发 Sign：客户端可能重试同一次取名请求
-    _emit_sign(st, frames)
+    _emit_sign(st, syncs)
     st.save()
-    return frames
+    return respond_after_sync(rid, syncs)

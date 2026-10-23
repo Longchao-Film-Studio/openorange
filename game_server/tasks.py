@@ -57,12 +57,6 @@ def _sync(property_id, optype, name, value):
     return ("sync", int(property_id or 0), int(optype), str(name), value)
 
 # generated/config.lua:7128 TaskItem
-_TASK_ITEM = {
-    "id": 0, "type": 0, "state": 0, "get_time": 0, "start_time": 0,
-    "doing_targets": {}, "finish_targets": {}, "cache": {},
-}
-
-
 def task_type_of(task_id):
     """TaskData[task_id].TaskType；查不到返回 None。"""
     cfg = gamedata.task(task_id) or {}
@@ -71,13 +65,13 @@ def task_type_of(task_id):
 
 
 def make_task_item(st, task_id, task_type, state, now):
-    item = {"__tp__": "TaskItem", "__id__": st.next_property_id()}
-    item.update(_TASK_ITEM)
-    # 嵌套的自定义属性必须带 __id__（不带 __tp__），否则客户端 init 会报
-    #   class ClientAvatar function init must have a boolean return value
-    item["doing_targets"] = {"__id__": st.next_property_id()}
-    item["finish_targets"] = {"__id__": st.next_property_id()}
-    item["cache"] = {"__id__": st.next_property_id()}
+    """建一条 TaskItem（形状由 property.factory 按客户端声明生成）。
+
+    ★ 2026-10-23：字段表和嵌套容器 __id__ 不再手抄，走 factory。
+      state 仍在这里写（本函数在 AST 守卫的白名单里）。
+    """
+    from .property import factory as _factory
+    item = _factory.new_instance(st.props, "TaskItem", with_tp=True)
     item["id"] = int(task_id)
     item["type"] = int(task_type)
     item["state"] = int(state)
@@ -99,7 +93,8 @@ def ensure_type_slot(st, task_type):
     slot = bag.get(task_type)
     if isinstance(slot, dict):
         return slot, False
-    slot = {"__tp__": "TaskBag", "__id__": st.next_property_id()}
+    from .property import factory as _factory
+    slot = _factory.new_instance(st.props, "TaskBag", with_tp=True)
     bag[task_type] = slot
     st.set("task_bag", bag)
     return slot, True

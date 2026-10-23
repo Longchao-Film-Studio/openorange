@@ -123,6 +123,16 @@ def level_exp(level):
     return None
 
 
+def char(char_id):
+    """CharData[char_id]（角色配置：DefaultSkin / charAppearance / charName…）。"""
+    return row("CharData", char_id)
+
+
+def char_appearance(skin_id):
+    """CharAppearanceData[skin_id]（皮肤配置，含 charId 反查）。"""
+    return row("CharAppearanceData", skin_id)
+
+
 def story_task(task_id):
     d = table("StoryTaskData")
     if not d:

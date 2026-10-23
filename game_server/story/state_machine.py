@@ -56,22 +56,15 @@ def state_name(state):
     return _STATE_NAME.get(state, str(state))
 
 
-# 自定义类型形状（generated/config.lua:6698 StoryTaskItem）
-# 嵌套的 IntDictKeyInt / IntList **必须带 __id__**、不带 __tp__
-# （puppetpropertycomponent.lua:161-175：嵌套对象靠 __id__ 定位）
-STORY_TASK_ITEM_FIELDS = {
-    "id": 0, "state": 0, "get_time": 0, "start_time": 0,
-    "doing_targets": {}, "finish_targets": {}, "finish_parameter": {},
-}
-
-
 def make_story_task_item(st, task_id, state, now):
-    """建一条 StoryTaskItem（带 __tp__ / __id__ / 三个嵌套容器的 __id__）。"""
-    item = {"__tp__": "StoryTaskItem", "__id__": st.next_property_id()}
-    item.update(STORY_TASK_ITEM_FIELDS)
-    item["doing_targets"] = {"__id__": st.next_property_id()}
-    item["finish_targets"] = {"__id__": st.next_property_id()}
-    item["finish_parameter"] = {"__id__": st.next_property_id()}
+    """建一条 StoryTaskItem（形状由 property.factory 按客户端声明生成）。
+
+    ★ 2026-10-23：字段表和三个嵌套容器的 __id__ 不再手抄，
+      统一走 factory.new_instance("StoryTaskItem")（数据来自 spec_data.json）。
+      state 仍然在**这里**写（本函数在 AST 守卫的白名单里）。
+    """
+    from ..property import factory as _factory
+    item = _factory.new_instance(st.props, "StoryTaskItem", with_tp=True)
     item["id"] = int(task_id)
     item["state"] = int(state)
     item["get_time"] = int(now)
