@@ -61,6 +61,7 @@ from web.ratelimit import (  # noqa: E402
     blocked as _login_blocked,
     note_fail as _note_login_fail,
     note_ok as _note_login_ok,
+    rate_allow as _rate_allow,
 )
 
 # ---------------------------------------------------------------- 静态资源
@@ -260,6 +261,13 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "chat": "✗ 登录票据无效", "lines": ["登录票据无效"]}, 401)
                 return
             username = t["username"]
+            # ★ 雷6：按账号限流（票据在会话内复用，不能做成一次性）
+            if not _rate_allow("chat:" + username):
+                print("[chatcmd] rate limited username=%s" % username,
+                      flush=True)
+                self._json({"ok": False, "chat": "✗ 指令太频繁，请稍候",
+                            "lines": ["指令太频繁，请稍候再用"]})
+                return
             perm = db.get_perm_level(username)
             ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
             text = str(req.get("text") or "")

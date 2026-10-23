@@ -29,6 +29,14 @@ DB_PATH = os.environ.get("OO_DB_PATH") or os.path.join(BASE_DIR, "data.db")
 
 PBKDF2_ROUNDS = 120000
 
+# ★ 雷6（2026-10-23）：票据 TTL。
+#   票据同时用于游戏登录和游戏内指令通道（客户端把 pc.ticket 一直复用，
+#   见 launcher/lua/oo/03_command.lua:114/82）。所以**不能**做一次性消费，
+#   否则第一条命令之后全部 401。
+#   这里把有效期从 24h 缩到 8h（覆盖一次长时间游玩），把泄露窗口缩小 3 倍；
+#   另外 /api/chat/command 加了按账号限流（见 web/ratelimit.py）。
+TICKET_TTL = 8 * 3600
+
 _local = threading.local()
 
 
@@ -252,7 +260,8 @@ def list_sessions(limit=50):
 
 # ---------------- tickets ----------------
 
-def issue_ticket(ticket, username, account_id, ttl=86400):
+def issue_ticket(ticket, username, account_id, ttl=None):
+    ttl = TICKET_TTL if ttl is None else int(ttl)
     now = int(time.time())
     c = _conn()
     c.execute("INSERT OR REPLACE INTO tickets(ticket,username,account_id,issued_ts,expire_ts,consumed) "

@@ -32,3 +32,35 @@ def note_fail(username):
 def note_ok(username):
     with _lock:
         _fails.pop(username, None)
+
+
+# ---------------------------------------------------------------- 通用限流
+# ★ 雷6（2026-10-23）：游戏内指令通道（/api/chat/command）按账号限流。
+#   票据不是一次性的（客户端会话内一直复用），所以用「窗口内次数」挡滥用：
+#   既保留"一条票据可执行多条命令"的现有行为，又限制被泄露票据的破坏速度。
+_RATE = {}
+_RATE_LOCK = threading.Lock()
+
+CHAT_WINDOW = 60      # 秒
+CHAT_MAX = 30         # 每窗口最多命令数
+
+
+def rate_allow(key, limit=None, window=None, now=None):
+    """窗口内是否放行（放行时计数 +1）。"""
+    limit = CHAT_MAX if limit is None else int(limit)
+    window = CHAT_WINDOW if window is None else float(window)
+    now = time.time() if now is None else float(now)
+    with _RATE_LOCK:
+        arr = [t for t in _RATE.get(key, []) if now - t < window]
+        if len(arr) >= limit:
+            _RATE[key] = arr
+            return False
+        arr.append(now)
+        _RATE[key] = arr
+        return True
+
+
+def reset_rate():
+    """测试用：清空限流表。"""
+    with _RATE_LOCK:
+        _RATE.clear()
