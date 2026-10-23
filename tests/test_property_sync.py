@@ -52,6 +52,18 @@ def parse_sync(pkt):
         out["value"] = msmod.mp_decode(fields[5][0])[0]
     return out
 
+def frame_types(frames):
+    """把一包帧按到达顺序映射成帧类型号（2=应答 entityMessage，13=属性同步）。"""
+    return [int.from_bytes(bytes(f)[4:6], "little") for f in frames]
+
+
+def find_by_type(frames, ftype):
+    """按帧类型取第一个匹配帧（不依赖下标 —— 帧顺序是不变量，测试不该写死索引）。"""
+    for f in frames:
+        if int.from_bytes(bytes(f)[4:6], "little") == ftype:
+            return f
+    return None
+
 def run():
     print("\n[1] 属性同步帧格式")
     pkt = msmod.build_property_sync("", 7, msmod.OP_CHANGE, "signature", "OpenOrange")
@@ -75,15 +87,19 @@ def run():
     check("OP_DEL 无 value 字段", "value" not in d3, d3)
     check("optype = 3", d3.get("optype") == msmod.OP_DEL, d3.get("optype"))
 
-    print("\n[4] SetSignature_CS 返回两帧：应答 + 同步")
+    print("\n[4] SetSignature_CS 返回两帧：同步在前、应答在后（R1 不变量）")
     pstate.reset_state({"signature": "", "level": 1})
     frames = guarded_handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, msmod.mp_arr(["OpenOrange"]), 42)
     check("返回 2 帧", isinstance(frames, list) and len(frames) == 2, len(frames) if isinstance(frames, list) else frames)
-    mtype, method, rid, params = msmod.parse_entity_response(frames[0])
-    check("第 1 帧是应答", mtype == 2 and method == "__rpc_response__", (mtype, method))
+    _t4 = frame_types(frames)
+    check("★ 属性同步帧排在应答帧之前",
+          msmod.PROPERTY_SYNC_TYPE in _t4 and 2 in _t4
+          and _t4.index(msmod.PROPERTY_SYNC_TYPE) < _t4.index(2), _t4)
+    mtype, method, rid, params = msmod.parse_entity_response(find_by_type(frames, 2))
+    check("含应答帧", mtype == 2 and method == "__rpc_response__", (mtype, method))
     check("rid = 42", rid == 42, rid)
     check("应答 status=true", params[0].get("status") is True, params[0])
-    d4 = parse_sync(frames[1])
+    d4 = parse_sync(find_by_type(frames, msmod.PROPERTY_SYNC_TYPE))
     check("第 2 帧是属性同步", d4["type"] == 13, d4["type"])
     check("同步的是 signature", d4.get("name") == "signature", d4.get("name"))
     check("同步值是 OpenOrange", d4.get("value") == "OpenOrange", d4.get("value"))
@@ -98,7 +114,7 @@ def run():
     check("返回 2 帧", len(frames3) == 2, len(frames3))
     bag = pstate.get_state().get("item_bag")
     check("数量 1000 -> 900", bag["1"]["num"] == 900, bag["1"]["num"])
-    d5 = parse_sync(frames3[1])
+    d5 = parse_sync(find_by_type(frames3, msmod.PROPERTY_SYNC_TYPE))
     check("同步帧类型 13", d5["type"] == 13, d5["type"])
     check("propertyid = item_bag 的 __id__", d5.get("propertyid") == 1324, d5.get("propertyid"))
     check("name = 格子键 1", d5.get("name") == "1", d5.get("name"))
@@ -122,7 +138,7 @@ def run():
     check("返回 2 帧", len(frames5) == 2, len(frames5))
     cbag = pstate.get_state().get("characterBag")
     check("CharLevel 默认 1 -> 2", cbag[9001].get("CharLevel") == 2, cbag[9001].get("CharLevel"))
-    d6 = parse_sync(frames5[1])
+    d6 = parse_sync(find_by_type(frames5, msmod.PROPERTY_SYNC_TYPE))
     check("同步帧类型 13", d6["type"] == 13, d6["type"])
     check("propertyid = characterBag 的 __id__", d6.get("propertyid") == 1326, d6.get("propertyid"))
     check("name = 角色 id 字符串", d6.get("name") == "9001", d6.get("name"))
@@ -141,7 +157,7 @@ def run():
     check("SetPortrait 返回 2 帧", len(fs6) == 2, len(fs6))
     check("portrait_id = 12345", pstate.get_state().get("portrait_id") == 12345,
           pstate.get_state().get("portrait_id"))
-    d7 = parse_sync(fs6[1])
+    d7 = parse_sync(find_by_type(fs6, msmod.PROPERTY_SYNC_TYPE))
     check("同步 propertyid = 0（根属性）", d7.get("propertyid") == 0, d7.get("propertyid"))
     check("同步 name = portrait_id", d7.get("name") == "portrait_id", d7.get("name"))
     check("同步 value = 12345", d7.get("value") == 12345, d7.get("value"))
@@ -176,7 +192,7 @@ def run():
     fs10 = guarded_handle(erpc.RPC_INDEX["SetChoosenIndex_CS"], msmod.mp_arr([2]), 41)
     check("choosen_index 1 -> 2", pstate.get_state().get("choosen_index") == 2,
           pstate.get_state().get("choosen_index"))
-    d10 = parse_sync(fs10[1])
+    d10 = parse_sync(find_by_type(fs10, msmod.PROPERTY_SYNC_TYPE))
     check("同步的是根属性 choosen_index",
           d10.get("propertyid") == 0 and d10.get("name") == "choosen_index",
           (d10.get("propertyid"), d10.get("name")))
@@ -184,7 +200,7 @@ def run():
     check("character_choosen_char 9001 -> 1020",
           pstate.get_state().get("character_choosen_char") == 1020,
           pstate.get_state().get("character_choosen_char"))
-    d11 = parse_sync(fs11[1])
+    d11 = parse_sync(find_by_type(fs11, msmod.PROPERTY_SYNC_TYPE))
     check("同步的是 character_choosen_char", d11.get("name") == "character_choosen_char",
           d11.get("name"))
 
@@ -192,7 +208,7 @@ def run():
                        msmod.mp_arr([1, [9001, 1020, 0]]), 43)
     team = pstate.get_state().get("character_list")[1]
     check("编队第 2 格变成 1020", team["value"].get(2) == 1020, team["value"])
-    d12 = parse_sync(fs12[1])
+    d12 = parse_sync(find_by_type(fs12, msmod.PROPERTY_SYNC_TYPE))
     check("编队同步用子属性（propertyid = character_list 的 __id__）",
           d12.get("propertyid") == 1340, d12.get("propertyid"))
     check("编队同步 name = 队伍下标", d12.get("name") == "1", d12.get("name"))
@@ -218,6 +234,29 @@ def run():
     if st2:
         check("整数键 1 仍是 int", 1 in st2.props, list(st2.props.keys()))
         check("整数键 3 仍是 int", 3 in st2.props, list(st2.props.keys()))
+
+
+    print("\n[8] 帧顺序不变量：属性同步帧必须在应答帧之前（R1，唯一入口 respond_after_sync）")
+    # 依据：core/client/gateclientrpchandler.lua:entityMessageResponse
+    #   收到应答帧就 SafeCallback(callback, ...) 同步执行回调；
+    #   客户端要读的新值必须在应答之前送达，否则回调读到旧值。
+    #   实证事故：2026-10-23「铁窗泪」昼夜切换 error("服务器和客户端数据不同步")。
+    def _frame_types(frames):
+        return [int.from_bytes(bytes(f)[4:6], "little") for f in frames]
+
+    _cases = [
+        ("SetCharacterList_CS", msmod.mp_arr([1, [9001, 9002, 0]])),
+        ("SetCharacterListName_CS", msmod.mp_arr([1, "\u9635\u5217\u540d"])),
+        ("SetPortrait_CS", msmod.mp_arr([1])),
+        ("SetCanScore_CS", msmod.mp_arr([])),
+        ("SetSignature_CS", msmod.mp_arr(["\u6d4b\u8bd5\u7b7e\u540d"])),
+    ]
+    for _i, (_rpc, _p) in enumerate(_cases):
+        _fr = guarded_handle(erpc.RPC_INDEX[_rpc], _p, 40 + _i)
+        _ts = _frame_types(_fr)
+        _ok = (msmod.PROPERTY_SYNC_TYPE in _ts and 2 in _ts
+               and _ts.index(msmod.PROPERTY_SYNC_TYPE) < _ts.index(2))
+        check("★ %s 同步帧先于应答帧" % _rpc, _ok, _ts)
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

@@ -91,6 +91,35 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
                                      val, session_id)
 
 
+def respond_after_sync(rid, syncs=None, ret=None):
+    """构造「先属性同步、后应答」的帧列表 —— 唯一入口（R1/R3）。
+
+    ★ 不变量（不许违反）：
+      客户端按【到达顺序】同步处理帧。core/client/gateclientrpchandler.lua:
+      entityMessageResponse 一收到应答帧就 SafeCallback(callback, ...) 执行回调。
+      因此「应答回调里需要读到的新属性值」的同步帧，必须排在该应答帧【之前】。
+
+    反例（真实事故，2026-10-23「铁窗泪」）：
+      RequestEnterStreetSurface_CS 旧写法 return [应答] + syncs，
+      客户端在应答回调里读 street_info.surface_enter_time 做昼夜一致性判定
+      （streetsystemmgrbase.lua:tryChangeWorld），读到旧值 0 ->
+      error("服务器和客户端数据不同步") -> return -> switchWorld 不执行 ->
+      昼夜不切、对话队列中断、任务停摆、剧情重播。
+
+    用法：
+        syncs = _set_xxx(st, ...)          # 先改状态并收集同步帧
+        return respond_after_sync(rid, syncs)
+
+    不要写成 frames = [build_entity_response(...)]; frames.append(sync) ——
+    那样同步帧就落在应答之后了。
+    """
+    from .rpc_index import ACK_OK as _ACK_OK
+    if ret is None:
+        ret = dict(_ACK_OK)
+    frames = list(syncs) if syncs else []
+    frames.append(msmod.build_entity_response(rid, ret=ret))
+    return frames
+
 def throttled_save(st, uid, force=False):
     """节流落盘：同一账号 5 秒内最多写一次。"""
     key = uid or ""
