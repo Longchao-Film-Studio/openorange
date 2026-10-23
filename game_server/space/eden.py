@@ -11,7 +11,7 @@
   JumpToEdenStage("StreetData", 502, ...) 加载伊甸场景。
 """
 from .. import ms as msmod
-from ..rpc_common import decode_params
+from ..rpc_common import decode_params, respond_after_sync
 from ..rpc_index import ACK_OK
 from .space import SPACE_EDEN, _enter_space
 
@@ -36,5 +36,4 @@ def _eden_chat_history(rid, params, uid=None):
     只是把 chatInfo 交给回调，空表即可。
     """
     resp = {"Ret": [True, 0], "ChatInfo": []}
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK), resp=resp)]
-    return frames
+    return respond_after_sync(rid, [], resp=resp)

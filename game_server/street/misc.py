@@ -38,14 +38,13 @@ def _mainline_levelup(rid, params, uid=None):
 
 def _finish_storyline(rid, params, uid=None):
     """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         event_id = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     done = st.props.get("_oo_storyline_done")
     if not isinstance(done, list):
@@ -55,7 +54,7 @@ def _finish_storyline(rid, params, uid=None):
     st.props["_oo_storyline_done"] = done
     st.save()
     print("[street] 街区剧情线完成 event=%s" % event_id, flush=True)
-    return frames
+    return respond_after_sync(rid, [])
 
 def _street_cd_update(rid, params, uid=None):
     """Street_CD_Update_CS {street_id, street_cd_id} —— 记录当前选的 CD 并回成功。"""

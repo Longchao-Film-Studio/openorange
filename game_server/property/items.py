@@ -147,7 +147,7 @@ def _submit_item(rid, params, uid=None):
     # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
     from ..story import events as _events
     from ..story.rpc import _finish_story_tasks
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     submit_id = None
     item_id, count = 0, 1
@@ -197,14 +197,14 @@ def _submit_item(rid, params, uid=None):
     res = _events.apply_event(
         st, _events.ev_submit_item(item_id, count, submit_id, item_ids))
     from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
-    frames.extend(drain_event_task_sync(st, res))
+    syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        frames.extend(_finish_story_tasks(st, nxt, source="event"))
+        syncs.extend(_finish_story_tasks(st, nxt, source="event") or [])
     print("[story] 提交道具 submit_id=%s item=%s x%s 需求=%s"
           % (submit_id, item_id, count, item_ids), flush=True)
     st.save()
-    return frames
+    return respond_after_sync(rid, syncs)
 
 def _record_item_obtain(rid, params, uid=None):
     """RecordItemObtain_CS —— 记录获得道具，发 GetItem 事件（覆盖 4 条剧情任务）。
@@ -217,7 +217,7 @@ def _record_item_obtain(rid, params, uid=None):
     # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
     from ..story import events as _events
     from ..story.rpc import _finish_story_tasks
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     item_id, count = 0, 1
     item_type = level = grade = None
@@ -253,10 +253,10 @@ def _record_item_obtain(rid, params, uid=None):
     res = _events.apply_event(
         st, _events.ev_get_item(item_id, count, item_type, level, grade))
     from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
-    frames.extend(drain_event_task_sync(st, res))
+    syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        frames.extend(_finish_story_tasks(st, nxt))
+        syncs.extend(_finish_story_tasks(st, nxt) or [])
     print("[story] 获得道具 %s x%s" % (item_id, count), flush=True)
     st.save()
-    return frames
+    return respond_after_sync(rid, syncs)

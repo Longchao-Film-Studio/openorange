@@ -27,7 +27,9 @@ import time
 from .. import gamedata
 from .. import ms as msmod
 from .. import story
-from ..rpc_common import SYNC_SELF, EVENT_MAX_DEPTH, decode_params, state, sync_frame
+from ..rpc_common import (
+    SYNC_SELF, EVENT_MAX_DEPTH, decode_params, respond_after_sync, state,
+    sync_frame)
 from ..rpc_index import ACK_OK
 from . import events as _events
 
@@ -490,14 +492,13 @@ def _ready_to_finish(st, tid, param, frames):
 
 def _done_story_task(rid, params, uid=None):
     """RequestDoneStoryTaskParamInt_CS / ParamStr_CS —— 参数第 0 项是 taskId。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         tid = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     # ★ 审计 P1-既有：不校验 taskId 就能完成任意任务（伪造包可以完成 Type0/Type4
     #   并领奖）。这里要求：任务必须在 story_task_bag 里，且 TaskType 属于客户端
@@ -505,20 +506,20 @@ def _done_story_task(rid, params, uid=None):
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
         print("[story] 忽略完成请求：任务 %s 不在 story_task_bag 里" % tid, flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     ttype = (gamedata.story_task(tid) or {}).get("TaskType")
     if ttype not in story.TASK_TYPE_CLIENT:
         print("[story] 忽略完成请求：任务 %s 的 TaskType=%s 不是客户端可上报类型"
               % (tid, ttype), flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     param = None
     if len(vals) > 1:
         try:
             param = int(vals[1])
         except Exception:
             param = None
-    frames.extend(_finish_story_tasks(st, [tid], param=param, source="client"))
-    return frames
+    syncs = _finish_story_tasks(st, [tid], param=param, source="client") or []
+    return respond_after_sync(rid, syncs)
 
 def _finish_space_task(rid, params, uid=None):
     """FinishSpaceTask_Directly_CS {spaceTaskId} —— 战斗内 SpaceTask 完成上报。
@@ -543,25 +544,24 @@ def _finish_space_task(rid, params, uid=None):
     ★ 防刷：只接受「avatarTask 指向的剧情任务确实在包里」的请求；
       不在包里就忽略（和 _done_story_task 的规则一致）。
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         sid = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     tid = story.space_task_avatar_task(sid)
     if tid is None:
         # 没有 avatarTask 的 SpaceTask 只影响战斗内 UI，不改剧情状态
         print("[story] SpaceTask %s 没有 avatarTask，忽略" % sid, flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
         print("[story] 忽略 SpaceTask %s 的完成请求：剧情任务 %s 不在包里"
               % (sid, tid), flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     # ★ 防伪造：必须真的在那个副本的那个关卡里。
     #   SpaceTaskData 每行都有 dungeonId + levelId，而 StartGame 会把当前
     #   副本/关卡记进 _oo_cur_copy / _oo_cur_level（dungeon/context.py）。
@@ -578,14 +578,14 @@ def _finish_space_task(rid, params, uid=None):
     if want_copy and str(cur_copy) != str(want_copy):
         print("[story] 拒绝 SpaceTask %s：当前副本 %s，要求 %s"
               % (sid, cur_copy, want_copy), flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     if want_level and str(cur_level) != str(want_level):
         print("[story] 拒绝 SpaceTask %s：当前关卡 %s，要求 %s"
               % (sid, cur_level, want_level), flush=True)
-        return frames
+        return respond_after_sync(rid, [])
     print("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid), flush=True)
-    frames.extend(_finish_story_tasks(st, [tid], source="space_task"))
-    return frames
+    syncs = _finish_story_tasks(st, [tid], source="space_task") or []
+    return respond_after_sync(rid, syncs)
 
 
 def _street_actor(rid, params, uid=None):
@@ -596,19 +596,20 @@ def _street_actor(rid, params, uid=None):
     再调 serverRpc("RequestStreetActor_CS", {actor_id})。
     这里按同样的规则找命中任务：story_task_bag 里 TaskType==2 且 Parameter1 含 actor_id。
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         actor_id = int(vals[0])
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     hits = _find_story_tasks_by_param(st, actor_id, 2)
     if hits:
-        frames.extend(_finish_story_tasks(st, hits, param=actor_id, source="street_interact"))
-    return frames
+        syncs = _finish_story_tasks(st, hits, param=actor_id,
+                                    source="street_interact") or []
+        return respond_after_sync(rid, syncs)
+    return respond_after_sync(rid, [])
 
 def _find_story_tasks_by_param(st, param_int, task_type):
     """照 getTaskIdByParamInt 的规则找任务。"""

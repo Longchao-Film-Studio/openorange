@@ -21,7 +21,8 @@ from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import sync as _sync
 from ..property import tx as _tx
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import (
+    SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
 from ..rpc_index import ACK_OK
 from .info import _street_info_of
 def _prestige_info(st, street_id=None):
@@ -101,64 +102,61 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
 
 def _add_prestige_exp(rid, params, uid=None):
     """RequestAddPrestigeExp_CS {exp} —— 加声望经验，够了就升级。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         add = int(vals[0] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     if add <= 0:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     si, entry, street_id, _is_new = _prestige_info(st)
     if entry is None:
-        return frames
-    frames.extend(_apply_prestige_exp(st, si, entry, street_id, add,
-                                     is_new=_is_new))
-    return frames
+        return respond_after_sync(rid, [])
+    syncs = _apply_prestige_exp(st, si, entry, street_id, add,
+                                is_new=_is_new)
+    return respond_after_sync(rid, syncs)
 
 def _get_prestige_award(rid, params, uid=None):
     """RequestGetPrestigeAward_CS {streetId, level} —— 领声望等级奖励。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         street_id = int(vals[0] or 0)
         level = int(vals[1] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     si, entry, sid, _is_new = _prestige_info(st, street_id)
     if entry is None:
-        return frames
+        return respond_after_sync(rid, [])
     entry["prestige_awarded"][level] = 1
     st.set("street_info", si)
     st.save()
     print("[street] 领声望奖励 street=%s level=%s" % (street_id, level), flush=True)
-    frames.extend(_prestige_push(st, si, sid, entry, _is_new))
-    return frames
+    syncs = _prestige_push(st, si, sid, entry, _is_new)
+    return respond_after_sync(rid, syncs)
 
 def _get_prestige_task_award(rid, params, uid=None):
     """RequestGetPrestigeTaskAward_CS {streetId, prestigeTaskId} —— 领声望任务奖励。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return frames
+        return respond_after_sync(rid, [])
     try:
         street_id = int(vals[0] or 0)
         task_id = int(vals[1] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, [])
     st = state(uid)
     si, entry, sid, _is_new = _prestige_info(st, street_id)
     if entry is None:
-        return frames
+        return respond_after_sync(rid, [])
     entry["prestige_tasks"][task_id] = 1
     st.set("street_info", si)
     st.save()
     print("[street] 领声望任务奖励 street=%s task=%s" % (street_id, task_id), flush=True)
-    frames.extend(_prestige_push(st, si, sid, entry, _is_new))
-    return frames
+    syncs = _prestige_push(st, si, sid, entry, _is_new)
+    return respond_after_sync(rid, syncs)

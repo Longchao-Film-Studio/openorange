@@ -19,27 +19,30 @@ from .. import ms as msmod
 from ..property import tx as _tx
 from .. import gamedata
 from .. import story
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame, throttled_save
+from ..rpc_common import (
+    SYNC_SELF, decode_params, respond_after_sync, state, sync_frame,
+    throttled_save)
 from ..rpc_index import ACK_OK
 from .info import _make_street_info_entry
 def _switch_street(rid, params, uid=None):
     """RequestSwitchStreet_CS {streetId, streetParams} / RpcEnterStreet {id, streetParams}。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         new_id = int(vals[0])
     except Exception:
-        return frames
-    return _apply_street_change(frames, new_id, uid)
+        return respond_after_sync(rid, syncs)
+    syncs = _apply_street_change(new_id, uid) or []
+    return respond_after_sync(rid, syncs)
 
 def _leave_street(rid, params, uid=None):
     """RequestLeaveStreet_CS {id} —— 离开街区，street_id 归 0。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
-    return _apply_street_change(frames, 0, uid)
+    syncs = _apply_street_change(0, uid) or []
+    return respond_after_sync(rid, syncs)
 
-def _refresh_trace_on_street_change(st, new_id, frames):
+def _refresh_trace_on_street_change(st, new_id, syncs):
     """★ 切街区后重算追踪目标，并强制客户端刷新标点。
 
     实机反馈（2026-10-22）：「跟随任务指引到了下一个场景之后，
@@ -104,11 +107,11 @@ def _refresh_trace_on_street_change(st, new_id, frames):
     # 3) 都没有 -> 0
     st.props["street_trace_taskid"] = nxt
     # 4) 总是推一次（值没变也要推，客户端靠它刷新标点）
-    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                             "street_trace_taskid", nxt))
+    syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
+                            "street_trace_taskid", nxt))
 
 
-def _apply_street_change(frames, new_id, uid):
+def _apply_street_change(new_id, uid):
     """改 street_id + 保证 street_info 有条目 + 推同步。
 
     ★ 2026-10-21 审计修正：这里之前手写 OP_CHANGE 打**新建的** street_info 键，
@@ -127,7 +130,7 @@ def _apply_street_change(frames, new_id, uid):
             # 新街区：先构造（不插入），让 Tx 判定为 OP_ADD
             tx.set(("street_info", new_id), _make_street_info_entry(st))
     st.save()
-    frames.extend(tx.frames())
+    syncs = list(tx.frames())
     # ★ 阶段 P：切街到达目标街 -> 完成 type4 剧情任务（唯一正确路径）。
     #   客户端证据见 docs/storytaskresearch.md §16 / §19：
     #     - 13 条 type4 的 Parameter1 全是「目标街区 id」
@@ -140,13 +143,13 @@ def _apply_street_change(frames, new_id, uid):
         from ..story.rpc import _finish_story_tasks
         _hits = street_arrival_tasks(st, new_id)
         if _hits:
-            frames.extend(_finish_story_tasks(st, _hits, source="street_arrival"))
+            syncs.extend(_finish_story_tasks(st, _hits, source="street_arrival") or [])
     except Exception as _e:
         print("[street] 切街完成 type4 失败: %s" % _e, flush=True)
     # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）
-    _refresh_trace_on_street_change(st, new_id, frames)
+    _refresh_trace_on_street_change(st, new_id, syncs)
     print("[street] %s -> %s" % (old, new_id), flush=True)
-    return frames
+    return syncs
 
 def _update_street_pos(params, uid=None):
     """RequestUpdateStreetPos_CS {street_id, pos_info} —— 客户端移动时上报位置。

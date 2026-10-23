@@ -15,7 +15,8 @@ from .. import gamedata
 from .. import ms as msmod
 from .. import story
 from ..property import ids as _ids
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import (
+    SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
 from ..rpc_index import ACK_OK
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
@@ -115,8 +116,5 @@ def _touch_treasure(params, uid=None):
 
 def _street_treasure_rpc(rid, params, uid=None):
     """RequestStreetTreasure_CS {treasure_id} —— 带回调版本。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
-    out = _touch_treasure(params, uid)
-    if out:
-        frames.extend(out)
-    return frames
+    syncs = _touch_treasure(params, uid) or []
+    return respond_after_sync(rid, syncs)

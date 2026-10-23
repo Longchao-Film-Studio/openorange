@@ -13,7 +13,7 @@
 from .. import config as ooconf
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import decode_params, state
+from ..rpc_common import decode_params, respond_after_sync, state
 from ..rpc_index import ACK_OK
 from .context import _STORY_TYPE_MAINSTORY, _remember_dungeon
 def _resolve_copy_id(match_info):
@@ -117,7 +117,7 @@ def _avatar_start_game(rid, params, uid=None):
     st.save()
     print("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots), flush=True)
     resp = {"status": True, "spaceInfo": space_info}
-    return [msmod.build_entity_response(rid, ret=dict(ACK_OK), resp=resp)]
+    return respond_after_sync(rid, [], resp=resp)
 
 def _single_start_match(rid, params, uid=None):
     """SingleStartMatch_CS {match_info} —— 普通副本入口（主线/挑战/塔…）。
@@ -172,5 +172,4 @@ def _single_start_match(rid, params, uid=None):
           % (copy_id, st.props.get("_oo_cur_level"),
              st.props.get("_oo_cur_area")), flush=True)
     # 客户端只读 status，不需要 spaceInfo
-    return [msmod.build_entity_response(rid, ret=dict(ACK_OK),
-                                        resp={"status": True})]
+    return respond_after_sync(rid, [], resp={"status": True})

@@ -8,12 +8,11 @@
   _noop_one_way  单向消息（serverMsg / CallServer，rid=0），连应答都不能回
                  （回了客户端报 "entityMessageResponse got rid 0"）。
 """
-from .. import ms as msmod
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync
 
 def _ack_only(rid, params, uid=None):
     """只回 status=true 的 RPC。"""
-    return [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    return respond_after_sync(rid, [])
 
 
 def _noop_one_way(params, uid=None):

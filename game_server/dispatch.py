@@ -72,6 +72,7 @@ from .rpc_common import (  # noqa: F401  (re-export)
     _SAVE_INTERVAL,
     EVENT_MAX_DEPTH,
     decode_params,
+    respond_after_sync as _respond_after_sync,
     state as _state,
     sync_frame as _sync_frame,
     throttled_save as _throttled_save,
@@ -162,7 +163,6 @@ from .dungeon.settle import (  # noqa: F401  (re-export)
 )
 # 业务域模块（P0-E2 第 4 步）：street
 from .street.info import (  # noqa: F401  (re-export)
-    _STREET_INFO_DEFAULTS,
     _make_street_info_entry,
     _street_info_of,
     _street_tx_begin,
@@ -424,4 +424,6 @@ def handle(index, params, rid, uid=None):
         frames = out if isinstance(out, list) else [out]
         return _pending_frames + frames
     # 通用成功应答：所有 _SC 处理函数都只看 retstatus.status。
-    return _pending_frames + [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    # _pending_frames 是登录补完剧情的同步帧（必须在应答前），
+    # 走统一入口 _respond_after_sync 保证顺序。
+    return _respond_after_sync(rid, _pending_frames)

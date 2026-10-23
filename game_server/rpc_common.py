@@ -91,7 +91,7 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
                                      val, session_id)
 
 
-def respond_after_sync(rid, syncs=None, ret=None, tail=None):
+def respond_after_sync(rid, syncs=None, ret=None, resp=None, tail=None):
     """构造「先属性同步、后应答」的帧列表 —— 唯一入口（R1/R3）。
 
     ★ 不变量（不许违反）：
@@ -110,7 +110,8 @@ def respond_after_sync(rid, syncs=None, ret=None, tail=None):
         syncs = _set_xxx(st, ...)          # 先改状态并收集同步帧
         return respond_after_sync(rid, syncs)
 
-    tail：必须在【应答之后】下发的 s2c 主动推送（不是属性同步）。
+    resp：应答的 payload（build_entity_response 的第 3 参），透传给客户端
+      （目前进副本 / 伊甸聊天历史用到：应答里带 spaceInfo / ChatInfo）。
       目前只有副本结算的 AvatarSpace_SpaceFinish_SC 用到它：
       客户端日志实测顺序是 sendFinishInfo -> sendFinishInfoCallback(应答)
       -> AvatarSettlementComp OnReceiveEndMsg(推送)，即先 ACK 后推送。
@@ -123,7 +124,7 @@ def respond_after_sync(rid, syncs=None, ret=None, tail=None):
     if ret is None:
         ret = dict(_ACK_OK)
     frames = list(syncs) if syncs else []
-    frames.append(msmod.build_entity_response(rid, ret=ret))
+    frames.append(msmod.build_entity_response(rid, ret=ret, resp=resp))
     if tail:
         frames.extend(tail)
     return frames
