@@ -91,7 +91,7 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
                                      val, session_id)
 
 
-def respond_after_sync(rid, syncs=None, ret=None):
+def respond_after_sync(rid, syncs=None, ret=None, tail=None):
     """构造「先属性同步、后应答」的帧列表 —— 唯一入口（R1/R3）。
 
     ★ 不变量（不许违反）：
@@ -110,6 +110,12 @@ def respond_after_sync(rid, syncs=None, ret=None):
         syncs = _set_xxx(st, ...)          # 先改状态并收集同步帧
         return respond_after_sync(rid, syncs)
 
+    tail：必须在【应答之后】下发的 s2c 主动推送（不是属性同步）。
+      目前只有副本结算的 AvatarSpace_SpaceFinish_SC 用到它：
+      客户端日志实测顺序是 sendFinishInfo -> sendFinishInfoCallback(应答)
+      -> AvatarSettlementComp OnReceiveEndMsg(推送)，即先 ACK 后推送。
+      所以这条推送不能塞进 syncs（那样会跑到应答前面），只能走 tail。
+
     不要写成 frames = [build_entity_response(...)]; frames.append(sync) ——
     那样同步帧就落在应答之后了。
     """
@@ -118,6 +124,8 @@ def respond_after_sync(rid, syncs=None, ret=None):
         ret = dict(_ACK_OK)
     frames = list(syncs) if syncs else []
     frames.append(msmod.build_entity_response(rid, ret=ret))
+    if tail:
+        frames.extend(tail)
     return frames
 
 def throttled_save(st, uid, force=False):

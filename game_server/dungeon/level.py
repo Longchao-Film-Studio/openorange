@@ -15,7 +15,7 @@ import time
 
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
 def _avatar_enter_next(rid, params, uid=None):
@@ -67,14 +67,14 @@ def _battle_teach_activate(rid, params, uid=None):
       battle_main_panel.lua:513-516  if newVal ~= 0 then return end
       => 值为 0 才会弹教学 UI
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         iid = int(vals[0] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     # ★ 2026-10-23 实机日志实锤：防客户端崩。
     #   序章技能节点 ActivateBattleTeach 的 instructionID=312，
@@ -87,18 +87,18 @@ def _battle_teach_activate(rid, params, uid=None):
     if gamedata.table("InstructionData").get(str(iid)) is None:
         print("[dungeon] 教学 %s 不在 InstructionData 表，拒绝激活（防客户端崩）"
               % iid, flush=True)
-        return frames
+        return respond_after_sync(rid, syncs)
 
     bts = st.props.get("battle_teach_state")
     if not isinstance(bts, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     # 记下本次副本激活过的教学指令 —— 结算时喂 instructionid（6 个事件需要）
     st.set("_oo_cur_teach", iid)
     if iid not in bts:
         bts[iid] = 0
         st.set("battle_teach_state", bts)
         st.save()
-        frames.append(sync_frame(
+        syncs.append(sync_frame(
             SYNC_SELF, bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
         print("[dungeon] 激活战斗教学 %s" % iid, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)

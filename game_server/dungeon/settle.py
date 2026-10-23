@@ -18,8 +18,7 @@
 （offlinebattlespace.lua:217-221），于是卡在战斗空间、输入被锁。
 """
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, state, sync_frame
-from ..rpc_index import ACK_OK
+from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..story import events as _events
 from .. import story as story_mod
 from ..story.rpc import _finish_story_tasks
@@ -225,7 +224,6 @@ def _dungeon_finish(rid, params, uid=None):
     2. 下发 AvatarSpace_SpaceFinish_SC（客户端靠它弹结算面板 + 回街区）
     3. 用 _oo_cur_match 推进剧情
     """
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
     vals = decode_params(params)
     info = vals[0] if (isinstance(vals, list) and vals
                       and isinstance(vals[0], dict)) else {}
@@ -235,20 +233,24 @@ def _dungeon_finish(rid, params, uid=None):
     me = _finish_info_of(info, uid)
     item_frames, reward_list = _grant_battle_items(
         st, me.get("battle_items") or {})
-    frames.extend(item_frames)
+    syncs = list(item_frames)
     settle = _settlement_table(st, uid, info, reward_list)
-    frames.append(msmod.build_entity_message(
+    # ★ SpaceFinish_SC 是 s2c 主动推送、不是属性同步，必须留在应答【之后】。
+    #   客户端日志实测顺序：sendFinishInfo -> sendFinishInfoCallback(应答)
+    #   -> AvatarSettlementComp OnReceiveEndMsg(推送)。
+    #   所以它走 respond_after_sync 的 tail，而不是塞进 syncs。
+    pushes = [msmod.build_entity_message(
         "", "AvatarSpace_SpaceFinish_SC", RPC_AVATAR_SPACE_FINISH_SC,
-        msmod.mp_arr([settle])))
+        msmod.mp_arr([settle]))]
     try:
         to_street = int(settle.get("toStreetId") or 0)
     except Exception:
         to_street = 0
     if to_street and to_street != int(st.props.get("street_id") or 0):
         st.props["street_id"] = to_street
-        frames.append(sync_frame(
+        syncs.append(sync_frame(
             SYNC_SELF, 0, msmod.OP_CHANGE, "street_id", to_street))
-    frames.extend(_advance_story_on_finish(st, info, uid))
+    syncs.extend(_advance_story_on_finish(st, info, uid))
     st.props.pop("_oo_cur_copy", None)
     st.props.pop("_oo_cur_match", None)
     st.props.pop("_oo_cur_level", None)
@@ -258,27 +260,27 @@ def _dungeon_finish(rid, params, uid=None):
     print("[dungeon] 结算完成：奖励 %d 项，回街区 %s 位置 %s"
           % (len(reward_list), settle.get("toStreetId"),
              settle.get("toStreetPosId")), flush=True)
-    return frames
+    return respond_after_sync(rid, syncs, tail=pushes)
 
 def _storyline_finish_game(rid, params, uid=None):
     """Storyline_FinishGame {storyID, passed, useTime} —— 标记剧情段落完成。"""
-    frames = [msmod.build_entity_response(rid, ret=dict(ACK_OK))]
+    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
-        return frames
+        return respond_after_sync(rid, syncs)
     try:
         sid = int(vals[0] or 0)
     except Exception:
-        return frames
+        return respond_after_sync(rid, syncs)
     passed = True
     if len(vals) > 1:
         passed = bool(vals[1])
     if not passed:
-        return frames
+        return respond_after_sync(rid, syncs)
     st = state(uid)
     sf = st.props.get("story_finished")
     if not isinstance(sf, dict):
-        return frames
+        return respond_after_sync(rid, syncs)
     if sf.get(sid) is not True:
         # ★ is_new 必须在赋值**之前**判断。
         #   审计发现：之前写成 `sf[sid] = True` 之后再判 `sid in sf`，
@@ -287,9 +289,9 @@ def _storyline_finish_game(rid, params, uid=None):
         sf[sid] = True
         st.set("story_finished", sf)
         st.save()
-        frames.append(sync_frame(
+        syncs.append(sync_frame(
             SYNC_SELF, sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
     print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)
-    return frames
+    return respond_after_sync(rid, syncs)

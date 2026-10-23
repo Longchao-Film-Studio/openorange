@@ -47,6 +47,15 @@ def frame_types(frames):
     return [int.from_bytes(bytes(f)[4:6], "little") for f in frames]
 
 
+def entity_method(frame):
+    """type=2 帧的 methodName：应答是 __rpc_response__，s2c 推送是自己的方法名。"""
+    b = bytes(frame)
+    if int.from_bytes(b[4:6], "little") != 2:
+        return None
+    fields = msmod.pb_parse(b[6:])
+    nm = fields.get(2, [b""])[0]
+    return nm.decode("utf-8", "replace") if isinstance(nm, (bytes, bytearray)) else nm
+
 def run():
     uid = "frameorder"
     msmod._live_init_dict(uid)
@@ -79,6 +88,8 @@ def run():
         ("UpgradeCharacter_CS", [9001, {}], True),
         ("UseItem_CS", [101, 100, None], True),
         ("RpcLeaveSpace", [], True),
+        ("BattleTeach_Activate_CS", [101], True),
+        ("Storyline_FinishGame", [1, True], True),
     ]
     covered = 0
     for i, (rpc, params, must_sync) in enumerate(cases):
@@ -100,7 +111,7 @@ def run():
                   (must_sync, ts))
 
     print("\n[2] 测试有效性：必须真的覆盖到同步帧（防恒真）")
-    check("★ 至少 12 条用例真的产生了同步帧", covered >= 12, covered)
+    check("★ 至少 14 条用例真的产生了同步帧", covered >= 14, covered)
 
     print("\n[3] 昼夜切换（实证事故点）也必须是同步在前")
     _fr = guarded_handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
@@ -109,6 +120,26 @@ def run():
     check("★ RequestEnterStreetSurface_CS 同步帧先于应答帧",
           msmod.PROPERTY_SYNC_TYPE in _ts and 2 in _ts
           and _ts.index(msmod.PROPERTY_SYNC_TYPE) < _ts.index(2), _ts)
+
+    print("\n[3b] 副本结算：同步在前、应答居中、SpaceFinish_SC 推送在应答之后")
+    # 客户端实测顺序 sendFinishInfo -> sendFinishInfoCallback(应答) -> OnReceiveEndMsg(推送)，
+    # 所以推送必须走 respond_after_sync 的 tail，不能塞进 syncs。
+    _fin = {uid: {"win": True, "battle_items": {"201": 7},
+                  "useTime": 10, "collectCount": 0}}
+    _ffr = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
+                          msmod.mp_arr([_fin]), 201, uid=uid)
+    _fmethods = [entity_method(f) for f in _ffr]
+    _ftypes = frame_types(_ffr)
+    _i_ack = _fmethods.index("__rpc_response__") if "__rpc_response__" in _fmethods else -1
+    _i_push = (_fmethods.index("AvatarSpace_SpaceFinish_SC")
+               if "AvatarSpace_SpaceFinish_SC" in _fmethods else -1)
+    check("★ 结算含应答帧", _i_ack >= 0, _fmethods)
+    check("★ 结算含 SpaceFinish_SC 推送", _i_push >= 0, _fmethods)
+    check("★ 结算的属性同步全部排在应答之前",
+          _i_ack >= 0 and all(i < _i_ack for i, t in enumerate(_ftypes)
+                              if t == msmod.PROPERTY_SYNC_TYPE), _ftypes)
+    check("★ SpaceFinish_SC 推送排在应答之后",
+          _i_ack >= 0 and _i_push > _i_ack, _fmethods)
 
     print("\n[4] 单向消息不受影响（返回空列表）")
     check("rid=0 的单向消息仍是 []",
