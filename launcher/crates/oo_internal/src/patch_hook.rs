@@ -72,7 +72,12 @@ pub fn swallowed_count() -> usize {
 /// 我们不碰参数，只吞调用，因此不需要精确知道参数位次）。
 type B0Fn = unsafe extern "C" fn(*mut c_void, *mut c_void) -> ();
 
-unsafe extern "C" fn b0_detour(this: *mut c_void, mut error: *mut c_void) {
+unsafe extern "C" fn b0_detour(this: *mut c_void, _error: *mut c_void) {
+    // ★ 实测（2026-10-24 02:28/02:43 两次）：b__0 的「成功分支」内部会执行
+    //   File.Move(patch_info.json.temp → patch_info.json)，而 temp 只在真实下载成功时存在。
+    //   下载失败被我们拦截时 temp 不存在 → FileNotFoundException → 照样 ShowError。
+    //   修复：进入成功分支前，把本地 patch_info.json 复制为 .temp（内容正确，Move 后等价回落本地）。
+    prepare_temp_file();
     let n = SWALLOWED.fetch_add(1, Ordering::SeqCst);
     if n == 0 {
         log::write("patch_hook: b__0 bypass active (nulling error arg)");
@@ -88,7 +93,7 @@ unsafe extern "C" fn b0_detour(this: *mut c_void, mut error: *mut c_void) {
     //     <== error == 0 时才会走下面的成功逻辑：拼 mRemoteChannelDirUrl(+0x88/+0x90)
     // 因此正确做法不是吞调用，而是【把 error 改成 null 再转发】，
     // 让它走成功路径、用本地缓存拼出 mRemote* 字段（与 "Cannot resolve" 形态同效）。
-    error = std::ptr::null_mut();
+    let error: *mut c_void = std::ptr::null_mut();
     let tramp = TRAMP.load(Ordering::SeqCst);
     if tramp.is_null() {
         log::write("patch_hook: FATAL trampoline missing");
@@ -96,6 +101,36 @@ unsafe extern "C" fn b0_detour(this: *mut c_void, mut error: *mut c_void) {
     }
     let real: B0Fn = std::mem::transmute(tramp);
     real(this, std::ptr::null_mut());
+}
+
+/// 把本地 patch_info.json 复制为 patch_info.json.temp（若 temp 不存在）。
+/// 路径与客户端一致：{PersistentPath}/HybridData/patch_info.json(.temp)。
+/// PersistentPath 无法在 native 侧直接拿到（Unity 内部值），用客户端日志实证的绝对路径：
+/// 游戏目录相对路径 —— 通过 GameAssembly 所在目录推导：../GuiLongchao_Data/PersistentPath/HybridData。
+fn prepare_temp_file() {
+    use std::path::PathBuf;
+    let Some(base) = game_assembly_base() else { return; };
+    // GameAssembly.dll 的模块路径
+    let mut buf = [0u16; 512];
+    unsafe {
+        let n = windows::Win32::System::LibraryLoader::GetModuleFileNameW(
+            Some(windows::Win32::Foundation::HMODULE(base)),
+            &mut buf,
+        );
+        if n == 0 { return; }
+    }
+    let exe_path = PathBuf::from(String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(0)]));
+    // <game>/GameAssembly.dll -> <game>/GuiLongchao_Data/PersistentPath/HybridData
+    let Some(game_dir) = exe_path.parent() else { return };
+    let hyb = game_dir.join("GuiLongchao_Data").join("PersistentPath").join("HybridData");
+    let json = hyb.join("patch_info.json");
+    let temp = hyb.join("patch_info.json.temp");
+    if json.exists() && !temp.exists() {
+        match std::fs::copy(&json, &temp) {
+            Ok(n) => log::write(&format!("patch_hook: seeded patch_info.json.temp ({} bytes)", n)),
+            Err(e) => log::write(&format!("patch_hook: seed temp failed: {}", e)),
+        }
+    }
 }
 
 /// 取 GameAssembly.dll 模块基址。
