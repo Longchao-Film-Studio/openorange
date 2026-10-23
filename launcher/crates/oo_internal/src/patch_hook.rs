@@ -21,14 +21,14 @@
 //! 唯一与补丁下载失败相关且序言 24 字节内无 RIP 相对、无相对跳转的可挂钩点：
 //!   48 89 5c 24 18 48 89 4c 24 08 56 57 41 54 41 56 ...
 //!
-//! b__0 是 DownloadPatchInfo 交给 DownFile 的 onComplete 回调：
+//! b__0 是 DownloadPatchInfo 交给 DownFile 的 onComplete 回调（Ghidra 反编译实证）：
 //!   日志实锤（2026.1022.205003.txt）：
 //!     webrequest ... error: Cannot connect to destination host
 //!     HybridLoad.<>c__DisplayClass51_0:<DownloadPatchInfo>b__0(String)  <- 崩在这
 //!     EnterNextState ShowError
-//! 即 b__0(error) 被调用 = 本次下载失败。吞掉这次调用（直接 return，不转发）
-//! 相当于告诉状态机「下载已成功返回」-> 走本地 patch_info/VersionInfo 兜底，
-//! 与 "Cannot resolve" 形态的存活路径一致。
+//! b__0(this, error)：error!=0 -> 记错误码 2 + return；error==0 -> 走成功路径。
+//! 因此 detour 把 RDX(error) 置 null 后转发 trampoline —— 强制走成功路径，
+//! 用本地缓存拼出 mRemote* 字段（与 "Cannot resolve" 形态同效，已实测可进游戏）。
 //!
 //! ── 地址解析（为什么是 RVA 而不是 GetProcAddress）────────────────────────
 //!
@@ -72,15 +72,30 @@ pub fn swallowed_count() -> usize {
 /// 我们不碰参数，只吞调用，因此不需要精确知道参数位次）。
 type B0Fn = unsafe extern "C" fn(*mut c_void, *mut c_void) -> ();
 
-unsafe extern "C" fn b0_detour(_this: *mut c_void, _error: *mut c_void) {
+unsafe extern "C" fn b0_detour(this: *mut c_void, mut error: *mut c_void) {
     let n = SWALLOWED.fetch_add(1, Ordering::SeqCst);
     if n == 0 {
-        // 只在第一次打日志，避免刷屏。
-        log::write("patch_hook: swallowed DownloadPatchInfo failure callback (bypass active)");
+        log::write("patch_hook: b__0 bypass active (nulling error arg)");
     }
-    // 直接 return：不转发 trampoline，等于「onComplete(成功路径) 之后没有错误处理」。
-    // 状态机会因拿不到失败通知而停在等待 -> 由 DownloadPatchInfo 的超时/重试逻辑
-    // 走本地兜底（与 "Cannot resolve" 形态一致）。
+    // ★ 反编译实证（ghidra patch_funcs_dec.c / DownloadPatchInfo_b__0）：
+    //     if (error != 0) {
+    //         if (this->field_0x10 != 0) {
+    //             FUN_xxx(this->field_0x10, error, 2);   // 2 = HybridLoadError.DownloadPatchInfo
+    //             return;                                //   -> 就是弹「错误码2」的那条路
+    //         }
+    //         ... 不可恢复错误路径（does not return）
+    //     }
+    //     <== error == 0 时才会走下面的成功逻辑：拼 mRemoteChannelDirUrl(+0x88/+0x90)
+    // 因此正确做法不是吞调用，而是【把 error 改成 null 再转发】，
+    // 让它走成功路径、用本地缓存拼出 mRemote* 字段（与 "Cannot resolve" 形态同效）。
+    error = std::ptr::null_mut();
+    let tramp = TRAMP.load(Ordering::SeqCst);
+    if tramp.is_null() {
+        log::write("patch_hook: FATAL trampoline missing");
+        return;
+    }
+    let real: B0Fn = std::mem::transmute(tramp);
+    real(this, std::ptr::null_mut());
 }
 
 /// 取 GameAssembly.dll 模块基址。
