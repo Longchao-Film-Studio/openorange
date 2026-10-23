@@ -10,7 +10,7 @@
 设计
 ----
 - 只监听 127.0.0.1（不对外）
-- 需要 X-OO-Token 头（默认 OO_ADMIN_TOKEN，缺省 local-dev）
+- 需要 X-OO-Token 头（OO_ADMIN_TOKEN -> work/admin_token.txt -> 自动生成）
 - 同步返回结果，命令能立刻知道成功与否
 - 直接改游戏服**内存状态**并落盘，不是「等下次登录生效」
 
@@ -29,14 +29,20 @@ import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from shared import admin_token as _admin_token
+
 from . import runtime
 
 DEFAULT_PORT = 33102
-DEFAULT_TOKEN = "local-dev"
 
 
 def _token():
-    return os.environ.get("OO_ADMIN_TOKEN") or DEFAULT_TOKEN
+    """管理接口口令（雷3）。
+
+    优先级：OO_ADMIN_TOKEN -> work/admin_token.txt -> 自动生成并落盘。
+    ★ 不再有 "local-dev" 这类公开默认值 —— 同机任何进程都能用它发物品。
+    """
+    return _admin_token.get_token()
 
 
 def _port():

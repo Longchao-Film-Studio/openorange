@@ -13,7 +13,10 @@ import os
 BACKEND_HINT = "游戏端 RPC 尚未接入，本次只解析校验、未实际生效"
 
 ADMIN_URL = os.environ.get("OO_ADMIN_URL") or "http://127.0.0.1:33102"
-ADMIN_TOKEN = os.environ.get("OO_ADMIN_TOKEN") or "local-dev"
+# ★ 雷3：不再有 "local-dev" 默认值。None 表示「调用时按
+#   OO_ADMIN_TOKEN -> work/admin_token.txt -> 自动生成」解析。
+#   测试仍可以 monkeypatch cmds.ADMIN_TOKEN 覆盖。
+ADMIN_TOKEN = os.environ.get("OO_ADMIN_TOKEN") or None
 
 
 def _pkg():
@@ -32,9 +35,13 @@ def admin_call(method, path, payload=None):
     data = None
     if payload is not None:
         data = _json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    token = pkg.ADMIN_TOKEN
+    if not token:
+        from .. import admin_token as _at
+        token = _at.get_token()
     req = urllib.request.Request(
         url, data=data, method=method,
-        headers={"X-OO-Token": pkg.ADMIN_TOKEN,
+        headers={"X-OO-Token": token,
                  "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=5) as r:
