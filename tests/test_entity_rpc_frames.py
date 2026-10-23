@@ -15,12 +15,19 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+# ★ 雷2：本套件会触发未实现 RPC（兜底分支），日志/存档都别写进真实目录
+import tempfile  # noqa: E402
+os.environ.setdefault("OO_STATE_DIR", tempfile.mkdtemp(prefix="oo_test_rpc_state_"))
+os.environ["OO_UNKNOWN_LOG"] = os.path.join(
+    tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv")
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
 
 from tests.frame_guard import guarded_handle  # noqa: E402
+from game_server import config as ooconf
 from game_server import ms as msmod  # noqa: E402
 
 passed = []
@@ -154,7 +161,10 @@ def run():
         idx, params, rid = msmod.parse_entity_frame(frame[6:])
         check(tag + "（rid=0）返回空列表", guarded_handle(idx, params, rid) == [])
 
-    print("\n[6] 阶段 1 的 RPC 都能用通用 ACK 应答")
+    print("\n[6] 阶段 1 的 RPC 都能用通用 ACK 应答（兼容模式）")
+    # ★ 雷2：未实现 RPC 的兜底现在分模式。这一段测的是兼容模式行为
+    #   （UpgradePlayerStage_CS / BreakCharacter_CS 未实现）。
+    ooconf.configure_unknown_fake_ok(True)
     # 抽 6 条 1-1/1-2/1-3 的 RPC，用空数组参数模拟调用
     for nm in ("UpgradeCharacter_CS", "BreakCharacter_CS", "UseItem_CS",
                "SubmitItem_CS", "SetSignature_CS", "UpgradePlayerStage_CS"):
@@ -164,6 +174,8 @@ def run():
         ok = (mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE and rid == 9
               and val[0].get("status") is True)
         check(nm + " 通用 ACK", ok, (mtype, rid, val))
+
+    ooconf.configure_unknown_fake_ok(False)
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

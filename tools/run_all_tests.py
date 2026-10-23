@@ -9,6 +9,13 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
+
+# ★ 测试不要往真实 work/logs 里写未实现请求日志（雷2）。
+#   所有子套件共用一个临时文件即可（它们只验证自己写了几行）。
+os.environ.setdefault(
+    "OO_UNKNOWN_LOG",
+    os.path.join(tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv"))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUMMARY = re.compile(r"\u901a\u8fc7 (\d+) \u9879\uff0c\u5931\u8d25 (\d+) \u9879")

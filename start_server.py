@@ -25,7 +25,11 @@ SERVICES = {
     },
     "game": {
         "title": "OO-GameServer:33100+33101",
-        "args": ["-u", "-m", "game_server.server", "--ms-ok"],
+        # --unknown-ok：兼容模式。未实现的 RPC/微服务方法回"成功"，
+        # 避免客户端 2 秒弱网转圈/重连风暴（仍然逐条记到
+        # work/logs/unknown_requests.tsv，用来排缺口优先级）。
+        # 不带这个参数 = 严格模式（回失败），适合审计跑。
+        "args": ["-u", "-m", "game_server.server", "--ms-ok", "--unknown-ok"],
         "ports": [33100, 33101],
     },
 }

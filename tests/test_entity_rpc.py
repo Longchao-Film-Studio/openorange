@@ -14,6 +14,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+# ★ 雷2：本套件会触发未实现 RPC（兜底分支），日志/存档都别写进真实目录
+import tempfile  # noqa: E402
+os.environ.setdefault("OO_STATE_DIR", tempfile.mkdtemp(prefix="oo_test_rpc_state_"))
+os.environ["OO_UNKNOWN_LOG"] = os.path.join(
+    tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv")
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 

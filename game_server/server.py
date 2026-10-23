@@ -191,6 +191,15 @@ def main():
             h, _, p = hp.rpartition(":")
             UPSTREAM = (h, int(p))
 
+    # ★ 雷2：未实现请求的处理模式（严格 = 回失败；兼容 = 回成功）
+    if "--unknown-ok" in argv:
+        ooconf.configure_unknown_fake_ok(True)
+        print("[cfg] 未实现请求: 兼容模式（回成功；仍记入 unknown_requests.tsv）",
+              flush=True)
+    else:
+        print("[cfg] 未实现请求: 严格模式（回失败；记入 unknown_requests.tsv）",
+              flush=True)
+
     _configure_scaffold(argv)
     _configure_dungeon(argv)
     _start_admin()

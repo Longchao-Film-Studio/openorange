@@ -14,9 +14,39 @@ import struct
 import time
 
 from .. import config as ooconf
+from .. import unknown_log as _ulog
 from .. import ms as msmod
 from . import accounts
 from .net import CAPTURE_DIR, hexdump, maybe_hexdump, recv_exact
+
+
+# ---------------------------------------------------------------- 未实现微服务方法（雷2）
+# ★ 2026-10-23：以前未实现的方法一律回 {"Ret":[True,0]}。
+#   MailService.setMailGiftReceived 是活生生的数据丢失案例：
+#   客户端收到 status=true 就本地把 giftReceived 标成 true
+#   （avatarmailcomp.lua:339-342），服务端没发奖 -> 奖励永久丢失。
+#
+#   所以这里也有硬黑名单：这些方法即使兼容模式也回失败。
+#   严格模式（默认）/ 兼容模式（--unknown-ok）对"其余未知方法"生效。
+_NEVER_FAKE_OK_MS = frozenset((
+    "MailService.setMailGiftReceived",   # 客户端本地标已领 -> 奖励丢失
+    "MailService.deleteMail",            # 客户端本地删邮件
+    "MailService.setAllMailHaveRead",
+    "MailService.setMailHaveRead",
+    "MailService.star",
+    "MailService.unstar",
+))
+
+
+def unknown_ms_params(service, method, uid=None, params=None):
+    """未实现微服务方法的应答参数（msgpack bytes）：记日志 + 按模式决定成败。"""
+    key = "%s.%s" % (service, method)
+    fake = ooconf.unknown_fake_ok() and (key not in _NEVER_FAKE_OK_MS)
+    _ulog.record("ms", key, uid=uid, params=params, fake_ok=fake,
+                 reply="ack" if fake else "fail")
+    if fake:
+        return msmod.mp_map({"Ret": [True, 0]})
+    return msmod.mp_map({"Ret": [False, "not implemented"]})
 
 
 def handle_ms(conn, addr, cid):
@@ -127,7 +157,10 @@ def handle_ms(conn, addr, cid):
                 #   这里给空通知列表，语义完整。
                 params = msmod.mp_map({"Ret": [True, ""], "Notification": []})
             else:
-                params = msmod.mp_map({"Ret": [True, 0]})
+                # ★ 雷2：未实现的微服务方法（记日志 + 模式/黑名单决定成败）
+                params = unknown_ms_params(
+                    service, method, uid=None,
+                    params=fields.get(4, [b""])[0])
             pkt = msmod.frame_ms_response(seq, params, service)
             try:
                 conn.sendall(pkt)

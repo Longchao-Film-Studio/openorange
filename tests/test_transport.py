@@ -29,6 +29,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_transport_")
+# ★ 雷2：会触发未实现 RPC，日志别写进真实 work/logs
+os.environ["OO_UNKNOWN_LOG"] = os.path.join(
+    tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv")
 # ★ 抓包目录也要隔离：否则跑一次测试就往 work/captures 里写 conn_*.bin / ms_*.bin
 os.environ["OO_CAPTURE_DIR"] = tempfile.mkdtemp(prefix="oo_test_captures_")
 if hasattr(sys.stdout, "reconfigure"):

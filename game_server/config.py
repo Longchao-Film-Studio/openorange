@@ -137,6 +137,29 @@ def configure_scaffold(unlock_all=False, level=None, all_tasks_done=None):
     return SCAFFOLD
 
 
+# ------------------------------------------------------------------ 未实现请求策略
+# ★ 雷2（2026-10-23）：未实现的 RPC / 微服务方法怎么回。
+#   - 严格模式（默认）：回失败，把缺口暴露出来
+#   - 兼容模式：回成功（旧行为），避免客户端 2 秒弱网转圈 / 重连风暴
+#   启动参数 --unknown-ok 或环境变量 OO_UNKNOWN_OK=1 打开兼容模式。
+#
+#   两种模式都会把未实现请求记到 UNKNOWN_LOG_PATH（累计 + 聚合），
+#   用来排优先级 —— 它比静态扫描的缺口表更接近「客户端实际发了什么」。
+UNKNOWN_FAKE_OK = os.environ.get("OO_UNKNOWN_OK") in ("1", "true", "yes", "on")
+UNKNOWN_LOG_PATH = (os.environ.get("OO_UNKNOWN_LOG")
+                    or os.path.join(WORK_DIR, "logs", "unknown_requests.tsv"))
+
+
+def configure_unknown_fake_ok(on=True):
+    global UNKNOWN_FAKE_OK
+    UNKNOWN_FAKE_OK = bool(on)
+    return UNKNOWN_FAKE_OK
+
+
+def unknown_fake_ok():
+    return bool(UNKNOWN_FAKE_OK)
+
+
 # ------------------------------------------------------------------ 抓包日志
 # ★ 日志降噪（2026-10-23）：默认不开 hexdump。
 #   - 开：每帧打印十六进制大块（旧行为），排障用，控制台输出巨大

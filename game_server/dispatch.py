@@ -54,7 +54,10 @@ avataruserdatacomp 逐个确认过），只有极少数还读 errorcode / color�
 名字 -> 索引 全部来自 tools/hash_rpc_names.py（genRpcIndex 哈希预言机），
 可用 hash_rpc_names.py verify 重新核对，不靠记忆。
 """
+from . import config as _ooconf
 from . import ms as msmod
+from . import rpc_catalog as _catalog
+from . import unknown_log as _ulog
 
 # 名字 -> genRpcIndex 的索引表已拆到 rpc_index.py（P0-E1）；
 # 这里 re-export，保持 erpc.RPC_INDEX / erpc.describe 等既有调用点不变。
@@ -380,6 +383,43 @@ def _drain_pending_chain(uid=None):
         print("[story] 补完成链式任务失败: %s" % e, flush=True)
         return []
 
+# ---------------------------------------------------------------- 未实现 RPC（雷2）
+# ★ 2026-10-23：以前未实现的 RPC 一律回 {status:true}（"通用 ACK"）。
+#   后果：客户端以为成功、服务端什么都没做 —— 邮件附件被本地标记已领、
+#   奖励永久丢失就是这条路。现在改成：
+#     - 严格模式（默认）：回失败，把缺口暴露出来
+#     - 兼容模式（--unknown-ok / OO_UNKNOWN_OK=1）：回成功，避免弱网重连风暴
+#   两种模式都记到 work/logs/unknown_requests.tsv（含聚合计数）。
+#
+#   _NEVER_FAKE_OK_RPC 是**硬黑名单**：即使兼容模式也绝不回成功。
+#   判据：客户端收到 status=true 后会本地改状态、或显示"已获得/已购买"。
+_NEVER_FAKE_OK_RPC = frozenset((
+    # 经济类：未实现却回成功会让 UI 显示买到/抽到（既不发货也不扣费）
+    "RpcBuyShop", "RpcDrawGacha", "RpcDrawNonReplacementGacha",
+    "RpcDrawPupilGacha", "RpcDrawAccuChargeGacha", "RpcObtainAccuGachaReward",
+    "RpcGainAccuChargeGachaToken", "RpcGetGachaNormalReward",
+    "RpcGetGachaUpOnlyReward", "RpcSetGachaWish",
+    "Charge_FirstChargeReward_CS", "Cmd_BuyBpLevel_CS",
+    "Cmd_AmusementCoin_Buy_CS", "RpcChargeRebateReward",
+    "RpcCountdownGiftActBuy", "RpcCycleChargeActReward",
+    "RpcGainPhysicalPowerBpActPayBpLevelReward",
+    "RpcGainReturningPlayerActPayBpLevelReward",
+))
+
+# 严格模式下的失败应答（客户端 _SC 回调第一句都是 if retstatus.status then ...）
+UNKNOWN_FAIL_RET = {"status": False, "errmsg": "not implemented"}
+
+
+def unknown_rpc_ret(index, uid=None, params=None):
+    """未实现 RPC 的应答 ret：记日志 + 按模式决定成败。"""
+    name = _catalog.name_of(index)
+    key = name or ("index:%s" % index)
+    fake = _ooconf.unknown_fake_ok() and (name not in _NEVER_FAKE_OK_RPC)
+    _ulog.record("rpc", key, uid=uid, params=params, fake_ok=fake,
+                 reply="ack" if fake else "fail")
+    return dict(ACK_OK) if fake else dict(UNKNOWN_FAIL_RET)
+
+
 def handle(index, params, rid, uid=None):
     """处理一条实体 RPC，返回**帧列表**（可能为空）。
 
@@ -423,7 +463,7 @@ def handle(index, params, rid, uid=None):
             return _pending_frames
         frames = out if isinstance(out, list) else [out]
         return _pending_frames + frames
-    # 通用成功应答：所有 _SC 处理函数都只看 retstatus.status。
-    # _pending_frames 是登录补完剧情的同步帧（必须在应答前），
-    # 走统一入口 _respond_after_sync 保证顺序。
-    return _respond_after_sync(rid, _pending_frames)
+    # ★ 雷2：未实现的 RPC —— 记日志 + 按模式回成功/失败（含硬黑名单）。
+    # _pending_frames 是登录补完剧情的同步帧（必须在应答前），走统一入口保证顺序。
+    _ret = unknown_rpc_ret(index, uid=uid, params=params)
+    return _respond_after_sync(rid, _pending_frames, ret=_ret)
