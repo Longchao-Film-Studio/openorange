@@ -18,6 +18,7 @@ mod log;
 mod native;
 mod script;
 mod xlua;
+mod patch_hook;
 
 use std::ffi::c_void;
 use windows::core::BOOL;
@@ -53,6 +54,14 @@ extern "system" fn bootstrap_thread(_param: *mut c_void) -> u32 {
     // 等待 xlua.dll 被 Unity/xLua 加载。
     // 实测：注入后 30 秒内 GameAssembly.dll(78MB IL2CPP) 已加载但 xlua.dll 尚未出现，
     // 冷启动时 Unity 初始化 + 首场景加载可能远超 30 秒，因此给足 5 分钟并周期报告进度。
+    // ★ 队列任务：官方 URL 依赖兜底（方案 A）。
+    //   开关：环境变量 OO_PATCH_BYPASS=1 时启用。默认关闭，不改变既有行为。
+    //   内部自会等待 GameAssembly.dll 解密就绪（序言校验通过才装 hook）。
+    if std::env::var("OO_PATCH_BYPASS").as_deref() == Ok("1") {
+        log::write("patch_hook: OO_PATCH_BYPASS=1, arming HybridLoad bypass");
+        patch_hook::spawn_wait_thread();
+    }
+
     if !wait_for_xlua(300_000) {
         log::write("FATAL: xlua.dll not loaded within 300s, giving up");
         return 1;

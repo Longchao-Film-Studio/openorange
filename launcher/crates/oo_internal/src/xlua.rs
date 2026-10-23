@@ -221,11 +221,20 @@ unsafe fn build_trampoline(body: *const u8, cover: usize) -> Result<*mut u8, Str
     Ok(t)
 }
 
-/// 在真实函数体上安装绝对跳转。返回 trampoline。
-pub fn install(body: *mut c_void, detour: *const c_void) -> Result<*mut c_void, String> {
+/// 通用内联挂钩（不触碰 xlua 的单例状态）。
+///
+/// 一个进程里可能不止一个 hook 目标（xlua 的 luaL_loadstring + GameAssembly 的
+/// HybridLoad 回调），所以真正的安装逻辑只允许有一条实现（R3）。
+/// xlua 专用的单例（COVER_LEN/TRAMPOLINE/HOOK_INSTALLED）只由下面的 `install`
+/// 薄封装维护，其他调用方一律用本函数并自行保存 trampoline。
+pub fn install_generic(
+    body: *mut c_void,
+    detour: *const c_void,
+    label: &str,
+) -> Result<*mut c_void, String> {
     let cover = precheck_len(body as *const u8)?;
     log::write(&format!(
-        "hook: coverage = {cover} bytes (min {HOOK_LEN}), {} instruction(s)",
+        "hook[{label}]: coverage = {cover} bytes (min {HOOK_LEN}), {} instruction(s)",
         unsafe { count_insns(body as *const u8, cover) }
     ));
 
@@ -249,14 +258,26 @@ pub fn install(body: *mut c_void, detour: *const c_void) -> Result<*mut c_void, 
         let _ = VirtualProtect(body, cover, old, &mut restored);
     }
 
-    COVER_LEN.store(cover, Ordering::SeqCst);
-    TRAMPOLINE.store(tramp as *mut c_void, Ordering::SeqCst);
-    HOOK_INSTALLED.store(true, Ordering::SeqCst);
     log::write(&format!(
-        "hook installed: body={:p} detour={:p} trampoline={:p}",
+        "hook[{label}] installed: body={:p} detour={:p} trampoline={:p}",
         body, detour, tramp
     ));
     Ok(tramp as *mut c_void)
+}
+
+/// 在真实函数体上安装绝对跳转（xlua 专用：同时维护单例状态供 detour 转发）。
+/// 返回 trampoline。
+pub fn install(body: *mut c_void, detour: *const c_void) -> Result<*mut c_void, String> {
+    let tramp = install_generic(body, detour, "xlua")?;
+    COVER_LEN.store(cover_len_for(body)?, Ordering::SeqCst);
+    TRAMPOLINE.store(tramp as *mut c_void, Ordering::SeqCst);
+    HOOK_INSTALLED.store(true, Ordering::SeqCst);
+    Ok(tramp as *mut c_void)
+}
+
+/// 重算覆盖长度（install 薄封装用）。
+fn cover_len_for(body: *mut c_void) -> Result<usize, String> {
+    precheck_len(body as *const u8)
 }
 
 unsafe fn count_insns(p: *const u8, cover: usize) -> usize {
