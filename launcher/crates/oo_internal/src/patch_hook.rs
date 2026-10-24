@@ -62,8 +62,16 @@ static INSTALLED_FLAGS: [AtomicBool; 8] = [
     AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false),
 ];
 static SWALLOWED: AtomicUsize = AtomicUsize::new(0);
-static TRAMP: std::sync::atomic::AtomicPtr<c_void> =
-    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
+static TRAMPS: [std::sync::atomic::AtomicPtr<c_void>; 8] = [
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+    std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
+];
 
 pub fn is_installed() -> bool {
     INSTALLED.load(Ordering::SeqCst)
@@ -78,7 +86,8 @@ pub fn swallowed_count() -> usize {
 /// 我们不碰参数，只吞调用，因此不需要精确知道参数位次）。
 type B0Fn = unsafe extern "C" fn(*mut c_void, *mut c_void) -> ();
 
-unsafe extern "C" fn b0_detour(this: *mut c_void, _error: *mut c_void) {
+/// detour 主体：播种 temp + 以 null error 转发各自 trampoline。
+unsafe fn b0_body(this: *mut c_void, tramp: *mut c_void) {
     // ★ 实测（2026-10-24 02:28/02:43 两次）：b__0 的「成功分支」内部会执行
     //   File.Move(patch_info.json.temp → patch_info.json)，而 temp 只在真实下载成功时存在。
     //   下载失败被我们拦截时 temp 不存在 → FileNotFoundException → 照样 ShowError。
@@ -99,8 +108,6 @@ unsafe extern "C" fn b0_detour(this: *mut c_void, _error: *mut c_void) {
     //     <== error == 0 时才会走下面的成功逻辑：拼 mRemoteChannelDirUrl(+0x88/+0x90)
     // 因此正确做法不是吞调用，而是【把 error 改成 null 再转发】，
     // 让它走成功路径、用本地缓存拼出 mRemote* 字段（与 "Cannot resolve" 形态同效）。
-    let _error: *mut c_void = std::ptr::null_mut();
-    let tramp = TRAMP.load(Ordering::SeqCst);
     if tramp.is_null() {
         log::write("patch_hook: FATAL trampoline missing");
         return;
@@ -141,7 +148,22 @@ fn prepare_temp_file() {
         Err(e) => log::write(&format!("patch_hook: seed temp failed: {}", e)),
     }
 }
-/// 取 GameAssembly.dll 模块基址。
+
+unsafe extern "C" fn b0_detour_0(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[0].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_1(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[1].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_2(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[2].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_3(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[3].load(Ordering::SeqCst)); }
+
+/// 目标 -> 对应薄包装。
+fn detour_for(idx: usize) -> *const c_void {
+    match idx {
+        0 => b0_detour_0 as *const c_void,
+        1 => b0_detour_1 as *const c_void,
+        2 => b0_detour_2 as *const c_void,
+        _ => b0_detour_3 as *const c_void,
+    }
+}
+
 fn game_assembly_base() -> Option<*mut c_void> {
     let w: Vec<u16> = "GameAssembly.dll".encode_utf16().chain(std::iter::once(0)).collect();
     unsafe { GetModuleHandleW(windows::core::PCWSTR(w.as_ptr())).ok() }
@@ -164,9 +186,11 @@ pub fn try_install() -> Result<usize, String> {
                 continue;
             }
         }
-        match crate::xlua::install_generic(target, b0_detour as *const c_void, label) {
-            Ok(_) => {
-                INSTALLED_FLAGS[label_hash(label)].store(true, Ordering::SeqCst);
+        match crate::xlua::install_generic(target, detour_for(label_hash(label)), label) {
+            Ok(t) => {
+                let ti = label_hash(label);
+                INSTALLED_FLAGS[ti].store(true, Ordering::SeqCst);
+                TRAMPS[ti].store(t, Ordering::SeqCst);
                 ok += 1;
                 log::write(&format!("patch_hook: {label} hook armed at GameAssembly+{rva:#x}"));
             }
