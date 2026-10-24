@@ -7,7 +7,7 @@ description = "OpenOrange 游戏内注入模块 (MinHook + luaL_loadbuffer)"
 
 [lib]
 name = "OO_Internal"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [dependencies]

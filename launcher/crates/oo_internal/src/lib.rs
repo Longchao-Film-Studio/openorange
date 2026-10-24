@@ -18,6 +18,7 @@ mod log;
 mod native;
 mod script;
 mod xlua;
+pub mod diag;
 mod patch_hook;
 
 use std::ffi::c_void;

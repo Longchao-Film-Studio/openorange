@@ -4,6 +4,7 @@
 //!   3) 校验内嵌 Lua 脚本与 lua/ 源文件一致
 //!   4) 校验目标客户端存在且官服 loginpanel.lua 有必需方法
 
+use OO_Internal::diag::{analyze_reloc, coverage_len_lite, decode_len_lite, find_rip_rel_lite};
 use oo_shared::{channel_name, BridgeHeader, BRIDGE_CAPACITY, BRIDGE_MAGIC, BRIDGE_VERSION, LoginEnvelope, STATE_READY};
 use std::ffi::c_void;
 use windows::core::PCWSTR;
@@ -427,7 +428,7 @@ pub fn scan_hook_candidates() -> i32 {
         let hex: Vec<String> = body[..16].iter().map(|b| format!("{b:02X}")).collect();
 
         // 检查重定位安全性：前 16 字节里不得有 RIP 相对寻址 / 相对跳转
-        let risk = analyze_reloc(body, hops);
+        let risk = analyze_reloc(body);
 
         let mark = if risk.is_empty() { "OK" } else { "NO" };
         if risk.is_empty() {
@@ -455,37 +456,7 @@ pub fn scan_hook_candidates() -> i32 {
     if safe.is_empty() { 1 } else { 0 }
 }
 
-/// 分析前 24 字节，返回阻碍重定位的因素。
-fn analyze_reloc(code: &[u8], hops: usize) -> Vec<String> {
-    let mut risks = Vec::new();
-    let mut i = 0usize;
-    while i < 20 {
-        let b = code[i];
-        if b == 0xE8 || b == 0xE9 || b == 0xEB {
-            risks.push(format!("相对跳转 {b:02X} at +{i}"));
-            break;
-        }
-        if b == 0x0F && (code[i + 1] & 0xF0) == 0x80 {
-            risks.push(format!("jcc rel32 at +{i}"));
-            break;
-        }
-        // lea/mov 带 RIP 相对：REX(可选) 8D/8B/89/8A/88 + ModRM mod=00 rm=101
-        let mut k = i;
-        if (0x40..=0x4F).contains(&code[k]) {
-            k += 1;
-        }
-        if matches!(code[k], 0x8D | 0x8B | 0x89 | 0x8A | 0x88 | 0x03 | 0x01) {
-            let md = code[k + 1];
-            if (md >> 6) == 0 && (md & 7) == 5 {
-                risks.push(format!("RIP 相对寻址 at +{k}"));
-                break;
-            }
-        }
-        i += 1;
-    }
-    let _ = hops;
-    risks
-}
+// analyze_reloc 已迁至 oo_internal::diag
 
 // ============================================================================
 // 精确解析跳转链 + 评估 trampoline 可行性（含叶子函数 ret 处理）
@@ -620,10 +591,10 @@ pub fn deep_resolve() -> i32 {
                     println!("          ==> 真实函数体 RVA 0x{:X}", cur as usize - base);
                     // 指令边界分析
                     let win = unsafe { std::slice::from_raw_parts(cur, 32) };
-                    match local_coverage(&win[..24]) {
+                    match coverage_len_lite(&win[..24]) {
                         Some(cover) => {
                             println!("          覆盖长度 = {cover} 字节");
-                            match local_rip_rel(&win[..cover]) {
+                            match find_rip_rel_lite(&win[..cover]) {
                                 Some(off) => println!("          RIP relative at +{off}  => NOT hookable"),
                                 None => println!("          no RIP-relative      => HOOKABLE"),
                             }
@@ -637,84 +608,4 @@ pub fn deep_resolve() -> i32 {
     }
     0
 }
-// ---- 本地精简版指令解码（selfcheck 是独立 crate，不依赖 oo_internal 内部模块）----
-fn local_decode(code: &[u8]) -> Option<usize> {
-    if code.is_empty() { return None; }
-    let mut i = 0usize;
-    if (0x40..=0x4F).contains(&code[i]) { i += 1; }
-    while i < code.len() && matches!(code[i], 0x66 | 0x67 | 0x2E | 0x36 | 0x3E | 0x26 | 0x64 | 0x65 | 0xF2 | 0xF3) { i += 1; }
-    if i >= code.len() { return None; }
-    let op = code[i]; i += 1;
-    match op {
-        0x50..=0x5F | 0x90 | 0xC3 | 0xCC | 0xC9 | 0x98 | 0x99 => return Some(i),
-        0xEB | 0x70..=0x7F | 0xE8 | 0xE9 => return None,
-        _ => {}
-    }
-    if op == 0x0F {
-        if i >= code.len() { return None; }
-        let op2 = code[i]; i += 1;
-        return match op2 {
-            0x1F | 0xB6 | 0xB7 => local_modrm(&code[i..], false).map(|n| i + n),
-            _ => None,
-        };
-    }
-    let has_modrm = matches!(op,
-        0x88|0x89|0x8A|0x8B|0x8D|0x01|0x03|0x09|0x0B|0x11|0x13|0x19|0x1B
-        |0x21|0x23|0x29|0x2B|0x31|0x33|0x39|0x3B|0x85|0x87);
-    if has_modrm { return local_modrm(&code[i..], false).map(|n| i + n); }
-    match op {
-        0x83 => local_modrm(&code[i..], false).map(|n| i + n + 1),
-        0x81 => local_modrm(&code[i..], false).map(|n| i + n + 4),
-        0xC6 => local_modrm(&code[i..], false).map(|n| i + n + 1),
-        0xC7 => local_modrm(&code[i..], false).map(|n| i + n + 4),
-        0xB8..=0xBF => Some(i + 4),
-        _ => None,
-    }
-}
-
-fn local_modrm(code: &[u8], _is16: bool) -> Option<usize> {
-    if code.is_empty() { return None; }
-    let md = code[0] >> 6; let rm = code[0] & 7; let mut n = 1usize;
-    if rm == 4 && md != 3 {
-        if code.len() < 2 { return None; }
-        n += 1;
-        if md == 0 && (code[1] & 7) == 5 { n += 4; }
-    }
-    match md { 0 => { if rm == 5 { n += 4; } }, 1 => n += 1, 2 => n += 4, _ => {} }
-    if code.len() < n { return None; }
-    Some(n)
-}
-
-fn local_coverage(code: &[u8]) -> Option<usize> {
-    let mut off = 0usize;
-    while off < 14 {
-        if off >= 32 { return None; }
-        let n = local_decode(&code[off..])?;
-        if n == 0 { return None; }
-        off += n;
-    }
-    Some(off)
-}
-
-fn local_rip_rel(code: &[u8]) -> Option<usize> {
-    let mut off = 0usize;
-    while off < code.len() {
-        let start = off;
-        let mut k = off;
-        if k < code.len() && (0x40..=0x4F).contains(&code[k]) { k += 1; }
-        if k + 1 >= code.len() { return None; }
-        let has_modrm = matches!(code[k],
-            0x88|0x89|0x8A|0x8B|0x8D|0x01|0x03|0x09|0x0B|0x11|0x13|0x19|0x1B
-            |0x21|0x23|0x29|0x2B|0x31|0x33|0x39|0x3B|0x85|0x87
-            |0x83|0x81|0xC6|0xC7);
-        if has_modrm {
-            let md = code[k + 1];
-            if (md >> 6) == 0 && (md & 7) == 5 { return Some(start); }
-        }
-        match local_decode(&code[off..]) {
-            Some(l) if l > 0 => off += l,
-            _ => return None,
-        }
-    }
-    None
-}
+// ---- 本地精简版指令解码已迁至 oo_internal::diag（消除双份维护，2026-10-24）----
