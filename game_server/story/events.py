@@ -47,6 +47,9 @@ from .. import gamedata
 #   绑死了函数名就抓不到（test_dungeon_events.py 有 5 项因此失败）。
 from .. import story as _story
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 # 去重记录存这个私有属性（_oo_ 前缀，登录时会被剥离，不会发给客户端）
 _SEEN_KEY = "_oo_event_seen"
 _SEEN_MAX = 512
@@ -173,7 +176,7 @@ def apply_event(st, event, now=None):
     try:
         hits, _ = _story.evaluate_event(st, event.type, event.params, now)
     except Exception as e:
-        print("[story] 事件求值失败 %s: %s" % (event.type, e), flush=True)
+        _log.warning("[story] 事件求值失败 %s: %s" % (event.type, e))
         hits = []
     _mark_seen(st, event.event_id, now)
 
@@ -182,7 +185,7 @@ def apply_event(st, event, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        print("[story] 链式检查失败: %s" % e, flush=True)
+        _log.warning("[story] 链式检查失败: %s" % e)
         chain = []
 
     # 4) 通用任务（TaskData 那套，P1 阶段 N-a3）
@@ -204,7 +207,7 @@ def apply_event(st, event, now=None):
             else:
                 task_sync.extend(_tasks.finish_task(st, _tid, now))
     except Exception as e:
-        print("[task] 通用任务事件推进失败 %s: %s" % (event.type, e), flush=True)
+        _log.warning("[task] 通用任务事件推进失败 %s: %s" % (event.type, e))
         task_hits, task_sync = [], []
 
     # 5) 系统解锁重算（roadmap 队列第 2 项）
@@ -215,7 +218,7 @@ def apply_event(st, event, now=None):
         from .rpc import _recalc_system_unlocks
         unlock_frames = _recalc_system_unlocks(st)
     except Exception as e:
-        print("[story] 系统解锁重算失败: %s" % e, flush=True)
+        _log.warning("[story] 系统解锁重算失败: %s" % e)
 
     return EventResult(hits=hits, chain_hits=chain, event=event,
                        task_hits=task_hits, task_sync=task_sync,
@@ -232,7 +235,7 @@ def tick(st, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        print("[story] tick 链式检查失败: %s" % e, flush=True)
+        _log.warning("[story] tick 链式检查失败: %s" % e)
         chain = []
     return EventResult(chain_hits=chain)
 

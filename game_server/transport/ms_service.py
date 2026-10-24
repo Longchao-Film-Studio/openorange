@@ -19,6 +19,9 @@ from .. import ms as msmod
 from . import accounts
 from .net import CAPTURE_DIR, hexdump, maybe_hexdump, recv_exact
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 
 # ---------------------------------------------------------------- 未实现微服务方法（雷2）
 # ★ 2026-10-23：以前未实现的方法一律回 {"Ret":[True,0]}。
@@ -53,7 +56,7 @@ def handle_ms(conn, addr, cid):
     """微服务连接：解析请求帧并回 MsResponse。"""
     t0 = time.time()
     cap_path = os.path.join(CAPTURE_DIR, "ms_%03d_%s.bin" % (cid, addr[1]))
-    print("[ms] #%03d OPEN from %s:%d" % (cid, addr[0], addr[1]), flush=True)
+    _log.info("[ms] #%03d OPEN from %s:%d" % (cid, addr[0], addr[1]))
     f = None
     try:
         f = open(cap_path, "wb")
@@ -65,15 +68,15 @@ def handle_ms(conn, addr, cid):
         while True:
             hdr = recv_exact(conn, 4)
             if hdr is None:
-                print("[ms] #%03d peer closed" % cid, flush=True)
+                _log.info("[ms] #%03d peer closed" % cid)
                 break
             ln = struct.unpack("<I", hdr)[0]
             if ln <= 0 or ln > 1 << 20:
-                print("[ms] #%03d bad length %d" % (cid, ln), flush=True)
+                _log.info("[ms] #%03d bad length %d" % (cid, ln))
                 break
             payload = recv_exact(conn, ln)
             if payload is None:
-                print("[ms] #%03d truncated payload" % cid, flush=True)
+                _log.info("[ms] #%03d truncated payload" % cid)
                 break
 
             mtype = struct.unpack("<H", payload[:2])[0]
@@ -88,8 +91,8 @@ def handle_ms(conn, addr, cid):
             try:
                 fields = msmod.pb_parse(body)
             except Exception as e:
-                print("[ms] #%03d protobuf parse failed: %s" % (cid, e), flush=True)
-                print(maybe_hexdump(payload, limit=256), flush=True)
+                _log.warning("[ms] #%03d protobuf parse failed: %s" % (cid, e))
+                _log.info(maybe_hexdump(payload, limit=256))
                 continue
 
             seq = fields.get(1, [0])[0]
@@ -103,7 +106,7 @@ def handle_ms(conn, addr, cid):
 
             print("[ms] #%03d RX type=%d seq=%s service=%s method=%s  (%d B)"
                   % (cid, mtype, seq, service, method, len(payload)), flush=True)
-            print(maybe_hexdump(payload, limit=256), flush=True)
+            _log.info(maybe_hexdump(payload, limit=256))
 
             # 按方法名区分负载：
             #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，
@@ -167,10 +170,10 @@ def handle_ms(conn, addr, cid):
                 print("[ms] #%03d TX MsResponse type=3 rid=%s service=%s method=%s (%d B)"
                       % (cid, seq, service, method, len(pkt)), flush=True)
             except Exception as e:
-                print("[ms] #%03d send failed: %s" % (cid, e), flush=True)
+                _log.warning("[ms] #%03d send failed: %s" % (cid, e))
 
     except Exception as e:
-        print("[ms] #%03d error: %s" % (cid, e), flush=True)
+        _log.warning("[ms] #%03d error: %s" % (cid, e))
     finally:
         try:
             conn.close()

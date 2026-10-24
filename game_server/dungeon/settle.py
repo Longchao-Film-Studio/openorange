@@ -25,6 +25,9 @@ from ..story.rpc import _finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 RPC_AVATAR_SPACE_FINISH_SC = 1634212414   # AvatarSpace_SpaceFinish_SC
 
 def _finish_info_of(info, uid):
@@ -293,5 +296,5 @@ def _storyline_finish_game(rid, params, uid=None):
             SYNC_SELF, sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
-    print("[dungeon] 剧情段落 %s 完成" % sid, flush=True)
+    _log.info("[dungeon] 剧情段落 %s 完成" % sid)
     return respond_after_sync(rid, syncs)

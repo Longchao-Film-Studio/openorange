@@ -20,6 +20,9 @@ from ..property import sync as _sync
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from .rpc import _story_sync_frames as _story_frames
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 def _task_sync_frames(st, changes):
     """把 tasks 模块的同步描述转成帧（支持两层嵌套 sub2/del2）。"""
     frames = []
@@ -83,7 +86,7 @@ def _task_fetch(rid, params, uid=None):
     st = state(uid)
     syncs.extend(_task_sync_frames(st, tasks.start_task(st, tid)))
     st.save()
-    print("[task] 接任务 %s" % tid, flush=True)
+    _log.info("[task] 接任务 %s" % tid)
     return respond_after_sync(rid, syncs)
 
 def _task_done(rid, params, uid=None):
@@ -109,9 +112,9 @@ def _task_done(rid, params, uid=None):
         if _extra:
             syncs.extend(_story_frames(st, _extra))
     except Exception as e:
-        print("[task] 剧情重扫失败: %s" % e, flush=True)
+        _log.warning("[task] 剧情重扫失败: %s" % e)
     st.save()
-    print("[task] 完成任务 %s" % tid, flush=True)
+    _log.info("[task] 完成任务 %s" % tid)
     return respond_after_sync(rid, syncs)
 
 def _task_done_type(rid, params, uid=None):
@@ -133,9 +136,9 @@ def _task_done_type(rid, params, uid=None):
         if _extra:
             syncs.extend(_story_frames(st, _extra))
     except Exception as e:
-        print("[task] 剧情重扫失败: %s" % e, flush=True)
+        _log.warning("[task] 剧情重扫失败: %s" % e)
     st.save()
-    print("[task] 完成类型 %s 的全部任务" % ttype, flush=True)
+    _log.info("[task] 完成类型 %s 的全部任务" % ttype)
     return respond_after_sync(rid, syncs)
 
 
@@ -150,7 +153,7 @@ def _grant_awards(st, cfg):
         from ..dungeon.reward import _grant_battle_items
         return _grant_battle_items(st, awards)
     except Exception as e:
-        print("[task] 发奖失败: %s" % e, flush=True)
+        _log.warning("[task] 发奖失败: %s" % e)
         return [], []
 
 
@@ -183,7 +186,7 @@ def _done_title_task(rid, params, uid=None):
             continue
         cfg = gamedata.task(tid) or {}
         if cfg.get("TaskType") != 10:
-            print("[task] 拒绝领奖 %s：不是头衔挑战任务" % tid, flush=True)
+            _log.warning("[task] 拒绝领奖 %s：不是头衔挑战任务" % tid)
             continue
         if tasks.task_state(st.props, tid) != tasks.TASK_STATE_WAIT_DONE:
             print("[task] 拒绝领奖 %s：状态不是 WaitDone（当前 %s）"
@@ -194,11 +197,11 @@ def _done_title_task(rid, params, uid=None):
         ch.extend(tasks.claim_task(st, tid))
         got.append(tid)
         if _rl:
-            print("[task] 领奖 %s -> %s" % (tid, _rl), flush=True)
+            _log.info("[task] 领奖 %s -> %s" % (tid, _rl))
     if ch:
         syncs.extend(_task_sync_frames(st, ch))
     st.save()
-    print("[task] 头衔领奖：%s（titel_vit=%s）" % (got, vit), flush=True)
+    _log.info("[task] 头衔领奖：%s（titel_vit=%s）" % (got, vit))
     return respond_after_sync(rid, syncs)
 
 
@@ -224,7 +227,7 @@ def _refresh_title_daily_task(rid, params, uid=None):
     st = state(uid)
     # ★ N-d：每天只能刷新 1 次（防反复刷奖励）
     if not tasks.can_refresh_daily(st):
-        print("[task] 刷新头衔日常被拒：今天已经刷新过", flush=True)
+        _log.info("[task] 刷新头衔日常被拒：今天已经刷新过")
         return [msmod.build_entity_response(rid, ret={"status": False})]
     tasks.mark_daily_refreshed(st)
     ch = []

@@ -32,6 +32,9 @@ from ..rpc_common import (
     sync_frame)
 from . import events as _events
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 def _story_sync_frames(st, changes):
     """把 story 模块的同步描述转成 propertySync 帧。"""
     frames = []
@@ -229,7 +232,7 @@ def _recalc_system_unlocks(st):
             frames.append(sync_frame(
                 SYNC_SELF, us_id, msmod.OP_CHANGE, str(sid), True))
         if added:
-            print("[story] 解锁系统 %s" % added, flush=True)
+            _log.info("[story] 解锁系统 %s" % added)
         if removed:
             # 客户端没有 entryDeleted 回调，只能下次登录生效
             print("[story] ★ 摘除系统解锁 %s（客户端需重登才可见）" % removed,
@@ -281,7 +284,7 @@ def _emit_get_item(st, item_id, count):
         res = _events.apply_event(st, ev)
         return list(res.hits) + list(res.chain_hits)
     except Exception as e:
-        print("[story] GetItem 事件失败 %s: %s" % (item_id, e), flush=True)
+        _log.warning("[story] GetItem 事件失败 %s: %s" % (item_id, e))
         return []
 
 # ★ P1 阶段 N（审计 P0-1 修复）：完成剧情任务的「来源 -> 允许的 TaskType」白名单。
@@ -352,7 +355,7 @@ def _finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
             try:
                 st.save()
             except Exception as e:
-                print("[story] 保存失败: %s" % e, flush=True)
+                _log.warning("[story] 保存失败: %s" % e)
 
 def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
                               param=None):
@@ -410,7 +413,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
                     str(grid_key), grid))
         frames.extend(_story_sync_frames(
             st, story.archive_story_task(st, tid, now)))
-        print("[story] 完成剧情任务 %s" % tid, flush=True)
+        _log.info("[story] 完成剧情任务 %s" % tid)
         finished_now.append(tid)
     # ★ Bug D：把追踪从已完成的任务上挪走（否则地图标点停在旧地方）
     _advance_trace_after_finish(st, finished_now, frames)
@@ -429,7 +432,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
                 if nxt:
                     frames.extend(_finish_story_tasks(st, nxt, depth + 1))
             except Exception as e:
-                print("[story] FinishTask 事件失败 %s: %s" % (tid, e), flush=True)
+                _log.warning("[story] FinishTask 事件失败 %s: %s" % (tid, e))
     elif finished_now:
         print("[story] 事件链超过 %d 层，停止递归（任务 %s）"
               % (EVENT_MAX_DEPTH, finished_now[:5]), flush=True)
@@ -445,7 +448,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
             if _extra:
                 frames.extend(_story_sync_frames(st, _extra))
         except Exception as e:
-            print("[story] 增量播种失败: %s" % e, flush=True)
+            _log.warning("[story] 增量播种失败: %s" % e)
     return frames
 
 
@@ -470,7 +473,7 @@ def _ready_to_finish(st, tid, param, frames):
     tid = int(tid)
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
-        print("[story] 忽略：任务 %s 不在 story_task_bag 里" % tid, flush=True)
+        _log.info("[story] 忽略：任务 %s 不在 story_task_bag 里" % tid)
         return False
     cfg = gamedata.story_task(tid) or {}
     if cfg.get("TaskType") == 6:
@@ -485,7 +488,7 @@ def _ready_to_finish(st, tid, param, frames):
     got = story.finish_parameters_of(item)
     missing = [int(x) for x in p1 if int(x) not in got]
     if missing:
-        print("[story] 任务 %s 多目标未集齐，还差 %s" % (tid, missing), flush=True)
+        _log.info("[story] 任务 %s 多目标未集齐，还差 %s" % (tid, missing))
         return False
     return True
 
@@ -504,7 +507,7 @@ def _done_story_task(rid, params, uid=None):
     #   会主动上报的那三种（1 剧情演出 / 2 NPC 交互 / 5 视频）。
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
-        print("[story] 忽略完成请求：任务 %s 不在 story_task_bag 里" % tid, flush=True)
+        _log.info("[story] 忽略完成请求：任务 %s 不在 story_task_bag 里" % tid)
         return respond_after_sync(rid, [])
     ttype = (gamedata.story_task(tid) or {}).get("TaskType")
     if ttype not in story.TASK_TYPE_CLIENT:
@@ -553,7 +556,7 @@ def _finish_space_task(rid, params, uid=None):
     tid = story.space_task_avatar_task(sid)
     if tid is None:
         # 没有 avatarTask 的 SpaceTask 只影响战斗内 UI，不改剧情状态
-        print("[story] SpaceTask %s 没有 avatarTask，忽略" % sid, flush=True)
+        _log.info("[story] SpaceTask %s 没有 avatarTask，忽略" % sid)
         return respond_after_sync(rid, [])
     st = state(uid)
     bag = st.props.get("story_task_bag")
@@ -582,7 +585,7 @@ def _finish_space_task(rid, params, uid=None):
         print("[story] 拒绝 SpaceTask %s：当前关卡 %s，要求 %s"
               % (sid, cur_level, want_level), flush=True)
         return respond_after_sync(rid, [])
-    print("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid), flush=True)
+    _log.info("[story] SpaceTask %s 完成 -> 剧情任务 %s" % (sid, tid))
     syncs = _finish_story_tasks(st, [tid], source="space_task") or []
     return respond_after_sync(rid, syncs)
 

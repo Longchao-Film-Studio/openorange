@@ -14,6 +14,9 @@ import time
 
 from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, state, sync_frame
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _set_surface_time(st, value):
     """改 street_info.surface_enter_time 并推同步。"""
     si = st.props.get("street_info")
@@ -48,7 +51,7 @@ def _enter_surface(rid, params, uid=None):
     st = state(uid)
     syncs = _set_surface_time(st, int(time.time()))
     st.save()
-    print("[street] 进入阴界", flush=True)
+    _log.info("[street] 进入阴界")
     return respond_after_sync(rid, syncs)
 
 def _leave_surface(params, uid=None):
@@ -56,5 +59,5 @@ def _leave_surface(params, uid=None):
     st = state(uid)
     out = _set_surface_time(st, 0)
     st.save()
-    print("[street] 离开阴界", flush=True)
+    _log.info("[street] 离开阴界")
     return out

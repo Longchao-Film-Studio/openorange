@@ -20,6 +20,9 @@
 """
 from .tx import OP_ADD, OP_DEL, OP_INSERT, OP_REMOVE
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 # 属性同步帧里 ownerid 的取值（客户端 core/client/gateclientrpchandler.lua:269-288）：
 #   空串 = 「就是收帧的这个玩家自己」；非空 = 别人的 uid（客户端会 getRealOwner）。
 # 私服一连接一账号，服务端推的永远是自己，所以这里只有 SYNC_SELF。
@@ -180,7 +183,7 @@ def ops_to_frames(ops, strict=False):
         if strict:
             raise ValueError("变更集校验失败：%s" % "; ".join(errs))
         for e in errs:
-            print("[tx] ⚠ 变更集校验: %s" % e, flush=True)
+            _log.debug("[tx] ⚠ 变更集校验: %s" % e)
 
     from .. import ms as _ms
 

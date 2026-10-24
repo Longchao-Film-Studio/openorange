@@ -33,6 +33,9 @@ from shared import admin_token as _admin_token
 
 from . import runtime
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 DEFAULT_PORT = 33102
 
 
@@ -157,7 +160,7 @@ def _set_player_force_level(uid, level):
     else:
         st.props.pop("_oo_dungeon_force_level", None)
     st.save()
-    print("[admin] %s 的副本关卡覆盖设为 %s" % (uid, v or "无"), flush=True)
+    _log.info("[admin] %s 的副本关卡覆盖设为 %s" % (uid, v or "无"))
     return v
 
 

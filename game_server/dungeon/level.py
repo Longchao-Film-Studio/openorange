@@ -18,6 +18,9 @@ from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _avatar_enter_next(rid, params, uid=None):
     """Cmd_Avatar_EnterNext_CS {copyIndex} —— 回下一关的 levelInfo。
 
@@ -100,5 +103,5 @@ def _battle_teach_activate(rid, params, uid=None):
         st.save()
         syncs.append(sync_frame(
             SYNC_SELF, bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
-        print("[dungeon] 激活战斗教学 %s" % iid, flush=True)
+        _log.info("[dungeon] 激活战斗教学 %s" % iid)
     return respond_after_sync(rid, syncs)

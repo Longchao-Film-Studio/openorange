@@ -11,6 +11,9 @@ import time
 
 from .. import config as ooconf
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 CAPTURE_DIR = ooconf.CAPTURE_DIR
 
 _conn_seq = 0
@@ -55,9 +58,9 @@ def maybe_hexdump(data, limit=None):
 def log_packet(cid, direction, data, t0, f):
     """打印一帧，并（可选）写进 .bin 抓包文件。"""
     dt = int((time.time() - t0) * 1000)
-    print("[game] #%03d %s +%dms  %d B" % (cid, direction, dt, len(data)), flush=True)
+    _log.info("[game] #%03d %s +%dms  %d B" % (cid, direction, dt, len(data)))
     if ooconf.packet_log_enabled():
-        print(hexdump(data, limit=512), flush=True)
+        _log.info(hexdump(data, limit=512))
     if f is not None:
         try:
             f.write(("%s %d %d\n" % (direction, dt, len(data))).encode())
@@ -83,7 +86,7 @@ def pump(src, dst, direction, cid, t0, f, done_evt):
             try:
                 dst.sendall(data)
             except OSError as e:
-                print("[game] #%03d %s forward failed: %s" % (cid, direction, e), flush=True)
+                _log.warning("[game] #%03d %s forward failed: %s" % (cid, direction, e))
                 break
     finally:
         try:

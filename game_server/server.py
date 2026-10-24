@@ -51,6 +51,9 @@ from .transport.gate import handle_gate  # noqa: E402
 from .transport.ms_service import handle_ms  # noqa: E402
 from .transport.net import CAPTURE_DIR, next_cid  # noqa: E402
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 # ★ 端口/路径一律从 game_server.config 取，不要在这里写死。
 HOST = ooconf.HOST
 PORT = ooconf.MS_PORT
@@ -82,8 +85,8 @@ def _serve_capture(host=None, port=None):
         mode = "proxy->%s:%d" % UPSTREAM
     else:
         mode = "echo" if ECHO else "capture-only"
-    print("[game] listening on %s:%d (%s)" % (host, port, mode), flush=True)
-    print("[game] captures -> %s" % CAPTURE_DIR, flush=True)
+    _log.info("[game] listening on %s:%d (%s)" % (host, port, mode))
+    _log.info("[game] captures -> %s" % CAPTURE_DIR)
     return srv
 
 
@@ -101,16 +104,16 @@ def _run_ms_mode():
     os.makedirs(CAPTURE_DIR, exist_ok=True)
     ms_srv = _listen("0.0.0.0", MS_PORT)
     gate_srv = _listen("0.0.0.0", GATE_PORT)
-    print("[ms] ms service  listening on 0.0.0.0:%d" % MS_PORT, flush=True)
-    print("[ms] gate listening on 0.0.0.0:%d" % GATE_PORT, flush=True)
-    print("[ms] captures -> %s" % CAPTURE_DIR, flush=True)
+    _log.info("[ms] ms service  listening on 0.0.0.0:%d" % MS_PORT)
+    _log.info("[ms] gate listening on 0.0.0.0:%d" % GATE_PORT)
+    _log.info("[ms] captures -> %s" % CAPTURE_DIR)
 
     threading.Thread(target=_accept_loop, args=(gate_srv, handle_gate),
                      daemon=True).start()
     try:
         _accept_loop(ms_srv, handle_ms)
     except KeyboardInterrupt:
-        print("[ms] shutting down", flush=True)
+        _log.info("[ms] shutting down")
 
 
 def _configure_scaffold(argv):
@@ -126,7 +129,7 @@ def _configure_scaffold(argv):
             try:
                 level = int(argv[i + 1])
             except Exception:
-                print("[cfg] --level 需要整数", flush=True)
+                _log.info("[cfg] --level 需要整数")
         if a == "--tasks-done":
             tasks_done = True
         if a == "--no-tasks-done":
@@ -137,7 +140,7 @@ def _configure_scaffold(argv):
         tasks_done = False
     sc = ooconf.configure_scaffold(unlock_all=unlock_all, level=level,
                                    all_tasks_done=tasks_done)
-    print("[cfg] 脚手架: %s" % sc.describe(), flush=True)
+    _log.info("[cfg] 脚手架: %s" % sc.describe())
 
 
 def _configure_dungeon(argv):
@@ -150,7 +153,7 @@ def _configure_dungeon(argv):
         last_only = True
     ooconf.configure_dungeon_last_only(last_only)
     if last_only:
-        print("[cfg] 副本: 只下发最后一关（一关直达 Boss）", flush=True)
+        _log.info("[cfg] 副本: 只下发最后一关（一关直达 Boss）")
 
 
 def _start_admin():
@@ -166,7 +169,7 @@ def _start_admin():
         print("[admin] 管理接口 http://127.0.0.1:%d（命令系统用）"
               % _admin_api._port(), flush=True)
     except Exception as _e:
-        print("[admin] 管理接口启动失败: %s" % _e, flush=True)
+        _log.warning("[admin] 管理接口启动失败: %s" % _e)
 
 
 def main():
@@ -183,7 +186,7 @@ def main():
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-        print("[log] 统一日志安装失败，退回控制台模式: %s" % _e, flush=True)
+        _log.warning("[log] 统一日志安装失败，退回控制台模式: %s" % _e)
 
     argv = sys.argv[1:]
     if "--echo" in argv:
@@ -220,7 +223,7 @@ def main():
         _accept_loop(
             srv, lambda c, a, i: handle_capture(c, a, i, ECHO, UPSTREAM))
     except KeyboardInterrupt:
-        print("[game] shutting down", flush=True)
+        _log.info("[game] shutting down")
     finally:
         srv.close()
 

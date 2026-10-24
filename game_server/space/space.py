@@ -22,6 +22,9 @@ SpaceConst.SPACE_EDEN = 1000（gamecommon/consts/spaceconst.lua:2）
 from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 SPACE_EDEN = 1000
 
 # ServerOnlyMsg 的索引（genRpcIndex 现算，见 work/rpc_hashes.tsv）
@@ -77,7 +80,7 @@ def _enter_space(params, uid=None):
     sp["ld_spaceno"] = 0
     st.set("space_p", sp)
     st.save()
-    print("[space] %s -> %s (spaceid=%s)" % (old, spaceno, spaceid), flush=True)
+    _log.info("[space] %s -> %s (spaceid=%s)" % (old, spaceno, spaceid))
     frames = _space_sync_frames(st, sp)
     if spaceno:
         frames.append(_s2c_entity(
@@ -105,7 +108,7 @@ def _scene_loaded(params, uid=None):
     sp["ld_spaceno"] = spaceno
     st.set("space_p", sp)
     st.save()
-    print("[space] 场景加载完成 %s" % spaceno, flush=True)
+    _log.info("[space] 场景加载完成 %s" % spaceno)
     return _space_sync_frames(st, sp)
 
 def _leave_space_rpc(rid, params, uid=None):
@@ -122,7 +125,7 @@ def _leave_space_rpc(rid, params, uid=None):
     sp["loading"] = False
     st.set("space_p", sp)
     st.save()
-    print("[space] 离开空间 %s" % old, flush=True)
+    _log.info("[space] 离开空间 %s" % old)
     syncs.extend(_space_sync_frames(st, sp))
     if old:
         syncs.append(_s2c_entity(

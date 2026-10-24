@@ -22,6 +22,9 @@ if __package__ in (None, ""):
 
 from shared import commands as cmds  # noqa: E402
 from shared import db, models  # noqa: E402
+from shared.log_tee import get_logger  # noqa: E402
+
+_log = get_logger(__name__)
 
 HOST = "0.0.0.0"
 PORT = 8399
@@ -223,7 +226,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "msg": "两次输入的密码不一致"})
                 return
             ok, msg, acc = models.register(username, pw)
-            print("[web] register %s username=%s -> %s" % (msg, username, ok), flush=True)
+            _log.info("[web] register %s username=%s -> %s" % (msg, username, ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -237,7 +240,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 _note_login_ok(username)
             else:
                 _note_login_fail(username)
-            print("[web] login %s username=%s -> %s" % (msg, username, ok), flush=True)
+            _log.info("[web] login %s username=%s -> %s" % (msg, username, ok))
             self._json({"ok": ok, "msg": msg, "token": token or "", "username": username})
             return
 
@@ -272,7 +275,7 @@ class WebHandler(BaseHTTPRequestHandler):
             ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
             text = str(req.get("text") or "")
             res = cmds.execute(text, ctx)
-            print("[chatcmd] %s(perm=%d) > %s -> %s" % (username, perm, text, res.ok), flush=True)
+            _log.info("[chatcmd] %s(perm=%d) > %s -> %s" % (username, perm, text, res.ok))
             self._json({
                 "ok": res.ok,
                 "chat": res.chat,
@@ -290,7 +293,7 @@ class WebHandler(BaseHTTPRequestHandler):
             ctx = cmds.Context(acc["username"], perm, source="web", server_name=_server_name())
             text = str(req.get("text") or "")
             res = cmds.execute(text, ctx)
-            print("[admin] %s(perm=%d) > %s -> %s" % (acc["username"], perm, text, res.ok), flush=True)
+            _log.info("[admin] %s(perm=%d) > %s -> %s" % (acc["username"], perm, text, res.ok))
             self._json({
                 "ok": res.ok,
                 "lines": res.lines,
@@ -309,7 +312,7 @@ class WebHandler(BaseHTTPRequestHandler):
             username = str(req.get("username") or "").strip()
             password = str(req.get("password") or "")
             if _login_blocked(username):
-                print("[launcher] login BLOCKED username=%s" % username, flush=True)
+                _log.info("[launcher] login BLOCKED username=%s" % username)
                 self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
                 return
 
@@ -318,14 +321,14 @@ class WebHandler(BaseHTTPRequestHandler):
             ok, msg, acc = models.verify_credentials(username, password)
             if not ok:
                 _note_login_fail(username)
-                print("[launcher] login REJECTED username=%s: %s" % (username, msg), flush=True)
+                _log.info("[launcher] login REJECTED username=%s: %s" % (username, msg))
                 self._json({"code": 0, "msg": msg, "data": {}})
                 return
 
             ret, err = models.login(username)
             if err:
                 _note_login_fail(username)
-                print("[launcher] login FAILED username=%s: %s" % (username, err), flush=True)
+                _log.warning("[launcher] login FAILED username=%s: %s" % (username, err))
                 self._json({"code": 0, "msg": err, "data": {}})
                 return
 
@@ -356,7 +359,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 req.get("password2"),
                 keep_token=req.get("token") or "",
             )
-            print("[web] change_password username=%s -> %s" % (acc["username"], ok), flush=True)
+            _log.info("[web] change_password username=%s -> %s" % (acc["username"], ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -366,7 +369,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
             ok, msg = models.remove_account(acc["username"], req.get("password"))
-            print("[web] delete_account username=%s -> %s" % (acc["username"], ok), flush=True)
+            _log.info("[web] delete_account username=%s -> %s" % (acc["username"], ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -377,8 +380,8 @@ def serve(host=None, port=None):
     host = host or HOST
     port = port or PORT
     httpd = ThreadingHTTPServer((host, port), WebHandler)
-    print("[web] http://%s:%d" % (host, port), flush=True)
-    print("[web] server_name = %s" % _server_name(), flush=True)
+    _log.info("[web] http://%s:%d" % (host, port))
+    _log.info("[web] server_name = %s" % _server_name())
     return httpd
 
 def main():
@@ -397,7 +400,7 @@ def main():
             "work", "logs")
         _log_install("web", _log_dir)
     except Exception as _e:
-        print("[log] 统一日志安装失败，退回控制台模式: %s" % _e, flush=True)
+        _log.warning("[log] 统一日志安装失败，退回控制台模式: %s" % _e)
 
     argv = sys.argv[1:]
     host = None
@@ -411,7 +414,7 @@ def main():
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("[web] shutting down", flush=True)
+        _log.info("[web] shutting down")
 
 if __name__ == "__main__":
     main()

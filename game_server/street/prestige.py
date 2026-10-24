@@ -24,6 +24,9 @@ from ..property import tx as _tx
 from ..rpc_common import (
     SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
 from .info import _street_info_of
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _prestige_info(st, street_id=None):
     """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。
 
@@ -95,7 +98,7 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
     st.set("street_info", si)
     if save:
         st.save()
-    print("[street] 声望 +%s -> level=%s exp=%s" % (add, lv, exp), flush=True)
+    _log.info("[street] 声望 +%s -> level=%s exp=%s" % (add, lv, exp))
     frames.extend(_prestige_push(st, si, street_id, entry, is_new))
     return frames
 
@@ -135,7 +138,7 @@ def _get_prestige_award(rid, params, uid=None):
     entry["prestige_awarded"][level] = 1
     st.set("street_info", si)
     st.save()
-    print("[street] 领声望奖励 street=%s level=%s" % (street_id, level), flush=True)
+    _log.info("[street] 领声望奖励 street=%s level=%s" % (street_id, level))
     syncs = _prestige_push(st, si, sid, entry, _is_new)
     return respond_after_sync(rid, syncs)
 
@@ -156,6 +159,6 @@ def _get_prestige_task_award(rid, params, uid=None):
     entry["prestige_tasks"][task_id] = 1
     st.set("street_info", si)
     st.save()
-    print("[street] 领声望任务奖励 street=%s task=%s" % (street_id, task_id), flush=True)
+    _log.info("[street] 领声望任务奖励 street=%s task=%s" % (street_id, task_id))
     syncs = _prestige_push(st, si, sid, entry, _is_new)
     return respond_after_sync(rid, syncs)

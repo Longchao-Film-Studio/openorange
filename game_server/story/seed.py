@@ -38,6 +38,9 @@ from .. import gamedata
 from .. import story as story_mod
 from .state_machine import TASK_STATE_FINISHED
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 # 一次播种的硬上限：任务图理论上无环，但数据不一定可靠。
 SEED_LIMIT = 200
 
@@ -226,7 +229,7 @@ def _warn_once(key, msg):
     if key in _WARNED:
         return
     _WARNED.add(key)
-    print("[story] " + msg, flush=True)
+    _log.info("[story] " + msg)
 
 
 def rescan(st, now=None, limit=SEED_LIMIT):
@@ -269,7 +272,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
     try:
         out.extend(seed_cross_table(st, now))
     except Exception as e:
-        print("[story] rescan 跨表播种失败: %s" % e, flush=True)
+        _log.warning("[story] rescan 跨表播种失败: %s" % e)
 
     # ② 链式闸门（TaskType 6）
     from . import events as _events
@@ -280,7 +283,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
             from .rpc import _finish_story_tasks
             out.extend(_finish_story_tasks(st, hits, source="chain"))
     except Exception as e:
-        print("[story] rescan 链式检查失败: %s" % e, flush=True)
+        _log.warning("[story] rescan 链式检查失败: %s" % e)
 
     return out
 

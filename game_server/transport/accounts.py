@@ -14,6 +14,9 @@ import time
 from .. import ms as msmod
 from ..config import FALLBACK_UID as DEFAULT_UID
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 try:
     from shared import db as shared_db
 except Exception:
@@ -49,7 +52,7 @@ def resolve_display_uid(raw):
                 print("[GATE] 警告：account_id=%s 在库里查不到，只能退回原始串" % raw,
                       flush=True)
         except Exception as _e:
-            print("[GATE] 警告：还原登录名失败 %s" % _e, flush=True)
+            _log.warning("[GATE] 警告：还原登录名失败 %s" % _e)
     # ★ 不用数字兜底：uid 必须是登录名。查不到才退回原始串（正常不会走到）。
     return raw
 

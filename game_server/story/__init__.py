@@ -56,6 +56,9 @@ from .state_machine import current_state as _sm_current_state
 from .state_machine import move_to_done as _sm_move_to_done
 from .state_machine import transition as _sm_transition
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 def make_active_task(st, task_id, task_type, state, now):
     """建一条 ActiveTask（形状由 property.factory 按客户端声明生成）。
 
@@ -108,7 +111,7 @@ def init_new_player(st, now=None):
         if ch[0] == "add" and ch[1] == "story_task_bag":
             out.append(int(ch[2]))
     if out:
-        print("[story] 剧情播种：%d 个根任务进包" % len(out), flush=True)
+        _log.info("[story] 剧情播种：%d 个根任务进包" % len(out))
     return out
 
 def story_state(props, task_id):
@@ -706,7 +709,7 @@ def check_chain_tasks(st, now=None):
             hits.append(task_id)
     # 同 evaluate_event：只检测，不落状态。
     if hits:
-        print("[story] 前置任务全完成，命中 %s" % hits, flush=True)
+        _log.info("[story] 前置任务全完成，命中 %s" % hits)
     return hits, []
 
 def add_item(props, item_id, count):

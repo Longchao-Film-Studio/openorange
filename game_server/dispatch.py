@@ -221,6 +221,9 @@ from .property.items import (  # noqa: F401  (re-export)
 )
 from .misc.session import _match_duration, _sunact_level, _team_info  # noqa: F401
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 _HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
@@ -380,7 +383,7 @@ def _drain_pending_chain(uid=None):
             _out.extend(_finish_story_tasks(st, _ch, source="chain"))
         return _out
     except Exception as e:
-        print("[story] 补完成链式任务失败: %s" % e, flush=True)
+        _log.warning("[story] 补完成链式任务失败: %s" % e)
         return []
 
 # ---------------------------------------------------------------- 未实现 RPC（雷2）
@@ -458,7 +461,7 @@ def _handle_locked(index, params, rid, uid=None):
             try:
                 out = fn1(params, uid)
             except Exception as e:
-                print("[rpc] 单向处理失败 index=%s: %s" % (index, e), flush=True)
+                _log.warning("[rpc] 单向处理失败 index=%s: %s" % (index, e))
                 out = None
             # 单向处理器可以返回「服务端主动下发的 S2C 帧」（比如 RpcOnEnterSpace）
             if isinstance(out, list):

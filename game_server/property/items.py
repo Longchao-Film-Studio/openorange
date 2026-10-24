@@ -13,6 +13,9 @@
 from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 #   真正用到的地方做函数内延迟导入。
@@ -160,7 +163,7 @@ def _apply_item_effect(st, item_id, count):
                 out.append((stamina_mod.PROP_TOTAL, st.props.get(stamina_mod.PROP_TOTAL)))
                 continue
             except Exception as e:
-                print("[item] 体力加算失败: %s" % e, flush=True)
+                _log.warning("[item] 体力加算失败: %s" % e)
         cur = st.props.get(prop)
         if not isinstance(cur, (int, float)):
             continue
@@ -288,7 +291,7 @@ def _record_item_obtain(rid, params, uid=None):
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         syncs.extend(_finish_story_tasks(st, nxt) or [])
-    print("[story] 获得道具 %s x%s" % (item_id, count), flush=True)
+    _log.info("[story] 获得道具 %s x%s" % (item_id, count))
     st.save()
     return respond_after_sync(rid, syncs)
 

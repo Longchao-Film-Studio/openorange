@@ -23,6 +23,9 @@ from ..rpc_common import (
     SYNC_SELF, decode_params, respond_after_sync, state, sync_frame,
     throttled_save)
 from .info import _make_street_info_entry
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _switch_street(rid, params, uid=None):
     """RequestSwitchStreet_CS {streetId, streetParams} / RpcEnterStreet {id, streetParams}。"""
     syncs = []
@@ -144,10 +147,10 @@ def _apply_street_change(new_id, uid):
         if _hits:
             syncs.extend(_finish_story_tasks(st, _hits, source="street_arrival") or [])
     except Exception as _e:
-        print("[street] 切街完成 type4 失败: %s" % _e, flush=True)
+        _log.warning("[street] 切街完成 type4 失败: %s" % _e)
     # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）
     _refresh_trace_on_street_change(st, new_id, syncs)
-    print("[street] %s -> %s" % (old, new_id), flush=True)
+    _log.info("[street] %s -> %s" % (old, new_id))
     return syncs
 
 def _update_street_pos(params, uid=None):

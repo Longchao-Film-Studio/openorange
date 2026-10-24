@@ -23,6 +23,9 @@ import sqlite3
 import threading
 import time
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # 默认用 shared/data.db；设 OO_DB_PATH 可换库（测试、多开都用得上）。
 DB_PATH = os.environ.get("OO_DB_PATH") or os.path.join(BASE_DIR, "data.db")
@@ -370,5 +373,5 @@ def stats():
 
 
 if __name__ == "__main__":
-    print("DB:", init())
-    print("stats:", stats())
+    _log.info("DB:", init())
+    _log.info("stats:", stats())

@@ -19,6 +19,9 @@ import io
 import json
 import os
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
@@ -326,22 +329,22 @@ if __name__ == "__main__":
     import sys
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    print(stats())
+    _log.info(stats())
     for tok in ("1001", "#1001", "长命锁", "龙玉", "不存在的名字"):
         e, cands = resolve_item(tok)
         if e:
-            print("%-10s -> %s" % (tok, e["name"]))
+            _log.info("%-10s -> %s" % (tok, e["name"]))
         elif cands:
-            print("%-10s -> 重名 %d 条: %s" % (tok, len(cands), [c["id"] for c in cands]))
+            _log.info("%-10s -> 重名 %d 条: %s" % (tok, len(cands), [c["id"] for c in cands]))
         else:
-            print("%-10s -> 未找到" % tok)
-    print()
+            _log.info("%-10s -> 未找到" % tok)
+    _log.info("")
     for r in search_items("长命")[:6]:
-        print("  search 长命:", r["id"], r["name"])
-    print()
+        _log.info("  search 长命:", (r["id"], r["name"],))
+    _log.info("")
     for tok in ("crystal", "101"):
         e, c = resolve_currency(tok)
-        print("  currency %-8s -> %s" % (tok, e))
+        _log.info("  currency %-8s -> %s" % (tok, e))
     for tok in ("无常", "1020", "寒衣卡池"):
         e, c = resolve_char(tok) if not tok.endswith("卡池") else resolve_activity(tok)
-        print("  %-10s -> %s" % (tok, e and (e.get("name"), e.get("id"))))
+        _log.info("  %-10s -> %s" % (tok, e and (e.get("name"), e.get("id"))))

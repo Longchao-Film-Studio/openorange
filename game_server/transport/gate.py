@@ -22,6 +22,9 @@ from ..rpc_common import SYNC_SELF
 from . import accounts
 from .net import hexdump, maybe_hexdump
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 try:
     from shared import db as shared_db
 except Exception:
@@ -31,10 +34,10 @@ except Exception:
 def handle_gate(conn, addr, cid):
     """游戏网关：绑定链 + 实体 RPC。"""
     t0 = time.time()
-    print("", flush=True)
-    print("=" * 64, flush=True)
-    print("[GATE] ★ 收到网关连接 %s:%d" % (addr[0], addr[1]), flush=True)
-    print("=" * 64, flush=True)
+    _log.info("")
+    _log.info("=" * 64)
+    _log.info("[GATE] ★ 收到网关连接 %s:%d" % (addr[0], addr[1]))
+    _log.info("=" * 64)
     try:
         conn.settimeout(60)
         buf = bytearray()
@@ -69,10 +72,10 @@ def handle_gate(conn, addr, cid):
         while True:
             data = next_frame()
             if not data:
-                print("[GATE] #%03d peer closed" % cid, flush=True)
+                _log.info("[GATE] #%03d peer closed" % cid)
                 break
-            print("[GATE] #%03d RX %d B:" % (cid, len(data)), flush=True)
-            print(maybe_hexdump(data, limit=512), flush=True)
+            _log.debug("[GATE] #%03d RX %d B:" % (cid, len(data)))
+            _log.info(maybe_hexdump(data, limit=512))
 
             frame_type = None
             proto_req = None
@@ -99,7 +102,7 @@ def handle_gate(conn, addr, cid):
             _dispatch_frame(conn, cid, data, frame_type, proto_req)
             _push_bind_message(conn, addr, cid, proto_req)
     except Exception as e:
-        print("[GATE] #%03d error: %s" % (cid, e), flush=True)
+        _log.warning("[GATE] #%03d error: %s" % (cid, e))
     finally:
         dur = int((time.time() - t0) * 1000)
         # 连接断开就从在线表里摘掉，并释放账号关联
@@ -143,7 +146,7 @@ def _bind_account(cid, proto_req, fields):
         uid = accounts.uid_from_auth_display(fields)
         if uid:
             accounts.bind(cid, uid)
-            print("[GATE] #%03d 从 auth 还原账号 %s" % (cid, uid), flush=True)
+            _log.info("[GATE] #%03d 从 auth 还原账号 %s" % (cid, uid))
 
 
 def _dispatch_frame(conn, cid, data, frame_type, proto_req):
@@ -199,8 +202,8 @@ def _on_heartbeat(conn, cid):
                 print("[GATE] #%03d 体力恢复 +%d -> %s"
                       % (cid, gained, keys_now), flush=True)
         except Exception as _e:
-            print("[GATE] #%03d 体力恢复失败: %s" % (cid, _e), flush=True)
-    print("[GATE] #%03d 心跳 type=6，不回" % cid, flush=True)
+            _log.warning("[GATE] #%03d 体力恢复失败: %s" % (cid, _e))
+    _log.info("[GATE] #%03d 心跳 type=6，不回" % cid)
 
 
 def _on_connect(conn, cid):
@@ -213,7 +216,7 @@ def _on_connect(conn, cid):
     conn.sendall(pkt)
     print("[GATE] #%03d TX ConnectServerResp {1:Connected, 2:%s, 5:MSGPACK} (%d B)"
           % (cid, sid, len(pkt)), flush=True)
-    print(maybe_hexdump(pkt, limit=256), flush=True)
+    _log.info(maybe_hexdump(pkt, limit=256))
 
 
 def _on_entity_rpc(conn, cid, data, frame_type):
@@ -235,7 +238,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
             if isinstance(val, list) and val:
                 ct = int(val[0])
         except Exception as e:
-            print("[GATE] #%03d 解析客户端时间失败: %s" % (cid, e), flush=True)
+            _log.warning("[GATE] #%03d 解析客户端时间失败: %s" % (cid, e))
         rpkt = msmod.build_time_sync(ct, int(time.time()))
         label = "RpcOnSyncServerTime(ct=%d)" % ct
     elif idx == msmod.RPC_NETWORK_CHECK:
@@ -247,7 +250,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
             if isinstance(val, list) and val:
                 hb = int(val[0])
         except Exception as e:
-            print("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e), flush=True)
+            _log.warning("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e))
         rpkt = msmod.build_net_check_ack(hb)
         label = "networkCheckAfterChange_SC(%d)" % hb
     elif idx == msmod.RPC_INDEX_NOT_FOUND:
@@ -276,13 +279,13 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         pkts = []
     for pkt in pkts:
         conn.sendall(pkt)
-        print("[GATE] #%03d TX %s (%d B)" % (cid, label, len(pkt)), flush=True)
-        print(maybe_hexdump(pkt, limit=256), flush=True)
+        _log.debug("[GATE] #%03d TX %s (%d B)" % (cid, label, len(pkt)))
+        _log.info(maybe_hexdump(pkt, limit=256))
     if len(pkts) > 1:
         print("[GATE] #%03d TX %s + %d 条属性同步"
               % (cid, label, len(pkts) - 1), flush=True)
     elif not pkts:
-        print("[GATE] #%03d %s 无需应答" % (cid, erpc.describe(idx)), flush=True)
+        _log.info("[GATE] #%03d %s 无需应答" % (cid, erpc.describe(idx)))
 
 
 def _push_bind_message(conn, addr, cid, proto_req):
@@ -323,7 +326,7 @@ def _push_bind_message(conn, addr, cid, proto_req):
     conn.sendall(bpkt)
     print("[GATE] #%03d TX %s  (reqType=%d) (%d B)"
           % (cid, label, proto_req, len(bpkt)), flush=True)
-    print(maybe_hexdump(bpkt, limit=256), flush=True)
+    _log.info(maybe_hexdump(bpkt, limit=256))
     # ★ 上报游戏内在线：createChannelEntity 一发出去，
     #   客户端就已经在实体层了（onBecomePlayer 随后触发）。
     if label == "createChannelEntity" and shared_db is not None:
@@ -334,6 +337,6 @@ def _push_bind_message(conn, addr, cid, proto_req):
                 uid=sid,
                 entity_id=ooconf.avatar_entity_id(sid),
                 addr="%s:%d" % (addr[0], addr[1]))
-            print("[GATE] #%03d 在线登记 %s" % (cid, sid), flush=True)
+            _log.info("[GATE] #%03d 在线登记 %s" % (cid, sid))
         except Exception as _e:
-            print("[GATE] #%03d 在线登记失败: %s" % (cid, _e), flush=True)
+            _log.warning("[GATE] #%03d 在线登记失败: %s" % (cid, _e))

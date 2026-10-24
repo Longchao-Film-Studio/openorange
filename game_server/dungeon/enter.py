@@ -15,6 +15,9 @@ from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import decode_params, respond_after_sync, state
 from .context import _STORY_TYPE_MAINSTORY, _remember_dungeon
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _resolve_copy_id(match_info):
     """按 match_info 解析出 Level_CopyData 的 copyId。"""
     if not isinstance(match_info, dict):
@@ -63,7 +66,7 @@ def _avatar_start_game(rid, params, uid=None):
         match_info = {}
     copy_id = _resolve_copy_id(match_info)
     if not copy_id:
-        print("[dungeon] 解析不出 copyId，match_info=%s" % match_info, flush=True)
+        _log.info("[dungeon] 解析不出 copyId，match_info=%s" % match_info)
         return [msmod.build_entity_response(
             rid, ret={"status": False, "errorcode": 1})]
     copy_cfg = gamedata.level_copy(copy_id) or {}
@@ -114,7 +117,7 @@ def _avatar_start_game(rid, params, uid=None):
     _remember_dungeon(st, copy_id, (inner.get("levelIds") or [None])[0])
     st.props.pop("_oo_cur_teach", None)   # 新副本，清掉上一轮的教学记录
     st.save()
-    print("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots), flush=True)
+    _log.info("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots))
     resp = {"status": True, "spaceInfo": space_info}
     return respond_after_sync(rid, [], resp=resp)
 

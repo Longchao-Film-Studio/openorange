@@ -18,6 +18,9 @@ import time
 
 from .net import CAPTURE_DIR, log_packet, pump
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 
 def handle_capture(conn, addr, cid, echo=False, upstream=None):
     """纯观察 / 回显 / 反代。
@@ -27,13 +30,13 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
     """
     t0 = time.time()
     cap_path = os.path.join(CAPTURE_DIR, "conn_%03d_%s.bin" % (cid, addr[1]))
-    print("[game] #%03d OPEN  from %s:%d" % (cid, addr[0], addr[1]), flush=True)
+    _log.info("[game] #%03d OPEN  from %s:%d" % (cid, addr[0], addr[1]))
 
     f = None
     try:
         f = open(cap_path, "wb")
     except Exception as e:
-        print("[game] #%03d capture file error: %s" % (cid, e), flush=True)
+        _log.warning("[game] #%03d capture file error: %s" % (cid, e))
 
     try:
         conn.settimeout(120)
@@ -69,19 +72,19 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
                       flush=True)
                 break
             except ConnectionResetError:
-                print("[game] #%03d reset by peer" % cid, flush=True)
+                _log.info("[game] #%03d reset by peer" % cid)
                 break
             if not data:
-                print("[game] #%03d peer closed" % cid, flush=True)
+                _log.info("[game] #%03d peer closed" % cid)
                 break
             log_packet(cid, "RX", data, t0, f)
             if echo:
                 try:
                     conn.sendall(data)
                 except Exception as e:
-                    print("[game] #%03d echo failed: %s" % (cid, e), flush=True)
+                    _log.warning("[game] #%03d echo failed: %s" % (cid, e))
     except Exception as e:
-        print("[game] #%03d error: %s" % (cid, e), flush=True)
+        _log.warning("[game] #%03d error: %s" % (cid, e))
     finally:
         try:
             conn.close()

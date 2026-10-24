@@ -11,6 +11,9 @@ from shared import db
 
 from . import COMMANDS, PERM_ADMIN, Context, execute
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
@@ -20,11 +23,11 @@ def main():
     for line in ["/help", "/who", "/server", "/search 长命锁",
                  "/give @ 1001 1", "/account aixiaoji", "/badcmd"]:
         r = execute(line, ctx)
-        print("=" * 60)
-        print("> " + line)
-        print(r.text or "(空)")
-        print("[chat] " + r.chat)
-    print("已注册命令数: %d" % len(COMMANDS))
+        _log.info("=" * 60)
+        _log.info("> " + line)
+        _log.info(r.text or "(空)")
+        _log.info("[chat] " + r.chat)
+    _log.info("已注册命令数: %d" % len(COMMANDS))
 
 
 if __name__ == "__main__":

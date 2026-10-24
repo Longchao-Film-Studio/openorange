@@ -53,6 +53,9 @@ def state(uid=None):
 # 这里 re-export，业务模块从 rpc_common 或 property.sync 取都可以。
 from .property.sync import SYNC_SELF  # noqa: F401  (re-export)
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 
 def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
     """统一的属性同步帧构造器 —— 所有产生同步帧的地方都应该用它。
@@ -139,4 +142,4 @@ def throttled_save(st, uid, force=False):
     try:
         st.save()
     except Exception as e:
-        print("[save] 落盘失败 %s: %s" % (key, e), flush=True)
+        _log.warning("[save] 落盘失败 %s: %s" % (key, e))

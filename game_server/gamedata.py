@@ -28,6 +28,9 @@ import threading
 
 from . import config
 
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
+
 _LOCK = threading.RLock()
 _CACHE = {}
 _WARNED = set()
@@ -51,7 +54,7 @@ def table(name):
             except Exception as e:
                 if name not in _WARNED:
                     _WARNED.add(name)
-                    print("[data] %s 读取失败: %s" % (name, e), flush=True)
+                    _log.warning("[data] %s 读取失败: %s" % (name, e))
         else:
             if "dir" not in _WARNED:
                 _WARNED.add("dir")

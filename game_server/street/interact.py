@@ -22,6 +22,9 @@ from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .info import _street_info_of, _street_tx_begin
+
+from shared.log_tee import get_logger
+_log = get_logger(__name__)
 def _actor_interact(rid, params, uid=None):
     """Street_Actor_InteractID_Update_CS {actor_id, interact_group, interact_id, taskId?, interact_id}。"""
     syncs = []
@@ -53,7 +56,7 @@ def _actor_interact(rid, params, uid=None):
         if not is_new:
             tx.set(("street_info", street_id, "inter_actor_info"), ia)
         syncs.extend(tx.frames())
-    print("[street] NPC %s 交互 %s" % (actor_id, interact_id), flush=True)
+    _log.info("[street] NPC %s 交互 %s" % (actor_id, interact_id))
     # ★ P0-D：走事件总线发 StreetInteract（11 条剧情任务靠它推进）。
     #   event_id 用 actor+interact 组合，重复交互不会重复走一遍。
     res = _events.apply_event(
@@ -197,5 +200,5 @@ def _clear_treasure_actor(params, uid=None):
             for k in [k for k in tb if isinstance(k, int)]:
                 del tb[k]
             st.set("street_info", si)
-    print("[street] 清理街区 %s 的宝箱 actor" % street_id, flush=True)
+    _log.info("[street] 清理街区 %s 的宝箱 actor" % street_id)
     return []
