@@ -87,12 +87,12 @@ pub fn swallowed_count() -> usize {
 type B0Fn = unsafe extern "C" fn(*mut c_void, *mut c_void) -> ();
 
 /// detour 主体：播种 temp + 以 null error 转发各自 trampoline。
-unsafe fn b0_body(this: *mut c_void, tramp: *mut c_void) {
+unsafe fn b0_body(this: *mut c_void, target_idx: usize, tramp: *mut c_void) {
     // ★ 实测（2026-10-24 02:28/02:43 两次）：b__0 的「成功分支」内部会执行
     //   File.Move(patch_info.json.temp → patch_info.json)，而 temp 只在真实下载成功时存在。
     //   下载失败被我们拦截时 temp 不存在 → FileNotFoundException → 照样 ShowError。
     //   修复：进入成功分支前，把本地 patch_info.json 复制为 .temp（内容正确，Move 后等价回落本地）。
-    prepare_temp_file();
+    prepare_temp_file(target_idx);
     let n = SWALLOWED.fetch_add(1, Ordering::SeqCst);
     if n == 0 {
         log::write("patch_hook: b__0 bypass active (nulling error arg)");
@@ -126,9 +126,13 @@ unsafe fn b0_body(this: *mut c_void, tramp: *mut c_void) {
 ///   1) 客户端成功路径会先 Delete 已存在的 json 再 Move —— 所以 json 每次启动都会被吃掉；
 ///   2) 因此不能依赖 json 存在，必须把正确内容（5740B 加密形态）内嵌进 DLL 无条件写 temp。
 /// 内容来源：work/oo_analysis/cdn/patch_info_release.json（与原 PersistentPath 文件字节一致）。
-fn prepare_temp_file() {
+fn prepare_temp_file(target_idx: usize) {
     use std::path::PathBuf;
     const PATCH_INFO: &[u8] = include_bytes!("data/patch_info.json");
+    // 目标 0 = DownloadPatchInfo -> patch_info.json.temp（内嵌内容）
+    // 其余 = CheckVersion/DownloadInfo/DownloadLuaInfo -> VersionInfo_506413.bytes.temp（复制本地同名文件）
+    let temp_name = if target_idx == 0 { "patch_info.json.temp" } else { "VersionInfo_506413.bytes.temp" };
+    let local_src = "VersionInfo_506413.bytes";
     let Some(base) = game_assembly_base() else { return; };
     let mut buf = [0u16; 512];
     let n = unsafe {
@@ -142,17 +146,24 @@ fn prepare_temp_file() {
     let Some(game_dir) = exe_path.parent() else { return };
     let hyb = game_dir.join("GuiLongchao_Data").join("PersistentPath").join("HybridData");
     let temp = hyb.join("patch_info.json.temp");
-    // 无条件写（客户端每次启动都会 Delete json，temp 必须每次都新鲜）
-    match std::fs::write(&temp, PATCH_INFO) {
-        Ok(()) => log::write(&format!("patch_hook: seeded patch_info.json.temp ({} bytes)", PATCH_INFO.len())),
-        Err(e) => log::write(&format!("patch_hook: seed temp failed: {}", e)),
+    // 无条件写（客户端每次启动都会先 Delete 目标文件再 Move）
+    let ok = if target_idx == 0 {
+        std::fs::write(&temp, PATCH_INFO).is_ok()
+    } else {
+        std::fs::copy(hyb.join(local_src), &temp).is_ok()
+    };
+    if ok {
+        log::write(&format!("patch_hook: seeded {} (target {})", temp_name, target_idx));
+    } else {
+        log::write(&format!("patch_hook: seed {} FAILED", temp_name));
     }
 }
 
-unsafe extern "C" fn b0_detour_0(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[0].load(Ordering::SeqCst)); }
-unsafe extern "C" fn b0_detour_1(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[1].load(Ordering::SeqCst)); }
-unsafe extern "C" fn b0_detour_2(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[2].load(Ordering::SeqCst)); }
-unsafe extern "C" fn b0_detour_3(this: *mut c_void, _e: *mut c_void) { b0_body(this, TRAMPS[3].load(Ordering::SeqCst)); }
+
+unsafe extern "C" fn b0_detour_0(this: *mut c_void, _e: *mut c_void) { b0_body(this, 0, TRAMPS[0].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_1(this: *mut c_void, _e: *mut c_void) { b0_body(this, 1, TRAMPS[1].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_2(this: *mut c_void, _e: *mut c_void) { b0_body(this, 2, TRAMPS[2].load(Ordering::SeqCst)); }
+unsafe extern "C" fn b0_detour_3(this: *mut c_void, _e: *mut c_void) { b0_body(this, 3, TRAMPS[3].load(Ordering::SeqCst)); }
 
 /// 目标 -> 对应薄包装。
 fn detour_for(idx: usize) -> *const c_void {
