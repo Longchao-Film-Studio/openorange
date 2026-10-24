@@ -14,6 +14,7 @@
 
 mod bridge;
 mod config;
+mod flow;
 mod inject;
 mod log;
 mod ui;

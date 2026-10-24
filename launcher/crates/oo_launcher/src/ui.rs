@@ -1,12 +1,12 @@
 //! 主窗口、消息循环与业务编排。
 
-use crate::bridge::BridgeWriter;
 use crate::config::Config;
+use crate::flow::Reporter;
 use crate::inject;
 use crate::log::{self, Level};
-use crate::net::{self, LoginRequest};
+use crate::net;
 use crate::win32::{self, Controls};
-use crate::{log_debug, log_error, log_info, log_warn};
+use crate::{log_info, log_warn};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
@@ -342,6 +342,24 @@ fn msgbox(
     }
 }
 
+/// flow::Reporter 的 GUI 实现：状态栏 + msgbox。
+struct GuiReporter { hwnd: HWND }
+
+impl crate::flow::Reporter for GuiReporter {
+    fn status(&self, msg: &str) {
+        set_status(msg);
+        let _ = self.hwnd;
+    }
+    fn fail(&self, title: &str, msg: &str) {
+        let h = self.hwnd;
+        msgbox(h, msg, title, MB_OK | MB_ICONERROR);
+        set_status(title);
+        set_busy(false);
+    }
+    fn info(&self, msg: &str) {
+        log_info!("{msg}");
+    }
+}
 fn on_login_clicked(hwnd: HWND) {
     let st = state();
     if st.busy {
@@ -356,318 +374,59 @@ fn on_login_clicked(hwnd: HWND) {
         return;
     }
 
-    // 本地前置检查，避免白跑一趟网络
-    let dll = st.cfg.resolve_inject_dll();
-    if !dll.is_file() {
-        let m = format!("找不到注入模块：\n{}\n\n请确认 OO_Internal.dll 与启动器在同一目录。", dll.display());
-        msgbox(hwnd, &m, "启动失败", MB_OK | MB_ICONERROR);
-        set_status("缺失 OO_Internal.dll");
-        return;
-    }
-    // 游戏路径：ini 配了就用配置的（不存在即报错），没配就只认启动器同级目录。
-    let game = match st.cfg.resolve_game_exe() {
-        Ok(p) => p,
-        Err(e) => {
-            log_error!("resolve game exe failed: {e}");
-            msgbox(hwnd, &e, "启动失败", MB_OK | MB_ICONERROR);
-            set_status("找不到游戏客户端");
-            return;
-        }
-    };
-
     set_busy(true);
-    set_status("正在向服务器请求登录……");
-
-    let body = serde_json::json!({
-        "username": username,
-        "password": password,
-        "channel_id": st.cfg.channel.channel_id,
-        "platform": st.cfg.channel.platform,
-        "client": "OO_Launcher",
-        "version": env!("CARGO_PKG_VERSION"),
-    })
-    .to_string();
-
-    let req = LoginRequest {
-        url: st.cfg.server.login_url.clone(),
-        body,
-        timeout_ms: st.cfg.server.timeout_ms,
-    };
-
-    let env = match net::post_login(&req) {
-        Ok(e) => e,
-        Err(e) => {
-            set_busy(false);
-            set_status("登录失败");
-            log_error!("login request failed: {e}");
-            msgbox(hwnd, &format!("登录请求失败：\n\n{e}"), "登录失败", MB_OK | MB_ICONERROR);
-            return;
+    let rep = GuiReporter { hwnd };
+    match crate::flow::login_and_inject(&st.cfg.clone(), &username, &password,
+                                        win32::get_check(st.h_auto), &rep) {
+        crate::flow::FlowOutcome::Ok(writer, launched) => {
+            // 保持映射与进程句柄存活到启动器退出
+            crate::flow::keep_alive(writer, launched);
         }
-    };
-
-    if !env.is_ok() {
-        set_busy(false);
-        set_status("登录被拒绝");
-        let m = format!("服务器拒绝登录：\n\ncode={}\nmsg={}", env.code, env.msg);
-        msgbox(hwnd, &m, "登录失败", MB_OK | MB_ICONERROR);
-        return;
-    }
-
-    let account_id = env.data.get("account_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let has_ticket = env
-        .data
-        .get("ticket")
-        .and_then(|v| v.as_str())
-        .map(|s| !s.is_empty())
-        .unwrap_or(false);
-    log_info!("login ok: account_id={account_id} ticket_present={has_ticket}");
-
-    if account_id.is_empty() || !has_ticket {
-        set_busy(false);
-        set_status("服务器响应缺少 account_id/ticket");
-        let m = format!("服务器响应不完整，缺少 account_id 或 ticket。\n\n原始响应：\n{}", env.to_payload());
-        msgbox(hwnd, &m, "登录失败", MB_OK | MB_ICONERROR);
-        return;
-    }
-
-    set_status("登录成功，正在启动游戏……");
-
-    // ★ 把「是否自动进入游戏」传给注入的 DLL（游戏进程继承父进程环境）。
-    //   勾上 -> OO_AUTO=1：DLL 在拿到凭证后调 EnterGame()，一路进街区；
-    //   不勾 -> OO_AUTO=0：凭证照样交付（登录劫持不受影响），
-    //           但停在客户端自己的登录界面，等玩家手动点「开始游戏」。
-    let auto_enter = win32::get_check(st.h_auto);
-    std::env::set_var("OO_AUTO", if auto_enter { "1" } else { "0" });
-    log_info!("auto enter game = {auto_enter}");
-
-    // ---- 拉起游戏（挂起） ----
-    let launched = match inject::spawn_suspended(&game, &st.cfg.game.game_args) {
-        Ok(l) => l,
-        Err(e) => {
-            set_busy(false);
-            set_status("无法启动游戏");
-            log_error!("spawn failed: {e}");
-            msgbox(hwnd, &format!("无法启动游戏：\n\n{e}"), "启动失败", MB_OK | MB_ICONERROR);
-            return;
+        crate::flow::FlowOutcome::Failed(m) => {
+            rep.fail("启动失败", &m);
         }
-    };
-    log_info!("game spawned (suspended): pid={} exe={}", launched.pid, game.display());
-
-    // ---- 建共享内存并写入登录结果 ----
-    let writer = match BridgeWriter::create(launched.pid) {
-        Ok(w) => w,
-        Err(e) => {
-            let _ = inject::resume(launched.thread);
-            inject::close(&launched);
-            set_busy(false);
-            set_status("共享内存创建失败");
-            msgbox(hwnd, &format!("共享内存创建失败：\n\n{e}"), "启动失败", MB_OK | MB_ICONERROR);
-            return;
-        }
-    };
-    let payload = env.to_payload();
-    let bridge_name = writer.name.clone();
-    match writer.publish(&payload) {
-        Ok(()) => log_info!("bridge ready: {} ({} bytes)", bridge_name, payload.len()),
-        Err(e) => log_error!("bridge publish failed: {e}"),
     }
-
-    // ---- 注入 DLL ----
-    // 顺序必须是 start -> resume -> finish：
-    // 目标进程主线程处于挂起状态时，远程 LoadLibraryW 线程无法跑完，
-    // 若先等待再放行会必然超时（这就是此前"注入失败但进程照跑"的原因）。
-    let pending = match inject::inject_start(launched.process, &dll) {
-        Ok(p) => p,
-        Err(e) => {
-            log_error!("inject start failed: {e}");
-            let _ = inject::resume(launched.thread);
-            inject::close(&launched);
-            set_busy(false);
-            set_status("注入失败");
-            msgbox(hwnd, &format!("注入失败：\n\n{e}"), "启动失败", MB_OK | MB_ICONERROR);
-            return;
-        }
-    };
-
-    // ---- 放行 ----
-    if let Err(e) = inject::resume(launched.thread) {
-        log_error!("resume failed: {e}");
-    }
-
-    // ---- 确认 LoadLibraryW 真的成功 ----
-    if let Err(e) = inject::inject_finish(pending) {
-        log_error!("inject finish failed: {e}");
-        set_busy(false);
-        set_status("注入失败");
-        msgbox(hwnd, &format!("注入失败：\n\n{e}"), "启动失败", MB_OK | MB_ICONERROR);
-        return;
-    }
-    log_info!("injected: {}", dll.display());
-
-    set_status("游戏已启动，请在游戏内点击登录按钮");
-    set_busy(false);
-
-    if st.cfg.game.keep_alive {
-        let raw = inject::process_raw(&launched);
-        std::thread::spawn(move || {
-            let h = windows::Win32::Foundation::HANDLE(raw as *mut core::ffi::c_void);
-            let code = inject::wait_exit(h);
-            log_info!("game exited with code {code}");
-        });
-    }
-
-    // 保持映射与进程句柄存活到启动器退出
-    std::mem::forget(writer);
-    std::mem::forget(launched);
-    log_debug!("login flow finished");
 }
 // ============================================================================
 // 命令行编排：与 on_login_clicked 完全相同的步骤，只是输入来自 argv。
 // 用途：在无法操作 GUI 的环境下跑通完整流程（登录 -> 拉起 -> 注入 -> 放行）。
 // 每个失败点都会明确打印，绝不静默。
 // ============================================================================
+/// flow::Reporter 的 CLI 实现。
+struct CliReporter;
+
+impl crate::flow::Reporter for CliReporter {
+    fn status(&self, msg: &str) { println!("[*] {msg}"); }
+    fn fail(&self, title: &str, msg: &str) { eprintln!("[FAIL] {title}: {msg}"); }
+    fn info(&self, msg: &str) { println!("{msg}"); }
+}
+
 pub fn run_cli(username: &str, password: &str, auto: bool) -> i32 {
-    // ★ 通过环境变量把「是否自动进入游戏」传给注入的 DLL（游戏进程继承父进程环境）。
-    //   DLL 会在加载引导脚本前把它写成 Lua 全局 OO_AUTO。
-    std::env::set_var("OO_AUTO", if auto { "1" } else { "0" });
     init_shared(true);
     let st = state();
     log_info!("=== 命令行模式：{username}（auto={auto}）===");
-
-    let dll = st.cfg.resolve_inject_dll();
-    if !dll.is_file() {
-        eprintln!("[FAIL] 找不到注入模块: {}", dll.display());
-        return 1;
-    }
-    println!("[1/6] 注入模块 = {}", dll.display());
-
-    let game = match st.cfg.resolve_game_exe() {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("[FAIL] {e}");
-            return 1;
+    let rep = CliReporter;
+    match crate::flow::login_and_inject(&st.cfg.clone(), username, password, auto, &rep) {
+        crate::flow::FlowOutcome::Ok(writer, launched) => {
+            let pid = launched.pid;
+            let dll = st.cfg.resolve_inject_dll();
+            println!("[6/6] 游戏已放行（pid={pid}）。请在游戏内点击登录按钮。");
+            println!("      注入日志: {}/oo_internal.log", dll.parent().unwrap().display());
+            // 流程要求句柄存活：CLI 模式进程可能立即退出，keep_alive 用 forget 保持
+            // （keep_alive 标志下已有退出监控线程，由 flow 内部管理）
+            let raw = inject::process_raw(&launched);
+            std::thread::spawn(move || {
+                let h = windows::Win32::Foundation::HANDLE(raw as *mut core::ffi::c_void);
+                let code = inject::wait_exit(h);
+                println!("游戏已退出，返回码 {code}");
+            });
+            std::mem::forget(writer);
+            std::mem::forget(launched);
+            0
         }
-    };
-    println!("[2/6] 游戏客户端 = {}", game.display());
-
-    // ---- 登录 ----
-    let body = serde_json::json!({
-        "username": username,
-        "password": password,
-        "channel_id": st.cfg.channel.channel_id,
-        "platform": st.cfg.channel.platform,
-        "client": "OO_Launcher",
-        "version": env!("CARGO_PKG_VERSION"),
-    })
-    .to_string();
-
-    let req = LoginRequest {
-        url: st.cfg.server.login_url.clone(),
-        body,
-        timeout_ms: st.cfg.server.timeout_ms,
-    };
-    println!("[3/6] 请求登录 = {}", req.url);
-
-    let env = match net::post_login(&req) {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("[FAIL] 登录请求失败: {e}");
-            return 1;
+        crate::flow::FlowOutcome::Failed(m) => {
+            eprintln!("[FAIL] {m}");
+            1
         }
-    };
-    if !env.is_ok() {
-        eprintln!("[FAIL] 服务器拒绝: code={} msg={}", env.code, env.msg);
-        return 1;
     }
-    let account_id = env
-        .data
-        .get("account_id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let ticket = env
-        .data
-        .get("ticket")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    if account_id.is_empty() || ticket.is_empty() {
-        eprintln!("[FAIL] 响应缺少 account_id/ticket: {}", env.to_payload());
-        return 1;
-    }
-    println!("[4/6] 登录成功 account_id={account_id} ticket_len={}", ticket.len());
-
-    // ---- 拉起（挂起） ----
-    let launched = match inject::spawn_suspended(&game, &st.cfg.game.game_args) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("[FAIL] 启动游戏失败: {e}");
-            return 1;
-        }
-    };
-    println!("[5/6] 游戏已挂起启动 pid={}", launched.pid);
-
-    // ---- 共享内存 ----
-    let writer = match BridgeWriter::create(launched.pid) {
-        Ok(w) => w,
-        Err(e) => {
-            let _ = inject::resume(launched.thread);
-            inject::close(&launched);
-            eprintln!("[FAIL] 共享内存创建失败: {e}");
-            return 1;
-        }
-    };
-    let payload = env.to_payload();
-    println!("     bridge = {} ({} 字节)", writer.name, payload.len());
-    if let Err(e) = writer.publish(&payload) {
-        eprintln!("[FAIL] 写入共享内存失败: {e}");
-    }
-    // 同时落盘兜底：共享内存会随启动器进程退出而销毁，文件不会。
-    match game.parent().map(|d| oo_shared::write_disk_payload(d, &payload)) {
-        Some(Ok(p)) => println!("     磁盘兜底 = {} ({} 字节)", p.display(), payload.len()),
-        Some(Err(e)) => eprintln!("[WARN] 写磁盘兜底失败: {e}"),
-        None => eprintln!("[WARN] 无法确定游戏目录，跳过磁盘兜底"),
-    }
-
-    // ---- 注入（start -> resume -> finish，顺序不可颠倒）----
-    let pending = match inject::inject_start(launched.process, &dll) {
-        Ok(p) => p,
-        Err(e) => {
-            log_error!("inject start failed: {e}");
-            let _ = inject::resume(launched.thread);
-            inject::close(&launched);
-            eprintln!("[FAIL] 注入准备失败: {e}");
-            return 1;
-        }
-    };
-
-    if let Err(e) = inject::resume(launched.thread) {
-        log_error!("resume failed: {e}");
-        eprintln!("[WARN] resume 失败: {e}");
-    }
-
-    if let Err(e) = inject::inject_finish(pending) {
-        log_error!("inject finish failed: {e}");
-        inject::close(&launched);
-        eprintln!("[FAIL] 注入失败: {e}");
-        return 1;
-    }
-    log_info!("injected: {}", dll.display());
-    println!("     已注入 {}", dll.display());
-    println!("[6/6] 游戏已放行。请在游戏内点击登录按钮。");
-    println!("      注入日志: {}/oo_internal.log", dll.parent().unwrap().display());
-
-    if st.cfg.game.keep_alive {
-        let raw = inject::process_raw(&launched);
-        std::thread::spawn(move || {
-            let h = windows::Win32::Foundation::HANDLE(raw as *mut core::ffi::c_void);
-            let code = inject::wait_exit(h);
-            log_info!("game exited with code {code}");
-            println!("游戏已退出，返回码 {code}");
-        });
-    }
-
-    std::mem::forget(writer);
-    std::mem::forget(launched);
-    0
 }
