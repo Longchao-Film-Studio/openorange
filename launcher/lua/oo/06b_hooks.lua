@@ -52,23 +52,6 @@ function require(name)
     LOG('lua: receiver hook installed')
 
   -- (3) 登录面板：把"刷新服务器列表"重定向到内部选服面板
-  elseif key == 'manager.login.serverlistcomp' and not pc.serverlist then
-    -- ★ 2026-10-24：hosts 黑洞官方 serverlist 后 QueryUrl 要等连拒超时（转圈几秒）。
-    -- 我们在 G.init 时机已注入 serverlist（02b install_server_list），
-    -- 这里把 queryServerList 改为「直接宣布成功」：不调 QueryUrl（不清 servers、不联网），
-    -- 直接 onGetServerList(0) → callback(0) → Panel 显示我们的服务器名，零等待。
-    -- 注意不能调原函数：QueryUrl 内部 self.servers = {} 会清掉我们的注入。
-    local methods = rawget(m, '__objMetatable').__index
-    if type(methods.queryServerList) ~= 'function' or type(methods.onGetServerList) ~= 'function' then
-      error('OO_Internal serverlist version mismatch: serverlistcomp missing queryServerList/onGetServerList')
-    end
-    methods.queryServerList = function(self)
-      self.logger:info('QueryServerList bypass: use injected server list')
-      self:_last_fresh = os.time()
-      self:onGetServerList(0)
-    end
-    pc.serverlist = true
-    LOG('lua: serverlistcomp.queryServerList bypass installed')
   elseif key == 'ui.panel.loginpanel.loginpanel' and not pc.selector then
     local methods = rawget(m, '__objMetatable').__index
     if type(methods.onRefreshServerList) ~= 'function'
