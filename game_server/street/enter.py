@@ -45,74 +45,18 @@ def _leave_street(rid, params, uid=None):
     return respond_after_sync(rid, syncs)
 
 def _refresh_trace_on_street_change(st, new_id, syncs):
-    """★ 切街区后重算追踪目标，并强制客户端刷新标点。
+    """切街区后刷新追踪标点 —— 统一走 story.trace.apply（唯一入口 R3）。
 
-    实机反馈（2026-10-22）：「跟随任务指引到了下一个场景之后，
-    任务还是在上一个场景标点，重过它还是一直在上一个的标点」。
+    历史：这里曾经用 `_oo_trace_wanted` 自己重算，找不到就「随便挑一个本街区正在
+    做的任务」，实机日志抓到过：
+      `[street] 追踪目标 1044 不在街区 100，切到 400009`
+    —— 把标点换到了完全无关的任务上，玩家跟着走必然找不到下一步。
 
-    客户端证据：
-      ui/panel/streetv2panel/streettasktrackcomp.lua:14
-        标点刷新只绑在 EStreetTaskTracking 事件上（属性 OP_CHANGE 才触发）
-      :90,99-106  getStreetActorByUniqName 只在**当前场景**找 NPC，
-                  找不到就 setTrackingInfo(nil) -> 标点停在原地不动
-
-    所以切街区必须重算一次：
-      1. 玩家上次想追踪的任务（_oo_trace_wanted）如果在新街区可做 -> 恢复它
-      2. 否则找一个「在新街区、正在做」的任务（按同章节 > 主线 > id 排序）
-      3. 都没有 -> 0（客户端 clearAllTrackingSign，不留错误标点）
-      4. 无论值变不变都推一次 OP_CHANGE（否则客户端不刷新）
+    现在统一由 story.trace 判定：只在「正在做 + 本街区」的任务里挑，一个都没有
+    就置 0（客户端 clearAllTrackingSign），绝不再挑无关任务。
     """
-    from .interact import _effective_trace   # 局部导入避免循环依赖
-
-    try:
-        wanted = int(st.props.get("_oo_trace_wanted") or 0)
-    except Exception:
-        wanted = 0
-    bag = st.props.get("story_task_bag")
-    if not isinstance(bag, dict):
-        bag = {}
-
-    def _doing(t):
-        it = bag.get(t)
-        return isinstance(it, dict) and it.get("state") == story.TASK_STATE_DOING
-
-    def _scene_of(t):
-        gs = (gamedata.story_task(t) or {}).get("GuideSceneId")
-        try:
-            return int(gs) if gs is not None else None
-        except Exception:
-            return None
-
-    # 1) 想追踪的任务在新街区可做吗
-    nxt = _effective_trace(st, wanted)
-
-    # 2) 不可做 -> 找新街区里正在做的任务
-    if not nxt and new_id:
-        cur_cfg = gamedata.story_task(wanted) or {} if wanted else {}
-        cur_chapter = cur_cfg.get("ChapterId")
-        cands = [int(t) for t in bag
-                 if str(t).lstrip("-").isdigit()
-                 and _doing(int(t))
-                 and _scene_of(int(t)) == int(new_id)]
-
-        def _rank(t):
-            ch = (gamedata.story_task(t) or {}).get("ChapterId")
-            same = 0 if (cur_chapter and ch == cur_chapter) else 1
-            is_main = 0 if str(ch or "").startswith("main") else 1
-            return (same, is_main, t)
-
-        if cands:
-            nxt = sorted(cands, key=_rank)[0]
-            print("[street] 追踪目标 %s 不在街区 %s，切到 %s"
-                  % (wanted, new_id, nxt), flush=True)
-
-    # 3) 都没有 -> 0
-    st.props["street_trace_taskid"] = nxt
-    # 4) 总是推一次（值没变也要推，客户端靠它刷新标点）
-    syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                            "street_trace_taskid", nxt))
-
-
+    from ..story.trace import apply as _trace_apply
+    _trace_apply(st, syncs, "切街区", street_id=new_id)
 def _apply_street_change(new_id, uid):
     """改 street_id + 保证 street_info 有条目 + 推同步。
 

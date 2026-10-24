@@ -83,61 +83,19 @@ def _story_sync_frames(st, changes):
     return frames
 
 def _advance_trace_after_finish(st, finished, frames):
-    """★ P1 阶段 N（实机反馈 Bug D）：任务完成后自动切换追踪目标。
+    """任务完成后刷新追踪目标 —— 统一走 story.trace.apply（唯一入口 R3）。
 
-    实机现象（用户 2026-10-22 反馈）：
-      「我追踪了主线之后，换地了，追踪还是在旧的那个标点上面，
-        导致我得反复的点击任务追踪」
+    历史（2026-10-22 实机反馈 Bug D）：任务完成后 `street_trace_taskid` 仍指向
+    那个已完成的任务，地图标点停在旧地方。当时的修法是「只在 cur == 刚完成的任务」
+    时才顺移——但那样一来，追踪一旦被别的路径写成过期值就永远自愈不了。
 
-    原因：`street_trace_taskid` 只在客户端主动点「追踪」时才更新（
-    `updateStreetTraceTask_CS`）。任务完成后它仍指向那个已完成的任务，
-    客户端按它算地图标点 -> 标点停在旧地方。
-
-    修法：完成的正好是当前追踪的任务时，把追踪切到「下一环」：
-      优先用刚完成任务的 PostTasks 里已经 Doing 的那个（这才是玩家该去的地方），
-      没有就取包里第一个 Doing 的任务，都没有就置 0（不追踪）。
+    2026-10-25 实机事故（追踪停在已完成的 1044，导致龙潮阁剧情触发不了）就是
+    这个「不自愈」的直接后果。现在统一由 story.trace 重算，天然自愈。
     """
     if not finished:
         return
-    try:
-        cur = int(st.props.get("street_trace_taskid") or 0)
-    except Exception:
-        cur = 0
-    if cur not in [int(x) for x in finished]:
-        return   # 追踪的不是刚完成的任务，不动
-    bag = st.props.get("story_task_bag") or {}
-
-    def _is_doing(t):
-        it = bag.get(t)
-        return (isinstance(it, dict)
-                and it.get("state") == story.TASK_STATE_DOING)
-
-    nxt = 0
-    # 1) 刚完成任务的 PostTasks 里已经在 Doing 的（最准确：这就是剧情下一环）
-    for tid in finished:
-        cfg = gamedata.story_task(tid) or {}
-        for post in (cfg.get("PostTasks") or []):
-            try:
-                post = int(post)
-            except Exception:
-                continue
-            if _is_doing(post):
-                nxt = post
-                break
-        if nxt:
-            break
-    # 2) 兜底：包里第一个 Doing 的任务（按 id 升序，保证可复现）
-    if not nxt:
-        doing = sorted(int(k) for k in bag
-                       if str(k).lstrip("-").isdigit() and _is_doing(int(k)))
-        nxt = doing[0] if doing else 0
-    st.props["street_trace_taskid"] = nxt
-    frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                             "street_trace_taskid", nxt))
-    print("[story] 追踪自动切换 %s -> %s（原任务已完成）" % (cur, nxt),
-          flush=True)
-
-
+    from .trace import apply as _trace_apply
+    _trace_apply(st, frames, "任务完成")
 def _unlock_data_satisfied(st, row):
     """这个系统入口的**数据条件**是否满足。
 

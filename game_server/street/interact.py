@@ -111,36 +111,6 @@ def _street_redpoint(rid, params, uid=None):
     syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
 
-def _effective_trace(st, wanted):
-    """玩家想追踪 wanted，但只有在当前街区做得了时才真正生效。
-
-    判据：任务的 GuideSceneId（客户端也在用它判断「要不要显示前往提示」，
-    见 node_task_pos/node_task_posgroup.lua:342-354）。
-      - 任务没有 GuideSceneId（type0/6/7 大多没有）-> 无法判断，照常生效
-      - GuideSceneId == 当前 street_id -> 生效
-      - 否则 -> 0（客户端会 clearAllTrackingSign，不留错误标点）
-    """
-    try:
-        wanted = int(wanted or 0)
-    except Exception:
-        return 0
-    if wanted <= 0:
-        return 0
-    cfg = gamedata.story_task(wanted) or {}
-    gs = cfg.get("GuideSceneId")
-    if gs is None:
-        return wanted
-    try:
-        gs = int(gs)
-    except Exception:
-        return wanted
-    try:
-        cur = int(st.props.get("street_id") or 0)
-    except Exception:
-        cur = 0
-    return wanted if gs == cur else 0
-
-
 def _street_trace_task(rid, params, uid=None):
     """updateStreetTraceTask_CS {trackingTaskID} —— 存追踪中的任务 id。"""
     syncs = []
@@ -160,27 +130,17 @@ def _street_trace_task(rid, params, uid=None):
     if tid < 0:
         tid = 0
     st = state(uid)
-    # ★ P1 阶段 P（实机反馈）：追踪一个「不在当前街区」的任务会让标点停在原地。
-    #
-    #   客户端证据（ui/panel/streetv2panel/streettasktrackcomp.lua:90,99-106）：
-    #     local actor = self:getStreetActorByUniqName(targetActor)
-    #     stage:getStageLogic():getActorByUniqName(uniqName)   -- 只在当前场景找
-    #     actorTrackSign:setTrackingInfo(InStreetOrEden, actor, storyTask)
-    #   目标 NPC 不在当前场景 -> actor = nil -> 标点停在上一次的位置不动。
-    #
-    #   所以：**记住玩家想追踪什么**（_oo_trace_wanted），但只有该任务的
-    #   GuideSceneId 等于当前街区（或任务没有 GuideSceneId）时才真正写进
-    #   street_trace_taskid；否则写 0 让客户端 clearAllTrackingSign，
-    #   避免留下一个错误位置的标点。玩家走到正确街区后会自动恢复。
-    st.props["_oo_trace_wanted"] = tid
-    eff = _effective_trace(st, tid)
-    st.props["street_trace_taskid"] = eff
-    if eff != tid and tid:
-        print("[street] 追踪 %s 不在街区 %s，暂不显示标点（到对应街区自动恢复）"
-              % (tid, st.props.get("street_id")), flush=True)
+    # ★ 统一走 story.trace（唯一入口 R3，2026-10-25）：
+    #   玩家「想追踪什么」记进 _oo_trace_wanted（可以是别的街区的任务，走到那儿自动恢复），
+    #   真正下发的 street_trace_taskid 由 trace.apply 判定——它保证只指向
+    #   「正在做 + 本街区」的任务。取消追踪（客户端发 -1000）走 force_zero。
+    from ..story.trace import apply as _trace_apply, note_wanted
+    if tid <= 0:
+        _trace_apply(st, syncs, "取消追踪", force_zero=True)
+    else:
+        note_wanted(st, tid)
+        _trace_apply(st, syncs, "手动追踪", mode="manual", manual_task=tid)
     st.save()
-    syncs.append(sync_frame(
-        SYNC_SELF, 0, msmod.OP_CHANGE, "street_trace_taskid", eff))
     return respond_after_sync(rid, syncs)
 
 def _clear_treasure_actor(params, uid=None):
