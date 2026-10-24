@@ -244,12 +244,13 @@ unsafe extern "C" fn hook_detour(
     name: *const u8,
 ) -> i32 {
     if !INJECTED.load(std::sync::atomic::Ordering::SeqCst) {
-        // 只注入一次。失败也置位，避免每次加载 Lua 块都重试拖慢游戏。
+        // ★ 2026-10-24 12:41 实测：xlua 初始化晚于 hook 安装时（patch bypass 后流程更快），
+        //   首次 lua_load 可能撞上 install 竞态（trampoline 尚未 store）→ inject 失败。
+        //   旧逻辑"失败也置位"会让注入永久丢失 → 游戏卡死。改为失败不置位，下次重试。
         match inject::run(l) {
             Ok(()) => INJECTED.store(true, std::sync::atomic::Ordering::SeqCst),
             Err(e) => {
-                log::write(&format!("bootstrap injection failed: {e}"));
-                INJECTED.store(true, std::sync::atomic::Ordering::SeqCst);
+                log::write(&format!("bootstrap injection failed (will retry): {e}"));
             }
         }
     }
