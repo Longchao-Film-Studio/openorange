@@ -124,7 +124,7 @@ def t2():
     import re as _re
     m = _re.search(r"errorcode[^,}]{0,20}", s)
     val = m.group(0) if m else "(无 errorcode 字段)"
-    check("T2.errorcode 非泛化(现红)", ("errorcode" in s) and (": 1" not in val) and ("= 1" not in val) and ("1\\x" not in val), val)
+    check("T2.errorcode 非泛化", ("errorcode" in s) and (": 1" not in val) and ("= 1" not in val) and ("1\\x" not in val), val)
 
 
 # ---------------- T3: 表情广播 ----------------
@@ -184,7 +184,7 @@ def main():
     # 不算套件失败。修复后应把对应项从 EXPECTED_RED 移除。
     EXPECTED_RED = {
         # T1 已修复（2026-10-24：UpgradeCharacter 按 BDD 表真结算，见 character.py）
-        "T2.errorcode 非泛化(现红)",
+        # T2 已修复（2026-10-24：UseItem 失败分支带 ErrorConst 枚举，见 items.py）
         "T3 有真广播帧(现红:not implemented)",
     }
     unexpected = [f for f in failed if f not in EXPECTED_RED]

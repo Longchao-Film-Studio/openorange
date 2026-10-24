@@ -16,6 +16,20 @@ from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sy
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 #   真正用到的地方做函数内延迟导入。
+# ErrorConst（gamecommon/consts/errorconst.lua，客户端 UseItem_SC 消费）
+BAG_INVALID_ITEM_ID = 15002   # Bag_InvaildItemId
+BAG_INVALID_NUM = 15005       # Bag_InvaildNum
+BAG_SYSTEM_NOT_UNLOCKED = 15009  # Bag_SystemNotUnlocked
+
+
+def _use_failed(rid, syncs, errorcode=None):
+    """UseItem 失败应答。errorcode 用客户端 ErrorConst 枚举值（审计 T2）。"""
+    ret = {"status": False, "errmsg": ""}
+    if errorcode is not None:
+        ret["errorcode"] = int(errorcode)
+    return respond_after_sync(rid, syncs, ret=ret)
+
+
 def _use_item(rid, params, uid=None):
     """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
 
@@ -32,18 +46,18 @@ def _use_item(rid, params, uid=None):
     syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return respond_after_sync(rid, syncs)
+        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
     item_id = vals[0]
     try:
         count = int(vals[1])
     except Exception:
-        return respond_after_sync(rid, syncs)
+        return _use_failed(rid, syncs, BAG_INVALID_NUM)
     if count <= 0:
-        return respond_after_sync(rid, syncs)
+        return _use_failed(rid, syncs, BAG_INVALID_NUM)
     st = state(uid)
     bag = st.get("item_bag")
     if not isinstance(bag, dict):
-        return respond_after_sync(rid, syncs)
+        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
     bag_id = bag.get("__id__") or 0
     grid_key = None
     grid = None
@@ -54,12 +68,30 @@ def _use_item(rid, params, uid=None):
             grid_key, grid = key, g
             break
     if grid is None:
-        # 背包里没有这个道具：不动数据，只回成功（客户端只看 status）
-        return respond_after_sync(rid, syncs)
+        # ★ 审计 T2：背包没有此道具回 Bag_InvaildItemId（原来回成功——撒谎）
+        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
 
     old_num = grid.get("num") or 0
     if old_num < count:
-        return respond_after_sync(rid, syncs)
+        return _use_failed(rid, syncs, BAG_INVALID_NUM)
+
+    # ★ 审计 T2：系统未解锁门槛（ItemData.unlockedSystem，41 个道具有此字段）
+    #   客户端 UseItem_SC 按 ErrorConst.Bag_SystemNotUnlocked 弹「系统未解锁」提示
+    it_cfg = gamedata.item(item_id) or {}
+    need_sys = it_cfg.get("unlockedSystem")
+    if need_sys:
+        try:
+            from ..property import sync as _sync_probe
+        except Exception:
+            _sync_probe = None
+        sysp = st.get("system_p")
+        unlocked = (sysp or {}).get("unlocked_system") if isinstance(sysp, dict) else None
+        if isinstance(unlocked, dict):
+            try:
+                if not unlocked.get(int(need_sys)):
+                    return _use_failed(rid, syncs, BAG_SYSTEM_NOT_UNLOCKED)
+            except (TypeError, ValueError):
+                pass
 
     # ---- 1) 扣数量 ----
     grid["num"] = old_num - count
