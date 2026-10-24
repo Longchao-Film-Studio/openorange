@@ -43,18 +43,24 @@ use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 
-/// GameAssembly.dll 里 <DownloadPatchInfo>b__0 的 RVA。
-/// 依据：Il2CppDumper script.json（dump 对象 = il2cpp_clean 77MB 运行时镜像）。
-const RVA_B0: usize = 0x0180_1520;
-/// 预期序言（前 16 字节）。安装前必须逐字节匹配，防止 dump 与实机版本不符时写歪。
-const EXPECT_PROLOGUE: [u8; 16] = [
-    0x48, 0x89, 0x5c, 0x24, 0x18, // mov [rsp+18h],rbx
-    0x48, 0x89, 0x4c, 0x24, 0x08, // mov [rsp+8],rcx
-    0x56, 0x57,                   // push rsi / push rdi
-    0x41, 0x54, 0x41, 0x56,       // push r12 / push r14
+/// hook 目标表：HybridLoad 各阶段下载失败回调（b__0）。
+/// 依据：Il2CppDumper script.json（dump 对象 = il2cpp_clean 77MB 运行时镜像），
+/// 序言均在 24 字节内无 RIP 相对（2026-10-24 逐一验证）。
+/// 实测推进：DownloadPatchInfo ✅ → CheckVersion 需要 hook（VersionInfo 下载失败同类）→
+/// DownloadInfo / DownloadLuaInfo 预防性覆盖。
+const HOOK_TARGETS: &[(usize, [u8; 12], &str)] = &[
+    // (RVA, 预期序言前12字节, 标签)
+    (0x0180_1520, [0x48, 0x89, 0x5c, 0x24, 0x18, 0x48, 0x89, 0x4c, 0x24, 0x08, 0x56, 0x57], "DownloadPatchInfo"),
+    (0x0180_1AC0, [0x48, 0x89, 0x4c, 0x24, 0x08, 0x53, 0x56, 0x57, 0x41, 0x56, 0x41, 0x57], "CheckVersion"),
+    (0x0180_24E0, [0x48, 0x89, 0x4c, 0x24, 0x08, 0x53, 0x48, 0x83, 0xec, 0x30, 0x48, 0x8b], "DownloadInfo"),
+    (0x0180_2590, [0x48, 0x89, 0x4c, 0x24, 0x08, 0x53, 0x56, 0x57, 0x41, 0x56, 0x41, 0x57], "DownloadLuaInfo"),
 ];
 
 static INSTALLED: AtomicBool = AtomicBool::new(false);
+static INSTALLED_FLAGS: [AtomicBool; 8] = [
+    AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false),
+    AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false), AtomicBool::new(false),
+];
 static SWALLOWED: AtomicUsize = AtomicUsize::new(0);
 static TRAMP: std::sync::atomic::AtomicPtr<c_void> =
     std::sync::atomic::AtomicPtr::new(std::ptr::null_mut());
@@ -93,7 +99,7 @@ unsafe extern "C" fn b0_detour(this: *mut c_void, _error: *mut c_void) {
     //     <== error == 0 时才会走下面的成功逻辑：拼 mRemoteChannelDirUrl(+0x88/+0x90)
     // 因此正确做法不是吞调用，而是【把 error 改成 null 再转发】，
     // 让它走成功路径、用本地缓存拼出 mRemote* 字段（与 "Cannot resolve" 形态同效）。
-    let error: *mut c_void = std::ptr::null_mut();
+    let _error: *mut c_void = std::ptr::null_mut();
     let tramp = TRAMP.load(Ordering::SeqCst);
     if tramp.is_null() {
         log::write("patch_hook: FATAL trampoline missing");
@@ -142,30 +148,44 @@ fn game_assembly_base() -> Option<*mut c_void> {
         .map(|h| h.0 as *mut c_void)
 }
 
-/// 尝试安装 hook。失败返回 Err（调用方可以继续轮询重试）。
-pub fn try_install() -> Result<(), String> {
-    if INSTALLED.load(Ordering::SeqCst) {
-        return Ok(());
-    }
+/// 尝试安装全部 hook。每个目标独立校验序言；已装的总数返回。
+pub fn try_install() -> Result<usize, String> {
     let base = game_assembly_base().ok_or("GameAssembly.dll not loaded yet")?;
-    let target = (base as usize + RVA_B0) as *mut c_void;
-    unsafe {
-        let bytes = std::slice::from_raw_parts(target as *const u8, EXPECT_PROLOGUE.len());
-        if bytes != EXPECT_PROLOGUE {
-            return Err(format!("prologue mismatch at RVA {RVA_B0:#x}: {}",
-                crate::xlua::hex_dump(target as *const u8, 16)));
+    let mut ok = 0usize;
+    let mut last_err = String::new();
+    for (rva, expect, label) in HOOK_TARGETS {
+        if INSTALLED_FLAGS[label_hash(label)].load(Ordering::SeqCst) { ok += 1; continue; }
+        let target = (base as usize + rva) as *mut c_void;
+        unsafe {
+            let bytes = std::slice::from_raw_parts(target as *const u8, expect.len());
+            if bytes != *expect {
+                last_err = format!("prologue mismatch at {label} RVA {rva:#x}: {}",
+                    crate::xlua::hex_dump(target as *const u8, 16));
+                continue;
+            }
+        }
+        match crate::xlua::install_generic(target, b0_detour as *const c_void, label) {
+            Ok(_) => {
+                INSTALLED_FLAGS[label_hash(label)].store(true, Ordering::SeqCst);
+                ok += 1;
+                log::write(&format!("patch_hook: {label} hook armed at GameAssembly+{rva:#x}"));
+            }
+            Err(e) => last_err = format!("{label}: {e}"),
         }
     }
-    // 通用 inline hook（不触碰 xlua 的单例状态）。
-    let tramp = crate::xlua::install_generic(target, b0_detour as *const c_void, "patch")?;
-    TRAMP.store(tramp, Ordering::SeqCst);
-    INSTALLED.store(true, Ordering::SeqCst);
-    log::write(&format!(
-        "patch_hook: installed at GameAssembly+{RVA_B0:#x} (b0 bypass armed)"
-    ));
-    Ok(())
+    if ok == 0 {
+        return Err(last_err);
+    }
+    if ok == HOOK_TARGETS.len() {
+        INSTALLED.store(true, Ordering::SeqCst);
+    }
+    Ok(ok)
 }
 
+/// label -> 稳定小下标（目标少，直接线性查）。
+fn label_hash(label: &str) -> usize {
+    HOOK_TARGETS.iter().position(|(_, _, l)| *l == label).unwrap_or(0)
+}
 /// 后台轮询安装入口：GameAssembly 就绪（模块出现且序言匹配）即装。
 /// 由 lib.rs 的 bootstrap 线程在开关打开时调用。
 pub fn spawn_wait_thread() {
@@ -173,7 +193,8 @@ pub fn spawn_wait_thread() {
         let mut waited = 0u32;
         while waited < 600_000 {
             match try_install() {
-                Ok(()) => return,
+                Ok(n) if n == HOOK_TARGETS.len() => return,
+                Ok(_) => {}
                 Err(e) => {
                     if waited % 10_000 == 0 {
                         log::write(&format!("patch_hook: waiting... {e}"));
