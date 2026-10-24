@@ -78,6 +78,21 @@ function require(name)
       return orig_refresh(self)
     end
 
+    -- ★ 2026-10-24 重做（回滚 5916c65 后的正确方案）：hosts 黑洞官方 serverlist 后，
+    --   updateServerInfo → QueryServerList → QueryUrl 连拒超时（转圈几秒）→ onQueryServerList(非0)
+    --   → Toast 178 且不显示服务器名。
+    --   替换 updateServerInfo：不联网，直接灌列表 + 走正常成功路径（onQueryServerList(0)），
+    --   转圈事件立即由 EndWeakNetOnFree 结束，服务器名立即可见。
+    --   本块整体在 loginpanel 结构已验证的 pc.selector 模式内；全程 pcall，不裸 error。
+    if type(methods.updateServerInfo) == 'function' then
+      methods.updateServerInfo = function(self2)
+        pcall(function()
+          install_server_list()
+          self2:onQueryServerList(0)
+        end)
+      end
+      LOG('lua: loginpanel.updateServerInfo 已替换（本地列表直显，不联网）')
+    end
     -- ★ 兜住 setServerText：它是真正把服务器名写到界面上的地方
     --   （loginpanel.lua L276-286：self._txt_server.text = last_server.name）
     if type(methods.setServerText) == 'function' then
