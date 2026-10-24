@@ -1,30 +1,13 @@
 -- oo/05b_probe.lua —— 05a 的续（同一批探针，按文件名顺序拼接）
-local function install_panel_timeout()
-  if pc.paneltimeout then return end
-  if ui == nil or ui.PreLoadPanelByName == nil then return end
-  pc.paneltimeout = true
-  local orig = ui.PreLoadPanelByName
-  ui.PreLoadPanelByName = function(name, cb)
-    local done = false
-    local function once(go)
-      if done then return end
-      done = true
-      if cb then cb(go) end
-    end
-    orig(name, function(go)
-      LOG('paneltmo| 正常返回 ' .. tostring(name))
-      once(go)
-    end)
-    TimerManager.addTimer(PANEL_TIMEOUT_SEC, function()
-      if not done then
-        LOG('paneltmo| 超时放行 ' .. tostring(name)
-          .. '（该面板资源加载失败，HUD 会缺失）')
-        once(nil)
-      end
-    end)
-  end
-  LOG('paneltmo| 钩子已安装，超时 ' .. PANEL_TIMEOUT_SEC .. ' 秒')
+--
+-- ★ 2026-10-24：本文件是诊断探针（面板超时观测、字段 dump 等），非生产逻辑。
+--   默认跳过全部内容；设 OO_DIAGNOSTICS=1（启动器环境变量）才启用。
+--   生产逻辑 install_panel_timeout 已迁至 06b_hooks.lua。
+if rawget(_G, "OO_DIAGNOSTICS") ~= "1" then
+  return
 end
+
+-- install_panel_timeout 已迁至 06b_hooks.lua（生产逻辑不应混在探针里，2026-10-24）
 
 -- 自动触发「进入下一关」，验证 Cmd_Avatar_EnterNext_CS 链路
 local function probe_next_level()
