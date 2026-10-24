@@ -1,0 +1,7 @@
+{
+  "name": "oo-lua-syntax-check",
+  "private": true,
+  "dependencies": {
+    "luaparse": "^0.3.1"
+  }
+}

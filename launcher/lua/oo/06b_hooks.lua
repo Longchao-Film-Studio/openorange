@@ -9,11 +9,7 @@ function require(name)
   pcall(register_entity_names)
   local key = string.lower(string.gsub(name, '/', '.'))
 
-  -- ★ 2026-10-24（serverlistcomp 事故教训）：整段 hook 分发包进 pcall，
-  --   任何一个新 hook 块的 error 不得中断 require 链（否则后续接管全部失效，
-  --   客户端直连官方）。各块自身的 pc.xxx 防重入语义不受影响。
-  local ok_hooks, err_hooks = pcall(function()
-  -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice  -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice
+  -- (1) FPXSDKAPI：拦 platform/login 与 tracking/notice
   if key == 'modules.sdk.fpxsdkapi' and not pc.api then
     pc.api = true
     local a = FPXSDKAPI
@@ -264,11 +260,6 @@ function require(name)
         LOG('loglevel: 已设为 DEBUG')
       end
     end)
-    pcall(install_panel_timeout)
-  end)
-  if not ok_hooks then
-    LOG('hooks: 分发异常（已跳过本次 require 的 hook，不影响模块加载）: ' .. tostring(err_hooks))
-  end
   end
 
   return m
@@ -279,36 +270,3 @@ end
 -- ------------------------------------------------------------
 OO_Internal_Ready   = true
 OO_Internal_Require = require
-
--- ==================================================================
--- (6) 面板加载超时兜底（自 05b_probe.lua 迁入，2026-10-24）
---
--- 生产逻辑：面板资源加载失败时超时放行，避免整卡在黑屏
---（HUD 会缺但游戏能进）。原先混在探针文件里，探针一旦移除兜底会跟着消失。
--- ==================================================================
-local function install_panel_timeout()
-  if pc.paneltimeout then return end
-  if ui == nil or ui.PreLoadPanelByName == nil then return end
-  pc.paneltimeout = true
-  local orig = ui.PreLoadPanelByName
-  ui.PreLoadPanelByName = function(name, cb)
-    local done = false
-    local function once(go)
-      if done then return end
-      done = true
-      if cb then cb(go) end
-    end
-    orig(name, function(go)
-      LOG('paneltmo| 正常返回 ' .. tostring(name))
-      once(go)
-    end)
-    TimerManager.addTimer(PANEL_TIMEOUT_SEC, function()
-      if not done then
-        LOG('paneltmo| 超时放行 ' .. tostring(name)
-          .. '（该面板资源加载失败，HUD 会缺失）')
-        once(nil)
-      end
-    end)
-  end
-  LOG('paneltmo| 钩子已安装，超时 ' .. PANEL_TIMEOUT_SEC .. ' 秒')
-end
