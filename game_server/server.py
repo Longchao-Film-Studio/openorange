@@ -171,12 +171,19 @@ def _start_admin():
 
 def main():
     global ECHO, UPSTREAM, MS_MODE
-    # 控制台编码：抓包里可能出现任意字节，避免 print 因编码异常中断服务
+    # ★ 统一日志：文件双写（本次运行 + last）+ 控制台，print 原样保留
+    #   拦截器按行缓冲，自动规避编码异常（errors=replace 由 FileHandler 兜底）
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+        from shared.log_tee import install as _log_install
+        _log_install("game", ooconf.LOG_DIR)
+    except Exception as _e:
+        # 日志装不上不能挡启动（极端只读环境）：退回老的编码兜底
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+        print("[log] 统一日志安装失败，退回控制台模式: %s" % _e, flush=True)
 
     argv = sys.argv[1:]
     if "--echo" in argv:

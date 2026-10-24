@@ -389,6 +389,16 @@ def main():
         python -m web.app --port 9000           # 指定端口
         python -m web.app --port 8399 --host 127.0.0.1
     """
+    # ★ 统一日志（与 game 通道同款；装失败不挡启动）
+    try:
+        from shared.log_tee import install as _log_install
+        _log_dir = os.environ.get("OO_LOG_DIR") or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "work", "logs")
+        _log_install("web", _log_dir)
+    except Exception as _e:
+        print("[log] 统一日志安装失败，退回控制台模式: %s" % _e, flush=True)
+
     argv = sys.argv[1:]
     host = None
     port = None

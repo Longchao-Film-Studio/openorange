@@ -149,6 +149,9 @@ UNKNOWN_FAKE_OK = os.environ.get("OO_UNKNOWN_OK") in ("1", "true", "yes", "on")
 UNKNOWN_LOG_PATH = (os.environ.get("OO_UNKNOWN_LOG")
                     or os.path.join(WORK_DIR, "logs", "unknown_requests.tsv"))
 
+# 统一日志目录（log_tee 用；与 unknown_requests.tsv 同目录）
+LOG_DIR = os.environ.get("OO_LOG_DIR") or os.path.join(WORK_DIR, "logs")
+
 
 def configure_unknown_fake_ok(on=True):
     global UNKNOWN_FAKE_OK
