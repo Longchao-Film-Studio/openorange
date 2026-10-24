@@ -156,6 +156,17 @@ fn prepare_temp_file(_target_idx: usize) {
             done.push("VersionInfo_506413.bytes.temp".to_string());
         }
     }
+    // ③ LuaPackInfo.json.temp（DownloadLuaInfo 关）：目录是 Patch/Lua/ 不是 HybridData/
+    //    内容 = 本地 Patch/Lua/LuaPackInfo.json（启动时 "already exist,skip copy" 证实在）
+    //    12:26 实测：我们只播了 HybridData 两颗，LuaPackInfo.temp 缺失 → readConfigFile error!
+    //    → 客户端拿空清单 → 把本地全量 Lua 文件当缺失 → DownloadLuaFiles 无限重试（卡 100%）
+    let patch_lua = game_dir.join("GuiLongchao_Data").join("PersistentPath").join("Patch").join("Lua");
+    let lpi_src = patch_lua.join("LuaPackInfo.json");
+    if lpi_src.exists() {
+        if std::fs::copy(&lpi_src, patch_lua.join("LuaPackInfo.json.temp")).is_ok() {
+            done.push("Patch/Lua/LuaPackInfo.json.temp".to_string());
+        }
+    }
     log::write(&format!("patch_hook: seeded {}", done.join(", ")));
 }
 
