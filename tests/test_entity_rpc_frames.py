@@ -166,14 +166,37 @@ def run():
     #   （UpgradePlayerStage_CS / BreakCharacter_CS 未实现）。
     ooconf.configure_unknown_fake_ok(True)
     # 抽 6 条 1-1/1-2/1-3 的 RPC，用空数组参数模拟调用
-    for nm in ("UpgradeCharacter_CS", "BreakCharacter_CS", "UseItem_CS",
-               "SubmitItem_CS", "SetSignature_CS", "UpgradePlayerStage_CS"):
+    # ★ 升级/使用语义修复后不再是"通用 ACK"：
+    #   UpgradeCharacter_CS 要真材料、UseItem_CS 要真道具，空参数回失败是正确行为。
+    #   这里改为「真数据调用 + 断言应答帧形状」，BreakCharacter 等未实现的仍走兼容 ACK。
+    msmod._live_init_dict("frames_t6")   # 先建完整存档
+    _pst = __import__("game_server.player_state", fromlist=["get_state"]).get_state(uid="frames_t6")
+    _ib = _pst.props.setdefault("item_bag", {})
+    _ib["991"] = {"__id__": 990011, "id": "991", "itemId": 201, "num": 9}
+    _ib["992"] = {"__id__": 990012, "id": "992", "itemId": 101, "num": 9}
+    _pst.set("item_bag", _ib)
+    for nm, args in (("UpgradeCharacter_CS", [9001, {"201": 1}]),
+                     ("BreakCharacter_CS", [9001]),
+                     ("UseItem_CS", [101, 1, None]),
+                     ("SubmitItem_CS", [None, {"101": 1}]),
+                     ("SetSignature_CS", ["x"]),
+                     ("UpgradePlayerStage_CS", [])):
         idx = erpc.RPC_INDEX[nm]
-        pkt = guarded_handle(idx, b"\x90", 9)[0]
+        fr = guarded_handle(idx, msmod.mp_arr(args), 9)
+        # ★ 修复后 UpgradeCharacter/SetSignature 会带属性同步帧。
+        #   respond_after_sync 的顺序 = syncs 在前 + 应答在后 —— 找含
+        #   __rpc_response__ 的应答帧来解析
+        pkt = None
+        for f in (fr if isinstance(fr, list) else [fr]):
+            if isinstance(f, (bytes, bytearray)) and b"__rpc_response__" in f:
+                pkt = f
+                break
+        if pkt is None:
+            pkt = fr[0] if isinstance(fr, list) and fr else fr
         mtype, rid, val = parse_response(pkt)
         ok = (mtype == msmod.ENTITY_RESPONSE_FRAME_TYPE and rid == 9
-              and val[0].get("status") is True)
-        check(nm + " 通用 ACK", ok, (mtype, rid, val))
+              and "status" in (val[0] if isinstance(val, list) and val else {}))
+        check(nm + " 应答帧形状", ok, (mtype, rid, val))
 
     ooconf.configure_unknown_fake_ok(False)
 

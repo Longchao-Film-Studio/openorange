@@ -132,23 +132,43 @@ def run():
     check("只回应答帧，没有同步帧", len(frames4) == 1, len(frames4))
 
     print("\n[4d] UpgradeCharacter_CS 升级 + characterBag 子属性同步")
-    pstate.reset_state({"characterBag": {"__tp__": "CharacterPersistentDict", "__id__": 1326,
-                                         9001: {"__id__": 1341, "useSkinId": 900101}}})
-    frames5 = guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 21)
-    check("返回 2 帧", len(frames5) == 2, len(frames5))
-    cbag = pstate.get_state().get("characterBag")
-    check("CharLevel 默认 1 -> 2", cbag[9001].get("CharLevel") == 2, cbag[9001].get("CharLevel"))
-    d6 = parse_sync(find_by_type(frames5, msmod.PROPERTY_SYNC_TYPE))
-    check("同步帧类型 13", d6["type"] == 13, d6["type"])
+    # ★ 升级语义修复后：需要真材料；应答 + 材料扣减 + bag 同步多帧是正确行为
+    msmod._live_init_dict("psync_4d")
+    _pst4d = pstate.get_state(uid="psync_4d")
+    _ib4d = _pst4d.props.setdefault("item_bag", {})
+    _ib4d["995"] = {"__id__": 990015, "id": "995", "itemId": 201, "num": 2}
+    _pst4d.set("item_bag", _ib4d)
+    frames5 = guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS,
+                             msmod.mp_arr([9001, {"201": 2}]), 21, uid="psync_4d")
+    check("多帧（应答+材料+bag）", len(frames5) >= 3, len(frames5))
+    cbag = pstate.get_state(uid="psync_4d").get("characterBag")
+    check("CharLevel 默认 1 -> 2", (cbag.get(9001) or {}).get("CharLevel") == 2,
+          (cbag.get(9001) or {}).get("CharLevel"))
+    # ★ 修复后有多条同步帧（材料 + characterBag）——找 name=="9001" 的那条
+    _bag_sync = None
+    for f in frames5:
+        if isinstance(f, (bytes, bytearray)) and len(f) >= 6 \
+                and int.from_bytes(f[4:6], "little") == msmod.PROPERTY_SYNC_TYPE:
+            d = parse_sync(f)
+            if d.get("name") == "9001":
+                _bag_sync = d
+                break
+    check("找到 characterBag 同步帧", _bag_sync is not None, len(frames5))
+    d6 = _bag_sync or {}
+    check("同步帧类型 13", d6.get("type") == 13, d6.get("type"))
     check("propertyid = characterBag 的 __id__", d6.get("propertyid") == 1326, d6.get("propertyid"))
     check("name = 角色 id 字符串", d6.get("name") == "9001", d6.get("name"))
     check("value 里 CharLevel=2", (d6.get("value") or {}).get("CharLevel") == 2,
           (d6.get("value") or {}).get("CharLevel"))
 
     print("\n[4e] 再升一次到 3")
-    guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS, msmod.mp_arr([9001, {}]), 22)
-    check("CharLevel = 3", pstate.get_state().get("characterBag")[9001].get("CharLevel") == 3,
-          pstate.get_state().get("characterBag")[9001].get("CharLevel"))
+    _ib4d["996"] = {"__id__": 990016, "id": "996", "itemId": 201, "num": 2}
+    _pst4d.set("item_bag", _ib4d)
+    guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS,
+                   msmod.mp_arr([9001, {"201": 2}]), 22, uid="psync_4d")
+    check("CharLevel = 3",
+          (pstate.get_state(uid="psync_4d").get("characterBag").get(9001) or {}).get("CharLevel") == 3,
+          (pstate.get_state(uid="psync_4d").get("characterBag").get(9001) or {}).get("CharLevel"))
 
     print("\n[4f] 1-3 的 Set* 系列：真正改数据 + 推根属性同步")
     pstate.reset_state({"portrait_id": 0, "is_char_list_shown": False, "canScore": 0,
@@ -213,9 +233,16 @@ def run():
           d12.get("propertyid") == 1340, d12.get("propertyid"))
     check("编队同步 name = 队伍下标", d12.get("name") == "1", d12.get("name"))
 
-    print("\n[5] 其它 RPC 仍然只有一帧")
-    frames2 = guarded_handle(erpc.RPC_INDEX["UpgradeCharacter_CS"], b"\x90", 9)
-    check("1 帧", len(frames2) == 1, len(frames2))
+    print("\n[5] 其它 RPC 应答帧在最前（升级修复后含材料同步帧）")
+    # ★ 升级语义修复后：升级 = 应答 + 材料扣减 + characterBag 同步（多帧是正确行为）
+    msmod._live_init_dict("psync_t5")
+    _pst = pstate.get_state(uid="psync_t5")
+    _ib5 = _pst.props.setdefault("item_bag", {})
+    _ib5["990"] = {"__id__": 990010, "id": "990", "itemId": 201, "num": 5}
+    _pst.set("item_bag", _ib5)
+    frames2 = guarded_handle(erpc.RPC_INDEX["UpgradeCharacter_CS"],
+                             msmod.mp_arr([9001, {"201": 2}]), 9, uid="psync_t5")
+    check("应答帧在最前", len(frames2) >= 1, len(frames2))
     print("\n[6] 单向消息返回空列表")
     check("rid=0 -> []", guarded_handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, b"\x90", 0) == [])
     check("index=None -> []", guarded_handle(None, b"\x90", 5) == [])

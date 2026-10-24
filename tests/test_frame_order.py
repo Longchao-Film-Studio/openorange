@@ -71,6 +71,13 @@ def run():
     print("\n[1] 已迁移 handler：同步帧必须先于应答帧")
     # 每条 = (RPC 名, 参数, 是否必须产生同步帧)
     # 参数取自各 handler 的真实解析路径（探针实测），保证不会早退。
+    # ★ 升级语义修复后：用例存档要有完整 item_bag + 材料（UpgradeCharacter 用例）
+    from game_server import player_state as _psF
+    _stF = _psF.get_state(uid=uid)
+    _ibF2 = _stF.props.setdefault("item_bag", {})
+    _ibF2["989"] = {"__id__": 990009, "id": "989", "itemId": 201, "num": 2}
+    _ibF2["988"] = {"__id__": 990008, "id": "988", "itemId": 103, "num": 100000}
+    _stF.set("item_bag", _ibF2)
     cases = [
         ("SetCharacterList_CS", [1, [9001, 9002, 0]], True),
         ("SetCharacterListName_CS", [1, "\u9635\u5217"], True),
@@ -85,7 +92,7 @@ def run():
         ("RequestDoneTitleTask_CS", [1], False),
         ("RequestRefreshTitleDailyTask_CS", [], False),
         ("Street_Mainline_Levelup_CS", [], False),
-        ("UpgradeCharacter_CS", [9001, {}], True),
+        ("UpgradeCharacter_CS", [9001, {"201": 2}], True),
         ("UseItem_CS", [101, 100, None], True),
         ("RpcLeaveSpace", [], True),
         ("BattleTeach_Activate_CS", [101], True),

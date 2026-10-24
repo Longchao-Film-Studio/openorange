@@ -99,7 +99,15 @@ def run():
     check("RpcGetSunActLevel_CS", erpc.RPC_INDEX["RpcGetSunActLevel_CS"] == 1033592883)
 
     print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
-    pkt = guarded_handle(732022161, b"\x90", 7)[0]
+    # ★ 升级语义修复后空参数会失败——测试意图是帧形状，用真材料调用
+    _msmod_live = msmod._live_init_dict("rpc_t1")   # 先建完整存档（含 item_bag __tp__）
+    _st4 = __import__("game_server.player_state", fromlist=["get_state"]).get_state(uid="rpc_t1")
+    _ib = _st4.props.setdefault("item_bag", {})
+    _ib["990"] = {"__id__": 990010, "id": "990", "itemId": 201, "num": 5}
+    _st4.set("item_bag", _ib)
+    _fr7 = guarded_handle(732022161, msmod.mp_arr([9001, {"201": 1}]), 7, uid="rpc_t1")
+    pkt = next((f for f in _fr7 if isinstance(f, (bytes, bytearray))
+                and b"__rpc_response__" in f), _fr7[0] if _fr7 else b"")
     mtype, rid, val = parse_response(pkt)
     # 应答 = entityMessage(type=2) + methodName __rpc_response__（逆向确认）
     check("帧类型 = 2（entityMessage）",

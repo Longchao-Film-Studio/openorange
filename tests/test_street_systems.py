@@ -106,9 +106,11 @@ def run():
                 msmod.mp_arr([5001]), 6, uid="sx")
     check("取消后条目消失", 5001 not in d, list(d.keys())[:5])
 
-    print("\n[7] AOI 表情不崩")
-    out = guarded_handle(2000707256, msmod.mp_arr([5]), 0, uid="sx")
-    check("单向返回空列表", out == [], out)
+    print("\n[7] AOI 表情广播（审计 T3 修复后：回显 Avatar_Play_ActEmoji_SC）")
+    out = guarded_handle(2000707256, msmod.mp_arr([1, 5]), 0, uid="sx")
+    check("广播帧非空", isinstance(out, list) and len(out) == 1, out)
+    check("广播帧含 SC 方法名", out and b"Avatar_Play_ActEmoji_SC" in out[0],
+          (out[0][:60] if out else None))
     check("记录了 emoji", st.props.get("_oo_last_emoji") == 5,
           st.props.get("_oo_last_emoji"))
 

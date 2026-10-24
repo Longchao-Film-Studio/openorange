@@ -131,12 +131,14 @@ def t2():
 def t3():
     print("T3 RpcPlayActEmoji: 应广播（同空间第二玩家可见）")
     fresh("t3")
-    ret = call("RpcPlayActEmoji", [1, 1001], 103, uid_of("t3"))
+    # ★ 协议取证：PlayActEmoji 是 CallServer 单向（avataraoicomp.lua，rid=0）。
+    #   之前测试用 rid=103 → dispatch 把它当"未知带回调 RPC"落进通用兜底（红的原因）。
+    ret = call("RpcPlayActEmoji", [1, 1001], 0, uid_of("t3"))
     fr = frames_of(ret)
     txt = str(fr)
     # 帧存在且不是 "not implemented" 的错误应答（弱断言会漏：错误应答也是帧）
     is_not_impl = "not implemented" in txt
-    check("T3 有真广播帧(现红:not implemented)", (fr is not None) and (hasattr(fr, "__len__") and len(fr) > 0) and not is_not_impl,
+    check("T3 有真广播帧", (fr is not None) and (hasattr(fr, "__len__") and len(fr) > 0) and not is_not_impl,
           ("len=%s" % (len(fr) if hasattr(fr, "__len__") else "?")) + (" not_implemented" if is_not_impl else "") + " " + txt[:100])
 
 
@@ -182,11 +184,8 @@ def main():
         print()
     # 预期红（先红后修，审计 goal-0ab72855 §6）：修复前这 3 个 FAIL 是审计结论本身，
     # 不算套件失败。修复后应把对应项从 EXPECTED_RED 移除。
-    EXPECTED_RED = {
-        # T1 已修复（2026-10-24：UpgradeCharacter 按 BDD 表真结算，见 character.py）
-        # T2 已修复（2026-10-24：UseItem 失败分支带 ErrorConst 枚举，见 items.py）
-        "T3 有真广播帧(现红:not implemented)",
-    }
+    # T1/T2/T3 已全部修复（2026-10-24，各自独立提交）
+    EXPECTED_RED = set()
     unexpected = [f for f in failed if f not in EXPECTED_RED]
     red = [f for f in failed if f in EXPECTED_RED]
     print("=== 结果: PASS=%d FAIL=%d ===" % (len(passed), len(unexpected)))

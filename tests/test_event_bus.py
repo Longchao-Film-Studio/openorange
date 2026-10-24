@@ -176,8 +176,14 @@ def run():
     check("存档里有角色", key is not None, list(bag.keys())[:5])
     bag[key]["CharLevel"] = 9
     st.set("characterBag", bag)
+    # ★ 升级语义修复后：sendItems 必须是真材料（201 CharExp=200）。
+    #   9->10 级需要 CharUpgradeData[9001][8].costExp=290 → 给 2 个（400exp，
+    #   扣 290 剩 110 溢出进 CharExp），与客户端 UI 的"恰好升一级"一致。
+    st.props.setdefault("item_bag", {})["901"] = {
+        "__id__": 990011, "id": "901", "itemId": 201, "num": 2}
+    st.set("item_bag", st.props["item_bag"])
     frames = guarded_handle(erpc.RPC_INDEX["UpgradeCharacter_CS"],
-                         msmod.mp_arr([key]), 1, uid="ev_rpc_char")
+                         msmod.mp_arr([key, {"201": 2}]), 1, uid="ev_rpc_char")
     check("角色升到 10 级",
           int((st.props["characterBag"][key] or {}).get("CharLevel") or 0) == 10,
           (st.props["characterBag"][key] or {}).get("CharLevel"))
