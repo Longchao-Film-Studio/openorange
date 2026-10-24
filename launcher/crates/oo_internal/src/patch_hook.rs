@@ -126,13 +126,9 @@ unsafe fn b0_body(this: *mut c_void, target_idx: usize, tramp: *mut c_void) {
 ///   1) 客户端成功路径会先 Delete 已存在的 json 再 Move —— 所以 json 每次启动都会被吃掉；
 ///   2) 因此不能依赖 json 存在，必须把正确内容（5740B 加密形态）内嵌进 DLL 无条件写 temp。
 /// 内容来源：work/oo_analysis/cdn/patch_info_release.json（与原 PersistentPath 文件字节一致）。
-fn prepare_temp_file(target_idx: usize) {
+fn prepare_temp_file(_target_idx: usize) {
     use std::path::PathBuf;
     const PATCH_INFO: &[u8] = include_bytes!("data/patch_info.json");
-    // 目标 0 = DownloadPatchInfo -> patch_info.json.temp（内嵌内容）
-    // 其余 = CheckVersion/DownloadInfo/DownloadLuaInfo -> VersionInfo_506413.bytes.temp（复制本地同名文件）
-    let temp_name = if target_idx == 0 { "patch_info.json.temp" } else { "VersionInfo_506413.bytes.temp" };
-    let local_src = "VersionInfo_506413.bytes";
     let Some(base) = game_assembly_base() else { return; };
     let mut buf = [0u16; 512];
     let n = unsafe {
@@ -145,20 +141,23 @@ fn prepare_temp_file(target_idx: usize) {
     let exe_path = PathBuf::from(String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(0)]));
     let Some(game_dir) = exe_path.parent() else { return };
     let hyb = game_dir.join("GuiLongchao_Data").join("PersistentPath").join("HybridData");
-    let temp = hyb.join("patch_info.json.temp");
-    // 无条件写（客户端每次启动都会先 Delete 目标文件再 Move）
-    let ok = if target_idx == 0 {
-        std::fs::write(&temp, PATCH_INFO).is_ok()
-    } else {
-        std::fs::copy(hyb.join(local_src), &temp).is_ok()
-    };
-    if ok {
-        log::write(&format!("patch_hook: seeded {} (target {})", temp_name, target_idx));
-    } else {
-        log::write(&format!("patch_hook: seed {} FAILED", temp_name));
+    // ★ 终极简化（2026-10-24 12:18 实测教训）：不再按 target 分支猜文件名——
+    //   每次把客户端可能 Move 的所有 temp 全部种上：
+    //   1) patch_info.json.temp = 内嵌 5740B（正确加密内容）
+    //   2) VersionInfo_506413.bytes.temp = 本地同内容文件（220B）——remoteVer 固定 506413
+    //   客户端成功分支 Move 哪个都有的吃；内容均正确。
+    let mut done = Vec::new();
+    if std::fs::write(hyb.join("patch_info.json.temp"), PATCH_INFO).is_ok() {
+        done.push(format!("patch_info.json.temp({}B)", PATCH_INFO.len()));
     }
+    let vi_src = hyb.join("VersionInfo_506413.bytes");
+    if vi_src.exists() {
+        if std::fs::copy(&vi_src, hyb.join("VersionInfo_506413.bytes.temp")).is_ok() {
+            done.push("VersionInfo_506413.bytes.temp".to_string());
+        }
+    }
+    log::write(&format!("patch_hook: seeded {}", done.join(", ")));
 }
-
 
 unsafe extern "C" fn b0_detour_0(this: *mut c_void, _e: *mut c_void) { b0_body(this, 0, TRAMPS[0].load(Ordering::SeqCst)); }
 unsafe extern "C" fn b0_detour_1(this: *mut c_void, _e: *mut c_void) { b0_body(this, 1, TRAMPS[1].load(Ordering::SeqCst)); }
