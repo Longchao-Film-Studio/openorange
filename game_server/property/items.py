@@ -259,3 +259,44 @@ def _record_item_obtain(rid, params, uid=None):
     print("[story] 获得道具 %s x%s" % (item_id, count), flush=True)
     st.save()
     return respond_after_sync(rid, syncs)
+
+
+def consume_item(st, item_id, count):
+    """从背包扣道具（跨格累计），返回 item_bag 同步帧列表；不够扣返回 None。
+
+    ★ 为什么收进来（审计 T1）：升级/使用都要「按 itemId 扣 N 个」，以前只有
+      「单格内扣」的 use_item 路径。材料可能散在多个格子，必须跨格累计。
+      不改动格子的其它字段；扣到 0 保留格子（num=0，客户端显示逻辑自己处理）。
+    """
+    bag = st.get("item_bag")
+    if not isinstance(bag, dict):
+        return None
+    bag_id = bag.get("__id__") or 0
+    need = int(count)
+    # 先确认总量够
+    owned = 0
+    for gkey, grid in bag.items():
+        if str(gkey).startswith("__") or not isinstance(grid, dict):
+            continue
+        if grid.get("itemId") == item_id:
+            owned += int(grid.get("num") or 0)
+    if owned < need:
+        return None
+    frames = []
+    for gkey, grid in list(bag.items()):
+        if need <= 0:
+            break
+        if str(gkey).startswith("__") or not isinstance(grid, dict):
+            continue
+        if grid.get("itemId") != item_id:
+            continue
+        have = int(grid.get("num") or 0)
+        take = min(have, need)
+        if take <= 0:
+            continue
+        grid["num"] = have - take
+        need -= take
+        frames.append(sync_frame(
+            SYNC_SELF, bag_id, msmod.OP_CHANGE, str(gkey), grid))
+    st.set("item_bag", bag)
+    return frames

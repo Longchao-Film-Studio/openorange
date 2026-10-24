@@ -77,18 +77,19 @@ def t1():
     if cid is None:
         check("T1.prep 有角色", False, "characterBag 空")
         return
+    # ★ 修复后语义：sendItems 必须是升级材料（ItemData.useParam.CharExp）。
+    #   给 T1 塞真材料 201×2（CharExp=200/个，升 1 级要 200exp → 1 个就够，
+    #   2 个连升 + 溢出进 CharExp，顺带验证逐级结算）。
+    bag = st.get("characterBag")
+    bag["9001"] = bag.get("9001") or {"__id__": 990001}
+    st.set("characterBag", bag)
     bag_items = st.get("item_bag") or {}
-    iid = None
-    for k in bag_items:
-        if str(k).isdigit() and isinstance(bag_items[k], dict):
-            iid = str(k)
-            break
-    send_items = {int(iid): 2} if iid else {}
+    bag_items["900"] = {"__id__": 990002, "id": "900", "itemId": 201, "num": 2}
+    st.set("item_bag", bag_items)
+    iid = "900"
+    send_items = {201: 2}
     level_before = int((bag[cid] or {}).get("CharLevel") or 1)
-    item_before = None
-    if iid:
-        it = bag_items.get(iid) or bag_items.get(int(iid)) or {}
-        item_before = int(it.get("Count") or it.get("count") or 0)
+    item_before = 2
     ret = call("UpgradeCharacter_CS", [cid, send_items], 101, uid_of("t1"))
     st2 = pstate.get_state(uid=uid_of("t1"))
     bag2 = st2.get("characterBag") or {}
@@ -99,11 +100,17 @@ def t1():
     if iid and item_before is not None:
         ib2 = st2.get("item_bag") or {}
         it2 = ib2.get(iid) or ib2.get(int(iid)) or {}
-        item_after = int(it2.get("Count") or it2.get("count") or 0)
-        check("T1.items 道具被扣(现红:服务端不扣)", item_after < item_before,
+        item_after = int(it2.get("num") or 0)
+        check("T1.items 道具被扣", item_after < item_before,
               "before=%s after=%s" % (item_before, item_after))
     s = str(resp_of(ret))
     check("T6 应答含 status", "status" in s, s[:120])
+
+    # ★ 负例：非升级材料（101 资历）不能当材料提交 —— 服务端必须拒绝
+    #   （这是审计 T1 的另一半：sendItems 里混入非法 itemId 时不白扣不白升）
+    ret_bad = call("UpgradeCharacter_CS", [cid, {101: 5}], 106, uid_of("t1"))
+    sb = str(resp_of(ret_bad))
+    check("T1.负例 非材料道具被拒", "errorcode" in sb, sb[:140])
 
 
 # ---------------- T2: UseItem errorcode ----------------
@@ -176,7 +183,7 @@ def main():
     # 预期红（先红后修，审计 goal-0ab72855 §6）：修复前这 3 个 FAIL 是审计结论本身，
     # 不算套件失败。修复后应把对应项从 EXPECTED_RED 移除。
     EXPECTED_RED = {
-        "T1.items 道具被扣(现红:服务端不扣)",
+        # T1 已修复（2026-10-24：UpgradeCharacter 按 BDD 表真结算，见 character.py）
         "T2.errorcode 非泛化(现红)",
         "T3 有真广播帧(现红:not implemented)",
     }

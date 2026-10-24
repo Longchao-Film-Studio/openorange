@@ -128,6 +128,47 @@ def char(char_id):
     return row("CharData", char_id)
 
 
+def char_attr(char_id):
+    """CharAttrData[char_id]（46 字段战斗基础属性）。"""
+    return row("CharAttrData", char_id)
+
+
+def char_upgrade(char_id):
+    """CharUpgradeData[char_id] -> 等级列表（99 级，每级含 costExp/成长）。
+
+    ★ 嵌套结构：{charId: [等级列表]}，下标 0 = 1 级。
+    """
+    d = table("CharUpgradeData")
+    if not isinstance(d, dict):
+        return None
+    v = d.get(str(char_id)) or d.get(char_id)
+    return v if isinstance(v, list) else None
+
+
+def char_break(char_id):
+    """CharBreakData[char_id] -> 突破阶列表（10 阶）。"""
+    d = table("CharBreakData")
+    if not isinstance(d, dict):
+        return None
+    v = d.get(str(char_id)) or d.get(char_id)
+    return v if isinstance(v, list) else None
+
+
+def char_rising_star(char_id):
+    """CharRisingStarData[char_id] -> 升星列表（6 星）。"""
+    d = table("CharRisingStarData")
+    if not isinstance(d, dict):
+        return None
+    v = d.get(str(char_id)) or d.get(char_id)
+    return v if isinstance(v, list) else None
+
+
+def char_max_level(char_id):
+    """角色等级上限 = 等级表长度。查不到返回 1。"""
+    ups = char_upgrade(char_id)
+    return len(ups) if isinstance(ups, list) and ups else 1
+
+
 def char_appearance(skin_id):
     """CharAppearanceData[skin_id]（皮肤配置，含 charId 反查）。"""
     return row("CharAppearanceData", skin_id)
