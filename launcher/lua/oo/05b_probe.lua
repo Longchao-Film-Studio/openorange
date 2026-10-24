@@ -1,16 +1,30 @@
 -- oo/05b_probe.lua —— 05a 的续（同一批探针，按文件名顺序拼接）
---
--- ★ 2026-10-24：本文件是诊断探针（面板超时观测、字段 dump 等），非生产逻辑。
---   默认跳过全部内容；设 OO_DIAGNOSTICS=1（启动器环境变量）才启用。
---   生产逻辑 install_panel_timeout 已迁至 06b_hooks.lua。
---
--- ★★ 重大教训（2026-10-24 21:48 事故）：这里绝不能用顶层 `return` 跳过——
---   bootstrap 是 01..06b 按序拼成的【单个 chunk】，顶层 return 会终止整个 chunk，
---   05b 之后的 06a/06b（登录接管全部 hook）都不会执行 → 客户端直连官方登录！
---   必须用 if 块包裹全部内容。
-if rawget(_G, "OO_DIAGNOSTICS") == "1" then
-
--- install_panel_timeout 已迁至 06b_hooks.lua（生产逻辑不应混在探针里，2026-10-24）
+local function install_panel_timeout()
+  if pc.paneltimeout then return end
+  if ui == nil or ui.PreLoadPanelByName == nil then return end
+  pc.paneltimeout = true
+  local orig = ui.PreLoadPanelByName
+  ui.PreLoadPanelByName = function(name, cb)
+    local done = false
+    local function once(go)
+      if done then return end
+      done = true
+      if cb then cb(go) end
+    end
+    orig(name, function(go)
+      LOG('paneltmo| 正常返回 ' .. tostring(name))
+      once(go)
+    end)
+    TimerManager.addTimer(PANEL_TIMEOUT_SEC, function()
+      if not done then
+        LOG('paneltmo| 超时放行 ' .. tostring(name)
+          .. '（该面板资源加载失败，HUD 会缺失）')
+        once(nil)
+      end
+    end)
+  end
+  LOG('paneltmo| 钩子已安装，超时 ' .. PANEL_TIMEOUT_SEC .. ' 秒')
+end
 
 -- 自动触发「进入下一关」，验证 Cmd_Avatar_EnterNext_CS 链路
 local function probe_next_level()
@@ -456,5 +470,3 @@ OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
 OO_PANEL_TIMEOUT = false   -- 诊断：面板预加载超时放行（资源已修复，不再需要）
 OO_PROBE_NEXTLEVEL = false -- 自动触发进入下一关
-
-end -- OO_DIAGNOSTICS if 块结束
