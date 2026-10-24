@@ -52,6 +52,13 @@ pub fn spawn_suspended(exe: &Path, args: &str) -> Result<Launched, String> {
     let mut pi = PROCESS_INFORMATION::default();
 
     unsafe {
+    // ★ 2026-10-24：把补丁绕过开关显式传给子进程（子进程继承本进程环境）。
+    //   DLL 侧默认也是开（见 oo_internal/lib.rs），这里是双保险：即使将来改默认值，
+    //   启动器拉起的游戏也一定带上这个开关。用户可用 OO_PATCH_BYPASS=0 关闭。
+    if std::env::var("OO_PATCH_BYPASS").is_err() {
+        // SAFETY: 单线程启动阶段，早于 CreateProcessW，无并发读环境变量。
+        unsafe { std::env::set_var("OO_PATCH_BYPASS", "1") };
+    }
         CreateProcessW(
             PCWSTR::null(),
             Some(windows::core::PWSTR(cmd.as_mut_ptr())),

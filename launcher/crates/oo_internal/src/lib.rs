@@ -54,12 +54,22 @@ extern "system" fn bootstrap_thread(_param: *mut c_void) -> u32 {
     // 等待 xlua.dll 被 Unity/xLua 加载。
     // 实测：注入后 30 秒内 GameAssembly.dll(78MB IL2CPP) 已加载但 xlua.dll 尚未出现，
     // 冷启动时 Unity 初始化 + 首场景加载可能远超 30 秒，因此给足 5 分钟并周期报告进度。
-    // ★ 队列任务：官方 URL 依赖兜底（方案 A）。
-    //   开关：环境变量 OO_PATCH_BYPASS=1 时启用。默认关闭，不改变既有行为。
-    //   内部自会等待 GameAssembly.dll 解密就绪（序言校验通过才装 hook）。
-    if std::env::var("OO_PATCH_BYPASS").as_deref() == Ok("1") {
-        log::write("patch_hook: OO_PATCH_BYPASS=1, arming HybridLoad bypass");
+    // ★ 官方 URL 依赖兜底（方案 A）。2026-10-24 验收通过后改为**默认启用**。
+    //
+    // 为什么默认开而不是默认关：
+    //   1) 私服本来就不该连官方补丁服，"绕过"是标准配置而非可选优化；
+    //   2) 官方域名可达时 hook 也不会造成问题（下载成功的正常路径不受影响，
+    //      只在失败回调里把 error 置空并播种本地缓存）；
+    //   3) 序言逐字节校验有保护：GameAssembly 版本变化时自动拒绝安装并跳过，不会崩；
+    //   4) 以前要用户每开一个 PowerShell 窗口手动 set 环境变量（还容易忘），体验差。
+    //
+    // 关闭方式：OO_PATCH_BYPASS=0（排障/想验证原生行为时用）。
+    let bypass = std::env::var("OO_PATCH_BYPASS").unwrap_or_default();
+    if bypass != "0" {
+        log::write(&format!("patch_hook: arming HybridLoad bypass (OO_PATCH_BYPASS={:?}, default on)", bypass));
         patch_hook::spawn_wait_thread();
+    } else {
+        log::write("patch_hook: disabled by OO_PATCH_BYPASS=0");
     }
 
     if !wait_for_xlua(300_000) {
