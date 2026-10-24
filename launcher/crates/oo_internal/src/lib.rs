@@ -118,6 +118,26 @@ extern "system" fn bootstrap_thread(_param: *mut c_void) -> u32 {
     }
 
     let Some((body, name)) = chosen else {
+        // ★ 2026-10-24 12:35 实测：OO_Internal 可能被二次加载（第二次 bootstrap probe 时
+        //   lua_load body 已是第一次装的 FF 25 跳转 → precheck 拒绝 → 若直接 return 3，
+        //   第二次线程退出无害；但若此时游戏已在调 lua_load 而 TRAMPOLINE 正常，不应报 FATAL）。
+        //   已装（HOOK_INSTALLED=true）就当作完成，直接进入等待注入循环。
+        if xlua::HOOK_INSTALLED.load(std::sync::atomic::Ordering::SeqCst) {
+            log::write("xlua hook already installed by earlier bootstrap, reusing it");
+            let name2 = xlua::hooked_name();
+            log::write(&format!("reuse hook: {name2}"));
+            let mut waited2 = 0u32;
+            while waited2 < 600_000 {
+                if INJECTED.load(std::sync::atomic::Ordering::SeqCst) {
+                    log::write("bootstrap script injected (reused hook), detour going transparent");
+                    return 0;
+                }
+                unsafe { Sleep(50) };
+                waited2 += 50;
+            }
+            log::write("WARN: no lua chunk seen in 10 minutes (reused-hook path)");
+            return 0;
+        }
         log::write("FATAL: no hookable Lua entry point found in xlua.dll");
         return 3;
     };
