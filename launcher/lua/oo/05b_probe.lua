@@ -3,9 +3,12 @@
 -- ★ 2026-10-24：本文件是诊断探针（面板超时观测、字段 dump 等），非生产逻辑。
 --   默认跳过全部内容；设 OO_DIAGNOSTICS=1（启动器环境变量）才启用。
 --   生产逻辑 install_panel_timeout 已迁至 06b_hooks.lua。
-if rawget(_G, "OO_DIAGNOSTICS") ~= "1" then
-  return
-end
+--
+-- ★★ 重大教训（2026-10-24 21:48 事故）：这里绝不能用顶层 `return` 跳过——
+--   bootstrap 是 01..06b 按序拼成的【单个 chunk】，顶层 return 会终止整个 chunk，
+--   05b 之后的 06a/06b（登录接管全部 hook）都不会执行 → 客户端直连官方登录！
+--   必须用 if 块包裹全部内容。
+if rawget(_G, "OO_DIAGNOSTICS") == "1" then
 
 -- install_panel_timeout 已迁至 06b_hooks.lua（生产逻辑不应混在探针里，2026-10-24）
 
@@ -453,3 +456,5 @@ OO_PROBE_LOADSTEP = false  -- 加载步骤探针
 OO_PROBE_PRELOAD = false   -- PreLoadPanelByName 打桩探针
 OO_PANEL_TIMEOUT = false   -- 诊断：面板预加载超时放行（资源已修复，不再需要）
 OO_PROBE_NEXTLEVEL = false -- 自动触发进入下一关
+
+end -- OO_DIAGNOSTICS if 块结束
