@@ -204,6 +204,29 @@ def row(table_name, row_id):
     return v
 
 
+
+def npc_message(topic_id):
+    """NpcMessageData[topic_id] —— 手机短信话题（chatName/role/chatType/dialogueId…）。"""
+    return row("NpcMessageData", topic_id)
+
+
+def npc_chat_dialog(topic_id):
+    """NpcChatDialogData[topic_id] —— 话题的全部对话行（dict: dialogueId -> row）。
+
+    行字段：order / chattext / chatrole / voiceStart…；BDD 元数据键过滤交给调用方。
+    """
+    d = table("NpcChatDialogData")
+    if not isinstance(d, dict):
+        return None
+    v = d.get(str(topic_id)) if str(topic_id) in d else d.get(topic_id)
+    return v if isinstance(v, dict) else None
+
+
+def npc_actor(role_id):
+    """NpcActorChatData[role_id] —— 聊天角色（actorName/actorIcon/signature）。"""
+    return row("NpcActorChatData", role_id)
+
+
 def story_line(story_id):
     """StoryLineData[story_id] —— 剧情段落，含 dungeonId（对应 Level_CopyData 的 copyId）。"""
     return row("StoryLineData", story_id)

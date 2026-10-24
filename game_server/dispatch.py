@@ -211,6 +211,11 @@ from .street.misc import (  # noqa: F401  (re-export)
     _street_cd_update,
 )
 
+from .npc_chat import (  # noqa: F401  (re-export)
+    _check_topic_can_open,
+    _gm_open_npc_chat_topic,
+    _update_npc_chat_info,
+)
 from .property.character import _upgrade_character  # noqa: F401
 from .property.items import (  # noqa: F401  (re-export)
     _USE_PARAM_PROP,
@@ -265,6 +270,9 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("RequestStreetTreasure_CS", _street_treasure_rpc),
                    ("Street_Mainline_Levelup_CS", _mainline_levelup),
                    ("finishStreetStoryline_CS", _finish_storyline),
+                   ("Check_TopicID_CanOpen_CS", _check_topic_can_open),
+                   ("Update_NpcChat_Info_CS", _update_npc_chat_info),
+                   ("GmRpcOpenNpcChatTopic", _gm_open_npc_chat_topic),
                    ("RpcGetEdenChatHistory", _eden_chat_history),
                    ("RequestAddPrestigeExp_CS", _add_prestige_exp),
                    ("RequestGetPrestigeAward_CS", _get_prestige_award),

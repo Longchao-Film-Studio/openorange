@@ -40,6 +40,11 @@ RPC_INDEX = {
     "RequestLeaveStreet_CS": 1707898947,
     # --- 剧情任务 avatarstorytaskcomp / avatarstreetcomp（3 条） ---
     "RequestDoneStoryTaskParamInt_CS": 544079713,
+    # ★ 短信系统（avatarnpcchatcomp.lua）。索引来自 docs/RPC总表.md:275,457,772
+    #   （tools/gen_rpc_list.py 生成的 genRpcIndex 真值，不许手改）。
+    "Check_TopicID_CanOpen_CS": 1770853395,
+    "Update_NpcChat_Info_CS": 924340932,
+    "GmRpcOpenNpcChatTopic": 2096911602,
     # ★ P1 阶段 J：战斗内 SpaceTask 完成上报。
     #   依据 battlecontainer/base/player.lua:416-452 ——
     #   SpaceTask 完成时客户端发 FinishSpaceTask_Directly_CS {taskId}；

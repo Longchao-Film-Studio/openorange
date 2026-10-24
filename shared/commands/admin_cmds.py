@@ -123,6 +123,42 @@ def cmd_dungeon(ctx, target, *args):
 # ---------------------------------------------------------------- 序章跳过
 
 
+@register("sms", aliases=("短信",), args="<target> <话题ID>",
+          desc="解锁一条 NPC 短信话题（例 /sms @ 1014 弹杜老爷短信）。GM 验证用",
+          perm=PERM_GM, needs_target=True, group="GM")
+def cmd_sms(ctx, target, *args):
+    """解锁 NPC 短信话题 —— 短信链路的实机验证入口。
+
+      /sms @ 1014     给自己解锁 1014「杜老爷短信」（1044 的剧情）
+
+    走管理接口 /player/unlock-npc-topic，服务端经 story.npc_sms.unlock_topic
+    写 npc_chat_prop.address_list（OP_ADD）→ 客户端 entryAdded 弹手机。
+    """
+    uid = target.uid
+    if not args:
+        return err("缺话题 ID。用法：/sms <target> <话题ID>（例 /sms @ 1014）",
+                   chat="✗ 用法: /sms @ 1014")
+    try:
+        topic_id = int(args[0])
+    except Exception:
+        return err("话题 ID 必须是数字（例 1014）", chat="✗ 话题 ID 非法")
+    res, e = target.call("POST", "/player/unlock-npc-topic",
+                         payload={"uid": uid, "topic_id": topic_id})
+    if e or not res or not res.get("ok"):
+        return err(e or ("解锁失败: %s" % (res,)), chat="✗ 解锁失败")
+    r = res.get("result") or {}
+    return ok([
+        "✔ 话题已解锁（立即生效）",
+        "  账号      %s" % uid,
+        "  话题      %s %s" % (topic_id, r.get("chat_name") or ""),
+        "  会话 chat  %s" % r.get("chat_id"),
+        "  同步帧    %s 条" % r.get("frames"),
+        "",
+        "  手机里应出现该会话；点预设回复会上报 Update_NpcChat_Info_CS。",
+    ], chat="短信 %s: 话题 %s 已解锁" % (uid, topic_id),
+       data={"action": "sms_show", "target": uid, "result": r})
+
+
 @register("prologue", aliases=("序章",), args="<target> [skip]",
           desc="序章：查看状态 / 跳过（跳过 = 直接进街区，不再打副本）",
           perm=PERM_GM, needs_target=True, group="GM")

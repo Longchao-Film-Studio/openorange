@@ -56,6 +56,36 @@ def _port():
 
 
 # ---------------------------------------------------------------- 业务实现
+
+
+def _do_unlock_npc_topic(uid, topic_id):
+    """管理命令 /sms 的写入端：给账号解锁一条短信话题（GM 验证用）。
+
+    与 /player/skip-prologue 同样的前置：先保证状态完整，再走领域层唯一入口。
+    allow_unmapped=True —— 这是显式 GM 越权，与任务路径（默认 False）区分。
+    """
+    from . import ms as msmod, player_state
+    from .story import npc_sms
+    st = player_state.peek(uid)
+    if st is None or not isinstance(st.props.get("story_task_bag"), dict):
+        player_state.reset_state(
+            msmod._conv_int_keys(
+                msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+            uid=uid)
+        player_state.peek(uid).is_new = True
+    msmod._live_init_dict(uid)
+    st = player_state.get_state(uid=uid)
+    cfg = __import__("game_server.gamedata", fromlist=["gamedata"]).npc_message(topic_id)
+    if not isinstance(cfg, dict):
+        return {"ok": False, "error": "话题 %s 不在 NpcMessageData" % topic_id}
+    try:
+        chat_id = int(cfg.get("role"))
+    except Exception:
+        return {"ok": False, "error": "话题 %s 缺 role 字段" % topic_id}
+    frames = npc_sms.unlock_topic(st, chat_id, topic_id,
+                                  source="admin:/sms", allow_unmapped=True)
+    return {"ok": True, "chat_id": chat_id, "frames": len(frames),
+            "chat_name": cfg.get("chatName")}
 def _do_skip_prologue(uid):
     """立刻把某个账号的序章标完成（不等下次登录）。
 
@@ -308,6 +338,20 @@ class _Handler(BaseHTTPRequestHandler):
                     lv = _set_player_force_level(uid, payload.get("level"))
                 return self._send(200, {"ok": True, "uid": uid,
                                          "force_level": lv})
+            if path == "/player/unlock-npc-topic":
+                uid = str(payload.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "missing uid"})
+                try:
+                    topic_id = int(payload.get("topic_id"))
+                except Exception:
+                    return self._send(400, {"ok": False, "error": "topic_id 非法"})
+                from . import player_state as _pstate
+                with _pstate.lock_for(uid):
+                    res = _do_unlock_npc_topic(uid, topic_id)
+                if not res.get("ok"):
+                    return self._send(400, res)
+                return self._send(200, {"ok": True, "result": res})
             if path == "/player/skip-prologue":
                 uid = str(payload.get("uid") or "").strip()
                 if not uid:
