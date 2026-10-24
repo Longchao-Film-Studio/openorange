@@ -223,6 +223,10 @@ pub fn try_install() -> Result<usize, String> {
     }
     if ok == HOOK_TARGETS.len() {
         INSTALLED.store(true, Ordering::SeqCst);
+        // ★ 优化（2026-10-24）：提前播种。旧版在 b__0 被调时才种 temp，每关 DownFile 启动时
+        //   Exists(savePath)=false → 走网络 6 次重试（每关 ~21s，用户黑屏 1%→100% 卡 70s+）。
+        //   MoveNext case 0 有捷径：Exists(savePath) 直接成功。提前种好 → 每关秒过。
+        prepare_temp_file(0);
     }
     Ok(ok)
 }
