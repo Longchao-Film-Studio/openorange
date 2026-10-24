@@ -19,7 +19,7 @@ from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sy
 # ErrorConst（gamecommon/consts/errorconst.lua，客户端 UseItem_SC 消费）
 BAG_INVALID_ITEM_ID = 15002   # Bag_InvaildItemId
 BAG_INVALID_NUM = 15005       # Bag_InvaildNum
-BAG_SYSTEM_NOT_UNLOCKED = 15009  # Bag_SystemNotUnlocked
+BAG_SYSTEM_NOT_UNLOCKED = 15009  # Bag_SystemNotUnlocked（当前无拦截点，留作文档值）
 
 
 def _use_failed(rid, syncs, errorcode=None):
@@ -75,23 +75,23 @@ def _use_item(rid, params, uid=None):
     if old_num < count:
         return _use_failed(rid, syncs, BAG_INVALID_NUM)
 
-    # ★ 审计 T2：系统未解锁门槛（ItemData.unlockedSystem，41 个道具有此字段）
-    #   客户端 UseItem_SC 按 ErrorConst.Bag_SystemNotUnlocked 弹「系统未解锁」提示
+    # unlockedSystem 门槛：只留痕不拦截（2026-10-24 复盘后去掉硬检查）
+    #   客户端有 Bag_SystemNotUnlocked 分支，官服会拦；但私服没有经济动机拦
+    #   「提前使用」，而判断依据是服务端 unlocked_system（任务驱动解锁链）——
+    #   链路有偏差时会误判，把「任务没推进」放大成「道具坏了」（第二层故障）。
+    #   将来要做「系统未开放」提示时，这里是现成挂点。
     it_cfg = gamedata.item(item_id) or {}
     need_sys = it_cfg.get("unlockedSystem")
     if need_sys:
-        try:
-            from ..property import sync as _sync_probe
-        except Exception:
-            _sync_probe = None
         sysp = st.get("system_p")
         unlocked = (sysp or {}).get("unlocked_system") if isinstance(sysp, dict) else None
-        if isinstance(unlocked, dict):
-            try:
-                if not unlocked.get(int(need_sys)):
-                    return _use_failed(rid, syncs, BAG_SYSTEM_NOT_UNLOCKED)
-            except (TypeError, ValueError):
-                pass
+        try:
+            is_unlocked = isinstance(unlocked, dict) and bool(unlocked.get(int(need_sys)))
+        except (TypeError, ValueError):
+            is_unlocked = True
+        if not is_unlocked:
+            print("[bag] 道具 %s 需要 system %s（未解锁，放行留痕）"
+                  % (item_id, need_sys), flush=True)
 
     # ---- 1) 扣数量 ----
     grid["num"] = old_num - count
