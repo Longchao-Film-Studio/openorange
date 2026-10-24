@@ -268,17 +268,19 @@ pub fn install_generic(
 /// 在真实函数体上安装绝对跳转（xlua 专用：同时维护单例状态供 detour 转发）。
 /// 返回 trampoline。
 pub fn install(body: *mut c_void, detour: *const c_void) -> Result<*mut c_void, String> {
+    // ★ 顺序修正（2026-10-24 12:45 实测）：必须先 precheck 拿 cover，再 install_generic。
+    //   旧写法在 install_generic 之后重算 cover_len_for(body)——此时 body 已被写成 FF 25 跳转，
+    //   precheck 必然 Err → TRAMPOLINE 永不 store → detour 报 "trampoline missing"，
+    //   注入 rc=1，游戏卡死登录场景（12:40/12:43 两会话实锤）。
+    let cover = precheck_len(body as *const u8)?;
     let tramp = install_generic(body, detour, "xlua")?;
-    COVER_LEN.store(cover_len_for(body)?, Ordering::SeqCst);
+    COVER_LEN.store(cover, Ordering::SeqCst);
     TRAMPOLINE.store(tramp as *mut c_void, Ordering::SeqCst);
     HOOK_INSTALLED.store(true, Ordering::SeqCst);
     Ok(tramp as *mut c_void)
 }
 
-/// 重算覆盖长度（install 薄封装用）。
-fn cover_len_for(body: *mut c_void) -> Result<usize, String> {
-    precheck_len(body as *const u8)
-}
+
 
 unsafe fn count_insns(p: *const u8, cover: usize) -> usize {
     let win = std::slice::from_raw_parts(p, cover + 16);
