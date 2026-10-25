@@ -30,7 +30,7 @@ ALLOW = {
     # ★ 2026-10-25 ruff UP009 批量清理删了各测试文件的 coding 声明行，以下行号整体 -1
     ("tests/test_position.py", 160):
         "可达性断言：上一行 guarded_handle 抛异常会直接崩，能走到这行就说明没崩",
-    ("tests/test_shadow_coverage.py", 149):
+    ("tests/test_shadow_coverage.py", 150):
         "在 try 内、check_frames 调用之后；能走到就说明没抛 AssertionError",
     ("tests/test_story.py", 95):
         "信息性：1000 无奖励是已知事实，有奖励时的真实验证在 if 分支里",

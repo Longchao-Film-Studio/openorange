@@ -156,8 +156,8 @@ def start_task(st, task_id, now=None):
         # 已在包里：只做状态迁移（Done -> Doing 之类）
         item = slot[task_id]
         cur = int(item.get("state") or 0)
-        if cur not in (TASK_STATE_DOING, TASK_STATE_FINISHED):
-            if can_transition(cur, TASK_STATE_DOING):
+        if cur not in (TASK_STATE_DOING, TASK_STATE_FINISHED) and can_transition(
+                cur, TASK_STATE_DOING):
                 item["state"] = TASK_STATE_DOING
                 st.set("task_bag", st.props.get("task_bag"))
                 out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))

@@ -58,8 +58,8 @@ def _has_property_sync(frames):
     """这批帧里有没有属性同步帧（type=13）——只有这种帧需要影子缓存校验。"""
     from game_server import ms as _ms
     for f in frames or []:
-        if isinstance(f, (bytes, bytearray)) and len(f) >= 6:
-            if int.from_bytes(bytes(f[4:6]), "little") == _ms.PROPERTY_SYNC_TYPE:
+        if (isinstance(f, (bytes, bytearray)) and len(f) >= 6
+                and int.from_bytes(bytes(f[4:6]), "little") == _ms.PROPERTY_SYNC_TYPE):
                 return True
     return False
 

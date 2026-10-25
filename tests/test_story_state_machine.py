@@ -361,10 +361,10 @@ def run():
                         hit = '.setdefault("state",..)'
                 elif name == "set":
                     for a in node.args:
-                        if isinstance(a, (ast.Tuple, ast.List)):
-                            if any(isinstance(e, ast.Constant) and e.value == "state"
-                                   for e in a.elts):
-                                hit = '.set((..,"state",..))'
+                        if isinstance(a, (ast.Tuple, ast.List)) and any(
+                                isinstance(e, ast.Constant) and e.value == "state"
+                                for e in a.elts):
+                            hit = '.set((..,"state",..))'
             if hit:
                 out.append((node.lineno, fname, hit))
 

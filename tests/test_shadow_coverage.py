@@ -80,8 +80,9 @@ def _call_lines(path):
 def _uses_guard(path):
     tree = ast.parse(open(path, encoding="utf-8").read())
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            if node.func.id == "guarded_handle":
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "guarded_handle"):
+
                 return True
     return False
 
