@@ -15,7 +15,7 @@ rows = []
 for line in open(TSV, encoding="utf-8"):
     p = line.rstrip("\n").split("\t")
     if len(p) >= 6 and p[0] in ("C2S", "S2C"):
-        rows.append(dict(dir=p[0], name=p[1], index=p[2], impl=p[3], params=p[4], sites=p[5]))
+        rows.append({"dir": p[0], "name": p[1], "index": p[2], "impl": p[3], "params": p[4], "sites": p[5]})
 
 c2s = [r for r in rows if r["dir"] == "C2S"]
 s2c = [r for r in rows if r["dir"] == "S2C"]

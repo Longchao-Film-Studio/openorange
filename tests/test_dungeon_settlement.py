@@ -47,7 +47,7 @@ def fresh(uid):
 def bag_items(st):
     bag = st.props.get("item_bag") or {}
     out = {}
-    for k, v in bag.items():
+    for v in bag.values():
         if isinstance(v, dict) and isinstance(v.get("itemId"), int):
             out[v["itemId"]] = v.get("num")
     return out

@@ -60,7 +60,7 @@ def tables():
 def space_flat():
     raw = gamedata.table("SpaceTaskData") or {}
     out = {}
-    for _dg, g in raw.items():
+    for g in raw.values():
         if isinstance(g, dict):
             for tid, row in g.items():
                 if isinstance(row, dict):

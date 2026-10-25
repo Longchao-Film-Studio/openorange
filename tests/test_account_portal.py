@@ -187,9 +187,9 @@ def run():
     check("含 account_id", bool(data.get("account_id")), data.get("account_id"))
     check("含 ticket", len(str(data.get("ticket", ""))) > 50)
     check("fp_uid 是整数", isinstance(data.get("fp_uid"), int), type(data.get("fp_uid")))
-    need = set(["account_create_ts", "account_id", "bind_infos", "channel_uid", "current_fpid",
+    need = {"account_create_ts", "account_id", "bind_infos", "channel_uid", "current_fpid",
                 "delete_time_left", "fp_device_id", "fp_uid", "fpid", "fpid_list", "is_formal",
-                "is_new", "session_key", "ticket"])
+                "is_new", "session_key", "ticket"}
     check("官方 14 字段齐全", need.issubset(set(data.keys())), sorted(data.keys()))
     check("启动器登录不挤掉网页会话", me(token)[1].get("ok") is True)
     r = jreq("POST", "/api/launcher/login", {"username": U_LEGACY, "password": P1})[1]

@@ -80,7 +80,7 @@ def space_flat():
     """摊平 SpaceTaskData -> {taskId: row}。"""
     raw = gamedata.table("SpaceTaskData") or {}
     out = {}
-    for _dg, group in raw.items():
+    for group in raw.values():
         if not isinstance(group, dict):
             continue
         for tid, row in group.items():

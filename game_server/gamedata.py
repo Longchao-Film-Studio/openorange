@@ -332,7 +332,7 @@ def space_task(task_id):
         tid = int(task_id)
     except Exception:
         return None
-    for _dg, group in raw.items():
+    for group in raw.values():
         if not isinstance(group, dict):
             continue
         row = group.get(str(tid))
@@ -353,7 +353,7 @@ def space_task_of_avatar(story_task_id):
     except Exception:
         return None
     hits = []
-    for _dg, group in raw.items():
+    for group in raw.values():
         if not isinstance(group, dict):
             continue
         for tid, row in group.items():

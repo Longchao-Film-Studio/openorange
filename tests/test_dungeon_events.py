@@ -189,7 +189,7 @@ def run():
     # 用 MainlineData 的一条真实数据：dungeonId 是整数 ID，copyId 从表里取
     md = _gd2.table("MainlineData") or {}
     area_id = None
-    for _k, _v in md.items():
+    for _v in md.values():
         if isinstance(_v, dict) and _v.get("dungeonid") and _v.get("ID"):
             area_id = _v["ID"]
             want_copy = _v["dungeonid"]

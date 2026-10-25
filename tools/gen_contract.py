@@ -131,7 +131,7 @@ def parse_config():
 
 def flatten(parsed):
     flat = {}
-    for comp, rows in parsed.items():
+    for rows in parsed.values():
         for r in rows:
             flat.setdefault(r["property"], []).append(r)
     return flat
@@ -152,7 +152,7 @@ def main():
         "_optype_map": {"changed": 1, "entryAdded": 2, "entryDeleted": 3,
                         "itemInserted": 4, "itemRemoved": 5},
         "_note": "由 tools/gen_contract.py 从客户端 config.lua 生成，勿手改",
-        "properties": {k: v for k, v in sorted(flat.items())},
+        "properties": dict(sorted(flat.items())),
     }
 
     if args.check:

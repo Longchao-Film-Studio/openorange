@@ -82,7 +82,7 @@ def give(props, item_id, num, grid_key=None):
 
     # 新开一格
     used = set()
-    for k in bag.keys():
+    for k in bag:
         if k in ("__tp__", "__id__"):
             continue
         try:

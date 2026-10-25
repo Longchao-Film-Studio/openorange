@@ -206,7 +206,7 @@ def run():
         for pname in ("task_bag", "done_tasks"):
             bag = st.props.get(pname)
             if isinstance(bag, dict):
-                for _t, slot in bag.items():
+                for slot in bag.values():
                     if isinstance(slot, dict) and slot.get("__id__") == pid:
                         return pname + ".*.*"
         return None

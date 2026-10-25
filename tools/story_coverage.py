@@ -120,7 +120,7 @@ def street_ids():
     """合法街区 id 集合（StreetData 的键）。"""
     global _STREET_IDS
     if _STREET_IDS is None:
-        _STREET_IDS = {int(k) for k in _table("StreetData").keys()
+        _STREET_IDS = {int(k) for k in _table("StreetData")
                        if str(k).lstrip("-").isdigit()}
     return _STREET_IDS
 
@@ -183,7 +183,7 @@ def completable(S, T, E, tid, SP=None):
         if ok:
             return True, "事件型（%s）" % ",".join(sorted(set(ok)))
         return False, "需要未实现事件：%s" % ",".join(
-            sorted(set(e for e in ets if e not in IMPL_EVENTS)))
+            sorted({e for e in ets if e not in IMPL_EVENTS}))
     return False, "未知 TaskType=%s" % tt
 
 
@@ -205,10 +205,10 @@ def main():
     # SpaceTask -> 剧情任务 的反查表（阶段 J）
     SP = {}
     _sp = _table("SpaceTaskData")
-    for _dg, _group in (_sp or {}).items():
+    for _group in (_sp or {}).values():
         if not isinstance(_group, dict):
             continue
-        for _tid, _row in _group.items():
+        for _row in _group.values():
             if not isinstance(_row, dict):
                 continue
             _a = _row.get("avatarTask")

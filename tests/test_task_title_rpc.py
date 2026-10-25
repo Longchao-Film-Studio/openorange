@@ -65,7 +65,7 @@ def _slot_tasks(st, tt):
 def _item_count(st, iid):
     bag = st.props.get("item_bag") or {}
     n = 0
-    for _k, v in bag.items():
+    for v in bag.values():
         if isinstance(v, dict) and v.get("id") == iid:
             n += int(v.get("count") or v.get("num") or 0)
     return n

@@ -216,7 +216,7 @@ def _submit_item(rid, params, uid=None):
             info = row.get(submit_id) or {}
             need = info.get("itemId")
             if isinstance(need, dict):
-                for k in need.keys():
+                for k in need:
                     if str(k).startswith("__") or k == "KeyList":
                         continue
                     try:

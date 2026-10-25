@@ -37,7 +37,7 @@ def _finish_info_of(info, uid):
     me = info.get(uid)
     if isinstance(me, dict):
         return me
-    for k, v in info.items():
+    for v in info.values():
         if isinstance(v, dict) and ("battle_items" in v or "win" in v):
             return v
     return {}

@@ -173,8 +173,8 @@ def run():
                  and (idx[int(s)].get("PreTask") is not None)]
     check("章节 StartTask 里有一部分在链中间（不是根）",
           len(in_middle) > 0, len(in_middle))
-    seeded_set = set(int(c[2]) for c in seed_mod.seed(
-        fresh("seed_d"), NOW) if c[0] == "add")
+    seeded_set = {int(c[2]) for c in seed_mod.seed(
+        fresh("seed_d"), NOW) if c[0] == "add"}
     bad = [s for s in in_middle if int(s) in seeded_set]
     check("★ 播种结果里没有「链中间的 StartTask」被提前启动", not bad, bad[:6])
 
