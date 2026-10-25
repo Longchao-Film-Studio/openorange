@@ -21,7 +21,7 @@ from .. import config as ooconf
 from .. import entity_rpc as erpc
 from .. import ms as msmod
 from ..rpc_common import SYNC_SELF
-from . import accounts
+from . import accounts, online
 from .net import maybe_hexdump
 
 _log = get_logger(__name__)
@@ -39,6 +39,7 @@ def handle_gate(conn, addr, cid):
     _log.info("=" * 64)
     _log.info(f'[GATE] ★ 收到网关连接 {addr[0]}:{addr[1]}')
     _log.info("=" * 64)
+    online.register(cid, conn)      # ★ 先登记：之后所有发送都走 online.send()
     try:
         conn.settimeout(60)
         buf = bytearray()
@@ -98,13 +99,16 @@ def handle_gate(conn, addr, cid):
                     _log.warning(f'[GATE] #{cid:03d} 帧类型={frame_type:d}  protobuf 解析失败: {e}')
 
             _bind_account(cid, proto_req, fields)
-            _dispatch_frame(conn, cid, data, frame_type, proto_req)
-            _push_bind_message(conn, addr, cid, proto_req)
+            # ★ uid 可能刚被 _bind_account 改成真实账号：同步进在线表
+            online.set_uid(cid, accounts.uid_of(cid))
+            _dispatch_frame(cid, data, frame_type, proto_req)
+            _push_bind_message(addr, cid, proto_req)
     except Exception as e:
         _log.warning(f'[GATE] #{cid:03d} error: {e}')
     finally:
         dur = int((time.time() - t0) * 1000)
         # 连接断开就从在线表里摘掉，并释放账号关联
+        online.unregister(cid)
         accounts.release(cid)
         if shared_db is not None:
             with contextlib.suppress(Exception):
@@ -140,19 +144,19 @@ def _bind_account(cid, proto_req, fields):
             _log.info(f'[GATE] #{cid:03d} 从 auth 还原账号 {uid}')
 
 
-def _dispatch_frame(conn, cid, data, frame_type, proto_req):
+def _dispatch_frame(cid, data, frame_type, proto_req):
     """按帧类型分派：心跳 / 连接帧 / 实体 RPC。"""
     is_heartbeat_frame = (frame_type == 6)
     is_connect_frame = (frame_type == 3 and proto_req is not None)
     if is_heartbeat_frame:
-        _on_heartbeat(conn, cid)
+        _on_heartbeat(cid)
     elif is_connect_frame:
-        _on_connect(conn, cid)
+        _on_connect(cid)
     else:
-        _on_entity_rpc(conn, cid, data, frame_type)
+        _on_entity_rpc(cid, data, frame_type)
 
 
-def _on_heartbeat(conn, cid):
+def _on_heartbeat(cid):
     """type=6：sendHeartbeat 是单向的，不回；顺带刷在线表和体力恢复。"""
     if shared_db is not None:
         with contextlib.suppress(Exception):
@@ -185,8 +189,7 @@ def _on_heartbeat(conn, cid):
                             SYNC_SELF, 0, msmod.OP_CHANGE, prop,
                             st.props.get(prop)))
                     keys_now = st.props.get(stamina_mod.PROP_KEYS)
-            for pkt in frames:
-                conn.sendall(pkt)
+            online.send(cid, frames)
             if gained:
                 _log.info(f'[GATE] #{cid:03d} 体力恢复 +{gained:d} -> {keys_now}')
         except Exception as _e:
@@ -194,21 +197,21 @@ def _on_heartbeat(conn, cid):
     _log.info(f'[GATE] #{cid:03d} 心跳 type=6，不回')
 
 
-def _on_connect(conn, cid):
+def _on_connect(cid):
     """type=3：回 ConnectServerResp {1: Connected, 2: sessionId, 5: MSGPACK}。
 
     content_type 必须显式写出（proto2 has-field 语义），否则客户端判为无效。
     """
     sid = accounts.uid_of(cid)
     pkt = msmod.frame_connect_resp(1, sid)
-    conn.sendall(pkt)
+    online.send(cid, [pkt])
     _log.info(f'[GATE] #{cid:03d} TX ConnectServerResp {{1:Connected, 2:{sid}, 5:MSGPACK}} ({len(pkt):d} B)')
     _dump = maybe_hexdump(pkt, limit=256)
     if _dump:
         _log.debug("%s", _dump)
 
 
-def _on_entity_rpc(conn, cid, data, frame_type):
+def _on_entity_rpc(cid, data, frame_type):
     """帧类型 4：实体 RPC。时间同步和心跳应答在这里特判，其余交给实体层。"""
     idx, params, rid = msmod.parse_entity_frame(data[6:])
     _log.debug("[GATE] #%03d 实体消息 type=%d index=%s rid=%s params=%s", cid, frame_type, idx,
@@ -265,19 +268,20 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         pkts = list(rpkt)
     else:
         pkts = []
+    # 先逐包打诊断（DEBUG 级），再整组一次发（online.send 内部整组 sendall + 发送锁）
     for pkt in pkts:
-        conn.sendall(pkt)
         _log.debug("[GATE] #%03d TX %s (%d B)", cid, label, len(pkt))
         _dump = maybe_hexdump(pkt, limit=256)
         if _dump:
             _log.debug("%s", _dump)
+    online.send(cid, pkts)
     if len(pkts) > 1:
         _log.debug("[GATE] #%03d TX %s + %d 条属性同步", cid, label, len(pkts) - 1)
     elif not pkts:
         _log.info(f'[GATE] #{cid:03d} {erpc.describe(idx)} 无需应答')
 
 
-def _push_bind_message(conn, addr, cid, proto_req):
+def _push_bind_message(addr, cid, proto_req):
     """按 reqType 推进绑定链：0->bindAccount, 4->bindAvatar, 3->createChannelEntity。
 
     ★ 实测（work/oo_analysis/gamesrv_run.log）：
@@ -312,7 +316,7 @@ def _push_bind_message(conn, addr, cid, proto_req):
         label = "createChannelEntity"
     if bpkt is None:
         return
-    conn.sendall(bpkt)
+    online.send(cid, [bpkt])
     _log.info(f'[GATE] #{cid:03d} TX {label}  (reqType={proto_req:d}) ({len(bpkt):d} B)')
     _dump = maybe_hexdump(bpkt, limit=256)
     if _dump:

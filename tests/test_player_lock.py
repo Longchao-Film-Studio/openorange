@@ -117,15 +117,30 @@ def run():
           "lock_dispatch" in spy.calls, spy.calls)
 
     print("\n[5] 心跳路径也确实走同一把锁")
+    # ★ 2026-10-26：心跳的发送改成走在线连接表（online.send(cid, frames)），
+    #   所以这里要先登记一条连接——这正是运行时 handle_gate 的生命周期顺序。
+    from game_server.transport import online
+    online.reset_for_tests()
+    hb_conn = _FakeConn()
+    online.register(901, hb_conn)
+    online.set_uid(901, "lock_heartbeat")
     accounts.bind(901, "lock_heartbeat")
     spy2 = _Spy(pstate.lock_for)
     old = pstate.lock_for
+    send_calls = []
+    real_send = online.send
+    # 心跳在"没有属性变化"时本来就不产帧，所以监听**发送入口**是否被走到，
+    # 而不是断言收到了帧（否则这条断言会随状态不同而假红/假绿）。
+    online.send = lambda cid, frames: (send_calls.append((cid, len(frames))), real_send(cid, frames))[1]
     pstate.lock_for = spy2
     try:
-        gate._on_heartbeat(_FakeConn(), 901)
+        gate._on_heartbeat(901)
     finally:
         pstate.lock_for = old
+        online.send = real_send
     check("心跳调用了 lock_for(uid)", "lock_heartbeat" in spy2.calls, spy2.calls)
+    check("心跳发送走在线表入口", any(c == 901 for c, _ in send_calls), send_calls)
+    online.reset_for_tests()
 
     print("\n[6] 登录初始化（live_init_dict）走同一把锁")
     from game_server.ms import initdict
