@@ -170,17 +170,36 @@ def live_init_dict(uid=None):
 def _live_init_dict_impl(uid=None):
     """登录时的 initDict 用服务端可变状态（player_state）。
 
-    这样 Set* 改过的值、以及落盘后重启的存档，都会在下次登录时生效。
-    uid 不为空时把 initDict 里的 uid 覆盖成它 —— 多账号时每个账号用自己的 uid
-    （现在 uid 直接复用账号名，见 game_server/server.py 的在线账号关联）。
+    2026-10-25 拆分：原 241 行/复杂度 39 的单函数按初始化阶段拆成 13 个
+    _stage_xxx，本函数只按原顺序调用。每个阶段的函数体与原片段逐行一致，
+    顺序不变 => 行为等价（tests 全量验证）。
     """
+    st = _stage_boot(uid)
+    if st is None:
+        return DEFAULT_INIT_DICT
+    _stage_scaffold(st, uid)
+    _stage_street_pos(st)
+    _stage_story_seed(st)
+    _stage_street_info(st)
+    _stage_hero_by_gender(st)
+    _stage_daily_reset(st)
+    _stage_task_seed(st)
+    _stage_chapter_attrs(st)
+    _stage_stamina(st, uid)
+    _stage_login_tick(st)
+    _stage_recalc_unlocks(st)
+    return _stage_public_snapshot(st)
+
+
+def _stage_boot(uid=None):
+    """建立/取出玩家状态 + 重置 drain。"""
     try:
         from .. import player_state as pstate
     except Exception:
         try:
             import player_state as pstate
         except Exception:
-            return DEFAULT_INIT_DICT
+            return None   # 由调用方回落到 DEFAULT_INIT_DICT
     try:
         # ★ 服务端状态必须用整数键（和客户端一致）。
         #   avatar_init.json 里是 "#9001" 这种写法，conv_int_keys 之后才是 9001。
@@ -193,10 +212,15 @@ def _live_init_dict_impl(uid=None):
         #   （旧实现不重置，靠重复跑撑正确性；现在按登录粒度精确触发。）
         pstate.reset_drain(uid)
     except Exception:
-        return DEFAULT_INIT_DICT
+        return None   # 由调用方回落到 DEFAULT_INIT_DICT
     # 账号 uid 写进状态本身（多账号时每个账号用自己的 uid）
     if uid:
         st.props["uid"] = uid
+
+    return st
+
+def _stage_scaffold(st, uid=None):
+    """脚手架覆盖层（仅新存档一次）。"""
     # ★ 脚手架覆盖层：只在「该账号首次建状态」时应用一次，默认关闭。
     #   以前是烤进 avatar_init.json 的，生成后关不掉，见 scaffold.py 头部注释。
     # 只有「新建存档」才应用脚手架（老存档里的进度不能被覆盖）
@@ -217,6 +241,9 @@ def _live_init_dict_impl(uid=None):
                 _log.warning(f"[init] 脚手架应用失败: {e}")
         st.scaffold_applied = True
 
+
+def _stage_street_pos(st):
+    """位置持久化 -> street_pos_info。"""
     # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
     #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
     #   数据来源是 entity_rpc 的 _update_street_pos / _client_move
@@ -238,6 +265,9 @@ def _live_init_dict_impl(uid=None):
                 _spi["dir"] = float(_sp.get("dir") or 0)
                 st.props["street_pos_info"] = _spi
 
+
+def _stage_story_seed(st):
+    """剧情任务播种（幂等）。"""
     # ★ 剧情任务播种（每次登录都跑，幂等）。
     #
     #   阶段 C 的错误（2026-10-22 实机发现）：以前这整块包在
@@ -262,6 +292,9 @@ def _live_init_dict_impl(uid=None):
         except Exception as e:
             _log.warning(f"[init] 剧情播种失败: {e}")
 
+
+def _stage_street_info(st):
+    """确保当前 street_info 条目存在。"""
     # ★ 修复「结算后无缝切街区」崩溃（2026-10-23 实机日志实锤）：
     #   客户端进街区 StreetSystemMgrBase.lua:111-114 getStreetBgm() 读
     #     self:getStreetInfoByID(curr_street_id)  -> street_info[street_id]
@@ -280,6 +313,9 @@ def _live_init_dict_impl(uid=None):
     except Exception as e:
         _log.warning(f"[init] street_info 条目补齐失败: {e}")
 
+
+def _stage_hero_by_gender(st):
+    """按 gender 校正主角/编队。"""
     # ★ 2026-10-23 实机反馈：街区「队伍切换」头像显示男主。
     #   客户端 StreetV2Panel:initFormation 用 character_list[choosen_index].value[i]
     #   （charId）当队员头像（CharData[charId].DefaultSkin -> CharAppearanceData.
@@ -298,6 +334,8 @@ def _live_init_dict_impl(uid=None):
             _log.warning(f"[init] 主角/编队校正失败: {e}")
 
 
+def _stage_daily_reset(st):
+    """跨天重置（每日任务/头衔）。"""
     # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
     #   只在「天序号变了」时才动，同一天多次登录幂等。
     #   必须在通用任务播种**之前**跑，否则重置会把刚播的日常任务又清掉。
@@ -310,6 +348,8 @@ def _live_init_dict_impl(uid=None):
         _log.warning(f"[init] 跨天重置失败: {e}")
 
 
+def _stage_task_seed(st):
+    """通用任务播种（幂等）。"""
     # ★ P1 阶段 N-a2：通用任务播种（TaskData 那套 -> task_bag）。
     #
     #   实机取证（2026-10-22）：task_bag 之前实测 0 槽位、0 任务，
@@ -329,6 +369,9 @@ def _live_init_dict_impl(uid=None):
     except Exception as e:
         _log.warning(f"[init] 通用任务播种失败: {e}")
 
+
+def _stage_chapter_attrs(st):
+    """章节收集数/奖励列表补全。"""
     # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
     #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
     #   以前服务端从来不写 -> 章节 UI 的收集进度/奖励状态恒为空。
@@ -342,6 +385,9 @@ def _live_init_dict_impl(uid=None):
         except Exception as e:
             _log.warning(f"[init] 章节属性补全失败: {e}")
 
+
+def _stage_stamina(st, uid=None):
+    """体力初始化/离线恢复。"""
     # ★ 体力：新号拉满；每次登录按离线时间补。
     #   以前 tower_reward_keys 默认 0、两个时间戳也 0，
     #   导致「开局不满、也不随时间恢复」。见 game_server/stamina.py。
@@ -366,6 +412,33 @@ def _live_init_dict_impl(uid=None):
                     print("[init] 离线恢复体力(uid={}): +{} -> {}".format(uid, _gained, st.props.get("tower_reward_keys")), flush=True)
         except Exception as e:
             _log.warning(f"[init] 体力处理失败: {e}")
+
+
+def _stage_login_tick(st):
+    """登录时跑一次事件总线。"""
+    # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
+    _login_tick(st)
+
+
+def _stage_recalc_unlocks(st):
+    """全量重算系统解锁。"""
+    # ★ roadmap 队列第 2 项：登录时**全量重算系统解锁**。
+    #   为什么要在登录做：
+    #     - 玩家离线期间可能完成任务 / 升级，内存里的 unlocked_system 会落后；
+    #     - `recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
+    #     - 这里在快照构建之前，所以重算结果直接进 initDict，不需要推帧。
+    try:
+        from ..story.rpc import recalc_system_unlocks as _recalc_u
+        _uf = _recalc_u(st)
+        if _uf:
+            print(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）',
+                  flush=True)
+    except Exception as e:
+        _log.warning(f"[init] 系统解锁重算失败: {e}")
+
+
+def _stage_public_snapshot(st):
+    """构建下发给客户端的 initDict（剥私有字段）。"""
     # ★ 服务端私有字段（以 _oo_ 开头，比如 _oo_street_pos / _oo_micro_state）
     #   **绝不能进 initDict** —— 客户端 initProperty 对每个表值都要求带 __tp__
     #   （core/propertysync/puppetpropertycomponent.lua:51-54 的 assert），
@@ -383,23 +456,6 @@ def _live_init_dict_impl(uid=None):
     #
     #   strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
     #   递归进去的值一律剥掉。
-    # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
-    _login_tick(st)
-
-    # ★ roadmap 队列第 2 项：登录时**全量重算系统解锁**。
-    #   为什么要在登录做：
-    #     - 玩家离线期间可能完成任务 / 升级，内存里的 unlocked_system 会落后；
-    #     - `recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
-    #     - 这里在快照构建之前，所以重算结果直接进 initDict，不需要推帧。
-    try:
-        from ..story.rpc import recalc_system_unlocks as _recalc_u
-        _uf = _recalc_u(st)
-        if _uf:
-            print(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）',
-                  flush=True)
-    except Exception as e:
-        _log.warning(f"[init] 系统解锁重算失败: {e}")
-
     from ..property import sync as _syncmod
     _public = {}
     for k, v in st.props.items():
@@ -407,6 +463,7 @@ def _live_init_dict_impl(uid=None):
             continue
         _public[k] = _syncmod.strip_private(v, is_root=True)
     return {"__Properties__": _public}
+
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
                          init_dict=None,
