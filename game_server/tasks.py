@@ -34,7 +34,11 @@ import time
 
 from . import gamedata
 from .story.state_machine import (
-    TASK_STATE_DOING, TASK_STATE_DONE, TASK_STATE_FINISHED, TASK_STATE_INIT, TASK_STATE_WAIT_DONE,
+    TASK_STATE_DOING,
+    TASK_STATE_DONE,
+    TASK_STATE_FINISHED,
+    TASK_STATE_INIT,
+    TASK_STATE_WAIT_DONE,
     can_transition,
 )
 

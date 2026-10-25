@@ -11,7 +11,8 @@ characterBag 结构（initDict 实测）：
 所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
 """
 from .. import ms as msmod
-from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
 # 升级材料（客户端 roleupgradepanel.lua 的 ExpBookIDs）：

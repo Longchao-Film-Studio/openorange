@@ -9,8 +9,9 @@ propertySync2Client 的帧类型是 13，载荷是 protobuf：
   OP_INSERT 列表插入 / OP_REMOVE 列表删除
   新键必须用 OP_ADD，否则客户端 _changeSubProperty 里 oldVal 为 nil 会崩。
 """
-from .protocol import _conv_int_keys, mp_any, pb_bytes_field, pb_varint_field
 from .frames import frame
+from .protocol import _conv_int_keys, mp_any, pb_bytes_field, pb_varint_field
+
 # 描述符（扫客户端进程内存拿到的 PropertySyncClientMessage）：
 #   ownerid    = 1  bytes
 #   propertyid = 2  int64  (required)

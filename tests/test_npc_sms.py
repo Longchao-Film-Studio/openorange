@@ -16,10 +16,12 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_sms_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+from game_server import (
+    gamedata,  # noqa: E402
+    rpc_index,  # noqa: E402
+)
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
-from game_server import rpc_index  # noqa: E402
-from game_server import gamedata  # noqa: E402
 from game_server.story import npc_sms  # noqa: E402
 
 passed, failed = [], []

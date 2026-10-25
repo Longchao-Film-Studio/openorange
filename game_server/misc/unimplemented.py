@@ -9,6 +9,7 @@
 """
 from ..rpc_common import respond_after_sync
 
+
 def _ack_only(rid, params, uid=None):
     """只回 status=true 的 RPC。"""
     return respond_after_sync(rid, [])

@@ -43,20 +43,29 @@
 任务状态（common/globalconst.lua:77）
     Idle=1 Init=2 Doing=3 WaitDone=4 Done=5 Finished=6
 """
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from ..property import ids as _ids
-
 from .state_machine import (  # noqa: F401  (re-export：业务模块继续用 story.TASK_STATE_*)
-    TASK_STATE_CLOSED, TASK_STATE_DOING, TASK_STATE_DONE, TASK_STATE_FAILED,
-    TASK_STATE_FINISHED, TASK_STATE_IDLE, TASK_STATE_INIT, TASK_STATE_WAIT_DONE,
-    TransitionError, can_transition, make_story_task_item, state_name,
+    TASK_STATE_CLOSED,
+    TASK_STATE_DOING,
+    TASK_STATE_DONE,
+    TASK_STATE_FAILED,
+    TASK_STATE_FINISHED,
+    TASK_STATE_IDLE,
+    TASK_STATE_INIT,
+    TASK_STATE_WAIT_DONE,
+    TransitionError,
+    can_transition,
+    make_story_task_item,
+    state_name,
 )
 from .state_machine import create_task as _sm_create_task
 from .state_machine import current_state as _sm_current_state
 from .state_machine import move_to_done as _sm_move_to_done
 from .state_machine import transition as _sm_transition
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 def make_active_task(st, task_id, task_type, state, now):
@@ -225,8 +234,8 @@ def mark_story_line_finished(st, copy_id):
     st.set("story_finished", sf)
     # story_finished 是 BooleanDictKeyInt：键 int、值 bool
     # 首次用 OP_ADD（entryAdded -> on_story_finished_added），复通用 OP_CHANGE
-    from ..rpc_common import SYNC_SELF, sync_frame
     from .. import ms as _ms
+    from ..rpc_common import SYNC_SELF, sync_frame
     return [sync_frame(SYNC_SELF, sf.get("__id__") or 0,
                        _ms.OP_ADD if is_new else _ms.OP_CHANGE,
                        str(sid), True)]
@@ -261,8 +270,8 @@ def sync_story_max_collect_num(st):
     mc = st.props.get("story_max_collect_num")
     if not isinstance(mc, dict):
         return out
-    from ..rpc_common import SYNC_SELF, sync_frame
     from .. import ms as _ms
+    from ..rpc_common import SYNC_SELF, sync_frame
     changed = False
     for row in (gamedata.table("StoryLineData") or {}).values():
         if not isinstance(row, dict):
@@ -297,8 +306,8 @@ def sync_story_reward_list(st):
     rl = st.props.get("story_reward_list")
     if not isinstance(rl, dict):
         return out
-    from ..rpc_common import SYNC_SELF, sync_frame
     from .. import ms as _ms
+    from ..rpc_common import SYNC_SELF, sync_frame
     changed = False
     for row in (gamedata.table("StoryLineData") or {}).values():
         if not isinstance(row, dict):

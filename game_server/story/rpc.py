@@ -23,16 +23,21 @@
 
 import time
 
-from .. import gamedata
+from shared.log_tee import get_logger
+
+from .. import gamedata, story
 from .. import ms as msmod
-from .. import story
 from ..rpc_common import (
-    SYNC_SELF, EVENT_MAX_DEPTH, decode_params, respond_after_sync, state,
-    sync_frame)
+    EVENT_MAX_DEPTH,
+    SYNC_SELF,
+    decode_params,
+    respond_after_sync,
+    state,
+    sync_frame,
+)
 from . import events as _events
 from . import npc_sms
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 def _story_sync_frames(st, changes):

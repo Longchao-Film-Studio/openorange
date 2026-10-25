@@ -9,6 +9,7 @@
 否则不匹配 —— 所以这些值必须提前记下来。
 """
 from .. import gamedata
+
 # SystemType.MainStory = 1004（序章就是这个）
 _STORY_TYPE_MAINSTORY = 1004
 

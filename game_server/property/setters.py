@@ -17,8 +17,8 @@
 编队（character_list）是「改子属性」不是根属性，所以单独两个函数。
 """
 from .. import ms as msmod
-from ..rpc_common import (SYNC_SELF, decode_params, respond_after_sync, state,
-                          sync_frame)
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+
 
 def _set_character_list(rid, params, uid=None):
     """编队内容：SetCharacterList_CS {idx, characterList} / SetCharacterListName_CS {index, name}。

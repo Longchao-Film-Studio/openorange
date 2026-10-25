@@ -34,9 +34,10 @@
 import os
 import time
 
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from ..property.tx import Tx
-from shared.log_tee import get_logger
 
 _log = get_logger(__name__)
 

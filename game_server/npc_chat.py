@@ -9,11 +9,12 @@
 
 所有状态写入都走 story/npc_sms.py（唯一入口，R8）。
 """
-from . import gamedata
-from .story import npc_sms
-from .rpc_common import respond_after_sync, decode_params, state
-
 from shared.log_tee import get_logger
+
+from . import gamedata
+from .rpc_common import decode_params, respond_after_sync, state
+from .story import npc_sms
+
 _log = get_logger(__name__)
 
 

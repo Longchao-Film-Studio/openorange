@@ -1,6 +1,10 @@
 
 """生成 docs/RPC缺口分析.md"""
-import os, re, sys, collections
+import collections
+import os
+import re
+import sys
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = r"F:\haowancheng\OpenOrange"
 TSV = os.path.join(ROOT, "work", "rpc_list.tsv")

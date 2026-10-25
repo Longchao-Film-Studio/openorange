@@ -7,6 +7,7 @@
 """
 from ..rpc_common import decode_params, state, throttled_save
 
+
 def _client_move(params, uid=None):
     """RpcOnClientMove [x, y, z, dir] —— 记录位置。"""
     vals = decode_params(params)

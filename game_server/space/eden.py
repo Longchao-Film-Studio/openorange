@@ -12,6 +12,7 @@
 from ..rpc_common import decode_params, respond_after_sync
 from .space import SPACE_EDEN, _enter_space
 
+
 def _enter_eden(params, uid=None):
     """RpcEnterEden [pos_id] / RpcBackToEden [] —— 进伊甸空间。"""
     vals = decode_params(params)

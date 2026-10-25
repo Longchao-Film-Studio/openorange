@@ -3,8 +3,7 @@ import time
 
 from shared import db, gamedata
 
-from .core import (COMMANDS, PERM_ADMIN, PERM_NAMES, PERM_PLAYER, _pad, err,
-                   lookup, ok, register)
+from .core import COMMANDS, PERM_ADMIN, PERM_NAMES, PERM_PLAYER, _pad, err, lookup, ok, register
 
 
 # ---------------------------------------------------------------- 命令实现

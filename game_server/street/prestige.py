@@ -15,16 +15,16 @@
   调用方是先 save 再 push，临时字段会被写进存档，重启后又对已存在的 entry 发 OP_ADD
   -> 客户端 id repeated! 覆盖缓存。
 """
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import sync as _sync
 from ..property import tx as _tx
-from ..rpc_common import (
-    SYNC_SELF, decode_params, respond_after_sync, state, sync_frame)
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 from .info import _street_info_of
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 def _prestige_info(st, street_id=None):
     """取（或建）当前街区的 StreetInfo，并保证声望字段齐全。

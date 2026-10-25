@@ -9,11 +9,12 @@
   propertyId = item_bag 的 __id__，name = 格子键（必须是字符串，proto 是 bytes），
   value = 整个格子。客户端 _changeSubProperty 里比对 __id__，命中就原地 rochange。
 """
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。

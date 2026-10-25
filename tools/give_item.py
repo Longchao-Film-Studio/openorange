@@ -28,8 +28,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
-from game_server import player_state as pstate  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
+from game_server import player_state as pstate  # noqa: E402
 
 INIT_JSON = os.path.join(_ROOT, "game_server", "avatar_init.json")
 

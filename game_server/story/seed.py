@@ -33,11 +33,12 @@
 """
 import time
 
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from .. import story as story_mod
 from .state_machine import TASK_STATE_FINISHED
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 # 一次播种的硬上限：任务图理论上无环，但数据不一定可靠。

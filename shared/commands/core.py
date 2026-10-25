@@ -11,8 +11,8 @@
 """
 from shared import db
 
-from .backend import admin_call as _admin, admin_down
-
+from .backend import admin_call as _admin
+from .backend import admin_down
 
 # ---------------------------------------------------------------- 权限
 PERM_PLAYER = 0

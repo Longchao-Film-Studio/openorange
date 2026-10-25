@@ -12,6 +12,8 @@ import struct
 
 from .defaults import _DEF_UID
 from .protocol import pb_bytes_field, pb_varint_field
+
+
 def frame(msg_type, body):
     payload = struct.pack("<H", msg_type) + body
     return struct.pack("<I", len(payload)) + payload

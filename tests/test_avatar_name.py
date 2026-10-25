@@ -22,10 +22,12 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_name_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import avatar  # noqa: E402
+from game_server import (
+    avatar,  # noqa: E402
+    rpc_index,  # noqa: E402
+)
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
-from game_server import rpc_index  # noqa: E402
 from game_server.story import events as sev  # noqa: E402
 from tests.frame_guard import guarded_handle, pre_snapshot  # noqa: E402
 from tests.shadow_cache import frames_safe  # noqa: E402

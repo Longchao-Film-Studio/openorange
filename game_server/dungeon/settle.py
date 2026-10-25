@@ -16,16 +16,17 @@
 之前只回了个 ACK，客户端 onFinishGameSuccess(true) 什么都不做
 （offlinebattlespace.lua:217-221），于是卡在战斗空间、输入被锁。
 """
+from shared.log_tee import get_logger
+
 from .. import ms as msmod
-from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
-from ..story import events as _events
 from .. import story as story_mod
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..story import events as _events
 from ..story.rpc import _finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 RPC_AVATAR_SPACE_FINISH_SC = 1634212414   # AvatarSpace_SpaceFinish_SC
 

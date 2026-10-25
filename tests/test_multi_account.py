@@ -23,7 +23,8 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
-from game_server import ms as msmod, player_state as pstate  # noqa: E402
+from game_server import ms as msmod  # noqa: E402
+from game_server import player_state as pstate
 from game_server import rpc_common as rpc_common  # noqa: E402
 from game_server.property import sync as prop_sync  # noqa: E402
 from game_server.transport import accounts  # noqa: E402

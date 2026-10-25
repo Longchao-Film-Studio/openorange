@@ -7,6 +7,8 @@
   QueryMyTeamInfo_CS    -> 该玩家不在任何队伍里（errcode=-1 客户端安静返回）
 """
 from .. import ms as msmod
+
+
 def _sunact_level(rid, params, uid=None):
     """RpcGetSunActLevel_CS -> RpcGetSunActLevel_SC。
 

@@ -24,7 +24,71 @@
 
 # pb / msgpack 编解码已拆到 protocol.py；userdata 应答在 userdata.py。
 # 这里 re-export，保持 msmod.pb_parse / msmod.mp_arr 等既有调用点不变。
+from .bind import (  # noqa: F401  (re-export)
+    BIND_ACCOUNT_TYPE,
+    BIND_AVATAR_TYPE,
+    BIND_SOUL_TYPE,
+    build_bind_account,
+    build_bind_avatar,
+    build_bind_soul,
+    build_entity_mailbox,
+    build_server_info,
+    frame_bind_account,
+    frame_bind_avatar,
+    frame_bind_soul,
+)
+
+# P0-E3：ms.py 已按职责拆成 protocol / frames / entity / property / bind / userdata，
+# 这里统一 re-export，保持 msmod.xxx 的全部既有调用点不变。
+from .defaults import (  # noqa: F401  (re-export)
+    _DEF_ACCOUNT_EID,
+    _DEF_AVATAR_EID,
+    _DEF_UID,
+)
+from .entity import (  # noqa: F401  (re-export)
+    ENTITY_RESPONSE_FRAME_TYPE,
+    build_entity_message,
+    build_entity_response,
+    build_match_duration_sc,
+    build_sunact_level_sc,
+    build_team_info_sc,
+    parse_entity_frame,
+    parse_entity_response,
+)
+from .frames import (  # noqa: F401  (re-export)
+    CONNECT_RESP_TYPE,
+    MS_RESP_TYPE,
+    build_connect_server_resp,
+    build_ms_response,
+    frame,
+    frame_connect_resp,
+    frame_ms_response,
+    split_frames,
+)
+from .initdict import (  # noqa: F401  (re-export)
+    _LEGACY_INIT_DICT,
+    AVATAR_INIT_DICT,
+    CLIENT_AVATAR_CLASS,
+    DEFAULT_INIT_DICT,
+    MSGPACK_EMPTY_MAP,
+    _live_init_dict,
+    _login_tick,
+    build_channel_entity,
+)
+from .property import (  # noqa: F401  (re-export)
+    OP_ADD,
+    OP_CHANGE,
+    OP_DEL,
+    OP_INSERT,
+    OP_REMOVE,
+    PROPERTY_SYNC_TYPE,
+    RPC_INDEX_SET_SIGNATURE_CS,
+    RPC_INDEX_UPGRADE_CHARACTER_CS,
+    RPC_INDEX_USE_ITEM_CS,
+    build_property_sync,
+)
 from .protocol import (  # noqa: F401  (re-export)
+    _conv_int_keys,  # noqa: F401  (re-export)
     mp_any,
     mp_arr,
     mp_bool,
@@ -39,70 +103,6 @@ from .protocol import (  # noqa: F401  (re-export)
     pb_varint_field,
 )
 from .userdata import build_userdata_batch_params  # noqa: F401  (re-export)
-
-# P0-E3：ms.py 已按职责拆成 protocol / frames / entity / property / bind / userdata，
-# 这里统一 re-export，保持 msmod.xxx 的全部既有调用点不变。
-from .defaults import (  # noqa: F401  (re-export)
-    _DEF_ACCOUNT_EID,
-    _DEF_AVATAR_EID,
-    _DEF_UID,
-)
-from .frames import (  # noqa: F401  (re-export)
-    CONNECT_RESP_TYPE,
-    MS_RESP_TYPE,
-    build_connect_server_resp,
-    build_ms_response,
-    frame,
-    frame_connect_resp,
-    frame_ms_response,
-    split_frames,
-)
-from .protocol import _conv_int_keys  # noqa: F401  (re-export)
-from .initdict import (  # noqa: F401  (re-export)
-    AVATAR_INIT_DICT,
-    CLIENT_AVATAR_CLASS,
-    DEFAULT_INIT_DICT,
-    MSGPACK_EMPTY_MAP,
-    _LEGACY_INIT_DICT,
-    _live_init_dict,
-    _login_tick,
-    build_channel_entity,
-)
-from .entity import (  # noqa: F401  (re-export)
-    ENTITY_RESPONSE_FRAME_TYPE,
-    build_entity_message,
-    build_entity_response,
-    build_match_duration_sc,
-    build_sunact_level_sc,
-    build_team_info_sc,
-    parse_entity_frame,
-    parse_entity_response,
-)
-from .property import (  # noqa: F401  (re-export)
-    OP_ADD,
-    OP_CHANGE,
-    OP_DEL,
-    OP_INSERT,
-    OP_REMOVE,
-    PROPERTY_SYNC_TYPE,
-    RPC_INDEX_SET_SIGNATURE_CS,
-    RPC_INDEX_UPGRADE_CHARACTER_CS,
-    RPC_INDEX_USE_ITEM_CS,
-    build_property_sync,
-)
-from .bind import (  # noqa: F401  (re-export)
-    BIND_ACCOUNT_TYPE,
-    BIND_AVATAR_TYPE,
-    BIND_SOUL_TYPE,
-    build_bind_account,
-    build_bind_avatar,
-    build_bind_soul,
-    build_entity_mailbox,
-    build_server_info,
-    frame_bind_account,
-    frame_bind_avatar,
-    frame_bind_soul,
-)
 
 # ★ 默认值统一从 config 取，不要在这里写死端口/uid/实体 id。
 

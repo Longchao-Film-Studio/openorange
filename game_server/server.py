@@ -43,6 +43,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared import db  # noqa: E402
+from shared.log_tee import get_logger
 
 from . import config as ooconf  # noqa: E402
 from .transport.capture import handle_capture  # noqa: E402
@@ -50,7 +51,6 @@ from .transport.gate import handle_gate  # noqa: E402
 from .transport.ms_service import handle_ms  # noqa: E402
 from .transport.net import CAPTURE_DIR, next_cid  # noqa: E402
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 # ★ 端口/路径一律从 game_server.config 取，不要在这里写死。

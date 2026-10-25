@@ -20,8 +20,10 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
-from game_server import rpc_index  # noqa: E402
-from game_server import tasks  # noqa: E402
+from game_server import (
+    rpc_index,  # noqa: E402
+    tasks,  # noqa: E402
+)
 from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []

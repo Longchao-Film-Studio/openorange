@@ -17,9 +17,10 @@
 
 这两个检查放在这一层，所有走 Tx 的地方自动受益。
 """
+from shared.log_tee import get_logger
+
 from .tx import OP_ADD, OP_DEL, OP_INSERT, OP_REMOVE
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 # 属性同步帧里 ownerid 的取值（客户端 core/client/gateclientrpchandler.lua:269-288）：

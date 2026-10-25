@@ -17,7 +17,9 @@
 
 输出里 score 只是排序参考，**采纳与否必须人工读原文**。
 """
-import os, re, sys
+import os
+import re
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if hasattr(sys.stdout, "reconfigure"):

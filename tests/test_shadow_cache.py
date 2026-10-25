@@ -24,10 +24,13 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_shadow_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
-                         config, story, gamedata)
-from game_server.property import ids as ids_mod
 from shadow_cache import ShadowCache
+
+from game_server import config, gamedata, story
+from game_server import entity_rpc as erpc
+from game_server import ms as msmod
+from game_server import player_state as pstate
+from game_server.property import ids as ids_mod
 
 passed, failed = [], []
 

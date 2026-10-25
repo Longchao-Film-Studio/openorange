@@ -21,7 +21,8 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_tx_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server.property import spec, tx as txmod, sync
+from game_server.property import spec, sync
+from game_server.property import tx as txmod
 from game_server.property.tx import OP_ADD, OP_CHANGE, OP_DEL
 
 passed, failed = [], []

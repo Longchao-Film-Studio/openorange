@@ -29,10 +29,10 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from shared import admin_token as _admin_token
+from shared.log_tee import get_logger
 
 from . import runtime
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 DEFAULT_PORT = 33102
@@ -63,7 +63,8 @@ def _do_unlock_npc_topic(uid, topic_id):
     与 /player/skip-prologue 同样的前置：先保证状态完整，再走领域层唯一入口。
     allow_unmapped=True —— 这是显式 GM 越权，与任务路径（默认 False）区分。
     """
-    from . import ms as msmod, player_state
+    from . import ms as msmod
+    from . import player_state
     from .story import npc_sms
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
@@ -93,7 +94,8 @@ def _do_skip_prologue(uid):
       - 直接 get_state 拿到的是**空白状态**，story_task_bag 还没有 1000，
         后面 finish_story_task 就找不到任务（实测 story_task_1000 返回 -1）。
     """
-    from . import ms as msmod, player_state, story
+    from . import ms as msmod
+    from . import player_state, story
     # 没有存档 / 存档是空壳（被查询命令创建过）-> 用完整初始数据重建
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
@@ -168,7 +170,8 @@ def _set_player_force_level(uid, level):
       - 重启游戏服不丢
       - 多开/换号互不影响
     """
-    from . import ms as msmod, player_state
+    from . import ms as msmod
+    from . import player_state
     try:
         v = int(level or 0)
     except (TypeError, ValueError):
@@ -195,7 +198,8 @@ def _set_player_force_level(uid, level):
 
 def _ensure_player_state(uid):
     """确保某账号有完整存档（别留空壳）。返回 (st, ok)。"""
-    from . import ms as msmod, player_state
+    from . import ms as msmod
+    from . import player_state
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
         player_state.reset_state(

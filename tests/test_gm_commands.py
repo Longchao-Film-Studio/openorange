@@ -27,11 +27,11 @@ os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % _TEST_PORT
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import admin_api
-
-from tests.frame_guard import guarded_handle  # noqa: E402
+from game_server import admin_api, config
+from game_server import entity_rpc as erpc
+from game_server import ms as msmod
 from shared import commands as cmds
-from game_server import ms as msmod, entity_rpc as erpc, config
+from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
 

@@ -25,9 +25,10 @@ import json
 import os
 import threading
 
+from shared.log_tee import get_logger
+
 from . import config
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 _LOCK = threading.RLock()

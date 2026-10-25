@@ -9,7 +9,7 @@
 """
 from shared import gamedata
 
-from .core import _ambiguous, _need_num, PERM_GM, err, ok, register
+from .core import PERM_GM, _ambiguous, _need_num, err, ok, register
 
 
 def _admin_down_result(e):

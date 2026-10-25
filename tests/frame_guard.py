@@ -20,19 +20,19 @@
   建缓存时，客户端缓存里已经有那条新数据了，「新键用 OP_CHANGE」这种
   回归**抓不到**。
 """
-import sys
 import os
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from game_server import entity_rpc as _erpc   # noqa: E402
+from game_server import entity_rpc as _erpc  # noqa: E402
 from game_server import player_state as _pstate  # noqa: E402
 from game_server.property import sync as _sync  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe   # noqa: E402
+from shadow_cache import frames_safe  # noqa: E402
 
 
 def pre_snapshot(uid):

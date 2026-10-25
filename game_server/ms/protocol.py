@@ -11,6 +11,7 @@
 """
 import struct
 
+
 def pb_read_varint(data, i):
     shift = 0
     val = 0

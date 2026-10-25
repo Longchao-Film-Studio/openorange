@@ -13,11 +13,12 @@
 import json
 import os
 
+from shared.log_tee import get_logger
+
 from .defaults import _DEF_AVATAR_EID, _DEF_UID, ooconf
 from .frames import frame
 from .protocol import _conv_int_keys, mp_map, pb_bytes_field
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 #
@@ -291,7 +292,8 @@ def _live_init_dict_impl(uid=None):
     #   登录时统一按 gender 修正：主角 + 编队 + characterBag（幂等，无帧，快照自带）。
     if int(st.props.get("gender") or 0) in (1, 2):
         try:
-            from ..avatar import _ensure_hero_by_gender as _eh, _set_formation_hero as _sfh
+            from ..avatar import _ensure_hero_by_gender as _eh
+            from ..avatar import _set_formation_hero as _sfh
             _eh(st, st.props.get("gender"), None)
             _want = 9002 if int(st.props.get("gender")) == 2 else 9001
             _sfh(st, _want, None)

@@ -15,9 +15,10 @@ import socket
 import threading
 import time
 
+from shared.log_tee import get_logger
+
 from .net import CAPTURE_DIR, log_packet, pump
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 

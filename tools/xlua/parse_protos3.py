@@ -1,6 +1,7 @@
 
 """完整解析 proto 描述符：service / method / message / field。"""
 import sys
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 P = r"F:\ghidra\out\xlua_unpacked.dll"
 OUT = r"F:\haowancheng\OpenOrange\docs\proto协议.md"

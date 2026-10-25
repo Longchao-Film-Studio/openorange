@@ -4,7 +4,9 @@
 所以只要把段表的 PointerToRawData 改成 VirtualAddress、
 SizeOfRawData 改成 VirtualSize，整个文件就是「偏移 = RVA」的布局。
 """
-import struct, sys
+import struct
+import sys
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 DUMP = r"F:\ghidra\out\xlua_dump.bin"

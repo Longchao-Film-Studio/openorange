@@ -10,6 +10,8 @@ from .. import ms as msmod
 from .. import story
 from ..rpc_common import SYNC_SELF, sync_frame
 from ..story.rpc import _emit_get_item, _finish_story_tasks
+
+
 def _grant_battle_items(st, battle_items):
     """把 battle_items 里的道具发进背包，返回 (同步帧列表, reward_item_list)。"""
     frames = []

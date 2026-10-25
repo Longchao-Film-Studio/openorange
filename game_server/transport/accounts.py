@@ -10,10 +10,11 @@
 import threading
 import time
 
+from shared.log_tee import get_logger
+
 from .. import ms as msmod
 from ..config import FALLBACK_UID as DEFAULT_UID
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 try:

@@ -42,11 +42,12 @@
 客户端 `checkNameResult(ret)`（namecomp.lua:46-67）的判定顺序：
 `ret.status` 为真即成功；否则看 `ret.errorcode`。所以成功时回 `{status: True}` 就够。
 """
+from shared.log_tee import get_logger
+
 from . import ms as msmod
-from .rpc_common import SYNC_SELF, decode_params, state, respond_after_sync, sync_frame
+from .rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 from .story.tasks import drain_event_task_sync
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 # NameErrorCode（common/systemconst.lua）

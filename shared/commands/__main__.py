@@ -7,10 +7,10 @@
 import sys
 
 from shared import db
+from shared.log_tee import get_logger
 
 from . import COMMANDS, PERM_ADMIN, Context, execute
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 

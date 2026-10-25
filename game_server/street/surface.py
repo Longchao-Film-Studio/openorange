@@ -11,10 +11,11 @@
 """
 import time
 
-from .. import ms as msmod
-from ..rpc_common import respond_after_sync, SYNC_SELF, state, sync_frame
-
 from shared.log_tee import get_logger
+
+from .. import ms as msmod
+from ..rpc_common import SYNC_SELF, respond_after_sync, state, sync_frame
+
 _log = get_logger(__name__)
 def _set_surface_time(st, value):
     """改 street_info.surface_enter_time 并推同步。"""

@@ -14,12 +14,12 @@
   客户端 _changeSubProperty 里 oldVal 为 nil -> 整条同步被丢弃。
   表现：切街区后小地图/宝箱/交互状态全不同步。现在交给 Tx，新键自动用 OP_ADD。
 """
+from shared.log_tee import get_logger
+
 from ..property import tx as _tx
-from ..rpc_common import (
-    decode_params, respond_after_sync, state, throttled_save)
+from ..rpc_common import decode_params, respond_after_sync, state, throttled_save
 from .info import _make_street_info_entry
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 def _switch_street(rid, params, uid=None):
     """RequestSwitchStreet_CS {streetId, streetParams} / RpcEnterStreet {id, streetParams}。"""

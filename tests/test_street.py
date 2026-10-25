@@ -20,8 +20,10 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_street_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config
-
+from game_server import config
+from game_server import entity_rpc as erpc
+from game_server import ms as msmod
+from game_server import player_state as pstate
 from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
@@ -37,7 +39,8 @@ def check(name, cond, detail=None):
 # ★ 原来这里有个 parse_sync 依赖 msmod.parse_property_sync，但那个函数根本不存在，
 #   永远返回 {}（死代码）。现在改成用影子缓存做真正的帧校验。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe   # noqa: E402
+from shadow_cache import frames_safe  # noqa: E402
+
 
 def run():
     print("\n[1] 索引表里有街区三条")

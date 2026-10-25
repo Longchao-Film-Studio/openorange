@@ -29,6 +29,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # 存档目录统一由 config 管：默认 work/player_state，设 OO_STATE_DIR 可换。
 from . import config as _cfg  # noqa: E402
 from .property import ids as _ids  # noqa: E402
+
 _STATE_DIR = _cfg.STATE_DIR
 
 _LOCK = threading.RLock()

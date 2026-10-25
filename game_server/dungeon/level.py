@@ -12,13 +12,14 @@ BattleTeach_Activate_CS 写 battle_teach_state[iid] = 0 并推同步：
 """
 import time
 
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 def _avatar_enter_next(rid, params, uid=None):
     """Cmd_Avatar_EnterNext_CS {copyIndex} —— 回下一关的 levelInfo。

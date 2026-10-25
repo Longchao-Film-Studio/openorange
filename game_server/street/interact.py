@@ -12,15 +12,16 @@
 红点在 StreetInfoDict.street_redpoint（IntDict，avatarstreetcomp.lua:581-587）。
 追踪任务存 street_trace_taskid（avatarstreetcomp.lua:741）。
 """
+from shared.log_tee import get_logger
+
 from ..property import ids as _ids
 from ..property import tx as _tx
-from ..rpc_common import respond_after_sync, decode_params, state
+from ..rpc_common import decode_params, respond_after_sync, state
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .info import _street_info_of, _street_tx_begin
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 def _actor_interact(rid, params, uid=None):
     """Street_Actor_InteractID_Update_CS {actor_id, interact_group, interact_id, taskId?, interact_id}。"""
@@ -131,7 +132,8 @@ def _street_trace_task(rid, params, uid=None):
     #   玩家「想追踪什么」记进 _oo_trace_wanted（可以是别的街区的任务，走到那儿自动恢复），
     #   真正下发的 street_trace_taskid 由 trace.apply 判定——它保证只指向
     #   「正在做 + 本街区」的任务。取消追踪（客户端发 -1000）走 force_zero。
-    from ..story.trace import apply as _trace_apply, note_wanted
+    from ..story.trace import apply as _trace_apply
+    from ..story.trace import note_wanted
     if tid <= 0:
         _trace_apply(st, syncs, "取消追踪", force_zero=True)
     else:

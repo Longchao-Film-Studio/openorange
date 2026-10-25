@@ -22,8 +22,10 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_ids_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
-                         story, scaffold, config)
+from game_server import config, scaffold, story
+from game_server import entity_rpc as erpc
+from game_server import ms as msmod
+from game_server import player_state as pstate
 from game_server.property import ids as ids_mod
 from tests.frame_guard import check_frames, pre_snapshot
 

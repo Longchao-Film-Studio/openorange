@@ -24,12 +24,14 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_txopt_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod, player_state as pstate, story
+from game_server import ms as msmod
+from game_server import player_state as pstate
+from game_server import story
 from game_server.property import ids as _ids
 from game_server.property import tx as _tx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe   # noqa: E402
+from shadow_cache import frames_safe  # noqa: E402
 
 passed, failed = [], []
 

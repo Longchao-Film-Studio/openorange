@@ -40,13 +40,15 @@ entity_rpc._finish_story_tasks。
 """
 import time
 
+from shared.log_tee import get_logger
+
 from .. import gamedata
+
 # ★ 用模块引用而不是 from . import xxx 绑定函数：
 #   测试会 monkeypatch story.evaluate_event 来抓事件参数，
 #   绑死了函数名就抓不到（test_dungeon_events.py 有 5 项因此失败）。
 from .. import story as _story
 
-from shared.log_tee import get_logger
 _log = get_logger(__name__)
 
 # 去重记录存这个私有属性（_oo_ 前缀，登录时会被剥离，不会发给客户端）

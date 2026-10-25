@@ -4,9 +4,10 @@
 登录链路：connectServer -> bindAccount(6) -> bindAvatar(7) -> bindSoul(8)。
 每种绑定都带一个 mailbox（server_ip + port + entity_id），客户端用它做后续路由。
 """
-from .frames import frame
 from .defaults import _DEF_ACCOUNT_EID
+from .frames import frame
 from .protocol import pb_bytes_field, pb_varint_field
+
 BIND_ACCOUNT_TYPE = 6
 
 def build_entity_mailbox(entity_id=None, server_ip="127.0.0.1",

@@ -11,6 +11,8 @@ getStreetInfo() 直接取 self.street_info[street_id]，nil 会崩，所以任�
   客户端 oldVal:customTypeName() 索引 nil -> 同步被丢（审计实锤）。
 """
 from ..property import tx as _tx
+
+
 def _street_tx_begin(st, street_id):
     """开始一个街区变更：返回 (tx, si, entry, is_new)。
 
