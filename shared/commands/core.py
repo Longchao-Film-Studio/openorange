@@ -83,7 +83,7 @@ class Command:
         "perm",
     )
 
-    def __init__(self, name, handler, aliases=(), args="", desc="",
+    def __init__(self, name, handler, aliases=(), args="", desc="",  # noqa: PLR0913,PLR0917  — 命令注册记录：9 个字段就是注册表的列，拆开反而要额外一层结构
                  perm=PERM_PLAYER, needs_target=False, implemented=True, group="其它"):
         self.name = name
         self.handler = handler

@@ -94,7 +94,7 @@ def _settlement_table(st, uid, info, reward_list):
     }
     return settle
 
-def _advance_story_on_finish(st, info=None, uid=None):
+def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本结算后按剧情表逐环推进，分支来自 BDD 任务链而非设计纠缠
     """副本打完后推进剧情。
 
     优先用 finishInfo 自带的 typeId/modeId/level（兼容手工构造的调用）；

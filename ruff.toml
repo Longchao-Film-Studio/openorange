@@ -25,7 +25,8 @@ line-length = 100
 [lint]
 select = ["F", "E9", "UP009", "I001", "FURB105", "UP004", "FURB167",
           "RUF023", "SIM102", "SIM118", "PERF102", "C4", "UP020", "UP031", "UP032",
-          "ARG001", "ARG005", "B007", "RUF059", "SLF001"]
+          "ARG001", "ARG005", "B007", "RUF059", "SLF001",
+          "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
 ignore = [
   "BLE001",  # 裸 except：服务端在 RPC / 数据边界必须有兜底——一个坏请求不能拖垮进程。
              #   2026-10-25 已把「静默吞异常」清零（291 -> 223）：
@@ -42,12 +43,23 @@ ignore = [
              #   32 处逐一核实过，无一可删（2026-10-25）。
 ]
 
+# 复杂度阈值（2026-10-25 定档）：ruff 默认（C901=10 / 语句 50 / 分支 12 / 参数 5 /
+# return 6）对「数据驱动的游戏服务端」过严——大量分支来自 BDD 表结构而非设计纠缠。
+# 取值依据：调到此档后全仓只剩 5 个函数超标，且每个都能说清为什么该保留（见源码 noqa）。
+[lint.mccabe]
+max-complexity = 20
+
+[lint.pylint]
+max-statements = 100
+max-branches = 25
+max-args = 8
+max-positional-args = 8
+max-returns = 10
+
 [lint.per-file-ignores]
-# 工具脚本会给自己/被测模块打私有标记（如 audit_frames 的 _frame_audited），
-# 属于脚本化改造的正常手段。
-"tools/*" = ["SLF001"]
+# 测试的 run() 是线性检查清单（一行一个 check），长但不复杂；
+# 工具是一次性脚本。两者的「复杂度」不代表设计问题，故成组豁免。
+"tests/*" = ["SIM118", "SLF001", "S101", "S105", "S310", "S603", "S607", "S104",
+              "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
+"tools/*" = ["SLF001", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
 # 测试里故意保留的姿势与游戏存档往返相关，不强行规范
-"tests/*" = ["SIM118", "SLF001", "S101", "S105", "S310", "S603", "S607", "S104"]
-# 测试的职责就是验证内部实现（_erpc / _rotate_keep / _token 等），
-# 所以 SLF001 在 tests 下豁免；S101(assert) / S105(测试口令) / S310(本地 HTTP)
-# / S603(受控 subprocess) 同理。

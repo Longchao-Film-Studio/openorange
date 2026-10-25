@@ -68,7 +68,7 @@ def _sort_key(op):
     return (len(path), tuple(str(x) for x in path))
 
 
-def validate(ops):
+def validate(ops):  # noqa: C901  — 属性同步校验：每个类型一个分支，分支数 = 协议类型数
     """开发期断言。返回错误信息列表（空表示通过）。
 
     ★ 2026-10-21 审计 P0-3：原来只查「OP_ADD 是 dict 且有 __id__」，

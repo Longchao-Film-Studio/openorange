@@ -318,7 +318,7 @@ def finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
             except Exception as e:
                 _log.warning(f"[story] 保存失败: {e}")
 
-def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
+def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  # noqa: C901,PLR0912  — 剧情任务完成的唯一落状态入口：发奖/归档/推进/防伪造四段必须在同一临界区
                               param=None):
     done_bag = st.props.get("done_story_tasks")
     if not isinstance(done_bag, dict):

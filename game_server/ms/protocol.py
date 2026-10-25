@@ -170,7 +170,7 @@ def mp_arr(items):
         out += mp_any(v)
     return bytes(out)
 
-def mp_decode(b, i=0):
+def mp_decode(b, i=0):  # noqa: C901,PLR0911,PLR0912  — msgpack 解码器：分支与 return 直接对应 wire type 规范（每类型一个分支），拆分只会让状态机更难读
     """最小 msgpack 解码器，够用就行。返回 (值, 新下标)。"""
     if i >= len(b):
         return None, i
