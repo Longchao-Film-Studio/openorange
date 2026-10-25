@@ -26,11 +26,11 @@ from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate
 
                          config, story, gamedata)
 
-from tests.frame_guard import guarded_handle
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server.story import events as _events
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe
+from shadow_cache import frames_safe   # noqa: E402
 
 passed, failed = [], []
 

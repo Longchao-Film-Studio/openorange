@@ -27,8 +27,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # ★ 测试必须设成临时目录，否则会覆盖真实玩家存档
 #   （test_property_sync.py 用默认 uid 跑 reset_state + save，踩过一次）。
 # 存档目录统一由 config 管：默认 work/player_state，设 OO_STATE_DIR 可换。
-from . import config as _cfg
-from .property import ids as _ids
+from . import config as _cfg  # noqa: E402
+from .property import ids as _ids  # noqa: E402
 _STATE_DIR = _cfg.STATE_DIR
 
 _LOCK = threading.RLock()

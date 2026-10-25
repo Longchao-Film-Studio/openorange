@@ -40,7 +40,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
-from game_server.property import ids as _ids
+from game_server.property import ids as _ids  # noqa: E402
 
 
 def collect(obj, path="", out=None):

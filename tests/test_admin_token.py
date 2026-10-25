@@ -27,10 +27,10 @@ os.environ["OO_DB_PATH"] = os.path.join(
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import admin_api
-from shared import admin_token
-from shared import commands as cmds
-from shared.commands import backend
+from game_server import admin_api  # noqa: E402
+from shared import admin_token  # noqa: E402
+from shared import commands as cmds  # noqa: E402
+from shared.commands import backend  # noqa: E402
 
 passed, failed = [], []
 

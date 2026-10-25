@@ -28,10 +28,10 @@ os.environ["OO_UNKNOWN_LOG"] = _LOG
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import config, ms as msmod, unknown_log as ulog
-from game_server import rpc_catalog, entity_rpc as erpc
-from tests.frame_guard import guarded_handle
-from game_server.transport import ms_service
+from game_server import config, ms as msmod, unknown_log as ulog  # noqa: E402
+from game_server import rpc_catalog, entity_rpc as erpc  # noqa: E402
+from tests.frame_guard import guarded_handle  # noqa: E402
+from game_server.transport import ms_service  # noqa: E402
 
 passed, failed = [], []
 

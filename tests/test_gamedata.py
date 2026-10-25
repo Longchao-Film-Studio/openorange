@@ -15,7 +15,7 @@ sys.path.insert(0, ROOT)
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from shared import gamedata as gd
+from shared import gamedata as gd  # noqa: E402
 
 passed = []
 failed = []

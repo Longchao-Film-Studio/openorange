@@ -5,5 +5,5 @@
   （后续）spec.py / tx.py / sync.py
 """
 
-from .ids import (alloc_id, max_id, peek_next_id,
+from .ids import (alloc_id, max_id, peek_next_id,  # noqa: F401
                   reconcile, verify_unique)

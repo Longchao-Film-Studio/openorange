@@ -46,7 +46,7 @@
 from .. import gamedata
 from ..property import ids as _ids
 
-from .state_machine import (
+from .state_machine import (  # noqa: F401  (re-export：业务模块继续用 story.TASK_STATE_*)
     TASK_STATE_CLOSED, TASK_STATE_DOING, TASK_STATE_DONE, TASK_STATE_FAILED,
     TASK_STATE_FINISHED, TASK_STATE_IDLE, TASK_STATE_INIT, TASK_STATE_WAIT_DONE,
     TransitionError, can_transition, make_story_task_item, state_name,

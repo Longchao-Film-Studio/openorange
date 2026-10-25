@@ -17,7 +17,7 @@ sys.path.insert(0, ROOT)
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod
+from game_server import ms as msmod  # noqa: E402
 
 INIT_PATH = os.path.join(ROOT, "game_server", "avatar_init.json")
 

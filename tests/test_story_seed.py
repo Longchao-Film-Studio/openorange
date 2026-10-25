@@ -20,14 +20,14 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_seed_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod
-from game_server import player_state as pstate
-from game_server import story
-from game_server.story import seed as seed_mod
-from game_server.story import state_machine as sm
-from game_server.story.rpc import _story_sync_frames
-from tests.frame_guard import pre_snapshot
-from tests.shadow_cache import frames_safe
+from game_server import ms as msmod  # noqa: E402
+from game_server import player_state as pstate  # noqa: E402
+from game_server import story  # noqa: E402
+from game_server.story import seed as seed_mod  # noqa: E402
+from game_server.story import state_machine as sm  # noqa: E402
+from game_server.story.rpc import _story_sync_frames  # noqa: E402
+from tests.frame_guard import pre_snapshot  # noqa: E402
+from tests.shadow_cache import frames_safe  # noqa: E402
 
 passed, failed = [], []
 NOW = 1700000000

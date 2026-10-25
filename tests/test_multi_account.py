@@ -22,13 +22,13 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_multi_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import entity_rpc as erpc
-from game_server import ms as msmod, player_state as pstate
-from game_server import rpc_common as rpc_common
-from game_server.property import sync as prop_sync
-from game_server.transport import accounts
-from tests.frame_guard import guarded_handle, pre_snapshot
-from tests.shadow_cache import frames_safe
+from game_server import entity_rpc as erpc  # noqa: E402
+from game_server import ms as msmod, player_state as pstate  # noqa: E402
+from game_server import rpc_common as rpc_common  # noqa: E402
+from game_server.property import sync as prop_sync  # noqa: E402
+from game_server.transport import accounts  # noqa: E402
+from tests.frame_guard import guarded_handle, pre_snapshot  # noqa: E402
+from tests.shadow_cache import frames_safe  # noqa: E402
 
 passed, failed = [], []
 

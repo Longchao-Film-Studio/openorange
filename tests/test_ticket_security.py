@@ -24,9 +24,9 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_ticket_state_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from shared import db, models
-from web import app as webapp
-from web import ratelimit
+from shared import db, models  # noqa: E402
+from web import app as webapp  # noqa: E402
+from web import ratelimit  # noqa: E402
 
 passed, failed = [], []
 

@@ -26,13 +26,13 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_unlock_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import gamedata
-from game_server import ms as msmod
-from game_server import player_state as pstate
-from game_server import tasks
-from game_server.story import events as sev
-from game_server.story import rpc as srpc
-from game_server.story.tasks import drain_event_task_sync
+from game_server import gamedata  # noqa: E402
+from game_server import ms as msmod  # noqa: E402
+from game_server import player_state as pstate  # noqa: E402
+from game_server import tasks  # noqa: E402
+from game_server.story import events as sev  # noqa: E402
+from game_server.story import rpc as srpc  # noqa: E402
+from game_server.story.tasks import drain_event_task_sync  # noqa: E402
 
 passed, failed = [], []
 _TAG = ""

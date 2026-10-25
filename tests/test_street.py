@@ -22,7 +22,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod, entity_rpc as erpc, player_state as pstate, config
 
-from tests.frame_guard import guarded_handle
+from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
 
@@ -37,7 +37,7 @@ def check(name, cond, detail=None):
 # ★ 原来这里有个 parse_sync 依赖 msmod.parse_property_sync，但那个函数根本不存在，
 #   永远返回 {}（死代码）。现在改成用影子缓存做真正的帧校验。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe
+from shadow_cache import frames_safe   # noqa: E402
 
 def run():
     print("\n[1] 索引表里有街区三条")

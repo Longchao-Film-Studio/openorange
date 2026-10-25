@@ -20,7 +20,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import ms as msmod
 
-from tests.frame_guard import guarded_handle
+from tests.frame_guard import guarded_handle  # noqa: E402
 from game_server import entity_rpc as erpc
 from game_server import player_state as pstate
 
