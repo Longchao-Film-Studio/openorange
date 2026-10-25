@@ -34,7 +34,6 @@ from game_server import gamedata  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import rpc_index  # noqa: E402
-from game_server import story  # noqa: E402
 from game_server.story import seed as SD  # noqa: E402
 from game_server.story import trace as TR  # noqa: E402
 from tests.frame_guard import guarded_handle  # noqa: E402

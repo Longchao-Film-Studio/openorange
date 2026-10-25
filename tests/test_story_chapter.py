@@ -40,7 +40,6 @@ from game_server import gamedata  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import story  # noqa: E402
-from game_server.story import state_machine as sm  # noqa: E402
 from tests.frame_guard import guarded_handle, pre_snapshot  # noqa: E402
 from tests.shadow_cache import frames_safe  # noqa: E402
 

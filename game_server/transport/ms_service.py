@@ -16,7 +16,7 @@ from .. import config as ooconf
 from .. import unknown_log as _ulog
 from .. import ms as msmod
 from . import accounts
-from .net import CAPTURE_DIR, hexdump, maybe_hexdump, recv_exact
+from .net import CAPTURE_DIR, maybe_hexdump, recv_exact
 
 from shared.log_tee import get_logger
 _log = get_logger(__name__)

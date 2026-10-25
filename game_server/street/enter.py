@@ -14,13 +14,9 @@
   客户端 _changeSubProperty 里 oldVal 为 nil -> 整条同步被丢弃。
   表现：切街区后小地图/宝箱/交互状态全不同步。现在交给 Tx，新键自动用 OP_ADD。
 """
-from .. import ms as msmod
 from ..property import tx as _tx
-from .. import gamedata
-from .. import story
 from ..rpc_common import (
-    SYNC_SELF, decode_params, respond_after_sync, state, sync_frame,
-    throttled_save)
+    decode_params, respond_after_sync, state, throttled_save)
 from .info import _make_street_info_entry
 
 from shared.log_tee import get_logger

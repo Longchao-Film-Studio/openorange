@@ -12,7 +12,6 @@
 为什么需要它：实机测试的证据全在日志里，人眼翻 4MB 日志不现实。
 """
 import os
-import re
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):

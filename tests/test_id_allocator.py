@@ -23,7 +23,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate,
-                         story, scaffold, config, gamedata)
+                         story, scaffold, config)
 from game_server.property import ids as ids_mod
 from tests.frame_guard import check_frames, pre_snapshot
 

@@ -3,7 +3,6 @@
 
 用法: python tests/test_log_tee.py
 """
-import io
 import os
 import sys
 import tempfile

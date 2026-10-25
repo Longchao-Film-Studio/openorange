@@ -73,7 +73,6 @@ def tables():
 
 def table_key_set(name):
     """一张 BDD 表的全部可用键（外层键 + uiD/id/ID）。"""
-    import glob
     BDD = os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "..", "archive", "game_data", "BDD")
     p = os.path.join(BDD, "TableData.CommonData.%s.json" % name)

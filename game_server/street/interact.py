@@ -12,11 +12,9 @@
 红点在 StreetInfoDict.street_redpoint（IntDict，avatarstreetcomp.lua:581-587）。
 追踪任务存 street_trace_taskid（avatarstreetcomp.lua:741）。
 """
-from .. import gamedata
-from .. import ms as msmod
 from ..property import ids as _ids
 from ..property import tx as _tx
-from ..rpc_common import respond_after_sync, SYNC_SELF, decode_params, state, sync_frame
+from ..rpc_common import respond_after_sync, decode_params, state
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
 from ..story.tasks import drain_event_task_sync

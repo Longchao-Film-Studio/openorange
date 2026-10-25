@@ -71,7 +71,6 @@ def run():
                                      "GetItem", "CharData"},
           events.CORE_TYPES)
     # 全仓只剩 1 个 evaluate_event 调用点（在 events.py 里）
-    import subprocess
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     hits = []
     for dirpath, _d, files in os.walk(os.path.join(root, "game_server")):

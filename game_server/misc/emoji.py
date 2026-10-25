@@ -11,7 +11,6 @@
   客户端 SC 收到自己的 uid 也会走 OnPlayEmoji 播放（与 Soul 帧回显同一闭环思路）。
   未来多人时，这里改成向同 street 空间的所有连接转发即可（框架不变）。
 """
-from .. import ms as msmod
 from ..rpc_common import decode_params, state
 from ..space.space import _s2c_entity
 

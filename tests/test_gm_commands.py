@@ -186,7 +186,7 @@ def run():
               list(bag_q.keys())[:5])
 
         print("\n[12] Target 抽象")
-        from shared.commands import Target, resolve_target
+        from shared.commands import resolve_target
         c_admin = cmds.Context("aixiaoji", cmds.PERM_ADMIN)
         c_gm = cmds.Context("gm1", cmds.PERM_GM)
 

@@ -37,12 +37,10 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import entity_rpc as erpc  # noqa: E402
-from game_server import gamedata  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import story  # noqa: E402
-from tests.frame_guard import guarded_handle, pre_snapshot  # noqa: E402
-from tests.shadow_cache import frames_safe  # noqa: E402
+from tests.frame_guard import guarded_handle  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONTRACT = os.path.join(ROOT, "tests", "contract", "property_callbacks.json")

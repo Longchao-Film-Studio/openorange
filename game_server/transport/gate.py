@@ -19,7 +19,7 @@ from .. import entity_rpc as erpc
 from .. import ms as msmod
 from ..rpc_common import SYNC_SELF
 from . import accounts
-from .net import hexdump, maybe_hexdump
+from .net import maybe_hexdump
 
 from shared.log_tee import get_logger
 _log = get_logger(__name__)

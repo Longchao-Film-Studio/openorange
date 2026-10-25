@@ -7,7 +7,6 @@
 
 用法: python tests/test_admin_token.py
 """
-import json
 import os
 import sys
 import tempfile
