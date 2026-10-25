@@ -42,11 +42,6 @@ from .story.state_machine import (
     can_transition,
 )
 
-TASK_STATE_DOING = 3
-TASK_STATE_FINISHED = 6
-TASK_STATE_WAIT_DONE = 4   # 目标已达成、等玩家领奖（客户端只把 4 状态发领奖 RPC）
-TASK_STATE_DONE = 5        # 已交付
-
 # 同步描述里的 optype（和客户端 puppetpropertycomponent.lua 一致）
 # 由本模块自己决定，不让上层猜 —— 审计发现上层一律用 OP_CHANGE，
 # 新建的 task_bag[type] 槽位 / 任务项都发错了。
