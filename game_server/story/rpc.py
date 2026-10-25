@@ -31,6 +31,7 @@ from ..rpc_common import (
     SYNC_SELF, EVENT_MAX_DEPTH, decode_params, respond_after_sync, state,
     sync_frame)
 from . import events as _events
+from . import npc_sms
 
 from shared.log_tee import get_logger
 _log = get_logger(__name__)
@@ -371,6 +372,16 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
                     str(grid_key), grid))
         frames.extend(_story_sync_frames(
             st, story.archive_story_task(st, tid, now)))
+        # ★ P6 短信钩子：本任务刚归档，它的 PostTasks 已由 archive_story_task
+        #   启动（进入 Doing）。若映射表里有短信，此刻解锁——
+        #   与「接任务」的 OP_ADD+OP_CHANGE 同批下发，客户端一次收到。
+        #   失败只告警（npc_sms 内部已兜），绝不影响任务推进。
+        for _nxt in (gamedata.story_task(tid) or {}).get("PostTasks") or []:
+            try:
+                frames.extend(npc_sms.unlock_for_task(
+                    st, int(_nxt), source="posttask"))
+            except Exception as _e:
+                _log.warning("[sms] PostTasks %s 短信解锁异常: %s", _nxt, _e)
         _log.info("[story] 完成剧情任务 %s" % tid)
         finished_now.append(tid)
     # ★ Bug D：把追踪从已完成的任务上挪走（否则地图标点停在旧地方）

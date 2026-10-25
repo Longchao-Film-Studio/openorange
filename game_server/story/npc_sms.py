@@ -32,6 +32,9 @@
   INV-SMS-7  is_over=1 后话题必须离开未读队列
   INV-SMS-8  建条目必须带非 0 update_time
 """
+import os
+import time
+
 from .. import gamedata
 from ..property.tx import Tx
 from shared.log_tee import get_logger
@@ -56,6 +59,12 @@ SMS_ONLY_CHAT_TYPES = (1,)
 _UNMAPPED_SEEN = set()
 
 
+def _unmapped_tsv_path():
+    from .. import config
+    return os.path.join(getattr(config, "LOG_DIR", "work/logs"),
+                        "sms_unmapped.tsv")
+
+
 def topics_for_task(task_id):
     """任务 -> 话题 id 列表。★ 映射唯一读取点（Gate 0 可替换实现）。"""
     tid = int(task_id)
@@ -64,11 +73,30 @@ def topics_for_task(task_id):
 
 
 def _unmapped_hit(task_id):
-    """任务有进行中但映射表没有 -> 告警清单（P7）。进程内去重。"""
+    """任务有进行中但映射表没有 -> 告警 + 落盘（P7）。
+
+    落盘：work/logs/sms_unmapped.tsv，格式 ts / task_id / scene / desc
+    （与 unknown_requests.tsv 同风格，用来排"下一个该补哪条映射"）。
+    进程内去重：同一任务一次进程只记一条。
+    """
     if task_id in _UNMAPPED_SEEN:
         return
     _UNMAPPED_SEEN.add(task_id)
     _log.warning("[sms] 任务 %s 无短信映射（如官方此处有短信请补 POST_SMS_BY_TASK）", task_id)
+    try:
+        cfg = gamedata.story_task(task_id) or {}
+        desc = "".join(str(x) for x in (cfg.get("Description") or []))
+        line = "%d\t%s\t%s\t%s" % (int(time.time()), task_id,
+                                    cfg.get("GuideSceneId"), desc)
+        path = _unmapped_tsv_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        new_file = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8") as f:
+            if new_file:
+                f.write("ts\ttask_id\tscene\tdesc\n")
+            f.write(line + "\n")
+    except Exception as e:
+        _log.warning("[sms] 未映射清单落盘失败: %s", e)
 
 
 # ---------------------------------------------------------------- 读取
@@ -137,7 +165,7 @@ def unlock_topic(st, chat_id, topic_id, source="", allow_unmapped=False):
         return []          # INV-SMS-3：幂等
 
     real_chat = _chat_id_of(cfg) or chat_id
-    now = int(__import__("time").time())
+    now = int(time.time())
     tx = Tx(st.props)
     al = st.props.get("npc_chat_prop").get("address_list")
     if not isinstance(al, dict) or real_chat not in al:
