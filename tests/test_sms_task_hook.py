@@ -40,14 +40,14 @@ def check(name, cond, detail=None):
 
 
 def fresh(name):
-    u = "%s_%s" % (name, _TAG)
+    u = "{}_{}".format(name, _TAG)
     msmod._live_init_dict(u)
     return u, pstate.get_state(uid=u)
 
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 

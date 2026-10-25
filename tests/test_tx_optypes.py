@@ -117,20 +117,20 @@ def run():
     for root, key, value in cases:
         container = st.props.get(root)
         if not isinstance(container, dict):
-            check("%s 容器存在" % root, False, type(container))
+            check("{} 容器存在".format(root), False, type(container))
             continue
         t = _tx.Tx(st.props)
         t.set((root, key), value)
         pid, op, name, _v = op_of(t.frames(strict=True)[0])
-        check("%s 新键 %r -> OP_ADD" % (root, key), op == _tx.OP_ADD,
+        check("{} 新键 {!r} -> OP_ADD".format(root, key), op == _tx.OP_ADD,
               (pid, op, name))
-        check("%s 的 propertyId = 容器 __id__" % root,
+        check("{} 的 propertyId = 容器 __id__".format(root),
               pid == container.get("__id__"), (pid, container.get("__id__")))
         # 同一个键再改一次 -> 必须是 OP_CHANGE
         t2 = _tx.Tx(st.props)
         t2.set((root, key), value)
         _pid, op2, _n2, _v2 = op_of(t2.frames(strict=True)[0])
-        check("%s 已有键 %r -> OP_CHANGE" % (root, key), op2 == _tx.OP_CHANGE, op2)
+        check("{} 已有键 {!r} -> OP_CHANGE".format(root, key), op2 == _tx.OP_CHANGE, op2)
 
     print("\n[3] 嵌套容器新建：先父后子（container_add -> child_add）")
     st3 = state("txopt_b")

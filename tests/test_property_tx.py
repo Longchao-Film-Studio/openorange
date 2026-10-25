@@ -236,7 +236,7 @@ def run():
                     ("CharShownList", "int"),
                     ("EndlessRankInfoRecordList", "int")):
         got = spec.key_kind(t)
-        check("%s -> %s" % (t, want), got == want, got)
+        check("{} -> {}".format(t, want), got == want, got)
     check("ItemBag 仍是 str 键", spec.key_kind("ItemBag") == "str")
     check("StoryTaskBag 仍是 int 键", spec.key_kind("StoryTaskBag") == "int")
 

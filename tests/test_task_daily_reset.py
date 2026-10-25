@@ -41,7 +41,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -62,7 +62,7 @@ def _done_tasks(st, tt):
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 

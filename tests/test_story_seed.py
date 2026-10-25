@@ -44,7 +44,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -73,7 +73,7 @@ def fresh_empty(name):
 
 def run():
     global _TAG
-    _TAG = "%04x" % __import__("random").randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(__import__("random").randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 
@@ -110,7 +110,7 @@ def run():
           (len(seeded_ids), len(ch)))
     bag = st.props["story_task_bag"]
     for tid in seeded_ids[:5]:
-        check("任务 %s 最终是 Doing(3)" % tid,
+        check("任务 {} 最终是 Doing(3)".format(tid),
               bag[tid].get("state") == sm.TASK_STATE_DOING,
               bag[tid].get("state"))
     frames = _story_sync_frames(st, ch)

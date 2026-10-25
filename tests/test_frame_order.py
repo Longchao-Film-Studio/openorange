@@ -101,7 +101,7 @@ def run():
     for i, (rpc, params, must_sync) in enumerate(cases):
         idx = erpc.RPC_INDEX.get(rpc)
         if idx is None:
-            check("%s 已注册" % rpc, False, "RPC 索引缺失")
+            check("{} 已注册".format(rpc), False, "RPC 索引缺失")
             continue
         frames = guarded_handle(idx, msmod.mp_arr(params), 100 + i, uid=uid)
         ts = frame_types(frames)
@@ -110,10 +110,10 @@ def run():
         if has_sync:
             covered += 1
             ok = has_resp and ts.index(msmod.PROPERTY_SYNC_TYPE) < ts.index(2)
-            check("★ %s 同步帧先于应答帧" % rpc, ok, ts)
+            check("★ {} 同步帧先于应答帧".format(rpc), ok, ts)
         else:
             # 该分支没改数据（早退或无需同步）：只要求「不该有同步帧却排在应答后」
-            check("%s 无同步帧时只回应答" % rpc, must_sync is False and ts == [2],
+            check("{} 无同步帧时只回应答".format(rpc), must_sync is False and ts == [2],
                   (must_sync, ts))
 
     print("\n[2] 测试有效性：必须真的覆盖到同步帧（防恒真）")

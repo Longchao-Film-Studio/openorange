@@ -89,14 +89,14 @@ def run():
     for gname, names in GROUPS.items():
         print("\n[%s] %d 条" % (gname, len(names)))
         missing = [n for n in names if not handled(n)]
-        check("%s 全部已实现" % gname, not missing, missing)
+        check("{} 全部已实现".format(gname), not missing, missing)
         total += len(names)
 
     print("\n[account] %d 条（确认无需实现）" % len(ACCOUNT_NOOP))
     # 它们不在 RPC_INDEX 里是预期行为；这里只断言索引表里确实没有，
     # 避免以后有人误加半成品处理器。
     for n in ACCOUNT_NOOP:
-        check("%s 按设计不实现" % n, n not in erpc.RPC_INDEX, n)
+        check("{} 按设计不实现".format(n), n not in erpc.RPC_INDEX, n)
 
     print("\n[汇总]")
     check("阶段 2 四组共 %d 条全部覆盖" % total, True)

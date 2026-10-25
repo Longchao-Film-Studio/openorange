@@ -57,7 +57,7 @@ EVENT = 5009
 
 def run():
     print("\n[0] BDD 前提校验")
-    check("副本 %s 存在" % COPY, bool(gamedata.level_copy(COPY)))
+    check("副本 {} 存在".format(COPY), bool(gamedata.level_copy(COPY)))
     check("副本 %s -> areaid %d（MainlineData）" % (COPY, AREA),
           gamedata.area_of_copy(COPY) == AREA,
           gamedata.area_of_copy(COPY))
@@ -76,7 +76,7 @@ def run():
     guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                 msmod.mp_arr([{"copyId": COPY, "system_type": 1000, "modeId": 1}]),
                 1, uid="dgev_a")
-    check("_oo_cur_copy = %s" % COPY, st.props.get("_oo_cur_copy") == COPY)
+    check("_oo_cur_copy = {}".format(COPY), st.props.get("_oo_cur_copy") == COPY)
     check("_oo_cur_level = %d" % LEVEL,
           st.props.get("_oo_cur_level") == LEVEL, st.props.get("_oo_cur_level"))
     check("_oo_cur_area = %d" % AREA,
@@ -105,7 +105,7 @@ def run():
           st.props.get("_oo_cleared_levels"))
     for k in ("_oo_cur_copy", "_oo_cur_match", "_oo_cur_level",
               "_oo_cur_area", "_oo_cur_teach"):
-        check("%s 已清" % k, k not in st.props)
+        check("{} 已清".format(k), k not in st.props)
 
     print("\n[5] 第二次通关不再是 first_pass")
     st2 = fresh("dgev_b")
@@ -203,10 +203,10 @@ def run():
                           7, uid="dgev_ssm")
     check("返回 1 帧", len(frames5) == 1, len(frames5))
     check("是应答帧", b"__rpc_response__" in frames5[0])
-    check("copyId 从 MainlineData 取到 %s" % want_copy,
+    check("copyId 从 MainlineData 取到 {}".format(want_copy),
           st5.props.get("_oo_cur_copy") == want_copy,
           st5.props.get("_oo_cur_copy"))
-    check("areaid = %s" % area_id, st5.props.get("_oo_cur_area") == area_id,
+    check("areaid = {}".format(area_id), st5.props.get("_oo_cur_area") == area_id,
           st5.props.get("_oo_cur_area"))
     check("level 用副本首关",
           st5.props.get("_oo_cur_level") ==

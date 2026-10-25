@@ -135,7 +135,7 @@ def run_one_side(uid):
 def run():
     del passed[:]
     del failed[:]
-    tag = "%04x" % random.randint(0, 0xFFFF)
+    tag = "{:04x}".format(random.randint(0, 0xFFFF))
     ua, ub = "ma_" + tag, "mb_" + tag
 
     print("\n[1] 状态隔离：A 的 RPC 不改 B 的状态")
@@ -196,7 +196,7 @@ def run():
             rpc_common.sync_frame(bad, 0, msmod.OP_CHANGE, "signature", "w")
         except TypeError:
             raised = True
-        check("ownerid=%r 抛 TypeError（不静默转字符串）" % (bad,), raised)
+        check("ownerid={!r} 抛 TypeError（不静默转字符串）".format(bad), raised)
 
     print("\n[4] 影子缓存按客户端语义处理非空 ownerid（未知 owner 整帧丢弃）")
     pre = pre_snapshot(ua)

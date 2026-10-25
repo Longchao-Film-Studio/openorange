@@ -32,7 +32,7 @@ def check(name, cond, detail=None):
 
 
 def read_last(channel):
-    p = os.path.join(_LOG_DIR, "last.%s.log" % channel)
+    p = os.path.join(_LOG_DIR, "last.{}.log".format(channel))
     if not os.path.exists(p):
         return ""
     with open(p, "r", encoding="utf-8", errors="replace") as f:

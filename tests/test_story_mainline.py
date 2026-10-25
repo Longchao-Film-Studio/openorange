@@ -126,17 +126,17 @@ def walk(S, st, chain):
             want = int(p1[0]) if p1 else None
             hits = story.street_arrival_tasks(st, want)
             if tid not in hits:
-                return walked, tid, "type4 切街到 %s 未命中" % want
+                return walked, tid, "type4 切街到 {} 未命中".format(want)
             story.finish_story_task(st, tid, NOW)
         elif t in (3, 7):
-            return walked, tid, "TaskType %s 需要玩法事件" % t
+            return walked, tid, "TaskType {} 需要玩法事件".format(t)
         walked.append(tid)
     return walked, None, None
 
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 

@@ -91,7 +91,7 @@ def space_flat():
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 

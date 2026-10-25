@@ -83,7 +83,7 @@ def run():
     for nm in ("RpcDrawGacha", "RpcBuyShop", "Cmd_BuyBpLevel_CS"):
         idx = rpc_catalog.index_of(nm)
         ret = erpc.unknown_rpc_ret(idx, uid="u1")
-        check("%s 始终失败" % nm, ret.get("status") is False, (nm, ret))
+        check("{} 始终失败".format(nm), ret.get("status") is False, (nm, ret))
 
     print("\n[5] 走完整 handle 路径（帧形状 + retStatus）")
     # BreakCharacter_CS 未实现（UpgradePlayerStage_CS 已实现，会走 handler）
@@ -110,7 +110,7 @@ def run():
     check("★ 邮件领取：兼容模式也失败", p["Ret"][0] is False, p)
     for m in ("deleteMail", "setAllMailHaveRead", "setMailHaveRead", "star", "unstar"):
         p = msmod.mp_decode(ms_service.unknown_ms_params("MailService", m))[0]
-        check("★ 邮件 %s 硬黑名单" % m, p["Ret"][0] is False, p)
+        check("★ 邮件 {} 硬黑名单".format(m), p["Ret"][0] is False, p)
 
     print("\n[7] 落盘：两种模式都记录 + 聚合计数")
     st = ulog.stats()

@@ -86,7 +86,6 @@ def guarded_handle(index, params, rid, uid=None, tag=None):
         # 取不到快照就没法建客户端缓存 -> 这批属性帧等于没校验。
         # 审计实测：以前这里会静默跳过，等于给了一条「绕过守卫」的后门。
         raise AssertionError(
-            "取不到 uid=%r 的 RPC 前快照，但有属性同步帧无法校验（rpc#%s）"
-            % (uid, index))
-    check_frames(pre, frames, tag or ("rpc#%s" % index))
+            "取不到 uid={!r} 的 RPC 前快照，但有属性同步帧无法校验（rpc#{}）".format(uid, index))
+    check_frames(pre, frames, tag or ("rpc#{}".format(index)))
     return frames

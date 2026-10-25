@@ -134,7 +134,7 @@ def scan():
             key = (rel, node.lineno)
             if key in ALLOW:
                 continue
-            bad.append((rel, node.lineno, "cond = %r" % v))
+            bad.append((rel, node.lineno, "cond = {!r}".format(v)))
     return bad
 
 
@@ -176,7 +176,7 @@ def run():
     print("\n[1] 扫描全仓 check(<字面量>, True/False)")
     bad = scan()
     for rel, line, expr in bad:
-        print("       %s:%s  %s" % (rel, line, expr))
+        print("       {}:{}  {}".format(rel, line, expr))
     check("★ 没有空断言", not bad, len(bad))
 
     print("\n[2] 豁免清单不许有死条目")

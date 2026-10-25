@@ -62,7 +62,7 @@ def run():
     # 嵌套的自定义属性必须带 __id__，否则客户端 init 报
     #   class ClientAvatar function init must have a boolean return value
     for f in ("doing_targets", "finish_targets", "finish_parameter"):
-        check("嵌套字段 %s 带 __id__" % f,
+        check("嵌套字段 {} 带 __id__".format(f),
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
 
     print("\n[4] 通过事件完成 1000（TaskType=3 是事件驱动，客户端不会为它发 RPC）")
@@ -90,7 +90,7 @@ def run():
     bag = st.props.get("item_bag") or {}
     have = {g.get("itemId") for g in bag.values() if isinstance(g, dict)}
     if ids:
-        check("奖励道具 %s 进了背包" % ids, all(i in have for i in ids), sorted(have))
+        check("奖励道具 {} 进了背包".format(ids), all(i in have for i in ids), sorted(have))
     else:
         check("1000 无奖励（跳过）", True)
 

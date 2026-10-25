@@ -82,7 +82,7 @@ def run():
             if not _db.get_account_by_username(u):
                 _db.register_account(u, "pw", "acc_" + u, "fp_" + u, "sk_" + u)
         except Exception as e:
-            print("  注册账号 %s 失败: %s" % (u, e))
+            print("  注册账号 {} 失败: {}".format(u, e))
     srv, _th = admin_api.start(port=_TEST_PORT)
     time.sleep(0.3)
 

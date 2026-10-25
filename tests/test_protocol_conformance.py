@@ -39,7 +39,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -95,13 +95,13 @@ def t1():
     ch = (bag2.get(cid) or bag2.get(str(cid)) or {}) if isinstance(bag2, dict) else {}
     level_after = int(ch.get("CharLevel") or 1)
     check("T1.level 增量>=1", level_after > level_before,
-          "before=%s after=%s" % (level_before, level_after))
+          "before={} after={}".format(level_before, level_after))
     if iid and item_before is not None:
         ib2 = st2.get("item_bag") or {}
         it2 = ib2.get(iid) or ib2.get(int(iid)) or {}
         item_after = int(it2.get("num") or 0)
         check("T1.items 道具被扣", item_after < item_before,
-              "before=%s after=%s" % (item_before, item_after))
+              "before={} after={}".format(item_before, item_after))
     s = str(resp_of(ret))
     check("T6 应答含 status", "status" in s, s[:120])
 

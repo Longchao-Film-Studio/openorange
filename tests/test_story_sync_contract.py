@@ -97,7 +97,7 @@ def run():
     del passed[:]
     del failed[:]
     # ★ 每次 run 用不同后缀：同进程连跑多遍不会互相污染
-    tag = "%04x" % random.randint(0, 0xFFFF)
+    tag = "{:04x}".format(random.randint(0, 0xFFFF))
 
     print("\n[1] 契约表自身完整（每行都有 optype 和依据）")
     check("契约表非空", len(CONTRACT) >= 8, len(CONTRACT))
@@ -317,19 +317,19 @@ def run():
             "第二次及以后打序章才走 changed(OP_CHANGE)",
     }
     for (prop2, cb2), why in SECOND_PASS.items():
-        check("★ %s/%s 本次不可达：%s" % (prop2, cb2, why), True)
+        check("★ {}/{} 本次不可达：{}".format(prop2, cb2, why), True)
     # ★ 阶段 F 之后所有契约行都有产出路径了；这个字典留着给将来新增的行用。
     NO_PRODUCER = {}
     checked = 0
     for prop, cb, op, src in CONTRACT:
         if prop in NO_PRODUCER:
-            check("★ %s 当前无 OP_CHANGE 产出路径（%s）" % (prop, NO_PRODUCER[prop]),
+            check("★ {} 当前无 OP_CHANGE 产出路径（{}）".format(prop, NO_PRODUCER[prop]),
                   prop not in observed)
             continue
         if prop not in observed:
-            check("★ %s 有产出路径但没测到" % prop, False)
+            check("★ {} 有产出路径但没测到".format(prop), False)
             continue
-        check("%s 的 optype 符合契约（%s，%s）" % (prop, cb, src),
+        check("{} 的 optype 符合契约（{}，{}）".format(prop, cb, src),
               observed[prop] == op, (observed[prop], op))
         checked += 1
     check("契约表至少 7 行被真正核对", checked >= 7, checked)

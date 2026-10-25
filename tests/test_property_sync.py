@@ -281,7 +281,7 @@ def run():
         _ts = _frame_types(_fr)
         _ok = (msmod.PROPERTY_SYNC_TYPE in _ts and 2 in _ts
                and _ts.index(msmod.PROPERTY_SYNC_TYPE) < _ts.index(2))
-        check("★ %s 同步帧先于应答帧" % _rpc, _ok, _ts)
+        check("★ {} 同步帧先于应答帧".format(_rpc), _ok, _ts)
 
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))

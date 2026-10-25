@@ -42,7 +42,7 @@ def slot_holder(props, ttype):
 
 def run():
     import random
-    tag = "%04x" % random.randint(0, 0xFFFF)
+    tag = "{:04x}".format(random.randint(0, 0xFFFF))
     U = "task_test_" + tag
     del passed[:]
     del failed[:]
@@ -95,7 +95,7 @@ def run():
     check("TaskItem __tp__", it.get("__tp__") == "TaskItem", it.get("__tp__"))
     check("state = Doing(3)", it.get("state") == 3, it.get("state"))
     for f in ("doing_targets", "finish_targets", "cache"):
-        check("嵌套字段 %s 带 __id__" % f,
+        check("嵌套字段 {} 带 __id__".format(f),
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
     check("task_state(1) = 3", tasks.task_state(st.props, 1) == 3)
 

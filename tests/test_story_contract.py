@@ -97,7 +97,7 @@ def msmod_op(section):
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 
@@ -245,8 +245,7 @@ def run():
             got = bp.get(prop) or set()
             missing = [op for op in need if op not in got]
             if missing:
-                path_bad.append("%s: %s 缺 optype %s（实际 %s）"
-                                % (pname, prop, missing, sorted(got)))
+                path_bad.append("{}: {} 缺 optype {}（实际 {}）".format(pname, prop, missing, sorted(got)))
     check("★ 4 条代码路径各自发齐了契约要求的 optype", not path_bad, path_bad)
 
     # 汇总视图（用来回答「这个属性到底有没有帧」）
@@ -303,7 +302,7 @@ def run():
         try:
             tree = ast.parse(open(path, encoding="utf-8").read())
         except SyntaxError as e:
-            bad.append("%s 语法错误 %s" % (rel, e))
+            bad.append("{} 语法错误 {}".format(rel, e))
             continue
         for fn in ast.walk(tree):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):

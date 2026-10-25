@@ -149,8 +149,8 @@ def run():
     ], start=1):
         _n0 = sc.frame_count
         errs = feed(sc, erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_c"), tag)
-        check("%s 帧安全" % tag, not errs, errs[:2])
-        check("%s 确实产生了属性同步帧" % tag, sc.frame_count > _n0,
+        check("{} 帧安全".format(tag), not errs, errs[:2])
+        check("{} 确实产生了属性同步帧".format(tag), sc.frame_count > _n0,
               sc.frame_count - _n0)
 
     # C2 通用任务（槽位 + 任务项）
@@ -210,17 +210,17 @@ def run():
         (885846933, []),               # SetCanScore_CS
     ], start=1):
         errs = feed(sc5, erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_g"),
-                    "Set* %s" % rpc)
-        check("Set* %s 帧安全" % rpc, not errs, errs[:2])
+                    "Set* {}".format(rpc))
+        check("Set* {} 帧安全".format(rpc), not errs, errs[:2])
 
     print("\n[D] 全局一致性")
     for uid in ("sc_c", "sc_d", "sc_e", "sc_f", "sc_g"):
         stx = pstate.get_state(uid=uid)
         ok, dup = ids_mod.verify_unique(stx.props)
-        check("%s 全 props __id__ 唯一" % uid, ok, dup)
+        check("{} 全 props __id__ 唯一".format(uid), ok, dup)
         bag = stx.props.get("item_bag") or {}
         bad = [k for k in bag if isinstance(k, int) and not isinstance(k, bool)]
-        check("%s 背包键全是字符串" % uid, not bad, bad[:3])
+        check("{} 背包键全是字符串".format(uid), not bad, bad[:3])
 
     print("\n[E] ★ RPC 抽样扫描（24/114）：挑能安全调用的 handler 验帧")
     # 用一个全新存档，逐个调 RPC，把产出的属性同步帧喂进影子缓存。
@@ -258,11 +258,11 @@ def run():
         try:
             frames = erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_sweep")
         except Exception as ex:
-            bad_rpcs.append("%s handler 抛异常: %s" % (name, ex))
+            bad_rpcs.append("{} handler 抛异常: {}".format(name, ex))
             continue
         errs = feed(sc6, frames, name)
         if errs:
-            bad_rpcs.append("%s: %s" % (name, errs[0][:80]))
+            bad_rpcs.append("{}: {}".format(name, errs[0][:80]))
     check("抽样 %d 个 RPC，全部帧合法" % len(sweep), not bad_rpcs, bad_rpcs[:5])
     check("影子缓存确实处理了帧", sc6.frame_count > 10, sc6.frame_count)
     print("    （处理 %d 条属性同步帧，跳过 %d 条非同步帧）"

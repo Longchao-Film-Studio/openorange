@@ -85,7 +85,7 @@ def run():
         check("%s 嵌套容器都带 __id__（%d 个）" % (t, len(ks)),
               bool(ks) and all(isinstance(obj[k].get("__id__"), int) for k in ks))
         ids = [obj["__id__"]] + [obj[k]["__id__"] for k in ks]
-        check("%s 同批 __id__ 唯一" % t, len(ids) == len(set(ids)), ids)
+        check("{} 同批 __id__ 唯一".format(t), len(ids) == len(set(ids)), ids)
 
     print("\n[4] make_character：皮肤取 BDD，且不继承源角色状态")
     st = new_state()
@@ -136,7 +136,7 @@ def run():
                 continue
             for b in banned:
                 if b in src:
-                    hits.append("%s: %s" % (os.path.relpath(p, root), b))
+                    hits.append("{}: {}".format(os.path.relpath(p, root), b))
     check("★ 手抄字段表已全部清除", not hits, hits[:5])
 
     print("\n" + "=" * 56)

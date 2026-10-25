@@ -50,7 +50,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -94,7 +94,7 @@ def _bag_keys(st, prop):
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 
@@ -102,7 +102,7 @@ def run():
     st1, _u1 = fresh("newbie")
     check("★ player_name 是空串（官方默认）",
           st1.props.get("player_name") == "", repr(st1.props.get("player_name")))
-    check("★ player_name 不是显示占位符 %r" % _CN,
+    check("★ player_name 不是显示占位符 {!r}".format(_CN),
           st1.props.get("player_name") != _CN, repr(st1.props.get("player_name")))
     check("★ gender == 0（官方默认，0=未选）",
           st1.props.get("gender") == 0, st1.props.get("gender"))
@@ -124,7 +124,7 @@ def run():
           st1.props.get("player_card_id") == 0, st1.props.get("player_card_id"))
     for prop in ("portrait_frame_bag", "player_card_frame_bag",
                  "player_title_bag", "chat_bubble_bag", "background_bag"):
-        check("%s 保持空（有 type=0 默认项兜底）" % prop,
+        check("{} 保持空（有 type=0 默认项兜底）".format(prop),
               _bag_keys(st1, prop) == [], _bag_keys(st1, prop))
 
     print("\n[4] P0-7b：取名后按性别写 player_card_id")
@@ -160,7 +160,7 @@ def run():
     check("★ scaffold 补了 player_name",
           st6.props.get("player_name") == scaffold.SCAFFOLD_PLAYER_NAME,
           repr(st6.props.get("player_name")))
-    check("★ scaffold 的 player_name 不是显示占位符 %r" % _CN,
+    check("★ scaffold 的 player_name 不是显示占位符 {!r}".format(_CN),
           st6.props.get("player_name") != _CN)
     check("★ scaffold 补了 gender=1", st6.props.get("gender") == 1,
           st6.props.get("gender"))
@@ -220,7 +220,7 @@ def run():
     check("★ 条目有 cd_choose（getStreetBgm 读它）", "cd_choose" in e10, list(e10.keys()))
     for _k in ("exploration_info", "prestige_awarded", "prestige_tasks",
                "treasure_box_info", "inter_actor_info"):
-        check("★ 嵌套字段 %s 带 __id__" % _k,
+        check("★ 嵌套字段 {} 带 __id__".format(_k),
               isinstance(e10.get(_k), dict) and "__id__" in e10[_k], e10.get(_k))
     # 模拟客户端 getStreetBgm：streetInfo 非 nil
     check("★ 模拟 getStreetBgm：streetInfo 非 nil", si10.get(sid10) is not None)

@@ -102,7 +102,7 @@ def run():
 
     offenders = [r for r in rows
                  if r["resp"] and r["sync"] and not r["entry"]
-                 and ("%s:%s" % (r["rel"].replace(os.sep, "/"), r["func"])) not in ALLOW]
+                 and ("{}:{}".format(r["rel"].replace(os.sep, "/"), r["func"])) not in ALLOW]
     entries = [r for r in rows if r["entry"]]
     ack_only = [r for r in rows if r["resp"] and not r["sync"]]
 
@@ -113,7 +113,7 @@ def run():
 
     print("\n[3] 违规必须为 0")
     check("★ 没有任何 handler 手写「先应答、后同步」", not offenders,
-          ["%s:%s (行%s)" % (r["rel"], r["func"], r["line"]) for r in offenders])
+          ["{}:{} (行{})".format(r["rel"], r["func"], r["line"]) for r in offenders])
 
     print("\n[4] 守卫本身有效：至少覆盖到已知的收口面")
     check("★ 走过入口的函数不少于 20 个", len(entries) >= 20, len(entries))

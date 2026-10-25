@@ -53,7 +53,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -78,7 +78,7 @@ def sync_frames(st, changes):
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 
@@ -168,7 +168,7 @@ def run():
             story.mark_story_task_finished(st5, pre, NOW)
             story.archive_story_task(st5, pre, NOW)
         seed_mod.rescan(st5, NOW)
-        check("★ Type6 闸门 %s 前置满足后经 rescan 完成" % gate,
+        check("★ Type6 闸门 {} 前置满足后经 rescan 完成".format(gate),
               story.story_state(st5.props, gate) == sm.TASK_STATE_FINISHED,
               story.story_state(st5.props, gate))
 

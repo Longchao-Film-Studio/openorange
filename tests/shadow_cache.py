@@ -78,7 +78,7 @@ class CustomObj:
         self.is_fixed = is_fixed
 
     def __repr__(self):
-        return "<%s id=%s keys=%s>" % (
+        return "<{} id={} keys={}>".format(
             self.type_name, self.id,
             sorted(str(k) for k in self.props)[:6])
 
@@ -101,10 +101,10 @@ class ShadowCache:
 
     # ------------------------------------------------------------ 诊断
     def _err(self, where, msg):
-        self.errors.append("[%s] %s" % (where, msg))
+        self.errors.append("[{}] {}".format(where, msg))
 
     def _warn(self, where, msg):
-        self.warnings.append("[%s] %s" % (where, msg))
+        self.warnings.append("[{}] {}".format(where, msg))
 
     def ok(self):
         return not self.errors
@@ -127,8 +127,7 @@ class ShadowCache:
         if obj.id is None or obj.id < 0:
             return
         if obj.id in self.cache and self.cache[obj.id] is not obj:
-            self._warn(where, "%s attach id %s repeated!（会覆盖缓存项）"
-                       % (obj.type_name, obj.id))
+            self._warn(where, "{} attach id {} repeated!（会覆盖缓存项）".format(obj.type_name, obj.id))
         self.cache[obj.id] = obj
         for v in obj.props.values():
             self._attach(v, where)
@@ -139,7 +138,7 @@ class ShadowCache:
         if obj.id is None or obj.id < 0:
             return
         if obj.id not in self.cache:
-            self._warn(where, "%s detach id %s not found!" % (obj.type_name, obj.id))
+            self._warn(where, "{} detach id {} not found!".format(obj.type_name, obj.id))
         self.cache.pop(obj.id, None)
         for v in obj.props.values():
             self._detach(v, where)
@@ -152,13 +151,12 @@ class ShadowCache:
         对应 customdict.lua:440 roinit / customlist.lua:375 roinit。
         """
         if not isinstance(value, dict):
-            self._err(where, "%s 的值不是 dict（客户端会当简单值处理）" % name)
+            self._err(where, "{} 的值不是 dict（客户端会当简单值处理）".format(name))
             return value
         # roinit:450  assert(id ~= nil)
         oid = value.get("__id__")
         if not isinstance(oid, int) or isinstance(oid, bool):
-            self._err(where, "%s 没有 __id__ -> customdict.roinit:450 assert(id ~= nil)"
-                      % name)
+            self._err(where, "{} 没有 __id__ -> customdict.roinit:450 assert(id ~= nil)".format(name))
             return None
         is_list = _spec.key_kind(type_name) == "list"
         obj = CustomObj(type_name, oid, parent=parent, name=name,
@@ -178,17 +176,16 @@ class ShadowCache:
                 #       -> 对字符串执行 value.__id__ = nil -> 崩
                 if vtype and (_spec.is_struct(vtype) or _spec.is_container(vtype)):
                     self._err(where,
-                              "%s 的值里带 __tp__，且父是容器 -> 客户端会对字符串"
-                              "取 __id__ 崩" % name)
+                              "{} 的值里带 __tp__，且父是容器 -> 客户端会对字符串"
+                              "取 __id__ 崩".format(name))
                 else:
                     self._warn(where,
-                              "%s 的值里带 __tp__（结构体里会被静默丢弃，但应该剥掉）"
-                              % name)
+                              "{} 的值里带 __tp__（结构体里会被静默丢弃，但应该剥掉）".format(name))
                 continue
             fld = fields.get(k)
             declare = fld[0] if fld else vtype
             if declare is None:
-                self._warn(where, "%s.%s 没有声明（客户端会静默跳过）" % (name, k))
+                self._warn(where, "{}.{} 没有声明（客户端会静默跳过）".format(name, k))
                 continue
             if _spec.is_struct(declare) or _spec.is_container(declare):
                 child = self._create_ro(declare, k, v, obj, fixed, where)
@@ -206,7 +203,7 @@ class ShadowCache:
                 custom_type = value.get("__tp__")
                 if custom_type is None:
                     self._err("initProperty",
-                              "%s 是表但没有 __tp__ -> assert(customType ~= nil)" % name)
+                              "{} 是表但没有 __tp__ -> assert(customType ~= nil)".format(name))
                     continue
                 v = {k: vv for k, vv in value.items() if k != "__tp__"}
                 obj = self._create_ro(custom_type, name, v, None, True,
@@ -261,7 +258,7 @@ class ShadowCache:
             try:
                 value, _ = _ms.mp_decode(val_raw)
             except Exception as e:
-                self._err("decode", "参数解不出来: %s" % e)
+                self._err("decode", "参数解不出来: {}".format(e))
                 return False
         self.frame_count += 1
         if optype == _ms.OP_DEL:
@@ -275,7 +272,7 @@ class ShadowCache:
         elif optype == _ms.OP_INSERT:
             self._op_insert(pid, name, value)
         else:
-            self._err("dispatch", "未知 optype %s" % optype)
+            self._err("dispatch", "未知 optype {}".format(optype))
             return False
         return True
 
@@ -293,16 +290,14 @@ class ShadowCache:
             custom_type = value.get("__tp__")
             if custom_type is None:
                 self._err("_changeRootProperty",
-                          "根属性 %s 是表但没有 __tp__ -> :163 assert(customType ~= nil)"
-                          % name)
+                          "根属性 {} 是表但没有 __tp__ -> :163 assert(customType ~= nil)".format(name))
                 return
             v = {k: vv for k, vv in value.items() if k != "__tp__"}
             old = self.props.get(name)
             # :166  oldVal:customTypeName() —— oldVal 为 nil 就崩
             if old is None:
                 self._err("_changeRootProperty",
-                          "根属性 %s 在客户端不存在 -> :166 oldVal:customTypeName() 索引 nil"
-                          % name)
+                          "根属性 {} 在客户端不存在 -> :166 oldVal:customTypeName() 索引 nil".format(name))
                 return
             if isinstance(old, CustomObj) and old.id == v.get("__id__") and old.id > 0:
                 # 原地 rochange
@@ -325,13 +320,12 @@ class ShadowCache:
         # :189  assert(customObj ~= nil)
         if obj is None:
             self._err("_changeSubProperty",
-                      "propertyId=%s 不在客户端缓存 -> :189 assert(customObj ~= nil)"
-                      % pid)
+                      "propertyId={} 不在客户端缓存 -> :189 assert(customObj ~= nil)".format(pid))
             return
         # :190  assert(v ~= nil)
         if value is None:
             self._err("_changeSubProperty",
-                      "pid=%s name=%s 的值为 nil -> :190 assert(v ~= nil)" % (pid, name))
+                      "pid={} name={} 的值为 nil -> :190 assert(v ~= nil)".format(pid, name))
             return
         fields = _spec.struct_fields(obj.type_name)
         vtype = _spec.value_type(obj.type_name)
@@ -351,8 +345,8 @@ class ShadowCache:
             # :210  oldVal:customTypeName() —— oldVal 为 nil 就崩
             if old is None:
                 self._err("_changeSubProperty",
-                          "%s[%r] 在客户端不存在 -> :210 oldVal:customTypeName() 索引 nil"
-                          "（新键应该用 OP_ADD）" % (obj.type_name, k))
+                          "{}[{!r}] 在客户端不存在 -> :210 oldVal:customTypeName() 索引 nil"
+                          "（新键应该用 OP_ADD）".format(obj.type_name, k))
                 return
             if isinstance(old, CustomObj) and old.id == value.get("__id__") and old.id > 0:
                 self._rochange(old, value, "_changeSubProperty")
@@ -361,8 +355,7 @@ class ShadowCache:
                     self._detach(old, "_changeSubProperty")
                 if declare is None:
                     self._err("_changeSubProperty",
-                              "%s[%r] 没有类型声明 -> declare:createCustomObjRO 崩"
-                              % (obj.type_name, k))
+                              "{}[{!r}] 没有类型声明 -> declare:createCustomObjRO 崩".format(obj.type_name, k))
                     return
                 new_obj = self._create_ro(declare, k, value, obj, False,
                                           "_changeSubProperty")
@@ -378,27 +371,24 @@ class ShadowCache:
         obj = self.cache.get(pid)
         if obj is None:      # :243
             self._err("__OpAdd__",
-                      "propertyId=%s 不在客户端缓存 -> :243 assert(customObj ~= nil)"
-                      % pid)
+                      "propertyId={} 不在客户端缓存 -> :243 assert(customObj ~= nil)".format(pid))
             return
         vtype = _spec.value_type(obj.type_name)
         if vtype is None:    # :246
             self._err("__OpAdd__",
-                      "%s 没有 __ValueTypeDeclare__ -> :246 assert(valueTypeDeclare ~= nil)"
-                      % obj.type_name)
+                      "{} 没有 __ValueTypeDeclare__ -> :246 assert(valueTypeDeclare ~= nil)".format(obj.type_name))
             return
         k = _to_num(name) if _int_key(obj.type_name) else name
         if isinstance(k, _NilKey):
             self._err("__OpAdd__",
-                      "%s 的键 %r 转不成数字 -> :248 tonumber 返回 nil -> "
-                      "_properties[nil] 崩" % (obj.type_name, name))
+                      "{} 的键 {!r} 转不成数字 -> :248 tonumber 返回 nil -> "
+                      "_properties[nil] 崩".format(obj.type_name, name))
             return
         if isinstance(value, dict):
             if not _is_custom(vtype):
                 self._err("__OpAdd__",
-                          "%s 的元素类型 %s 不是自定义类型，但值是个表 -> "
-                          ":252 valueTypeDeclare.customClass 为 nil，调 nil 崩"
-                          % (obj.type_name, vtype))
+                          "{} 的元素类型 {} 不是自定义类型，但值是个表 -> "
+                          ":252 valueTypeDeclare.customClass 为 nil，调 nil 崩".format(obj.type_name, vtype))
                 return
             child = self._create_ro(vtype, k, value, obj, False, "__OpAdd__")
             if child is None:
@@ -413,23 +403,23 @@ class ShadowCache:
         obj = self.cache.get(pid)
         if obj is None:      # :288
             self._err("__OpDel__",
-                      "propertyId=%s 不在客户端缓存 -> :288 assert(customObj ~= nil)" % pid)
+                      "propertyId={} 不在客户端缓存 -> :288 assert(customObj ~= nil)".format(pid))
             return
         vtype = _spec.value_type(obj.type_name)
         if vtype is None:    # :291
             self._err("__OpDel__",
-                      "%s 没有 __ValueTypeDeclare__ -> :291 assert(valueTypeDeclare ~= nil)"
-                      "（结构体字段不能删）" % obj.type_name)
+                      "{} 没有 __ValueTypeDeclare__ -> :291 assert(valueTypeDeclare ~= nil)"
+                      "（结构体字段不能删）".format(obj.type_name))
             return
         k = _to_num(name) if _int_key(obj.type_name) else name
         if isinstance(k, _NilKey):
             self._err("__OpDel__",
-                      "%s 的键 %r 转不成数字 -> :293 tonumber 返回 nil" % (obj.type_name, name))
+                      "{} 的键 {!r} 转不成数字 -> :293 tonumber 返回 nil".format(obj.type_name, name))
             return
         old = obj.props.get(k)
         if old is None:      # :296
             self._err("__OpDel__",
-                      "%s[%r] 不存在 -> :296 assert(obj ~= nil)" % (obj.type_name, k))
+                      "{}[{!r}] 不存在 -> :296 assert(obj ~= nil)".format(obj.type_name, k))
             return
         if isinstance(old, CustomObj):
             self._detach(old, "__OpDel__")
@@ -440,17 +430,17 @@ class ShadowCache:
         obj = self.cache.get(pid)
         if obj is None:      # :331
             self._err("__OpInsert__",
-                      "propertyId=%s 不在缓存 -> :331 assert(customObj ~= nil)" % pid)
+                      "propertyId={} 不在缓存 -> :331 assert(customObj ~= nil)".format(pid))
             return
         vtype = _spec.value_type(obj.type_name)
         if vtype is None:    # :336
             self._err("__OpInsert__",
-                      "%s 没有 __ValueTypeDeclare__ -> :336 assert 崩" % obj.type_name)
+                      "{} 没有 __ValueTypeDeclare__ -> :336 assert 崩".format(obj.type_name))
             return
         k = _to_num(name)   # :333 无条件 tonumber
         if isinstance(k, _NilKey) or k < 1:
             self._err("__OpInsert__",
-                      "位置 %r 非法 -> :333 tonumber 失败或 <1" % (name,))
+                      "位置 {!r} 非法 -> :333 tonumber 失败或 <1".format(name))
             return
         n = len(obj.props)
         if k > n + 1:        # table.insert 越界
@@ -477,21 +467,21 @@ class ShadowCache:
         obj = self.cache.get(pid)
         if obj is None:      # :379
             self._err("__OpRemove__",
-                      "propertyId=%s 不在缓存 -> :379 assert(customObj ~= nil)" % pid)
+                      "propertyId={} 不在缓存 -> :379 assert(customObj ~= nil)".format(pid))
             return
         vtype = _spec.value_type(obj.type_name)
         if vtype is None:    # :383
             self._err("__OpRemove__",
-                      "%s 没有 __ValueTypeDeclare__ -> :383 assert 崩" % obj.type_name)
+                      "{} 没有 __ValueTypeDeclare__ -> :383 assert 崩".format(obj.type_name))
             return
         k = _to_num(name)
         if isinstance(k, _NilKey):
-            self._err("__OpRemove__", "索引 %r 转不成数字" % (name,))
+            self._err("__OpRemove__", "索引 {!r} 转不成数字".format(name))
             return
         obj2 = obj.props.get(k)
         if obj2 is None:     # :385
             self._err("__OpRemove__",
-                      "%s[%s] 不存在 -> :385 assert(obj ~= nil)" % (obj.type_name, k))
+                      "{}[{}] 不存在 -> :385 assert(obj ~= nil)".format(obj.type_name, k))
             return
         if isinstance(obj2, CustomObj):
             self._detach(obj2, "__OpRemove__")
@@ -527,12 +517,10 @@ class ShadowCache:
         """
         oid = value.get("__id__")
         if oid is None:
-            self._err(where, "%s rochange 缺 __id__ -> :488 assert(id ~= nil)"
-                      % obj.type_name)
+            self._err(where, "{} rochange 缺 __id__ -> :488 assert(id ~= nil)".format(obj.type_name))
             return
         if oid != obj.id:
-            self._warn(where, "%s rochange id 不匹配（%s vs %s）-> :490 日志并返回"
-                       % (obj.type_name, obj.id, oid))
+            self._warn(where, "{} rochange id 不匹配（{} vs {}）-> :490 日志并返回".format(obj.type_name, obj.id, oid))
             return
         fields = _spec.struct_fields(obj.type_name)
         vtype = _spec.value_type(obj.type_name)
@@ -549,8 +537,7 @@ class ShadowCache:
                     declare = fld[0] if fld else vtype
                     if declare is None:
                         self._err(where,
-                                  "%s rochange %r 需要重建但没有 declare -> :508 崩"
-                                  % (obj.type_name, k))
+                                  "{} rochange {!r} 需要重建但没有 declare -> :508 崩".format(obj.type_name, k))
                         continue
                     self._detach(ov, where)
                     if _is_custom(declare):
@@ -566,13 +553,13 @@ class ShadowCache:
             # ★ 新键
             if k in fields:
                 self._err(where,
-                          "%s rochange 把结构体字段 %r 当新键 -> :518 "
-                          "assert(propDeclares[k] == nil) 崩" % (obj.type_name, k))
+                          "{} rochange 把结构体字段 {!r} 当新键 -> :518 "
+                          "assert(propDeclares[k] == nil) 崩".format(obj.type_name, k))
                 continue
             if vtype is None:
                 self._err(where,
-                          "%s rochange 遇到新键 %r，且是结构体（valueTypeDeclare 为 nil）"
-                          " -> :519 索引 nil 崩" % (obj.type_name, k))
+                          "{} rochange 遇到新键 {!r}，且是结构体（valueTypeDeclare 为 nil）"
+                          " -> :519 索引 nil 崩".format(obj.type_name, k))
                 continue
             if _is_custom(vtype):
                 child = self._create_ro(vtype, k, v, obj, False, where)
@@ -590,8 +577,7 @@ class ShadowCache:
                 self._detach(ov, where)
             if k in fields:
                 self._err(where,
-                          "%s rochange 删除结构体字段 %r -> :538 assert 崩"
-                          % (obj.type_name, k))
+                          "{} rochange 删除结构体字段 {!r} -> :538 assert 崩".format(obj.type_name, k))
                 continue
             del obj.props[k]
 

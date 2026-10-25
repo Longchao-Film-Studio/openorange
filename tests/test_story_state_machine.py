@@ -63,7 +63,7 @@ _TAG = ""
 
 
 def uid_of(name):
-    return "%s_%s" % (name, _TAG)
+    return "{}_{}".format(name, _TAG)
 
 
 def fresh(name):
@@ -122,7 +122,7 @@ def desc_ids(descs):
 
 def run():
     global _TAG
-    _TAG = "%04x" % random.randint(0, 0xFFFF)
+    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
     del passed[:]
     del failed[:]
 
@@ -190,7 +190,7 @@ def run():
             sm.transition(st2, 1003, to, source="bad")
         except sm.TransitionError:
             raised = True
-        check("非法迁移 %s->%s 抛异常" % (sm.state_name(frm), sm.state_name(to)), raised)
+        check("非法迁移 {}->{} 抛异常".format(sm.state_name(frm), sm.state_name(to)), raised)
 
     print("\n[5] 不在包里的任务不能迁移")
     st3 = fresh("sm_c")
@@ -396,7 +396,7 @@ def run():
         try:
             hits = _scan_state_writes(src)
         except SyntaxError as e:
-            neg_miss.append((src, "SyntaxError:%s" % e))
+            neg_miss.append((src, "SyntaxError:{}".format(e)))
             continue
         if not hits:
             neg_miss.append((src, "没抓到"))
@@ -414,13 +414,13 @@ def run():
         try:
             src = open(path, encoding="utf-8").read()
         except Exception as e:
-            offenders.append("%s 读取失败 %s" % (rel, e))
+            offenders.append("{} 读取失败 {}".format(rel, e))
             continue
         try:
             hits = _scan_state_writes(src)
         except SyntaxError as e:
             # ★ 不许静默跳过：语法错的文件也要报出来
-            offenders.append("%s 语法错误 %s" % (rel, e))
+            offenders.append("{} 语法错误 {}".format(rel, e))
             continue
         for lineno, fname, kind in hits:
             if (rel, fname) in ALLOW:
@@ -442,7 +442,7 @@ def run():
     try:
         repeat = story.finish_story_task(st8, 1000, NOW)
     except Exception as e:
-        repeat = "EXC:%s" % e
+        repeat = "EXC:{}".format(e)
     check("★ P1-3 重复 finish_story_task 是 no-op（不抛）", repeat == [], repeat)
     st9 = fresh("sm_i")
     kinds9 = [c[0] for c in story.finish_story_task(st9, 1003, NOW)]
@@ -540,7 +540,7 @@ def run():
     idx14 = erpc.RPC_INDEX.get("Street_Actor_InteractID_Update_CS")
     if _forge is not None:
         fg.guarded_handle(idx14, msmod.mp_arr([1, 1, 0, _forge, 0]), 1, uid=uid_of("sm_forge"))
-        check("★ 伪造 NPC taskId=%s 被拒（不在包里）" % _forge,
+        check("★ 伪造 NPC taskId={} 被拒（不在包里）".format(_forge),
               story.story_state(st14.props, _forge) == -1,
               story.story_state(st14.props, _forge))
         check("★ 伪造后没有进 done", _forge not in st14.props["done_story_tasks"])
@@ -548,7 +548,7 @@ def run():
     if _forge is not None:
         fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                     msmod.mp_arr([_forge, 0]), 2, uid=uid_of("sm_forge"))
-        check("★ 伪造 ParamInt taskId=%s 被拒" % _forge,
+        check("★ 伪造 ParamInt taskId={} 被拒".format(_forge),
               story.story_state(st14.props, _forge) == -1,
               story.story_state(st14.props, _forge))
     # ③ 奖励零变化
@@ -586,10 +586,10 @@ def run():
             story.archive_story_task(stg, pre, NOW)
         # 走真实路径：链式检查 -> 落状态
         hits_g, _ = story.check_chain_tasks(stg, NOW)
-        check("Type6 闸门 %s 被链式检查命中" % gate, gate in hits_g, hits_g[:4])
+        check("Type6 闸门 {} 被链式检查命中".format(gate), gate in hits_g, hits_g[:4])
         if gate in hits_g:
             erpc._finish_story_tasks(stg, list(hits_g))
-        check("★ Type6 闸门 %s 前置满足后能完成（不被多目标挡住）" % gate,
+        check("★ Type6 闸门 {} 前置满足后能完成（不被多目标挡住）".format(gate),
               story.story_state(stg.props, gate) == sm.TASK_STATE_FINISHED,
               story.story_state(stg.props, gate))
 
