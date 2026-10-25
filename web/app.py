@@ -222,165 +222,186 @@ class WebHandler(BaseHTTPRequestHandler):
 
     # ---------------- POST ----------------
 
+    _ROUTES = {
+        "/api/register": "_r_api_register",
+        "/api/login": "_r_api_login",
+        "/api/me": "_r_api_me",
+        "/api/chat/command": "_r_api_chat_command",
+        "/api/admin/command": "_r_api_admin_command",
+        "/api/launcher/login": "_r_api_launcher_login",
+        "/api/logout": "_r_api_logout",
+        "/api/change_password": "_r_api_change_password",
+        "/api/delete_account": "_r_api_delete_account",
+    }
+
     def do_POST(self):
+        """POST 路由分发（2026-10-25 拆分：每个端点一个方法）。
+
+        等价性：原实现是一串 if path == ... 直接 return；现改为字典分发。
+        每个方法体与原 if 体逐行一致（含注释），未命中路径仍回 404。
+        """
         path = self.path.split("?")[0]
         req = self._body()
-
-        if path == "/api/register":
-            username = str(req.get("username") or "").strip()
-            pw = str(req.get("password") or "")
-            pw2 = req.get("password2")
-            if pw2 is not None and pw != str(pw2):
-                self._json({"ok": False, "msg": "两次输入的密码不一致"})
-                return
-            ok, msg, acc = models.register(username, pw)
-            _log.info(f"[web] register {msg} username={username} -> {ok}")
-            self._json({"ok": ok, "msg": msg})
+        name = self._ROUTES.get(path)
+        if name is None:
+            self._json({"ok": False, "msg": "not found"}, 404)
             return
+        getattr(self, name)(req)
 
-        if path == "/api/login":
-            username = str(req.get("username") or "").strip()
-            if _login_blocked(username):
-                self._json({"ok": False, "msg": "失败次数过多，请 10 分钟后再试"})
-                return
-            ok, msg, token = models.web_login(username, req.get("password"))
-            if ok:
-                _note_login_ok(username)
-            else:
-                _note_login_fail(username)
-            _log.info(f"[web] login {msg} username={username} -> {ok}")
-            self._json({"ok": ok, "msg": msg, "token": token or "", "username": username})
+    def _r_api_register(self, req):
+        username = str(req.get("username") or "").strip()
+        pw = str(req.get("password") or "")
+        pw2 = req.get("password2")
+        if pw2 is not None and pw != str(pw2):
+            self._json({"ok": False, "msg": "两次输入的密码不一致"})
             return
+        ok, msg, _acc = models.register(username, pw)
+        _log.info(f"[web] register {msg} username={username} -> {ok}")
+        self._json({"ok": ok, "msg": msg})
+        return
 
-        if path == "/api/me":
-            acc = models.whoami(req.get("token") or "")
-            if not acc:
-                self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
-                return
-            prof = models.account_profile(acc)
-            prof["created_text"] = _fmt_ts(prof["created"])
-            prof["last_login_text"] = _fmt_ts(prof["last_login"])
-            self._json({"ok": True, "account": prof})
+    def _r_api_login(self, req):
+        username = str(req.get("username") or "").strip()
+        if _login_blocked(username):
+            self._json({"ok": False, "msg": "失败次数过多，请 10 分钟后再试"})
             return
-
-        if path == "/api/chat/command":
-            # 游戏内聊天框指令入口。
-            # 认证用启动器签发、客户端手里已有的 ticket（存在 tickets 表里，带过期时间），
-            # 不需要额外的会话 token。
-            t = models.check_ticket(str(req.get("ticket") or ""))
-            if not t:
-                self._json({"ok": False, "chat": "✗ 登录票据无效", "lines": ["登录票据无效"]}, 401)
-                return
-            username = t["username"]
-            # ★ 雷6：按账号限流（票据在会话内复用，不能做成一次性）
-            if not _rate_allow("chat:" + username):
-                print(f"[chatcmd] rate limited username={username}",
-                      flush=True)
-                self._json({"ok": False, "chat": "✗ 指令太频繁，请稍候",
-                            "lines": ["指令太频繁，请稍候再用"]})
-                return
-            perm = db.get_perm_level(username)
-            ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
-            text = str(req.get("text") or "")
-            res = cmds.execute(text, ctx)
-            _log.info(f'[chatcmd] {username}(perm={perm}) > {text} -> {res.ok}')
-            self._json({
-                "ok": res.ok,
-                "chat": res.chat,
-                "lines": res.lines,
-                "data": res.data,
-            })
-            return
-
-        if path == "/api/admin/command":
-            acc = models.whoami(req.get("token") or "")
-            if not acc:
-                self._json({"ok": False, "msg": "登录已失效，请重新登录", "lines": ["登录已失效，请重新登录"]}, 401)
-                return
-            perm = int(acc.get("perm_level") or 0)
-            ctx = cmds.Context(acc["username"], perm, source="web", server_name=_server_name())
-            text = str(req.get("text") or "")
-            res = cmds.execute(text, ctx)
-            _log.info('[admin] {}(perm={}) > {} -> {}'.format(acc["username"], perm, text, res.ok))
-            self._json({
-                "ok": res.ok,
-                "lines": res.lines,
-                "chat": res.chat,
-                "data": res.data,
-                "actor": ctx.actor,
-                "perm": perm,
-            })
-            return
-
-        if path == "/api/launcher/login":
-            # 启动器专用登录接口。
-            # 返回与官方 login 响应同构的 {code, msg, data} —— 客户端脚本
-            # deliver() 只认 result.code == 1，随后取 result.data.account_id / ticket
-            # （见 modules/sdk/fpxaccount.lua 第 12-13 行）。
-            username = str(req.get("username") or "").strip()
-            password = str(req.get("password") or "")
-            if _login_blocked(username):
-                _log.info(f"[launcher] login BLOCKED username={username}")
-                self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
-                return
-
-            # 只校验密码，不建网页会话 —— 启动器不需要会话，
-            # 建了反而会把网页端正在登录的那一端挤掉。
-            ok, msg, acc = models.verify_credentials(username, password)
-            if not ok:
-                _note_login_fail(username)
-                _log.info(f"[launcher] login REJECTED username={username}: {msg}")
-                self._json({"code": 0, "msg": msg, "data": {}})
-                return
-
-            ret, err = models.login(username)
-            if err:
-                _note_login_fail(username)
-                _log.warning(f"[launcher] login FAILED username={username}: {err}")
-                self._json({"code": 0, "msg": err, "data": {}})
-                return
-
+        ok, msg, token = models.web_login(username, req.get("password"))
+        if ok:
             _note_login_ok(username)
-            # 游戏内指令通道要回连本服务，把地址一并下发。
-            host = self.headers.get("Host") or ""
-            if host:
-                ret["web_base"] = "http://" + host
-            print("[launcher] login OK username={} account_id={} fp_uid={}".format(username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
-            self._json({"code": 1, "msg": "Success", "data": ret})
+        else:
+            _note_login_fail(username)
+        _log.info(f"[web] login {msg} username={username} -> {ok}")
+        self._json({"ok": ok, "msg": msg, "token": token or "", "username": username})
+        return
+
+    def _r_api_me(self, req):
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+            return
+        prof = models.account_profile(acc)
+        prof["created_text"] = _fmt_ts(prof["created"])
+        prof["last_login_text"] = _fmt_ts(prof["last_login"])
+        self._json({"ok": True, "account": prof})
+        return
+
+    def _r_api_chat_command(self, req):
+        # 游戏内聊天框指令入口。
+        # 认证用启动器签发、客户端手里已有的 ticket（存在 tickets 表里，带过期时间），
+        # 不需要额外的会话 token。
+        t = models.check_ticket(str(req.get("ticket") or ""))
+        if not t:
+            self._json({"ok": False, "chat": "✗ 登录票据无效", "lines": ["登录票据无效"]}, 401)
+            return
+        username = t["username"]
+        # ★ 雷6：按账号限流（票据在会话内复用，不能做成一次性）
+        if not _rate_allow("chat:" + username):
+            print(f"[chatcmd] rate limited username={username}",
+                  flush=True)
+            self._json({"ok": False, "chat": "✗ 指令太频繁，请稍候",
+                        "lines": ["指令太频繁，请稍候再用"]})
+            return
+        perm = db.get_perm_level(username)
+        ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
+        text = str(req.get("text") or "")
+        res = cmds.execute(text, ctx)
+        _log.info(f'[chatcmd] {username}(perm={perm}) > {text} -> {res.ok}')
+        self._json({
+            "ok": res.ok,
+            "chat": res.chat,
+            "lines": res.lines,
+            "data": res.data,
+        })
+        return
+
+    def _r_api_admin_command(self, req):
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录", "lines": ["登录已失效，请重新登录"]}, 401)
+            return
+        perm = int(acc.get("perm_level") or 0)
+        ctx = cmds.Context(acc["username"], perm, source="web", server_name=_server_name())
+        text = str(req.get("text") or "")
+        res = cmds.execute(text, ctx)
+        _log.info('[admin] {}(perm={}) > {} -> {}'.format(acc["username"], perm, text, res.ok))
+        self._json({
+            "ok": res.ok,
+            "lines": res.lines,
+            "chat": res.chat,
+            "data": res.data,
+            "actor": ctx.actor,
+            "perm": perm,
+        })
+        return
+
+    def _r_api_launcher_login(self, req):
+        # 启动器专用登录接口。
+        # 返回与官方 login 响应同构的 {code, msg, data} —— 客户端脚本
+        # deliver() 只认 result.code == 1，随后取 result.data.account_id / ticket
+        # （见 modules/sdk/fpxaccount.lua 第 12-13 行）。
+        username = str(req.get("username") or "").strip()
+        password = str(req.get("password") or "")
+        if _login_blocked(username):
+            _log.info(f"[launcher] login BLOCKED username={username}")
+            self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
             return
 
-        if path == "/api/logout":
-            models.web_logout(req.get("token") or "")
-            self._json({"ok": True, "msg": "已退出"})
+        # 只校验密码，不建网页会话 —— 启动器不需要会话，
+        # 建了反而会把网页端正在登录的那一端挤掉。
+        ok, msg, _acc = models.verify_credentials(username, password)
+        if not ok:
+            _note_login_fail(username)
+            _log.info(f"[launcher] login REJECTED username={username}: {msg}")
+            self._json({"code": 0, "msg": msg, "data": {}})
             return
 
-        if path == "/api/change_password":
-            acc = models.whoami(req.get("token") or "")
-            if not acc:
-                self._json({"ok": False, "msg": "未登录"}, 401)
-                return
-            ok, msg = models.change_password(
-                acc["username"],
-                req.get("old_password"),
-                req.get("password"),
-                req.get("password2"),
-                keep_token=req.get("token") or "",
-            )
-            _log.info("[web] change_password username={} -> {}".format(acc["username"], ok))
-            self._json({"ok": ok, "msg": msg})
+        ret, err = models.login(username)
+        if err:
+            _note_login_fail(username)
+            _log.warning(f"[launcher] login FAILED username={username}: {err}")
+            self._json({"code": 0, "msg": err, "data": {}})
             return
 
-        if path == "/api/delete_account":
-            acc = models.whoami(req.get("token") or "")
-            if not acc:
-                self._json({"ok": False, "msg": "未登录"}, 401)
-                return
-            ok, msg = models.remove_account(acc["username"], req.get("password"))
-            _log.info("[web] delete_account username={} -> {}".format(acc["username"], ok))
-            self._json({"ok": ok, "msg": msg})
-            return
+        _note_login_ok(username)
+        # 游戏内指令通道要回连本服务，把地址一并下发。
+        host = self.headers.get("Host") or ""
+        if host:
+            ret["web_base"] = "http://" + host
+        print("[launcher] login OK username={} account_id={} fp_uid={}".format(username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
+        self._json({"code": 1, "msg": "Success", "data": ret})
+        return
 
-        self._json({"ok": False, "msg": "not found"}, 404)
+    def _r_api_logout(self, req):
+        models.web_logout(req.get("token") or "")
+        self._json({"ok": True, "msg": "已退出"})
+        return
+
+    def _r_api_change_password(self, req):
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "未登录"}, 401)
+            return
+        ok, msg = models.change_password(
+            acc["username"],
+            req.get("old_password"),
+            req.get("password"),
+            req.get("password2"),
+            keep_token=req.get("token") or "",
+        )
+        _log.info("[web] change_password username={} -> {}".format(acc["username"], ok))
+        self._json({"ok": ok, "msg": msg})
+        return
+
+    def _r_api_delete_account(self, req):
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "未登录"}, 401)
+            return
+        ok, msg = models.remove_account(acc["username"], req.get("password"))
+        _log.info("[web] delete_account username={} -> {}".format(acc["username"], ok))
+        self._json({"ok": ok, "msg": msg})
+        return
+
 
 def serve(host=None, port=None):
     db.init()
