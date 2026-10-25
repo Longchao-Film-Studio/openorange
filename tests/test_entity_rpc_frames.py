@@ -58,7 +58,7 @@ F_TWO = h(
     "91 84 A7 73 74 6F 72 79 49 44 01 A6 6D 6F 64 65 49 64 01 "
     "AB 73 79 73 74 65 6D 5F 74 79 70 65 CD 03 EC AA 6D 61 74 63 68 5F 74 79 70 65 03 "
     "28 03 "
-    "0C 00 00 00 04 00 18 A4 84 E1 D8 04 22 02 91 00"
+    "0C 00 00 00 04 00 18 A4 84 E1 D8 04 22 02 91 00",
 )
 
 def parse_response(pkt):
@@ -88,7 +88,7 @@ def run():
     # ★ 注意：91 A0 里 A0 是 fixstr(0)，也就是空字符串，不是空 map（空 map 是 80）。
     #   对应 basecomp.lua:8 CallServer("RpcPullHotfix", mgr.hotfix_md5)，
     #   hotfix_md5 是空串而不是 nil。
-    check("RpcPullHotfix 参数是 [\"\"]", msmod.mp_decode(params)[0] == [""])
+    check('RpcPullHotfix 参数是 [""]', msmod.mp_decode(params)[0] == [""])
 
     idx, params, rid = msmod.parse_entity_frame(F_MATCHDUR_RID1[6:])
     check("RpcGetMatchDuration index=1795313897", idx == 1795313897, idx)

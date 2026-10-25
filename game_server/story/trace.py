@@ -216,7 +216,6 @@ def note_wanted(st, task_id):
     负数（客户端取消追踪的哨兵 -1000）与非法值一律归 0。
     """
     tid = _as_int(task_id, 0) or 0
-    if tid < 0:
-        tid = 0
+    tid = max(tid, 0)
     st.props[WANTED_KEY] = tid
     return tid

@@ -72,7 +72,7 @@ def parse_entries(path):
     key = None
     depth = 0
     body = []
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for raw in f:
             line = raw.rstrip("\n").rstrip("\r")
             if key is None:

@@ -44,7 +44,7 @@ def _warn():
 
 def _read_file(p):
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return f.read().strip() or None
     except OSError:
         return None

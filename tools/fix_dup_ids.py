@@ -121,7 +121,7 @@ def main():
         if not os.path.exists(p):
             print(f"跳过 {uid}：文件不存在")
             continue
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             d = json.load(f)
         props = d.get("props") or {}
         fixed, report = fix(props, dry_run=args.dry_run)

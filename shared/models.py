@@ -362,7 +362,7 @@ def login(username, _channel_uid=None):
                 "name": DEFAULT_CSC,
                 "email": "",
             },
-        }
+        },
     ]
 
     # ---- 官方响应字段全集: 15 个, 一个不多一个不少 ----

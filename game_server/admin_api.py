@@ -27,6 +27,7 @@ import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
 
 from shared import admin_token as _admin_token
 from shared.log_tee import get_logger
@@ -296,7 +297,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if not self._auth():
-            return
+            return None
         path = self.path.split("?")[0].rstrip("/") or "/"
         try:
             if path == "/health":
@@ -323,7 +324,7 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"{type(e).__name__}: {e}",
                                     "trace": traceback.format_exc()[-800:]})
 
-    _ROUTES = {
+    _ROUTES: ClassVar[dict[str, str]] = {
         "/dungeon/level": "_r_dungeon_level",
         "/player/unlock-npc-topic": "_r_player_unlock_npc_topic",
         "/player/skip-prologue": "_r_player_skip_prologue",
@@ -338,7 +339,7 @@ class _Handler(BaseHTTPRequestHandler):
         每个方法体与原 if 体逐行一致。异常仍由本函数的 except 统一兜住。
         """
         if not self._auth():
-            return
+            return None
         path = self.path.split("?")[0].rstrip("/") or "/"
         payload = self._body()
         try:

@@ -49,7 +49,7 @@ def table(name):
         data = None
         if os.path.exists(p):
             try:
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, encoding="utf-8") as f:
                     data = json.load(f)
             except Exception as e:
                 if name not in _WARNED:

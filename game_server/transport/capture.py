@@ -66,7 +66,7 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
         while True:
             try:
                 data = conn.recv(8192)
-            except socket.timeout:
+            except TimeoutError:
                 print(f'[game] #{cid:03d} recv timeout (idle 120s), closing',
                       flush=True)
                 break

@@ -47,7 +47,7 @@ try:
     from Crypto.Cipher import AES
     from Crypto.Util.Padding import unpad
 except ImportError:
-    raise SystemExit("需要 pycryptodome: python -m pip install pycryptodome")
+    raise SystemExit("需要 pycryptodome: python -m pip install pycryptodome") from None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)

@@ -352,7 +352,7 @@ def _as_index(index, where):
     try:
         return int(index)
     except Exception:
-        raise TxError(f"{where} 的位置 {index!r} 不是整数")
+        raise TxError(f"{where} 的位置 {index!r} 不是整数") from None
 
 
 def _normalize_list_keys(container):

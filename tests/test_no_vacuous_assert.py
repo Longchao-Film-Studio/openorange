@@ -185,14 +185,14 @@ def run():
     check("★ 豁免清单没有死条目", not dead, dead)
 
     print("\n[3] 元测试自身有效")
-    src1 = "def f():\n    check(\"x\", True)\n"
+    src1 = 'def f():\n    check("x", True)\n'
     check("★ 扫描器能抓到构造的空断言", _count_literal(src1, False) == 1,
           _count_literal(src1, False))
     src2 = ("def f():\n"
             "    try:\n"
             "        x = 1\n"
             "    except Exception as e:\n"
-            "        check(\"y\", False, e)\n")
+            '        check("y", False, e)\n')
     check("★ except 块里的字面量被正确豁免", _count_literal(src2, True) == 1,
           _count_literal(src2, True))
     check("★ 且它不会被当成违规", _count_literal(src2, False) == 0,

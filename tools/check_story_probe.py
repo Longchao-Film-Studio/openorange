@@ -24,7 +24,7 @@ LOG = os.path.join(ROOT, "launcher", "dist", "oo_internal.log")
 def read_log(path):
     if not os.path.exists(path):
         return None
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         return f.read()
 
 

@@ -260,7 +260,7 @@ def main():
         if not os.path.exists(OUT_JSON):
             print(f"❌ {OUT_JSON} 不存在")
             return 1
-        with open(OUT_JSON, "r", encoding="utf-8") as f:
+        with open(OUT_JSON, encoding="utf-8") as f:
             old = json.load(f)
         diffs = []
         for key in ("custom_types", "avatar_properties"):

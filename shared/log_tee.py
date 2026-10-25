@@ -100,7 +100,7 @@ class _PrintInterceptor:
         try:
             return self._original.fileno()
         except Exception:
-            raise OSError("intercepted stream has no fileno")
+            raise OSError("intercepted stream has no fileno") from None
 
     @property
     def encoding(self):

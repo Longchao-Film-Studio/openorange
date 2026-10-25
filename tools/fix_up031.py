@@ -67,7 +67,7 @@ def conv_fmt(fmt):
                 head = typ
                 tail = ""
                 if align or fill or spec:
-                    tail = ":" + (align if align else "") + (fill if fill and not align else "") + spec
+                    tail = ":" + (align or "") + (fill if fill and not align else "") + spec
                 out.append("{" + head + tail + "}")
                 nph += 1
                 continue
@@ -125,7 +125,7 @@ def main():
         for ln in lines:
             offsets.append(offsets[-1] + len(ln))
 
-        def abs_pos(lineno, col):
+        def abs_pos(lineno, col, lines=lines, offsets=offsets):
             line = lines[lineno - 1]
             head = line.encode("utf-8")[:col].decode("utf-8", "ignore")
             return offsets[lineno - 1] + len(head)

@@ -75,7 +75,7 @@ def pump(src, dst, direction, cid, t0, f, done_evt):
         while True:
             try:
                 data = src.recv(8192)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 break

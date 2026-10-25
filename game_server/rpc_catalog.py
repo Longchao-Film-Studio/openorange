@@ -33,7 +33,7 @@ def _load():
             return
         by_index, by_name = {}, {}
         try:
-            with open(_TSV, "r", encoding="utf-8", errors="replace") as f:
+            with open(_TSV, encoding="utf-8", errors="replace") as f:
                 next(f, None)                      # 表头
                 for line in f:
                     row = line.rstrip("\r\n").split("\t")

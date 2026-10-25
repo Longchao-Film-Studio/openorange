@@ -16,6 +16,7 @@ import os
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,7 +45,7 @@ def _server_name():
         os.path.join(here, "server_name.txt"),
     ):
         with contextlib.suppress(Exception):
-            with open(cand, "r", encoding="utf-8") as f:
+            with open(cand, encoding="utf-8") as f:
                 v = f.read().strip()
             if v:
                 return v
@@ -96,7 +97,7 @@ def _page(body):
         '<meta name="color-scheme" content="dark">'
         '<title>OpenOrange 账号中心</title>'
         '<link rel="stylesheet" href="/static/app.css"></head><body>'
-        '<div class="shell">' + BRAND + "<main class=\"content\">" + body + "</main></div>"
+        '<div class="shell">' + BRAND + '<main class="content">' + body + "</main></div>"
         + OVERLAY
         + '<div id="toast"></div>'
         "<script>" + SCRIPT + "</script></body></html>"
@@ -222,7 +223,7 @@ class WebHandler(BaseHTTPRequestHandler):
 
     # ---------------- POST ----------------
 
-    _ROUTES = {
+    _ROUTES: ClassVar[dict[str, str]] = {
         "/api/register": "_r_api_register",
         "/api/login": "_r_api_login",
         "/api/me": "_r_api_me",

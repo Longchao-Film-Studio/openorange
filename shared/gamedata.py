@@ -51,7 +51,7 @@ _story_by_id = {}
 
 def _load(name, list_key):
     path = os.path.join(DATA_DIR, name)
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         obj = json.load(f)
     return obj.get(list_key) or []
 
@@ -61,7 +61,7 @@ def _load_optional(name, list_key):
     path = os.path.join(DATA_DIR, name)
     if not os.path.exists(path):
         return []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         obj = json.load(f)
     return obj.get(list_key) or []
 

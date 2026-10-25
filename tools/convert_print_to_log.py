@@ -115,7 +115,7 @@ def convert_call(call_src):
 
 
 def process_file(path, write):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         src = f.read()
     crlf = "\r\n" in src
     if crlf:
@@ -192,10 +192,8 @@ def process_file(path, write):
             if depth == 0 and re.match(r"^(from |import )", l):
                 last_top = i
             depth += l.count("(") + l.count("[") - l.count(")") - l.count("]")
-            if depth < 0:
-                depth = 0
-        if last_top < 0:
-            last_top = 0
+            depth = max(depth, 0)
+        last_top = max(last_top, 0)
         rel_norm = os.path.relpath(path, ROOT).replace("\\", "/")
         pkg_depth = rel_norm.count("/")          # 距仓库根的包层级
         dots = "." * pkg_depth

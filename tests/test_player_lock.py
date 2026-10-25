@@ -77,9 +77,8 @@ def run():
     print("\n[2] 可重入：同一线程嵌套获取不死锁")
     ok = True
     try:
-        with pstate.lock_for("lock_reentrant"):
-            with pstate.lock_for("lock_reentrant"):
-                pass
+        with pstate.lock_for("lock_reentrant"), pstate.lock_for("lock_reentrant"):
+            pass
     except Exception:
         ok = False
     check("嵌套获取成功", ok)

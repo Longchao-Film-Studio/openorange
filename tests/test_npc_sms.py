@@ -46,7 +46,8 @@ def fresh(name):
 def frames_ops(frames):
     """粗提 (optype, name) 序列——帧是字节，这里用 Tx 的 ops 侧信不方便，
     所以直接在 unlock 前后比对 props 并用 Tx 重新演算；更直接的办法：
-    unlock_topic 返回帧列表长度 + 我们对 props 的断言。这里只断言帧数与状态。"""
+    unlock_topic 返回帧列表长度 + 我们对 props 的断言。这里只断言帧数与状态。
+    """
     return frames
 
 

@@ -76,7 +76,8 @@ def naming_needs_input(st):
 
 def can_enter_street(st):
     """照抄客户端 StreetStage:checkIsCanEnterStreet()
-    （stage/streetstage.lua:167-185）的四个条件。"""
+    （stage/streetstage.lua:167-185）的四个条件。
+    """
     sf = st.props.get("story_finished") or {}
     c1 = any(not str(k).startswith("__") for k in sf)
     c2 = not _is_nil_or_empty(st.props.get("player_name"))
@@ -199,7 +200,7 @@ def run():
     print("\n[9] P1-7：FriendService.fetchFriends 返回空好友列表")
     _params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
     _dec = msmod.mp_decode(_params)[0]
-    check("★ Ret = [True, \"\"]（客户端 ret[1]=status, ret[2]=errmsg）",
+    check('★ Ret = [True, ""]（客户端 ret[1]=status, ret[2]=errmsg）',
           _dec.get("Ret") == [True, ""], _dec.get("Ret"))
     check("★ Friends = []（空好友列表）", _dec.get("Friends") == [], _dec.get("Friends"))
     # 模拟客户端剥掉 Ret 后（msgateclientrpchandler.lua:47 response.Ret=nil）

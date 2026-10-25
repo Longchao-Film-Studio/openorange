@@ -59,8 +59,8 @@ def _test_files():
 def _call_lines(path):
     """AST 找「可能绕过守卫」的调用：
 
-      <erpc|entity_rpc>.handle(...)     显式模块属性
-      handle(...)                       从 entity_rpc 直接 import 进来的名字
+    <erpc|entity_rpc>.handle(...)     显式模块属性
+    handle(...)                       从 entity_rpc 直接 import 进来的名字
     """
     tree = ast.parse(open(path, encoding="utf-8").read())
     out = []

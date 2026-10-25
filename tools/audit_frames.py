@@ -84,10 +84,9 @@ def _dump():
     out = os.environ.get("OO_FRAME_AUDIT_OUT")
     if not out:
         return
-    with contextlib.suppress(Exception):
-        with open(out, "w", encoding="utf-8") as f:
-            json.dump({"stats": _STATS, "errors": _ERRORS}, f,
-                      ensure_ascii=False, indent=1)
+    with contextlib.suppress(Exception), open(out, "w", encoding="utf-8") as f:
+        json.dump({"stats": _STATS, "errors": _ERRORS}, f,
+                  ensure_ascii=False, indent=1)
 
 
 def main(argv):

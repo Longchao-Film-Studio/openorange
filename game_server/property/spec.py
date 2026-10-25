@@ -43,7 +43,7 @@ def _load():
         if not os.path.exists(_DATA):
             raise RuntimeError(
                 f"缺少 {_DATA} —— 先跑 python tools/gen_property_spec.py")
-        with open(_DATA, "r", encoding="utf-8") as f:
+        with open(_DATA, encoding="utf-8") as f:
             _LOADED = json.load(f)
     return _LOADED
 
@@ -60,7 +60,7 @@ def _init_types():
         return _INIT_TYPES
     out = {}
     try:
-        with open(_INIT_DICT, "r", encoding="utf-8") as f:
+        with open(_INIT_DICT, encoding="utf-8") as f:
             props = json.load(f).get("__Properties__") or {}
     except Exception:
         _INIT_TYPES = out
@@ -251,7 +251,7 @@ def stats():
             kinds["struct"] += 1
         elif is_container(t):
             kk = key_kind(t)
-            kinds[kk if kk else "unknown"] += 1
+            kinds[kk or "unknown"] += 1
         else:
             kinds["unknown"] += 1
     return {

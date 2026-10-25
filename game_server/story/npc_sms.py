@@ -117,7 +117,8 @@ def _chat_id_of(cfg):
 
 def _entry(chat_type, npc_id, now):
     """一条 NpcChatInfo。形状 = config.lua:4925-4962 + npcchatprop.lua:5-14，
-    并补上客户端模板漏写的 is_over/update_time（客户端会话列表按 update_time 排序）。"""
+    并补上客户端模板漏写的 is_over/update_time（客户端会话列表按 update_time 排序）。
+    """
     return {
         "chat_type": int(chat_type),
         "npc_id": int(npc_id),

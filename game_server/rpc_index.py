@@ -206,4 +206,4 @@ def name_of(index):
 
 def describe(index):
     nm = name_of(index)
-    return nm if nm else (f"未知索引 {index}")
+    return nm or (f"未知索引 {index}")

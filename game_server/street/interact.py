@@ -125,8 +125,7 @@ def _street_trace_task(rid, params, uid=None):
     #   而客户端画标记要求 0 < task_id（trackingcommon.lua:33）->
     #   负数被当成「不追踪」，但存档里留下一个非法值，语义混乱。
     #   统一归一化成 0（= 不追踪）。
-    if tid < 0:
-        tid = 0
+    tid = max(tid, 0)
     st = state(uid)
     # ★ 统一走 story.trace（唯一入口 R3，2026-10-25）：
     #   玩家「想追踪什么」记进 _oo_trace_wanted（可以是别的街区的任务，走到那儿自动恢复），

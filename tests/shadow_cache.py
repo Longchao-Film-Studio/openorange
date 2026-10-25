@@ -615,6 +615,7 @@ def frames_safe(pre_init_dict, frames, tag=""):
 
 class _NilKey:
     """客户端 tonumber(k) 失败返回 nil —— 拿 nil 当 table 键会崩。"""
+
     def __repr__(self):
         return "<nil>"
 

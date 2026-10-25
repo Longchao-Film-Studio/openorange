@@ -35,7 +35,7 @@ def read_last(channel):
     p = os.path.join(_LOG_DIR, f"last.{channel}.log")
     if not os.path.exists(p):
         return ""
-    with open(p, "r", encoding="utf-8", errors="replace") as f:
+    with open(p, encoding="utf-8", errors="replace") as f:
         return f.read()
 
 

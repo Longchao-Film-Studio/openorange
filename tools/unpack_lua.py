@@ -108,7 +108,7 @@ def main():
     info_path = os.path.join(pack_dir, "LuaPackInfo.json")
     names = []
     if os.path.isfile(info_path):
-        with open(info_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(info_path, encoding="utf-8", errors="replace") as f:
             pack_list = json.load(f)
         names = [it.get("name") for it in pack_list if it.get("name")]
 

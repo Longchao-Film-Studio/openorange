@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -45,7 +46,8 @@ def check(name, cond, detail=None):
 
 class _Echo(BaseHTTPRequestHandler):
     """记录收到的 X-OO-Token，回 {"ok":true}。"""
-    seen = []
+
+    seen: ClassVar[list] = []
 
     def log_message(self, *a):
         pass

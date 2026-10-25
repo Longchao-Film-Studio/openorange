@@ -316,7 +316,7 @@ def run():
                                 and isinstance(t.slice, ast.Constant)
                                 and t.slice.value == "state"):
                             bad.append(f'{rel}:{node.lineno}({fn.name})')
-    check("★ 没有白名单外的 [\"state\"] 直接赋值", not bad, bad[:5])
+    check('★ 没有白名单外的 ["state"] 直接赋值', not bad, bad[:5])
 
     print("\\n" + "=" * 56)
     print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')

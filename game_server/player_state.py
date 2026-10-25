@@ -238,7 +238,7 @@ def load(uid=DEFAULT_UID):
     if not os.path.exists(p):
         return None
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             st = PlayerState.from_dict(json.load(f))
         # 存档损坏/格式不对时不要硬用：属性太少说明写坏了，回退到初始值
         if not isinstance(st.props, dict) or len(st.props) < 10:

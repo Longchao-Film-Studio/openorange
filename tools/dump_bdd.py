@@ -19,7 +19,7 @@ from ctypes import POINTER, c_char_p, c_int, c_size_t, c_void_p
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-LUA_SCRIPT = r'''
+LUA_SCRIPT = r"""
 local root = bdd.get_ud_by_addr(bdd.get_start_handle())
 local raw = bdd.ger_raw_table(root)
 if type(raw) ~= 'table' then
@@ -107,7 +107,7 @@ local ok2, err2 = pcall(function()
   io.write('完成，共写 ', done, ' 张表\n')
 end)
 if not ok2 then io.write('dump err: ', tostring(err2), '\n') end
-'''
+"""
 
 
 def main():

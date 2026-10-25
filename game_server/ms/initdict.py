@@ -93,10 +93,10 @@ def _load_avatar_init():
       静默降级成空表，导致属性全是 nil，白白排查了很久。
     """
     try:
-        with open(_AVATAR_INIT_PATH, "r", encoding="utf-8") as f:
+        with open(_AVATAR_INIT_PATH, encoding="utf-8") as f:
             d = json.load(f)
     except Exception as e:
-        raise RuntimeError(f"avatar_init.json 读取失败: {e}")
+        raise RuntimeError(f"avatar_init.json 读取失败: {e}") from e
     props = d.get("__Properties__")
     if not isinstance(props, dict) or len(props) < 10:
         raise RuntimeError(

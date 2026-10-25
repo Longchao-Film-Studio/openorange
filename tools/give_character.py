@@ -39,7 +39,7 @@ def load_props(uid):
         props = st.props
         src = "存档"
     else:
-        with open(INIT_JSON, "r", encoding="utf-8") as f:
+        with open(INIT_JSON, encoding="utf-8") as f:
             d = json.load(f)
         props = msmod.conv_int_keys(d["__Properties__"])
         src = "initDict"
