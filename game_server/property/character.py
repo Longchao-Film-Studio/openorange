@@ -29,6 +29,134 @@ def _upgrade_failed(rid, syncs, errorcode=0):
         rid, syncs, ret={"status": False, "errmsg": "", "errorcode": errorcode})
 
 
+
+def _int_or(value, default):
+    """int(value) 失败就用 default（原实现是 try/except，语义一致）。"""
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _count_owned(item_bag, item_id):
+    """背包里某 itemId 的总数量（跨所有格子累加，跳过 __ 元数据键）。"""
+    owned = 0
+    for gkey, grid in item_bag.items():
+        if str(gkey).startswith("__") or not isinstance(grid, dict):
+            continue
+        if grid.get("itemId") == item_id:
+            owned += int(grid.get("num") or 0)
+    return owned
+
+
+def _upgrade_find_key(bag, char_id):
+    """在 characterBag 里定位 char_id 的键（int / str / 数字串三种形态都试）。"""
+    if char_id in bag:
+        return char_id
+    if str(char_id) in bag:
+        return str(char_id)
+    if isinstance(char_id, str) and char_id.isdigit() and int(char_id) in bag:
+        return int(char_id)
+    return None
+
+
+def _upgrade_locate_bag(bag, char_id):
+    """在 characterBag 里定位角色条目。返回 (bag_id, key, char) 或 None。"""
+    bag_id = bag.get("__id__") or 0
+    key = _upgrade_find_key(bag, char_id)
+    if key is None:
+        return None
+    char = bag.get(key)
+    if not isinstance(char, dict):
+        return None
+    return bag_id, key, char
+
+
+def _upgrade_settle_cost(gd, item_bag, send_items):
+    """按表重算升级消耗。返回 ((total_exp, gold_cost, consume), None) 或 (None, errorcode)。
+
+    ★ 不信任客户端上报的经验/金币数值，只信 sendItems 的「要消耗哪些道具」意图。
+    """
+    total_exp = 0
+    consume = {}
+    for k, v in (send_items or {}).items():
+        try:
+            iid = int(k)
+            cnt = int(v)
+        except (TypeError, ValueError):
+            return None, 15002
+        if cnt <= 0:
+            continue
+        if iid not in _UPGRADE_EXP_ITEMS:
+            return None, 15002          # 非升级材料
+        it = gd.item(iid) or {}
+        exp_each = int((it.get("useParam") or {}).get("CharExp") or 0)
+        if exp_each <= 0:
+            return None, 15002
+        if _count_owned(item_bag, iid) < cnt:
+            return None, 15005          # Bag_InvaildNum
+        consume[iid] = consume.get(iid, 0) + cnt
+        total_exp += exp_each * cnt
+    if total_exp <= 0:
+        return None, 15005
+    gold_ratio = int(gd.const("UpgradeGoldRatio") or 0) or 0.5
+    gold_cost = int(total_exp * float(gold_ratio))
+    if gold_cost > 0 and _count_owned(item_bag, _UPGRADE_COIN_ID) < gold_cost:
+        return None, 15008              # 金币不足（客户端弹 140）
+    return (total_exp, gold_cost, consume), None
+
+
+def _upgrade_consume(st, consume, gold_cost, items_mod):
+    """扣材料 + 金币（走 items.consume_item 同一入口）。返回 (frames, None) 或 (None, errorcode)。"""
+    out = []
+    for iid, cnt in consume.items():
+        frames = items_mod.consume_item(st, iid, cnt)
+        if frames is None:
+            return None, 15005
+        out.extend(frames)
+    if gold_cost > 0:
+        frames = items_mod.consume_item(st, _UPGRADE_COIN_ID, gold_cost)
+        if frames is None:
+            return None, 15008
+        out.extend(frames)
+    return out, None
+
+
+def _upgrade_advance(gd, key, old_level, max_level, cur_exp, total_exp):
+    """逐级推进（客户端 getLevelUpInfo 同款算法，溢出进 CharExp）。返回 (new_level, cur_exp)。"""
+    ups = gd.char_upgrade(key) or []
+    add_exp = total_exp
+    new_level = old_level
+    while new_level < max_level:
+        row = ups[new_level - 1] if 0 < new_level <= len(ups) else None
+        need = int((row or {}).get("costExp", {}).get("CharExp", 0)) if isinstance(row, dict) else 0
+        if need <= 0:
+            break
+        if add_exp < need:
+            cur_exp += add_exp
+            add_exp = 0
+            break
+        add_exp -= need
+        new_level += 1
+        cur_exp = 0
+    return new_level, cur_exp
+
+
+
+def _upgrade_emit_story(st, key, new_level, events_mod):
+    """角色等级变化 -> 剧情事件 + 任务推进。返回同步帧列表（无事件时为空）。"""
+    out = []
+    res = events_mod.apply_event(
+        st, events_mod.ev_char_data(level=int(new_level), char_id=key))
+    from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
+    out.extend(drain_event_task_sync(st, res))
+    nxt = list(res.hits) + list(res.chain_hits)
+    if nxt:
+        from ..story.rpc import finish_story_tasks
+        out.extend(finish_story_tasks(st, nxt, source="event"))
+    return out
+
+
 def _upgrade_character(rid, params, uid=None):
     """1-1 角色升级 —— 按客户端语义真实现（协议审计 T1，2026-10-24）。
 
@@ -51,7 +179,6 @@ def _upgrade_character(rid, params, uid=None):
     """
     from .. import gamedata as _gd
     from ..story import events as _events
-    from ..story.rpc import finish_story_tasks
     from . import items as _items_mod
     syncs = []
     vals = decode_params(params)
@@ -63,109 +190,36 @@ def _upgrade_character(rid, params, uid=None):
     bag = st.get("characterBag")
     if not isinstance(bag, dict):
         return _upgrade_failed(rid, syncs)
-    bag_id = bag.get("__id__") or 0
-    key = None
-    if char_id in bag:
-        key = char_id
-    elif str(char_id) in bag:
-        key = str(char_id)
-    elif isinstance(char_id, str) and char_id.isdigit() and int(char_id) in bag:
-        key = int(char_id)
-    if key is None:
+    located = _upgrade_locate_bag(bag, char_id)
+    if located is None:
         return _upgrade_failed(rid, syncs, errorcode=7009)  # Userdata_CharNotFound
-    char = bag.get(key)
-    if not isinstance(char, dict):
-        return _upgrade_failed(rid, syncs, errorcode=7009)
+    bag_id, key, char = located
 
     max_level = _gd.char_max_level(key)
-    try:
-        old_level = int(char.get("CharLevel") or 1)
-    except Exception:
-        old_level = 1
-    try:
-        cur_exp = int(char.get("CharExp") or 0)
-    except Exception:
-        cur_exp = 0
+    old_level = _int_or(char.get("CharLevel") or 1, 1)
+    cur_exp = _int_or(char.get("CharExp") or 0, 0)
     if old_level >= max_level:
         return _upgrade_failed(rid, syncs)   # 已满级
 
-    # ---- 1) sendItems 合法性 + 经验/金币结算（全部按表重算，不信任客户端数值）----
+    # ---- 2) sendItems 合法性 + 经验/金币结算（全部按表重算，不信任客户端数值）----
     item_bag = st.get("item_bag")
     if not isinstance(item_bag, dict):
         return _upgrade_failed(rid, syncs, errorcode=15002)  # Bag_InvaildItemId
-    total_exp = 0
-    consume = {}          # {itemId: count}
-    for k, v in (send_items or {}).items():
-        try:
-            iid = int(k)
-            cnt = int(v)
-        except (TypeError, ValueError):
-            return _upgrade_failed(rid, syncs, errorcode=15002)
-        if cnt <= 0:
-            continue
-        if iid not in _UPGRADE_EXP_ITEMS:
-            return _upgrade_failed(rid, syncs, errorcode=15002)  # 非升级材料
-        it = _gd.item(iid) or {}
-        exp_each = int((it.get("useParam") or {}).get("CharExp") or 0)
-        if exp_each <= 0:
-            return _upgrade_failed(rid, syncs, errorcode=15002)
-        # 背包里真有这么多吗（按 itemId 累加所有格子）
-        owned = 0
-        for gkey, grid in item_bag.items():
-            if str(gkey).startswith("__") or not isinstance(grid, dict):
-                continue
-            if grid.get("itemId") == iid:
-                owned += int(grid.get("num") or 0)
-        if owned < cnt:
-            return _upgrade_failed(rid, syncs, errorcode=15005)  # Bag_InvaildNum
-        consume[iid] = consume.get(iid, 0) + cnt
-        total_exp += exp_each * cnt
-    if total_exp <= 0:
-        return _upgrade_failed(rid, syncs, errorcode=15005)
+    settled, errcode = _upgrade_settle_cost(_gd, item_bag, send_items)
+    if errcode is not None:
+        return _upgrade_failed(rid, syncs, errorcode=errcode)
+    total_exp, gold_cost, consume = settled
 
-    gold_ratio = int(_gd.const("UpgradeGoldRatio") or 0) or 0.5
-    gold_cost = int(total_exp * float(gold_ratio))
-    if gold_cost > 0:
-        coin_owned = 0
-        for gkey, grid in item_bag.items():
-            if str(gkey).startswith("__") or not isinstance(grid, dict):
-                continue
-            if grid.get("itemId") == _UPGRADE_COIN_ID:
-                coin_owned += int(grid.get("num") or 0)
-        if coin_owned < gold_cost:
-            return _upgrade_failed(rid, syncs, errorcode=15008)  # Bag_LevelNotEnough(金币不足，客户端弹 140)
-
-    # ---- 2) 扣材料 + 金币（复用 items 的扣格逻辑，走同一入口）----
-    item_syncs = []
-    for iid, cnt in consume.items():
-        frames = _items_mod.consume_item(st, iid, cnt)
-        if frames is None:
-            return _upgrade_failed(rid, syncs, errorcode=15005)
-        item_syncs.extend(frames)
-    if gold_cost > 0:
-        frames = _items_mod.consume_item(st, _UPGRADE_COIN_ID, gold_cost)
-        if frames is None:
-            return _upgrade_failed(rid, syncs, errorcode=15008)
-        item_syncs.extend(frames)
+    # ---- 3) 扣材料 + 金币 ----
+    item_syncs, errcode = _upgrade_consume(st, consume, gold_cost, _items_mod)
+    if errcode is not None:
+        return _upgrade_failed(rid, syncs, errorcode=errcode)
     syncs.extend(item_syncs)
 
-    # ---- 3) 逐级升级（客户端 getLevelUpInfo 同款算法，溢出进 CharExp）----
-    ups = _gd.char_upgrade(key) or []
-    add_exp = total_exp
-    new_level = old_level
-    while new_level < max_level:
-        row = ups[new_level - 1] if 0 < new_level <= len(ups) else None
-        need = int((row or {}).get("costExp", {}).get("CharExp", 0)) if isinstance(row, dict) else 0
-        if need <= 0:
-            break
-        if add_exp < need:
-            cur_exp += add_exp
-            add_exp = 0
-            break
-        add_exp -= need
-        new_level += 1
-        cur_exp = 0
-    if new_level == old_level and cur_exp == int(char.get("CharExp") or 0):
+    # ---- 4) 逐级升级 ----
+    new_level, cur_exp = _upgrade_advance(_gd, key, old_level, max_level,
+                                         cur_exp, total_exp)
+    if new_level == old_level and cur_exp == _int_or(char.get("CharExp") or 0, 0):
         # 经验不足以推进任何进度（比如 0）——拒绝，避免白扣
         return _upgrade_failed(rid, syncs, errorcode=15005)
     if new_level >= max_level:
@@ -174,15 +228,10 @@ def _upgrade_character(rid, params, uid=None):
     char["CharExp"] = cur_exp
     st.set("characterBag", bag)
 
-    # ---- 4) 剧情/同步 ----
-    res = _events.apply_event(
-        st, _events.ev_char_data(level=int(new_level), char_id=key))
-    from ..story.tasks import drain_event_task_sync  # 延迟导入（避免循环）
-    syncs.extend(drain_event_task_sync(st, res))
-    nxt = list(res.hits) + list(res.chain_hits)
-    if nxt:
-        syncs.extend(finish_story_tasks(st, nxt, source="event"))
+    # ---- 5) 剧情/同步 ----
+    syncs.extend(_upgrade_emit_story(st, key, new_level, _events))
     st.save()
     syncs.append(sync_frame(
         SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))
     return respond_after_sync(rid, syncs)
+
