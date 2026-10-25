@@ -1,0 +1,98 @@
+<!-- 公告 / 喊话页面（2026-10-26） -->
+<style>
+  .ann-panel { max-width: 720px; }
+  .ann-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .ann-row > label { width: 64px; flex: 0 0 64px; padding-top: 8px; opacity: .8; }
+  .ann-row select, .ann-row input[type=text], .ann-row textarea {
+    flex: 1; background: #12161c; color: #e6e9ee; border: 1px solid #2a313c;
+    border-radius: 6px; padding: 8px 10px; font: inherit; outline: none;
+  }
+  .ann-row textarea { resize: vertical; min-height: 84px; }
+  .ann-hint { font-size: 12px; opacity: .6; margin-left: 8px; padding-top: 9px; }
+  .ann-counter { font-size: 12px; opacity: .6; padding-top: 9px; min-width: 54px; }
+  .ann-preview { flex: 1; border: 1px dashed #2a313c; border-radius: 6px; padding: 10px;
+                 background: #0e1217; overflow: hidden; white-space: nowrap; }
+  .ann-preview .marquee { display: inline-block; animation: ann-scroll 12s linear infinite; }
+  @keyframes ann-scroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+  .ann-toast { display: inline-block; background: rgba(20,24,30,.95); border: 1px solid #2a313c;
+               border-radius: 18px; padding: 6px 16px; }
+  .ann-status { margin-left: 12px; font-size: 13px; }
+  .ann-status.ok { color: #58c98a; }
+  .ann-status.err { color: #e2726b; }
+  .ann-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .ann-hist { display: flex; flex-direction: column; gap: 8px; }
+  .ann-hist .item { border: 1px solid #222833; border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+  .ann-hist .item .meta { font-size: 12px; opacity: .6; margin-bottom: 4px; }
+  .ann-hist .item .txt { word-break: break-all; }
+  .ann-hist .item.bad { border-color: #5a2b2b; }
+</style>
+
+<div class="shell">
+  <div class="top">
+    <div class="brand"><span class="mark">OO</span><span>公告 / 喊话</span></div>
+    <div class="top-right">
+      <span>已登录 <b id="who">-</b></span>
+      <span class="badge player" id="perm">-</span>
+      <a class="ghost" href="/admin/command">控制台</a>
+      <a class="ghost" href="/">返回门户</a>
+    </div>
+  </div>
+
+  <div class="body" id="body">
+    <div class="ann-panel">
+      <div class="ann-row">
+        <label>类型</label>
+        <select id="kind">
+          <option value="banner">跑马灯（全服滚动横幅）</option>
+          <option value="toast">Toast（普通提示）</option>
+          <option value="gm">GM 提示（官方 crontab 通道）</option>
+        </select>
+        <span class="ann-hint" id="kindHint"></span>
+      </div>
+
+      <div class="ann-row">
+        <label>目标</label>
+        <input type="text" id="uid" placeholder="留空 = 全服；填账号名 = 只发给该玩家">
+        <span class="ann-hint">只发给已登录连接</span>
+      </div>
+
+      <div class="ann-row">
+        <label>文案</label>
+        <textarea id="text" rows="4" placeholder="例如：今晚 22:00 停机维护，预计 30 分钟。"></textarea>
+        <span class="ann-counter"><span id="count">0</span>/<span id="limit">80</span></span>
+      </div>
+
+      <div class="ann-row">
+        <label>预览</label>
+        <div class="ann-preview" id="preview"></div>
+      </div>
+
+      <div class="ann-row">
+        <label></label>
+        <button id="send" onclick="sendAnnounce()">发送</button>
+        <span class="ann-status" id="status"></span>
+      </div>
+
+      <div class="ann-row">
+        <label></label>
+        <div class="ann-presets">
+          <button class="qbtn" onclick="preset(this)" data-kind="banner">今晚 22:00 停机维护，预计 30 分钟</button>
+          <button class="qbtn" onclick="preset(this)" data-kind="banner">新活动已开启，欢迎前往街区体验</button>
+          <button class="qbtn" onclick="preset(this)" data-kind="toast">欢迎来到归橙私服，祝你玩得开心</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="quick">
+      <h4>最近发送</h4>
+      <div class="ann-hist" id="history"></div>
+    </aside>
+  </div>
+
+  <div class="denied" id="denied" hidden>
+    <div>
+      <h2>没有访问权限</h2>
+      <p>这个页面需要 GM 及以上权限。<br>请让管理员执行 <code>/account 你的账号 perm 1</code>。</p>
+    </div>
+  </div>
+</div>

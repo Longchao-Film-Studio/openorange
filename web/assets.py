@@ -46,3 +46,7 @@ OVERLAY = read_template("overlay.html")
 ADMIN_CSS = read_static("admin.css")
 ADMIN_SCRIPT = read_static("admin.js")
 ADMIN_BODY = read_template("admin_body.html")
+
+# 公告 / 喊话页面（2026-10-26）
+ANNOUNCE_SCRIPT = read_static("announce.js")
+ANNOUNCE_BODY = read_template("announce_body.html")

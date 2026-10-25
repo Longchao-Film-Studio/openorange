@@ -108,6 +108,17 @@ def run():
     check("页面含权限拦截块", 'id="denied"' in page)
     check("页面含快捷面板", 'class="quick"' in page)
 
+    print("\n[1b] 公告页面（2026-10-26 新增）")
+    status, page = req("GET", "/admin/announce")
+    check("GET /admin/announce 返回 200", status == 200, status)
+    check("含类型选择", 'id="kind"' in page)
+    check("含目标输入", 'id="uid"' in page)
+    check("含文案输入", 'id="text"' in page)
+    check("含历史面板", 'id="history"' in page)
+    check("含权限拦截块", 'id="denied"' in page)
+    _st, _console = req("GET", "/admin/command")
+    check("控制台有公告入口", "/admin/announce" in _console)
+
     print("\n[2] 权限：玩家 vs 管理员")
     tok_p = login(PLAYER, PASS).get("token") or ""
     tok_a = login(ADMIN, PASS).get("token") or ""
@@ -116,6 +127,9 @@ def run():
     st, r = jreq("POST", "/api/admin/command", {"token": "bogus", "text": "/help"})
     check("无效 token 返回 401", st == 401, st)
 
+    st, _ = jreq("POST", "/api/admin/announce",
+                 {"token": "bogus", "kind": "banner", "text": "x"})
+    check("公告接口：无效 token 返回 401", st == 401, st)
     r = run_cmd(tok_p, "/help")
     check("玩家能执行 /help", r.get("ok") is True, r.get("msg"))
     r = run_cmd(tok_a, "/help")
@@ -126,6 +140,7 @@ def run():
     #   不再假装全部已实现。
     check("帮助里未实现命令有标注", "未实现" in text, text[:300])
     check("帮助里 give 已实现（无标注）", "/give " in text and "give" in text, text[:300])
+    check("帮助里有 /announce", "/announce" in text, text[:300])
 
     print("\n[3] 玩家权限边界")
     r = run_cmd(tok_p, f"/account {ADMIN}")
@@ -136,6 +151,11 @@ def run():
     check("玩家不能给自己提权", r.get("ok") is False, r.get("lines"))
     r = run_cmd(tok_p, "/give @ 1001 1")
     check("玩家不能执行 GM 命令", r.get("ok") is False, r.get("lines"))
+    st, r = jreq("POST", "/api/admin/announce",
+                 {"token": tok_p, "kind": "banner", "text": "x"})
+    check("公告接口：玩家 403", st == 403, st)
+    r = run_cmd(tok_p, "/announce 玩家不该能发")
+    check("玩家不能执行 /announce", r.get("ok") is False, r.get("lines"))
 
     print("\n[4] 基础命令")
     r = run_cmd(tok_a, "/who")

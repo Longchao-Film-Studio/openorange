@@ -65,6 +65,8 @@ def _fmt_ts(ts):
 from web.assets import (  # noqa: E402
     ADMIN_BODY,
     ADMIN_SCRIPT,
+    ANNOUNCE_BODY,
+    ANNOUNCE_SCRIPT,
     BODY,
     BRAND,
     OVERLAY,
@@ -131,6 +133,23 @@ def render_admin():
         + "<script>" + boot + ADMIN_SCRIPT + "</script></body></html>"
     )
 
+def render_announce():
+    """公告 / 喊话页面（2026-10-26）。
+
+    与 render_admin 同一套外壳（admin.css + 同一套登录态/TopBar），
+    只是主体换成表单：类型 / 目标 / 文案 / 预览 / 历史。
+    """
+    return (
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="dark">'
+        '<title>归橙 · 公告 / 喊话</title>'
+        '<link rel="stylesheet" href="/static/admin.css"></head><body>'
+        + ANNOUNCE_BODY
+        + "<script>" + ANNOUNCE_SCRIPT + "</script></body></html>"
+    )
+
+
 class WebHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -187,6 +206,10 @@ class WebHandler(BaseHTTPRequestHandler):
             self._send(render_index())
             return
 
+        if path in ("/admin/announce", "/admin/notice"):
+            self._send(render_announce())
+            return
+
         if path in ("/admin/command", "/admin"):
             # 管理控制台页面本身不含数据，权限在前端拿到 /api/me 后再判断；
             # 真正的命令执行走 /api/admin/command，服务端会再校验一次权限。
@@ -229,6 +252,8 @@ class WebHandler(BaseHTTPRequestHandler):
         "/api/me": "_r_api_me",
         "/api/chat/command": "_r_api_chat_command",
         "/api/admin/command": "_r_api_admin_command",
+        "/api/admin/announce": "_r_api_admin_announce",
+        "/api/admin/announce/history": "_r_api_admin_announce_history",
         "/api/launcher/login": "_r_api_launcher_login",
         "/api/logout": "_r_api_logout",
         "/api/change_password": "_r_api_change_password",
@@ -313,6 +338,47 @@ class WebHandler(BaseHTTPRequestHandler):
             "data": res.data,
         })
         return
+
+    def _r_api_admin_announce(self, req):
+        """发公告：转发给游戏服的 admin_api /announce（公告只能由游戏进程发）。
+
+        权限：网页侧只放 GM 及以上；游戏服还有自己的 token 校验。
+        """
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+            return
+        perm = int(acc.get("perm_level") or 0)
+        if perm < cmds.PERM_GM:
+            self._json({"ok": False, "msg": "权限不足：发公告需要 GM 及以上"}, 403)
+            return
+        payload = {"kind": str(req.get("kind") or "banner"),
+                   "text": str(req.get("text") or "")}
+        uid = str(req.get("uid") or "").strip()
+        if uid:
+            payload["uid"] = uid
+        res, e = cmds.admin_call("POST", "/announce", payload)
+        if e:
+            self._json({"ok": False, "msg": f"连不上游戏服：{e}"}, 502)
+            return
+        _log.info('[announce] {}(perm={}) {} -> {}'.format(
+            acc["username"], perm, payload.get("kind"), (res or {}).get("ok")))
+        self._json(res or {"ok": False, "msg": "游戏服无响应"})
+
+    def _r_api_admin_announce_history(self, req):
+        """公告历史 + 类型清单（页面加载时拉一次）。"""
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+            return
+        if int(acc.get("perm_level") or 0) < cmds.PERM_GM:
+            self._json({"ok": False, "msg": "权限不足"}, 403)
+            return
+        res, e = cmds.admin_call("GET", "/announce")
+        if e:
+            self._json({"ok": False, "msg": f"连不上游戏服：{e}"}, 502)
+            return
+        self._json(res or {"ok": True, "kinds": [], "history": []})
 
     def _r_api_admin_command(self, req):
         acc = models.whoami(req.get("token") or "")
