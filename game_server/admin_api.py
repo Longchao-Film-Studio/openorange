@@ -323,75 +323,97 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"{type(e).__name__}: {e}",
                                     "trace": traceback.format_exc()[-800:]})
 
+    _ROUTES = {
+        "/dungeon/level": "_r_dungeon_level",
+        "/player/unlock-npc-topic": "_r_player_unlock_npc_topic",
+        "/player/skip-prologue": "_r_player_skip_prologue",
+        "/player/grant": "_r_player_grant",
+        "/player/level": "_r_player_level",
+    }
+
     def do_POST(self):
+        """POST 路由分发（2026-10-25 拆分：每个端点一个方法）。
+
+        等价性：auth / path 归一化 / payload 解析 / 404 / 500 兜底全部保持不变；
+        每个方法体与原 if 体逐行一致。异常仍由本函数的 except 统一兜住。
+        """
         if not self._auth():
             return
         path = self.path.split("?")[0].rstrip("/") or "/"
         payload = self._body()
         try:
-            if path == "/dungeon/level":
-                uid = str(payload.get("uid") or "").strip()
-                if not uid:
-                    return self._send(400, {"ok": False, "error": "missing uid"})
-                from . import player_state as _pstate
-                with _pstate.lock_for(uid):
-                    lv = _set_player_force_level(uid, payload.get("level"))
-                return self._send(200, {"ok": True, "uid": uid,
-                                         "force_level": lv})
-            if path == "/player/unlock-npc-topic":
-                uid = str(payload.get("uid") or "").strip()
-                if not uid:
-                    return self._send(400, {"ok": False, "error": "missing uid"})
-                try:
-                    topic_id = int(payload.get("topic_id"))
-                except Exception:
-                    return self._send(400, {"ok": False, "error": "topic_id 非法"})
-                from . import player_state as _pstate
-                with _pstate.lock_for(uid):
-                    res = _do_unlock_npc_topic(uid, topic_id)
-                if not res.get("ok"):
-                    return self._send(400, res)
-                return self._send(200, {"ok": True, "result": res})
-            if path == "/player/skip-prologue":
-                uid = str(payload.get("uid") or "").strip()
-                if not uid:
-                    return self._send(400, {"ok": False, "error": "missing uid"})
-                from . import player_state as _pstate
-                with _pstate.lock_for(uid):
-                    res = _do_skip_prologue(uid)
-                return self._send(200, {"ok": True, "result": res})
-            if path == "/player/grant":
-                # ★ GM 命令诚实化：/give /money 的真写入入口
-                uid = str(payload.get("uid") or "").strip()
-                if not uid:
-                    return self._send(400, {"ok": False, "error": "missing uid"})
-                items = payload.get("items")
-                if not isinstance(items, dict):
-                    return self._send(400, {"ok": False, "error": "items 需是 {itemId: 数量}"})
-                from . import player_state as _pstate
-                with _pstate.lock_for(uid):
-                    res = _grant_player(uid, items=items)
-                return self._send(200, {"ok": True, "result": res})
-            if path == "/player/level":
-                # ★ GM 命令诚实化：/lv 的真写入入口
-                uid = str(payload.get("uid") or "").strip()
-                if not uid:
-                    return self._send(400, {"ok": False, "error": "missing uid"})
-                lv = payload.get("level")
-                try:
-                    lv = int(lv) if lv is not None else None
-                except (TypeError, ValueError):
-                    return self._send(400, {"ok": False, "error": "level 需是整数"})
-                if lv is None or lv < 1:
-                    return self._send(400, {"ok": False, "error": "level 需 >= 1"})
-                from . import player_state as _pstate
-                with _pstate.lock_for(uid):
-                    res = _grant_player(uid, level=lv)
-                return self._send(200, {"ok": True, "result": res})
-            return self._send(404, {"ok": False, "error": "no such path"})
+            name = self._ROUTES.get(path)
+            if name is None:
+                return self._send(404, {"ok": False, "error": "no such path"})
+            return getattr(self, name)(payload)
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"{type(e).__name__}: {e}",
                                     "trace": traceback.format_exc()[-800:]})
+
+    def _r_dungeon_level(self, payload):
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        from . import player_state as _pstate
+        with _pstate.lock_for(uid):
+            lv = _set_player_force_level(uid, payload.get("level"))
+        return self._send(200, {"ok": True, "uid": uid,
+                                 "force_level": lv})
+
+    def _r_player_unlock_npc_topic(self, payload):
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        try:
+            topic_id = int(payload.get("topic_id"))
+        except Exception:
+            return self._send(400, {"ok": False, "error": "topic_id 非法"})
+        from . import player_state as _pstate
+        with _pstate.lock_for(uid):
+            res = _do_unlock_npc_topic(uid, topic_id)
+        if not res.get("ok"):
+            return self._send(400, res)
+        return self._send(200, {"ok": True, "result": res})
+
+    def _r_player_skip_prologue(self, payload):
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        from . import player_state as _pstate
+        with _pstate.lock_for(uid):
+            res = _do_skip_prologue(uid)
+        return self._send(200, {"ok": True, "result": res})
+
+    def _r_player_grant(self, payload):
+        # ★ GM 命令诚实化：/give /money 的真写入入口
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        items = payload.get("items")
+        if not isinstance(items, dict):
+            return self._send(400, {"ok": False, "error": "items 需是 {itemId: 数量}"})
+        from . import player_state as _pstate
+        with _pstate.lock_for(uid):
+            res = _grant_player(uid, items=items)
+        return self._send(200, {"ok": True, "result": res})
+
+    def _r_player_level(self, payload):
+        # ★ GM 命令诚实化：/lv 的真写入入口
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        lv = payload.get("level")
+        try:
+            lv = int(lv) if lv is not None else None
+        except (TypeError, ValueError):
+            return self._send(400, {"ok": False, "error": "level 需是整数"})
+        if lv is None or lv < 1:
+            return self._send(400, {"ok": False, "error": "level 需 >= 1"})
+        from . import player_state as _pstate
+        with _pstate.lock_for(uid):
+            res = _grant_player(uid, level=lv)
+        return self._send(200, {"ok": True, "result": res})
+
 
     def do_PUT(self):
         self.do_POST()
