@@ -148,7 +148,7 @@ def run():
     check("_oo_cur_match 已清", "_oo_cur_match" not in st.props)
 
     print("\n[6] 没有 battle_items 时也要下发结算（不能卡住）")
-    st2 = fresh("settle_b")
+    fresh("settle_b")
     start_game("settle_b")
     info2 = dict(FINISH_INFO)
     info2["settle_b"] = {"win": True, "useTime": 10}

@@ -197,7 +197,7 @@ def run():
     # 快照在 RPC 之后 -> 缓存里已经有这个键 -> 不报错 -> 守卫不抛（本用例变红）
     probe_key = "zz_order_probe"
     msmod._live_init_dict("cov_order")
-    st2 = pstate.get_state(uid="cov_order")
+    pstate.get_state(uid="cov_order")
 
     def fake_handle(index, params, rid, uid=None):
         st3 = pstate.get_state(uid="cov_order")

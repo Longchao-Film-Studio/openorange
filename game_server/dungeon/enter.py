@@ -138,7 +138,6 @@ def _single_start_match(rid, params, uid=None):
       system_type / modeId / dungeonId / levelId / storyID / match_type ...
     system_type == Mainline 时 dungeonId 是 MainlineData 的整数 ID。
     """
-    frames = []
     st = state(uid)
     vals = decode_params(params)
     match_info = vals[0] if (isinstance(vals, list) and vals

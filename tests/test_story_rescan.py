@@ -117,7 +117,7 @@ def run():
     check("找到跨表前置任务", cross_id is not None, cross_id)
     if cross_id is not None:
         st3 = clear_story(fresh("rs_b"))
-        pre3 = pre_snapshot(uid_of("rs_b"))
+        pre_snapshot(uid_of("rs_b"))
         # 上游未完成 -> 不播
         ch_before = seed_mod.rescan(st3, NOW)
         check("★ 上游 TaskData 未完成时，跨表任务不被播种",
@@ -167,7 +167,7 @@ def run():
                 continue
             story.mark_story_task_finished(st5, pre, NOW)
             story.archive_story_task(st5, pre, NOW)
-        ch5 = seed_mod.rescan(st5, NOW)
+        seed_mod.rescan(st5, NOW)
         check("★ Type6 闸门 %s 前置满足后经 rescan 完成" % gate,
               story.story_state(st5.props, gate) == sm.TASK_STATE_FINISHED,
               story.story_state(st5.props, gate))

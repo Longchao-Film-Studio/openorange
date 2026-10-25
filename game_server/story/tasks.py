@@ -231,8 +231,6 @@ def _refresh_title_daily_task(rid, params, uid=None):
     tasks.mark_daily_refreshed(st)
     ch = []
     reset = []
-    bag = st.props.get("task_bag")
-    done = st.props.get("done_tasks")
     # 该 DailyType 下、当前不在包里的任务 -> 重新播
     for tid in tasks._all_task_ids():
         cfg = gamedata.task(tid) or {}

@@ -136,7 +136,7 @@ def run():
     check("仍带 isWin=1", ev_params.get("isWin") == 1, ev_params)
 
     print("\n[6] 首通时带 first_pass")
-    st3 = fresh("dgev_c")
+    fresh("dgev_c")
     ev3 = {}
     orig2 = story.evaluate_event
 
@@ -158,7 +158,7 @@ def run():
     check("首次通关 -> first_pass = 1", ev3.get("first_pass") == 1, ev3)
 
     print("\n[7] 失败时 isWin = 0")
-    st4 = fresh("dgev_d")
+    fresh("dgev_d")
     ev4 = {}
     orig3 = story.evaluate_event
 
@@ -215,7 +215,7 @@ def run():
 
     # 反例：解析不出 copyId 时回 status=False
     st6 = fresh("dgev_ssm2")
-    frames6 = guarded_handle(1996394131,
+    guarded_handle(1996394131,
                           msmod.mp_arr([{"match_type": 1, "system_type": 9999}]),
                           8, uid="dgev_ssm2")
     check("解析不出 copyId 时不记录上下文",

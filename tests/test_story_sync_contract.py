@@ -263,7 +263,7 @@ def run():
 
     print("\n[8] story_finished（章节完成标记）")
     u8 = "ct_sf_" + tag
-    st8 = fresh(u8)
+    fresh(u8)
     pre8 = pre_snapshot(u8)
     # ★ 必须先 StartGame 建立 match 上下文，否则 settle 反查不到 typeId=1004，
     #   不会走 story_finished 分支（审计指出这条路径之前没测到）。

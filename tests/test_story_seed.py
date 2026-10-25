@@ -167,7 +167,7 @@ def run():
     ch_data = gamedata.table("TaskChapterData") or {}
     starts = [v.get("StartTask") for v in ch_data.values()
               if isinstance(v, dict) and v.get("StartTask") is not None]
-    root_set = set(seed_mod.roots())
+    set(seed_mod.roots())
     in_middle = [s for s in starts
                  if s is not None and int(s) in set(idx)
                  and (idx[int(s)].get("PreTask") is not None)]

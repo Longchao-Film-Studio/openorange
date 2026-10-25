@@ -92,7 +92,7 @@ def run():
             break
     check("找到有奖励的 type10 任务", cand is not None, cand)
     if cand:
-        cfg = gamedata.task(cand) or {}
+        gamedata.task(cand) or {}
         ch = tasks.move_to_wait_done(st1, cand)
         check("move_to_wait_done 后状态 = WaitDone(4)",
               tasks.task_state(st1.props, cand) == tasks.TASK_STATE_WAIT_DONE,
@@ -110,7 +110,7 @@ def run():
         check("领奖帧过客户端影子缓存", not errs and not sc.warnings,
               (errs[:1], sc.warnings[:1]))
         # 幂等：再领一次不重复发奖
-        again = call("RequestDoneTitleTask_CS", [[cand], -1], 2, uid_of("title"))
+        call("RequestDoneTitleTask_CS", [[cand], -1], 2, uid_of("title"))
         check("★ 重复领奖不报错、状态不变",
               tasks.task_state(st1.props, cand) == tasks.TASK_STATE_FINISHED)
 

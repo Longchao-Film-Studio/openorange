@@ -180,15 +180,15 @@ def run():
     check("同步 name = portrait_id", d7.get("name") == "portrait_id", d7.get("name"))
     check("同步 value = 12345", d7.get("value") == 12345, d7.get("value"))
 
-    fs7 = guarded_handle(erpc.RPC_INDEX["SetIsCharListShown_CS"], msmod.mp_arr([True]), 32)
+    guarded_handle(erpc.RPC_INDEX["SetIsCharListShown_CS"], msmod.mp_arr([True]), 32)
     check("is_char_list_shown = true", pstate.get_state().get("is_char_list_shown") is True,
           pstate.get_state().get("is_char_list_shown"))
 
-    fs8 = guarded_handle(erpc.RPC_INDEX["SetCanScore_CS"], msmod.mp_arr([]), 33)
+    guarded_handle(erpc.RPC_INDEX["SetCanScore_CS"], msmod.mp_arr([]), 33)
     check("SetCanScore 无参数也能改", pstate.get_state().get("canScore") == 1,
           pstate.get_state().get("canScore"))
 
-    fs9 = guarded_handle(erpc.RPC_INDEX["SetCharShown_CS"], msmod.mp_arr([[9001, 9002]]), 34)
+    guarded_handle(erpc.RPC_INDEX["SetCharShown_CS"], msmod.mp_arr([[9001, 9002]]), 34)
     cl = pstate.get_state().get("char_list")
     check("char_list 保留 __tp__", cl.get("__tp__") == "IntList", cl.get("__tp__"))
     check("char_list 保留 __id__", cl.get("__id__") == 1044, cl.get("__id__"))

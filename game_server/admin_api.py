@@ -106,8 +106,6 @@ def _do_skip_prologue(uid):
         player_state.peek(uid).is_new = True
     msmod._live_init_dict(uid)          # 走一遍新号初始化（任务 1000 设为进行中）
     st = player_state.get_state(uid=uid)
-    now = int(time.time())
-    bag = st.props.get("story_task_bag") or {}
     done_before = story.story_state(st.props, story.FIRST_STORY_TASK)
     if done_before != story.TASK_STATE_FINISHED:
         # ★ 审计 P1-2：不能直接调 story.finish_story_task —— 那会绕过发奖、

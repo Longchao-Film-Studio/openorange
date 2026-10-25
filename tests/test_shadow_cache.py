@@ -138,7 +138,7 @@ def run():
     print("\n[C] 真实 handler 产出的帧全部安全")
 
     # C1 街区五条路径
-    st = fresh("sc_c")
+    fresh("sc_c")
     sc = new_cache("sc_c")
     for i, (rpc, params, tag) in enumerate([
         (87385605, [1011, None], "切街区"),
@@ -154,7 +154,7 @@ def run():
               sc.frame_count - _n0)
 
     # C2 通用任务（槽位 + 任务项）
-    st2 = fresh("sc_d")
+    fresh("sc_d")
     sc2 = new_cache("sc_d")
     td = gamedata.table("TaskData") or {}
     tid = None
@@ -182,7 +182,7 @@ def run():
           story.story_state(st3.props, 1000) == story.TASK_STATE_FINISHED)
 
     # C4 副本结算全链路
-    st4 = fresh("sc_f")
+    fresh("sc_f")
     sc4 = new_cache("sc_f")
     errs = feed(sc4, erpc.handle(
         erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
@@ -202,7 +202,7 @@ def run():
           sc4.frame_count - _n4)
 
     # C5 Set* 系列
-    st5 = fresh("sc_g")
+    fresh("sc_g")
     sc5 = new_cache("sc_g")
     for i, (rpc, params) in enumerate([
         (40460550, [1001]),            # SetPortrait_CS
@@ -251,7 +251,7 @@ def run():
         ("RequestEnterStreetSurface_CS", 743475140, [1]),
         ("BattleTeach_Activate_CS", 842596900, [101]),
     ]
-    st6 = fresh("sc_sweep")
+    fresh("sc_sweep")
     sc6 = new_cache("sc_sweep")
     bad_rpcs = []
     for i, (name, rpc, params) in enumerate(sweep, start=1):

@@ -103,7 +103,7 @@ def run():
     st3 = fresh("story")
     from game_server import story
     story.start_story_task(st3, 1005, 1700000000)
-    before = set(_unlocked(st3))
+    set(_unlocked(st3))
     fr = srpc._finish_story_tasks(st3, [1005], source="client")
     after = set(_unlocked(st3))
     want2 = {r["id"] for r in by[2] if r.get("unlockParam") == 1005}
@@ -134,7 +134,7 @@ def run():
     lv_need = min(int(r["unlockParam"]) for r in by[3]
                   if isinstance(r.get("unlockParam"), int))
     check("数据里最低的等级门槛 = %s" % lv_need, lv_need > 1, lv_need)
-    before5 = set(_unlocked(st5))
+    set(_unlocked(st5))
     st5.props["level"] = lv_need
     srpc._recalc_system_unlocks(st5)
     after5 = set(_unlocked(st5))

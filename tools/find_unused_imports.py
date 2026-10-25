@@ -54,7 +54,7 @@ def check_file(path, strict=False):
         elif isinstance(node, ast.Attribute):
             pass
     # 名字也可能出现在字符串注解 / docstring 里，保守起见也算（避免误报）
-    body_text = "\n".join(lines)
+    "\n".join(lines)
     out = []
     for name, lineno in imported:
         line = lines[lineno - 1] if 0 <= lineno - 1 < len(lines) else ""

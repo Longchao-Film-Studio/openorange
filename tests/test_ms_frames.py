@@ -119,7 +119,7 @@ def run():
     check("属性同步帧类型=13", ps[4:6] == b"\x0d\x00", ps[:6])
 
     print("\n[5] 绑定链（bindAccount / bindAvatar / bindSoul）")
-    mb = call("build_entity_mailbox", msmod.build_entity_mailbox,
+    call("build_entity_mailbox", msmod.build_entity_mailbox,
               entity_id="account_x")
     call("build_bind_account", msmod.build_bind_account, auth="a")
     call("frame_bind_account", msmod.frame_bind_account, auth="a")

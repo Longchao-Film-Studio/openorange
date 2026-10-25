@@ -122,7 +122,7 @@ def process_file(path, write):
         src = src.replace("\r\n", "\n")
     try:
         tree = ast.parse(src)
-    except SyntaxError as e:
+    except SyntaxError:
         return None
 
     # 收集 print 调用（模块级函数调用，非 obj.print）

@@ -171,7 +171,7 @@ def parse_bundle(data):
     # blocksInfo 里的整数是**大端序**（Unity 的 ArchiveFileSystem 就是这么写的，
     # AssetStudio 的 EndianBinaryReader 默认也是 BigEndian）
     q = 0
-    hash16 = bi[q:q + 16]; q += 16
+    bi[q:q + 16]; q += 16
     nblocks = struct.unpack_from(">I", bi, q)[0]; q += 4
     blocks = []
     for _ in range(nblocks):

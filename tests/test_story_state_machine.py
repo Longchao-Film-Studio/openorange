@@ -561,7 +561,7 @@ def run():
            if before14.get(k) != after14.get(k)})
     # ④ 合法任务仍然能完成（防止判定过严）
     story.start_story_task(st14, 1005, NOW)
-    fr14 = fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
+    fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                        msmod.mp_arr([1005, 10103]), 3, uid=uid_of("sm_forge"))
     check("★ 合法任务（在包里、Type1）仍能完成",
           story.story_state(st14.props, 1005) == sm.TASK_STATE_FINISHED,

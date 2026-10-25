@@ -238,7 +238,7 @@ def main():
               % (fname, obj["count"], os.path.getsize(path) / 1024.0))
 
     chars = build_chars(args.bdd)["chars"]
-    items = build_items(args.bdd)["items"]
+    build_items(args.bdd)["items"]
     print()
     print("可玩角色（tier 0）共 %d 个：" % sum(1 for c in chars if c["tier"] == 0))
     for c in chars:

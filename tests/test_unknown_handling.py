@@ -89,7 +89,7 @@ def run():
     # BreakCharacter_CS 未实现（UpgradePlayerStage_CS 已实现，会走 handler）
     _unimpl = 1158350933
     pkt = guarded_handle(_unimpl, b"\x90", 7, uid="u1")[0]
-    mtype, rid, ret = None, None, None
+    _mtype, _rid, ret = None, None, None
     _m, _name, _rid, _params = msmod.parse_entity_response(pkt)
     check("兼容模式：应答 status=True", _params[0].get("status") is True, _params)
     config.configure_unknown_fake_ok(False)
