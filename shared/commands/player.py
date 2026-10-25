@@ -12,16 +12,16 @@ def cmd_help(ctx, target, *args):
     if args:
         cmd = lookup(args[0])
         if cmd is None:
-            return err("没有命令「%s」" % args[0], chat="✗ 没有命令 %s" % args[0])
+            return err("没有命令「{}」".format(args[0]), chat="✗ 没有命令 {}".format(args[0]))
         lines = [
-            "/%s %s" % (cmd.name, cmd.args),
-            "  %s" % cmd.desc,
-            "  权限: %s%s" % (PERM_NAMES.get(cmd.perm, "?"),
+            "/{} {}".format(cmd.name, cmd.args),
+            "  {}".format(cmd.desc),
+            "  权限: {}{}".format(PERM_NAMES.get(cmd.perm, "?"),
                             "" if cmd.implemented else "   [尚未实现]"),
         ]
         if cmd.aliases:
-            lines.append("  别名: %s" % "、".join("/" + a for a in cmd.aliases))
-        return ok(lines, chat="看 %s: %s" % (cmd.name, cmd.desc))
+            lines.append("  别名: {}".format("、".join("/" + a for a in cmd.aliases)))
+        return ok(lines, chat="看 {}: {}".format(cmd.name, cmd.desc))
 
     groups = {}
     for cmd in COMMANDS.values():
@@ -34,10 +34,10 @@ def cmd_help(ctx, target, *args):
     for gname in names:
         if gname not in groups:
             continue
-        lines.append("【%s】" % gname)
+        lines.append("【{}】".format(gname))
         for cmd in sorted(groups[gname], key=lambda c: c.name):
             mark = "" if cmd.implemented else "  (未实现)"
-            lines.append("  /%s %s%s" % (_pad(cmd.name, 9), _pad(cmd.args, 30), cmd.desc + mark))
+            lines.append("  /{} {}{}".format(_pad(cmd.name, 9), _pad(cmd.args, 30), cmd.desc + mark))
         lines.append("")
     lines.append("语法：/命令 <target> <参数>，target 用 @ 表示自己")
     lines.append("同名条目默认取「可用」的那条（可玩角色 / 给角色的物品）；")
@@ -86,8 +86,8 @@ def cmd_search(ctx, target, *args):
     chars = gamedata.search_chars(keyword)
     total = len(items) + len(chars)
     if total == 0:
-        return err("没有匹配「%s」的物品或角色" % keyword,
-                   chat="✗ 没有匹配 %s" % keyword)
+        return err("没有匹配「{}」的物品或角色".format(keyword),
+                   chat="✗ 没有匹配 {}".format(keyword))
 
     lines = ["搜「%s」：物品 %d 条，角色 %d 条" % (keyword, len(items), len(chars))]
 
@@ -127,7 +127,7 @@ def cmd_search(ctx, target, *args):
 def cmd_account(ctx, target, *args):
     acc = db.get_account_by_username(target)
     if not acc:
-        return err("找不到账号「%s」" % target, chat="✗ 找不到账号 %s" % target)
+        return err("找不到账号「{}」".format(target), chat="✗ 找不到账号 {}".format(target))
 
     sub = (args[0].lower() if args else "info")
 
@@ -135,7 +135,7 @@ def cmd_account(ctx, target, *args):
         if ctx.perm < PERM_ADMIN:
             return err("只有管理员能改权限", chat="✗ 需要管理员权限")
         if len(args) < 2:
-            return err("用法：/account %s perm <0|1|2>" % target,
+            return err("用法：/account {} perm <0|1|2>".format(target),
                        chat="✗ 用法: /account 名 perm 0|1|2")
         try:
             level = int(args[1])
@@ -145,19 +145,19 @@ def cmd_account(ctx, target, *args):
             return err("权限等级必须是 0 / 1 / 2", chat="✗ 权限要是 0/1/2")
         db.set_perm_level(target, level)
         return ok(["已把「%s」的权限设为 %d（%s）" % (target, level, PERM_NAMES[level])],
-                  chat="✓ %s -> %s" % (target, PERM_NAMES[level]))
+                  chat="✓ {} -> {}".format(target, PERM_NAMES[level]))
 
     perm = int(acc.get("perm_level") or 0)
     lines = [
-        "账号：%s" % acc["username"],
-        "账号 ID：%s" % acc["account_id"],
+        "账号：{}".format(acc["username"]),
+        "账号 ID：{}".format(acc["account_id"]),
         "权限：%d（%s）" % (perm, PERM_NAMES.get(perm, "?")),
-        "注册：%s" % time.strftime("%Y-%m-%d %H:%M", time.localtime(int(acc["created_ts"]))),
-        "最后登录：%s" % time.strftime("%Y-%m-%d %H:%M",
-                                    time.localtime(int(acc.get("last_login_ts") or acc["created_ts"]))),
-        "登录次数：%s" % acc.get("login_count", 0),
+        "注册：{}".format(time.strftime("%Y-%m-%d %H:%M", time.localtime(int(acc["created_ts"])))),
+        "最后登录：{}".format(time.strftime("%Y-%m-%d %H:%M",
+                                    time.localtime(int(acc.get("last_login_ts") or acc["created_ts"])))),
+        "登录次数：{}".format(acc.get("login_count", 0)),
     ]
-    chat = "%s %s 登录%s次" % (acc["username"], PERM_NAMES.get(perm, "?"), acc.get("login_count", 0))
+    chat = "{} {} 登录{}次".format(acc["username"], PERM_NAMES.get(perm, "?"), acc.get("login_count", 0))
     return ok(lines, chat=chat)
 
 

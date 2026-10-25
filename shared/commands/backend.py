@@ -49,13 +49,12 @@ def admin_call(method, path, payload=None):
         try:
             return _json.loads(e.read().decode("utf-8")), None
         except Exception:
-            return None, "HTTP %s" % e.code
+            return None, "HTTP {}".format(e.code)
     except Exception as e:
-        return None, "%s: %s" % (type(e).__name__, e)
+        return None, "{}: {}".format(type(e).__name__, e)
 
 
 def admin_down():
     """连不上管理接口时的提示文本（URL 每次现取，别缓存）。"""
-    return ("连不上游戏服管理接口（%s）。\n"
-            "  游戏服没在运行？先启动 game_server.server --ms-ok。"
-            % _pkg().ADMIN_URL)
+    return ("连不上游戏服管理接口（{}）。\n"
+            "  游戏服没在运行？先启动 game_server.server --ms-ok。".format(_pkg().ADMIN_URL))

@@ -219,11 +219,11 @@ class Target(str):
         kind: "story" | "dungeon"
         返回 (player_dict, err)。
         """
-        info, e = _admin("GET", "/player/%s/%s" % (self.uid, kind))
+        info, e = _admin("GET", "/player/{}/{}".format(self.uid, kind))
         if e:
             return None, admin_down()
         if not info or not info.get("ok"):
-            return None, "查询失败: %s" % (info,)
+            return None, "查询失败: {}".format(info)
         return (info.get("player") or {}), None
 
     def call(self, method, path, payload=None):
@@ -236,7 +236,7 @@ class Target(str):
         return _admin(method, path, body)
 
     def __repr__(self):
-        return "Target(%r%s)" % (str(self), ", self" if self._is_self else "")
+        return "Target({!r}{})".format(str(self), ", self" if self._is_self else "")
 
 
 def resolve_target(ctx, token):
@@ -248,8 +248,8 @@ def resolve_target(ctx, token):
     if token == "@" or not token:
         return Target(ctx.actor, ctx, True), None
     if db.get_account_by_username(token) is None:
-        return None, err("找不到账号「%s」" % token,
-                         chat="✗ 找不到账号 %s" % token)
+        return None, err("找不到账号「{}」".format(token),
+                         chat="✗ 找不到账号 {}".format(token))
     return Target(token, ctx, token == ctx.actor), None
 
 
@@ -272,11 +272,11 @@ def execute(text, ctx):
     parts = split_tokens(body)
     cmd = lookup(parts[0])
     if cmd is None:
-        return err("未知命令「%s」，/help 查看全部" % parts[0],
-                   chat="✗ 未知命令 %s" % parts[0])
+        return err("未知命令「{}」，/help 查看全部".format(parts[0]),
+                   chat="✗ 未知命令 {}".format(parts[0]))
 
     if cmd.perm > ctx.perm:
-        return err("权限不足：该命令需要「%s」" % PERM_NAMES.get(cmd.perm, "?"),
+        return err("权限不足：该命令需要「{}」".format(PERM_NAMES.get(cmd.perm, "?")),
                    chat="✗ 权限不足")
 
     rest = parts[1:]
@@ -290,8 +290,8 @@ def execute(text, ctx):
     target = ctx.actor
     if cmd.needs_target:
         if not rest:
-            return err("缺少目标，用法：/%s %s" % (cmd.name, cmd.args),
-                       chat="✗ 用法: /%s %s" % (cmd.name, cmd.args))
+            return err("缺少目标，用法：/{} {}".format(cmd.name, cmd.args),
+                       chat="✗ 用法: /{} {}".format(cmd.name, cmd.args))
         target, e = resolve_target(ctx, rest[0])
         if e is not None:
             return e
@@ -303,7 +303,7 @@ def execute(text, ctx):
     try:
         return cmd.handler(ctx, target, *rest)
     except Exception as ex:  # 命令实现里的 bug 不应拖垮服务
-        return err("命令执行异常：%s: %s" % (type(ex).__name__, ex),
+        return err("命令执行异常：{}: {}".format(type(ex).__name__, ex),
                    chat="✗ 命令异常")
 
 
@@ -339,7 +339,7 @@ def _need_num(tok, default=None, lo=None, hi=None, label="数量"):
     try:
         v = int(tok)
     except (TypeError, ValueError):
-        return None, err("%s必须是整数：%s" % (label, tok))
+        return None, err("{}必须是整数：{}".format(label, tok))
     if lo is not None and v < lo:
         return None, err("%s不能小于 %d" % (label, lo))
     if hi is not None and v > hi:

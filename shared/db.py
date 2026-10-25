@@ -118,9 +118,9 @@ def init():
         c.execute("ALTER TABLE accounts ADD COLUMN perm_level INTEGER NOT NULL DEFAULT 0")
     # 旧库列改名：账号名不再限定手机号，mobile -> username。
     for table in ("accounts", "sessions", "tickets"):
-        tcols = {r["name"] for r in c.execute("PRAGMA table_info(%s)" % table).fetchall()}
+        tcols = {r["name"] for r in c.execute("PRAGMA table_info({})".format(table)).fetchall()}
         if "mobile" in tcols and "username" not in tcols:
-            c.execute("ALTER TABLE %s RENAME COLUMN mobile TO username" % table)
+            c.execute("ALTER TABLE {} RENAME COLUMN mobile TO username".format(table))
     # 早期版本的「游戏内取验证码」流程已废弃，旧库里的 codes 表一并清掉。
     c.execute("DROP TABLE IF EXISTS codes")
     c.commit()

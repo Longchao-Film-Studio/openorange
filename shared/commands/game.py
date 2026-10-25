@@ -14,7 +14,7 @@ from .core import PERM_GM, _ambiguous, _need_num, err, ok, register
 
 def _admin_down_result(e):
     """连不上游戏服时的诚实失败（不能谎报成功）。"""
-    return err("连不上游戏服：%s" % e,
+    return err("连不上游戏服：{}".format(e),
                chat="✗ 游戏服未运行或管理接口不可达")
 
 
@@ -31,7 +31,7 @@ def cmd_give(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("物品", cands)
-        return err("找不到物品「%s」" % args[0], chat="✗ 找不到物品")
+        return err("找不到物品「{}」".format(args[0]), chat="✗ 找不到物品")
     # ★ 真写入：调游戏服 /player/grant
     res, e = target.call("POST", "/player/grant",
                          {"items": {str(entry["id"]): num}})
@@ -46,8 +46,8 @@ def cmd_give(ctx, target, *args):
             now = g.get("now")
     lines = [
         "✔ 已发放",
-        "  目标    %s" % target,
-        "  物品    %s（ID %s）" % (entry["name"], entry["id"]),
+        "  目标    {}".format(target),
+        "  物品    {}（ID {}）".format(entry["name"], entry["id"]),
         "  数量    +%d" % num,
     ]
     if now is not None:
@@ -69,11 +69,11 @@ def cmd_char(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("角色", cands)
-        return err("找不到角色「%s」" % args[0], chat="✗ 找不到角色")
+        return err("找不到角色「{}」".format(args[0]), chat="✗ 找不到角色")
     lines = [
         "✗ 未实现",
         "  角色解锁需要写入 characterBag 并下发同步帧（阶段 2/3，见 ROADMAP）。",
-        "  已解析：%s（ID %s）" % (entry["name"], entry["id"]),
+        "  已解析：{}（ID {}）".format(entry["name"], entry["id"]),
     ]
     return ok(lines,
               chat="✗ /char 未实现（characterBag 解锁属阶段 2/3）",
@@ -96,7 +96,7 @@ def cmd_lv(ctx, target, *args):
     if not res or not res.get("ok"):
         return err(res.get("error") if res else "level 失败", chat="✗ 设置失败")
     return ok(["✔ 已设置等级",
-               "  目标    %s" % target,
+               "  目标    {}".format(target),
                "  等级    %d" % lv],
               chat="✔ %s 等级 → %d" % (target, lv),
               data={"action": "lv", "target": target, "level": lv,
@@ -107,20 +107,18 @@ def cmd_lv(ctx, target, *args):
           desc="增加货币", perm=PERM_GM, needs_target=True, group="GM")
 def cmd_money(ctx, target, *args):
     if len(args) < 2:
-        return err("用法：/money <目标> <货币> <数量>\n可用货币：%s"
-                   % "、".join(c["id"] for c in gamedata._currencies),
+        return err("用法：/money <目标> <货币> <数量>\n可用货币：{}".format("、".join(c["id"] for c in gamedata._currencies)),
                    chat="✗ 用法: /money <目标> <货币> <数量>")
     num, e = _need_num(args[1], None, 1, 99999999)
     if e:
         return e
     entry, cands = gamedata.resolve_currency(args[0])
     if entry is None:
-        return err("找不到货币「%s」，可用：%s"
-                   % (args[0], "、".join(c["id"] for c in gamedata._currencies)),
+        return err("找不到货币「{}」，可用：{}".format(args[0], "、".join(c["id"] for c in gamedata._currencies)),
                    chat="✗ 找不到货币")
     if not entry.get("item_id"):
-        return err("货币「%s」没有对应物品 id，无法发放" % entry["id"],
-                   chat="✗ 货币 %s 无物品 id" % entry["id"])
+        return err("货币「{}」没有对应物品 id，无法发放".format(entry["id"]),
+                   chat="✗ 货币 {} 无物品 id".format(entry["id"]))
     item = gamedata._item_by_id.get(entry.get("item_id")) or {}
     # ★ 真写入：货币本质就是物品，走 /player/grant
     res, e = target.call("POST", "/player/grant",
@@ -130,9 +128,8 @@ def cmd_money(ctx, target, *args):
     if not res or not res.get("ok"):
         return err(res.get("error") if res else "grant 失败", chat="✗ 发放失败")
     return ok(["✔ 已发放",
-               "  目标    %s" % target,
-               "  货币    %s（物品 %s %s）"
-               % (entry["id"], entry["item_id"], item.get("name") or ""),
+               "  目标    {}".format(target),
+               "  货币    {}（物品 {} {}）".format(entry["id"], entry["item_id"], item.get("name") or ""),
                "  数量    +%d" % num],
               chat="✔ %s +%d → %s" % (entry["id"], num, target),
               data={"action": "money", "target": target, "currency": entry,
@@ -150,11 +147,11 @@ def cmd_tp(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("地图", cands)
-        return err("找不到地图「%s」" % args[0], chat="✗ 找不到地图")
+        return err("找不到地图「{}」".format(args[0]), chat="✗ 找不到地图")
     lines = [
         "✗ 未实现",
         "  传送需要服务端主动下发切场景（space RPC），未接入。",
-        "  已解析：%s（ID %s）" % (entry.get("name") or "-", entry["id"]),
+        "  已解析：{}（ID {}）".format(entry.get("name") or "-", entry["id"]),
     ]
     return ok(lines,
               chat="✗ /tp 未实现",
@@ -173,12 +170,12 @@ def cmd_quest(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("任务", cands)
-        return err("找不到任务「%s」" % args[0], chat="✗ 找不到任务")
+        return err("找不到任务「{}」".format(args[0]), chat="✗ 找不到任务")
     lines = [
         "✗ 未实现",
         "  强制完成任务需要走剧情/任务唯一入口（_finish_story_tasks），" +
         "未做命令直通。",
-        "  已解析：#%s  %s" % (entry["id"], entry.get("desc") or ""),
+        "  已解析：#{}  {}".format(entry["id"], entry.get("desc") or ""),
     ]
     return ok(lines,
               chat="✗ /quest 未实现",
@@ -197,11 +194,11 @@ def cmd_story(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("剧情", cands)
-        return err("找不到剧情「%s」" % args[0], chat="✗ 找不到剧情")
+        return err("找不到剧情「{}」".format(args[0]), chat="✗ 找不到剧情")
     lines = [
         "✗ 未实现",
         "  剧情播放走客户端 storydirector（playStory 触发），服务端无法单方触发。",
-        "  已解析：%s（speechId %s）" % (entry["id"], entry.get("speech_id")),
+        "  已解析：{}（speechId {}）".format(entry["id"], entry.get("speech_id")),
     ]
     return ok(lines,
               chat="✗ /story 未实现（需客户端 storydirector 配合）",
@@ -229,13 +226,13 @@ def cmd_act(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("活动", cands)
-        return err("找不到活动「%s」" % args[0], chat="✗ 找不到活动")
+        return err("找不到活动「{}」".format(args[0]), chat="✗ 找不到活动")
     mode = (args[1].lower() if len(args) > 1 else "")
     if mode and mode not in ("open", "close", "开", "关"):
         return err("开关只能是 open / close", chat="✗ 只能是 open/close")
     lines = [
         "✗ 活动开关未实现（ActivityProp 需服务端下发 + RPC 接入，见 ROADMAP 3-3）",
-        "  活动    %s（ID %s）" % (entry.get("name") or "-", entry["id"]),
+        "  活动    {}（ID {}）".format(entry.get("name") or "-", entry["id"]),
     ]
     return ok(lines,
               chat="✗ /act 开关未实现",

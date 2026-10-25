@@ -44,7 +44,7 @@ def cmd_dungeon(ctx, target, *args):
     # 无参数：显示当前状态
     if not args:
         lines = [
-            "副本关卡覆盖    账号 %s" % uid,
+            "副本关卡覆盖    账号 {}".format(uid),
             "  当前            %s" % ("不覆盖" if not cur else "只打 %d" % cur),
             "",
             "  用法：/dungeon <target> [<关卡ID> | off]",
@@ -62,7 +62,7 @@ def cmd_dungeon(ctx, target, *args):
             "  适用于所有副本：关卡 id 属于该副本 rootLevel 才生效。",
         ]
         return ok(lines,
-                  chat="%s 副本: %s" % (uid, ("只打 %d" % cur) if cur else "不覆盖"),
+                  chat="{} 副本: {}".format(uid, ("只打 %d" % cur) if cur else "不覆盖"),
                   data={"action": "dungeon_show", "uid": uid,
                         "force_level": cur, "levels": _GUIDE01_LEVELS})
 
@@ -70,11 +70,11 @@ def cmd_dungeon(ctx, target, *args):
     if raw in ("off", "0", "关", "取消", "clear"):
         res, e = target.call("POST", "/dungeon/level", {"level": 0})
         if e or not res or not res.get("ok"):
-            return err(e or ("设置失败: %s" % (res,)), chat="✗ 设置失败")
+            return err(e or ("设置失败: {}".format(res)), chat="✗ 设置失败")
         return ok(["✔ 已取消副本关卡覆盖",
-                   "  账号    %s" % uid, "",
+                   "  账号    {}".format(uid), "",
                    "  进副本会按 Level_CopyData.rootLevel 正常下发全部关卡。"],
-                  chat="✔ %s 副本: 已取消覆盖" % uid,
+                  chat="✔ {} 副本: 已取消覆盖".format(uid),
                   data={"action": "dungeon_set", "uid": uid, "force_level": 0})
 
     level, e2 = _need_num(raw, None, 1, 999999, "关卡ID")
@@ -99,16 +99,16 @@ def cmd_dungeon(ctx, target, *args):
 
     res, e = target.call("POST", "/dungeon/level", {"level": level})
     if e or not res or not res.get("ok"):
-        return err(e or ("设置失败: %s" % (res,)), chat="✗ 设置失败")
+        return err(e or ("设置失败: {}".format(res)), chat="✗ 设置失败")
     got = res.get("force_level") or 0
     lines = [
         "✔ 已设置副本关卡覆盖",
-        "  账号    %s" % uid,
+        "  账号    {}".format(uid),
         "  关卡    %d  %s" % (level, name),
-        "  场景    %s" % scene,
-        "  下一关  %s" % nxt,
+        "  场景    {}".format(scene),
+        "  下一关  {}".format(nxt),
         "",
-        "  按账号生效：只有 %s 进副本会只打这一关，其它账号不受影响。" % uid,
+        "  按账号生效：只有 {} 进副本会只打这一关，其它账号不受影响。".format(uid),
         "  如果该关卡不属于当前副本的 rootLevel，会被忽略并在服务端打日志。",
     ]
     return ok(lines,
@@ -142,17 +142,17 @@ def cmd_sms(ctx, target, *args):
     res, e = target.call("POST", "/player/unlock-npc-topic",
                          payload={"uid": uid, "topic_id": topic_id})
     if e or not res or not res.get("ok"):
-        return err(e or ("解锁失败: %s" % (res,)), chat="✗ 解锁失败")
+        return err(e or ("解锁失败: {}".format(res)), chat="✗ 解锁失败")
     r = res.get("result") or {}
     return ok([
         "✔ 话题已解锁（立即生效）",
-        "  账号      %s" % uid,
-        "  话题      %s %s" % (topic_id, r.get("chat_name") or ""),
-        "  会话 chat  %s" % r.get("chat_id"),
-        "  同步帧    %s 条" % r.get("frames"),
+        "  账号      {}".format(uid),
+        "  话题      {} {}".format(topic_id, r.get("chat_name") or ""),
+        "  会话 chat  {}".format(r.get("chat_id")),
+        "  同步帧    {} 条".format(r.get("frames")),
         "",
         "  手机里应出现该会话；点预设回复会上报 Update_NpcChat_Info_CS。",
-    ], chat="短信 %s: 话题 %s 已解锁" % (uid, topic_id),
+    ], chat="短信 {}: 话题 {} 已解锁".format(uid, topic_id),
        data={"action": "sms_show", "target": uid, "result": r})
 
 
@@ -176,43 +176,43 @@ def cmd_prologue(ctx, target, *args):
         if e:
             return err(e, chat="✗ 连不上游戏服")
         if not p.get("exists", True):
-            return ok(["序章状态    账号 %s" % uid,
+            return ok(["序章状态    账号 {}".format(uid),
                        "  该账号还没有存档（从没登录过）。",
                        "",
-                       "  可以直接 /prologue %s skip 预先跳过。" % uid],
-                      chat="序章 %s: 还没存档" % uid,
+                       "  可以直接 /prologue {} skip 预先跳过。".format(uid)],
+                      chat="序章 {}: 还没存档".format(uid),
                       data={"action": "prologue_show", "target": uid,
                             "player": p})
         sf1 = p.get("story_finished_1")
         t1000 = p.get("story_task_1000")
         lines = [
-            "序章状态    账号 %s" % uid,
+            "序章状态    账号 {}".format(uid),
             "  story_finished[1]    %s" % ("已过" if sf1 else "未过"),
             "  StoryTask 1000       %s" % (
                 "已完成" if t1000 == 6 else
                 "进行中" if t1000 == 3 else
-                "未开始" if t1000 == -1 else "状态 %s" % t1000),
+                "未开始" if t1000 == -1 else "状态 {}".format(t1000)),
             "  进行中的剧情任务     %s" % (p.get("active") or "无"),
             "",
             "  用法：/prologue <target> [skip]",
             "    /prologue @ skip     跳过自己的序章",
         ]
         return ok(lines,
-                  chat="序章 %s: %s" % (uid, "已过" if sf1 else "未过"),
+                  chat="序章 {}: {}".format(uid, "已过" if sf1 else "未过"),
                   data={"action": "prologue_show", "target": uid, "player": p})
 
     sub = (args[0] or "").strip().lower()
     if sub not in ("skip", "跳过"):
-        return err("未知子命令「%s」，用法：/prologue <target> [skip]" % args[0],
+        return err("未知子命令「{}」，用法：/prologue <target> [skip]".format(args[0]),
                    chat="✗ 用法: /prologue <target> [skip]")
 
     res, e = target.call("POST", "/player/skip-prologue")
     if e or not res or not res.get("ok"):
-        return err(e or ("跳过失败: %s" % (res,)), chat="✗ 跳过失败")
+        return err(e or ("跳过失败: {}".format(res)), chat="✗ 跳过失败")
     r = res.get("result") or {}
     lines = [
         "✔ 序章已跳过（立即生效）",
-        "  账号              %s" % uid,
+        "  账号              {}".format(uid),
         "  StoryTask 1000    %s" % (
             "本来就已完成" if r.get("already_finished") else "已标完成"),
         "  story_finished[1] %s" % ("True" if r.get("story_finished_1") else "False"),
@@ -221,7 +221,7 @@ def cmd_prologue(ctx, target, *args):
         "  客户端下次登录/重连就会直接进街区，不再进序章副本。",
     ]
     return ok(lines,
-              chat="✔ 序章已跳过（%s）" % uid,
+              chat="✔ 序章已跳过（{}）".format(uid),
               data={"action": "prologue_skip", "target": uid,
                     "result": r, "applied": True})
 
