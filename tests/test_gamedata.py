@@ -139,7 +139,7 @@ def run():
     check("按英文名能搜到角色", len(hits) >= 1, len(hits))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     for name in failed:
         print("  - " + name)
     return 0 if not failed else 1

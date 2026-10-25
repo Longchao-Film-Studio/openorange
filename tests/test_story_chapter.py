@@ -60,7 +60,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -95,13 +95,13 @@ def sync_frames(st, descs):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
     SL = gamedata.table("StoryLineData") or {}
     SL = list(SL.values()) if isinstance(SL, dict) else SL
-    print('\n[1] 数据事实：StoryLineData 共 {} 条'.format(len(SL)))
+    print(f'\n[1] 数据事实：StoryLineData 共 {len(SL)} 条')
     check("StoryLineData 共 17 条", len(SL) == 17, len(SL))
     check("★ 17 条全有 passAward", all(r.get("passAward") for r in SL))
     check("★ 15 条有 collectItem", sum(1 for r in SL if r.get("collectItem")) == 15)
@@ -208,7 +208,7 @@ def run():
     check("★ 登录后 story_reward_list 有值", bool(_rl6), _rl6[:6])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

@@ -116,7 +116,7 @@ def load_implemented():
         from game_server import entity_rpc
         return set(entity_rpc.RPC_INDEX.keys())
     except Exception as e:
-        print("[warn] 读不到 entity_rpc.RPC_INDEX: {}".format(e))
+        print(f"[warn] 读不到 entity_rpc.RPC_INDEX: {e}")
         return set()
 
 
@@ -126,19 +126,19 @@ def main():
     args = ap.parse_args()
 
     if not os.path.isdir(LUA_SRC):
-        raise SystemExit("找不到 Lua 源码目录: {}（用 OO_LUA_SRC 指定）".format(LUA_SRC))
+        raise SystemExit(f"找不到 Lua 源码目录: {LUA_SRC}（用 OO_LUA_SRC 指定）")
 
     sonly = parse_server_only_msg()
     sites = scan_client_calls()
     hashes = load_hashes()
     implemented = load_implemented()
 
-    print('服务端->客户端（ServerOnlyMsg）: {} 条'.format(len(sonly)))
-    print('客户端->服务端（serverRpc/serverMsg）: {} 条'.format(len(sites)))
-    print('genRpcIndex 已算好: {} 个名字'.format(len(hashes)))
-    print('我们已实现: {} 条'.format(len(implemented)))
+    print(f'服务端->客户端（ServerOnlyMsg）: {len(sonly)} 条')
+    print(f'客户端->服务端（serverRpc/serverMsg）: {len(sites)} 条')
+    print(f'genRpcIndex 已算好: {len(hashes)} 个名字')
+    print(f'我们已实现: {len(implemented)} 条')
     miss = [n for n in list(sonly) + list(sites) if n not in hashes]
-    print('还没算索引的: {} 条'.format(len(miss)))
+    print(f'还没算索引的: {len(miss)} 条')
 
     if args.check:
         return 0
@@ -228,8 +228,8 @@ def main():
     lines.append("|---|---|---|")
     c2s_impl = len([n for n in sites if n in implemented])
     s2c_impl = len([n for n in sonly if n in implemented])
-    lines.append('| 客户端 → 服务端 | {} | {} |'.format(len(sites), c2s_impl))
-    lines.append('| 服务端 → 客户端 | {} | {} |'.format(len(sonly), s2c_impl))
+    lines.append(f'| 客户端 → 服务端 | {len(sites)} | {c2s_impl} |')
+    lines.append(f'| 服务端 → 客户端 | {len(sonly)} | {s2c_impl} |')
     lines.append("")
     lines.append("## 服务端 → 客户端（ServerOnlyMsg 声明，带参数类型）")
     lines.append("")
@@ -255,8 +255,8 @@ def main():
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print("\n已写出:")
-    print("  {}".format(OUT_MD))
-    print("  {}".format(OUT_TSV))
+    print(f"  {OUT_MD}")
+    print(f"  {OUT_TSV}")
     return 0
 
 

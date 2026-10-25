@@ -14,7 +14,7 @@ from .core import PERM_GM, _ambiguous, _need_num, err, ok, register
 
 def _admin_down_result(e):
     """连不上游戏服时的诚实失败（不能谎报成功）。"""
-    return err("连不上游戏服：{}".format(e),
+    return err(f"连不上游戏服：{e}",
                chat="✗ 游戏服未运行或管理接口不可达")
 
 
@@ -31,7 +31,7 @@ def cmd_give(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("物品", cands)
-        return err("找不到物品「{}」".format(args[0]), chat="✗ 找不到物品")
+        return err(f"找不到物品「{args[0]}」", chat="✗ 找不到物品")
     # ★ 真写入：调游戏服 /player/grant
     res, e = target.call("POST", "/player/grant",
                          {"items": {str(entry["id"]): num}})
@@ -46,12 +46,12 @@ def cmd_give(ctx, target, *args):
             now = g.get("now")
     lines = [
         "✔ 已发放",
-        "  目标    {}".format(target),
+        f"  目标    {target}",
         "  物品    {}（ID {}）".format(entry["name"], entry["id"]),
-        '  数量    +{}'.format(num),
+        f'  数量    +{num}',
     ]
     if now is not None:
-        lines.append('  现有    {}'.format(now))
+        lines.append(f'  现有    {now}')
     return ok(lines,
               chat='✔ {} ×{} → {}'.format(entry["name"], num, target),
               data={"action": "give", "target": target, "item": entry,
@@ -69,7 +69,7 @@ def cmd_char(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("角色", cands)
-        return err("找不到角色「{}」".format(args[0]), chat="✗ 找不到角色")
+        return err(f"找不到角色「{args[0]}」", chat="✗ 找不到角色")
     lines = [
         "✗ 未实现",
         "  角色解锁需要写入 characterBag 并下发同步帧（阶段 2/3，见 ROADMAP）。",
@@ -96,9 +96,9 @@ def cmd_lv(ctx, target, *args):
     if not res or not res.get("ok"):
         return err(res.get("error") if res else "level 失败", chat="✗ 设置失败")
     return ok(["✔ 已设置等级",
-               "  目标    {}".format(target),
-               '  等级    {}'.format(lv)],
-              chat='✔ {} 等级 → {}'.format(target, lv),
+               f"  目标    {target}",
+               f'  等级    {lv}'],
+              chat=f'✔ {target} 等级 → {lv}',
               data={"action": "lv", "target": target, "level": lv,
                     "applied": True})
 
@@ -128,9 +128,9 @@ def cmd_money(ctx, target, *args):
     if not res or not res.get("ok"):
         return err(res.get("error") if res else "grant 失败", chat="✗ 发放失败")
     return ok(["✔ 已发放",
-               "  目标    {}".format(target),
+               f"  目标    {target}",
                "  货币    {}（物品 {} {}）".format(entry["id"], entry["item_id"], item.get("name") or ""),
-               '  数量    +{}'.format(num)],
+               f'  数量    +{num}'],
               chat='✔ {} +{} → {}'.format(entry["id"], num, target),
               data={"action": "money", "target": target, "currency": entry,
                     "num": num, "applied": True})
@@ -147,7 +147,7 @@ def cmd_tp(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("地图", cands)
-        return err("找不到地图「{}」".format(args[0]), chat="✗ 找不到地图")
+        return err(f"找不到地图「{args[0]}」", chat="✗ 找不到地图")
     lines = [
         "✗ 未实现",
         "  传送需要服务端主动下发切场景（space RPC），未接入。",
@@ -170,7 +170,7 @@ def cmd_quest(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("任务", cands)
-        return err("找不到任务「{}」".format(args[0]), chat="✗ 找不到任务")
+        return err(f"找不到任务「{args[0]}」", chat="✗ 找不到任务")
     lines = [
         "✗ 未实现",
         "  强制完成任务需要走剧情/任务唯一入口（_finish_story_tasks），" +
@@ -194,7 +194,7 @@ def cmd_story(ctx, target, *args):
     if entry is None:
         if cands:
             return _ambiguous("剧情", cands)
-        return err("找不到剧情「{}」".format(args[0]), chat="✗ 找不到剧情")
+        return err(f"找不到剧情「{args[0]}」", chat="✗ 找不到剧情")
     lines = [
         "✗ 未实现",
         "  剧情播放走客户端 storydirector（playStory 触发），服务端无法单方触发。",
@@ -213,18 +213,18 @@ def cmd_act(ctx, target, *args):
     if not args:
         rows = gamedata._activities
         shown = rows[:15]
-        lines = ['活动共 {} 个，前 {} 个：'.format(len(rows), len(shown))]
+        lines = [f'活动共 {len(rows)} 个，前 {len(shown)} 个：']
         for a in shown:
             lines.append('  {:<6} {:<16} type={:<4} {}'.format(a["id"], a.get("name") or "-", a.get("type"), "显示" if a.get("show") else "隐藏"))
         lines.append("")
         lines.append("  用法：/act <id或名字> [open|close]")
-        return ok(lines, chat='活动 {} 个'.format(len(rows)),
+        return ok(lines, chat=f'活动 {len(rows)} 个',
                   data={"action": "act_list", "count": len(rows)})
     entry, cands = gamedata.resolve_activity(args[0], ctx.allow_unavailables)
     if entry is None:
         if cands:
             return _ambiguous("活动", cands)
-        return err("找不到活动「{}」".format(args[0]), chat="✗ 找不到活动")
+        return err(f"找不到活动「{args[0]}」", chat="✗ 找不到活动")
     mode = (args[1].lower() if len(args) > 1 else "")
     if mode and mode not in ("open", "close", "开", "关"):
         return err("开关只能是 open / close", chat="✗ 只能是 open/close")

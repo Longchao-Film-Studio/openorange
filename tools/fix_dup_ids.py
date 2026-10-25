@@ -54,10 +54,10 @@ def collect(obj, path="", out=None):
         for k, v2 in obj.items():
             if k == "__id__":
                 continue
-            collect(v2, "{}.{}".format(path, k), out)
+            collect(v2, f"{path}.{k}", out)
     elif isinstance(obj, list):
         for i, v2 in enumerate(obj):
-            collect(v2, '{}[{}]'.format(path, i), out)
+            collect(v2, f'{path}[{i}]', out)
     return out
 
 
@@ -78,20 +78,20 @@ def fix(props, dry_run=False):
     real_max = _ids.max_id(props)
     if not isinstance(props.get("_oo_next_id"), int) or props["_oo_next_id"] < real_max:
         props["_oo_next_id"] = real_max
-        report.append('  校正 _oo_next_id -> {}'.format(real_max))
+        report.append(f'  校正 _oo_next_id -> {real_max}')
 
     for nid in sorted(dups):
         group = sorted(dups[nid], key=lambda x: x[0])
         keep = group[0]
-        report.append('  __id__ {} 出现 {} 次，保留 {}'.format(nid, len(group), keep[0]))
+        report.append(f'  __id__ {nid} 出现 {len(group)} 次，保留 {keep[0]}')
         for path, ref in group[1:]:
             if dry_run:
-                report.append("    [dry-run] {} 需要重新分配".format(path))
+                report.append(f"    [dry-run] {path} 需要重新分配")
                 continue
             new_id = _ids.alloc_id(props)
             ref["__id__"] = new_id
             fixed += 1
-            report.append('    {} -> {}'.format(path, new_id))
+            report.append(f'    {path} -> {new_id}')
     return fixed, report
 
 
@@ -117,15 +117,15 @@ def main():
 
     total = 0
     for uid in targets:
-        p = os.path.join(state_dir, "{}.json".format(uid))
+        p = os.path.join(state_dir, f"{uid}.json")
         if not os.path.exists(p):
-            print("跳过 {}：文件不存在".format(uid))
+            print(f"跳过 {uid}：文件不存在")
             continue
         with open(p, "r", encoding="utf-8") as f:
             d = json.load(f)
         props = d.get("props") or {}
         fixed, report = fix(props, dry_run=args.dry_run)
-        print("=== {} ===".format(uid))
+        print(f"=== {uid} ===")
         for line in report:
             print(line)
         if fixed and not args.dry_run:
@@ -133,7 +133,7 @@ def main():
             shutil.copy2(p, bak)
             with open(p, "w", encoding="utf-8", newline="\n") as f:
                 json.dump(d, f, ensure_ascii=False, indent=1)
-            print('  已修 {} 个，备份 {}'.format(fixed, bak))
+            print(f'  已修 {fixed} 个，备份 {bak}')
         total += fixed
 
     print()

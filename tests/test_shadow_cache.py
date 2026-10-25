@@ -65,7 +65,7 @@ def feed(sc, frames, tag):
         sc.apply_frame(f)
     new = sc.errors[before:]
     if new:
-        print('    [{}] 客户端会崩 {} 处：'.format(tag, len(new)))
+        print(f'    [{tag}] 客户端会崩 {len(new)} 处：')
         for e in new[:5]:
             print("      " + e[:110])
     return new
@@ -149,8 +149,8 @@ def run():
     ], start=1):
         _n0 = sc.frame_count
         errs = feed(sc, erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_c"), tag)
-        check("{} 帧安全".format(tag), not errs, errs[:2])
-        check("{} 确实产生了属性同步帧".format(tag), sc.frame_count > _n0,
+        check(f"{tag} 帧安全", not errs, errs[:2])
+        check(f"{tag} 确实产生了属性同步帧", sc.frame_count > _n0,
               sc.frame_count - _n0)
 
     # C2 通用任务（槽位 + 任务项）
@@ -210,17 +210,17 @@ def run():
         (885846933, []),               # SetCanScore_CS
     ], start=1):
         errs = feed(sc5, erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_g"),
-                    "Set* {}".format(rpc))
-        check("Set* {} 帧安全".format(rpc), not errs, errs[:2])
+                    f"Set* {rpc}")
+        check(f"Set* {rpc} 帧安全", not errs, errs[:2])
 
     print("\n[D] 全局一致性")
     for uid in ("sc_c", "sc_d", "sc_e", "sc_f", "sc_g"):
         stx = pstate.get_state(uid=uid)
         ok, dup = ids_mod.verify_unique(stx.props)
-        check("{} 全 props __id__ 唯一".format(uid), ok, dup)
+        check(f"{uid} 全 props __id__ 唯一", ok, dup)
         bag = stx.props.get("item_bag") or {}
         bad = [k for k in bag if isinstance(k, int) and not isinstance(k, bool)]
-        check("{} 背包键全是字符串".format(uid), not bad, bad[:3])
+        check(f"{uid} 背包键全是字符串", not bad, bad[:3])
 
     print("\n[E] ★ RPC 抽样扫描（24/114）：挑能安全调用的 handler 验帧")
     # 用一个全新存档，逐个调 RPC，把产出的属性同步帧喂进影子缓存。
@@ -258,14 +258,14 @@ def run():
         try:
             frames = erpc.handle(rpc, msmod.mp_arr(params), i, uid="sc_sweep")
         except Exception as ex:
-            bad_rpcs.append("{} handler 抛异常: {}".format(name, ex))
+            bad_rpcs.append(f"{name} handler 抛异常: {ex}")
             continue
         errs = feed(sc6, frames, name)
         if errs:
-            bad_rpcs.append("{}: {}".format(name, errs[0][:80]))
-    check('抽样 {} 个 RPC，全部帧合法'.format(len(sweep)), not bad_rpcs, bad_rpcs[:5])
+            bad_rpcs.append(f"{name}: {errs[0][:80]}")
+    check(f'抽样 {len(sweep)} 个 RPC，全部帧合法', not bad_rpcs, bad_rpcs[:5])
     check("影子缓存确实处理了帧", sc6.frame_count > 10, sc6.frame_count)
-    print('    （处理 {} 条属性同步帧，跳过 {} 条非同步帧）'.format(sc6.frame_count, sc6.skipped))
+    print(f'    （处理 {sc6.frame_count} 条属性同步帧，跳过 {sc6.skipped} 条非同步帧）')
 
     print("\n[F] ★ P0-1 回归：接任务后重新登录，initDict 不能带嵌套 __tp__")
     # 审计实测：tasks.ensure_type_slot 把 {"__tp__":"TaskBag"} 写进 state，
@@ -303,13 +303,13 @@ def run():
                 _scan(v2, path + "." + str(k2))
         elif isinstance(o, (list, tuple)):
             for i2, v2 in enumerate(o):
-                _scan(v2, path + '[{}]'.format(i2))
+                _scan(v2, path + f'[{i2}]')
     for k2, v2 in dF["__Properties__"].items():
         _scan(v2, k2)
     check("登录 initDict 里没有嵌套 __tp__ 残留", not bad_tp, bad_tp[:5])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

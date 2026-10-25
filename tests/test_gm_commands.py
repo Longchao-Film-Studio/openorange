@@ -22,7 +22,7 @@ _TEST_PORT = 33197
 _TEST_TOKEN = "testtok"
 os.environ["OO_ADMIN_PORT"] = str(_TEST_PORT)
 os.environ["OO_ADMIN_TOKEN"] = _TEST_TOKEN
-os.environ["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(_TEST_PORT)
+os.environ["OO_ADMIN_URL"] = f'http://127.0.0.1:{_TEST_PORT}'
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -82,7 +82,7 @@ def run():
             if not _db.get_account_by_username(u):
                 _db.register_account(u, "pw", "acc_" + u, "fp_" + u, "sk_" + u)
         except Exception as e:
-            print("  注册账号 {} 失败: {}".format(u, e))
+            print(f"  注册账号 {u} 失败: {e}")
     srv, _th = admin_api.start(port=_TEST_PORT)
     time.sleep(0.3)
 
@@ -233,7 +233,7 @@ def run():
         srv.shutdown()
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

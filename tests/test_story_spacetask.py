@@ -91,7 +91,7 @@ def space_flat():
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -342,10 +342,10 @@ def run():
     pct = 100.0 * n_ok / len(reach)
     check("★ 可完成数 >= 950（阶段 J 前是 685）", n_ok >= 950, n_ok)
     check("★ 覆盖率 >= 92%", pct >= 92.0, round(pct, 1))
-    print('      可达 {:d}，可完成 {:d}（{:.1f}%）'.format(len(reach), n_ok, pct))
+    print(f'      可达 {len(reach):d}，可完成 {n_ok:d}（{pct:.1f}%）')
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

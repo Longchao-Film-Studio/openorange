@@ -86,7 +86,7 @@ def _battle_teach_activate(rid, params, uid=None):
     #   -> 弹「神秘力量」。表里没有的教学直接拒绝（回 ACK + 日志），
     #   客户端不会收到这条同步，就不会崩。
     if gamedata.table("InstructionData").get(str(iid)) is None:
-        print("[dungeon] 教学 {} 不在 InstructionData 表，拒绝激活（防客户端崩）".format(iid), flush=True)
+        print(f"[dungeon] 教学 {iid} 不在 InstructionData 表，拒绝激活（防客户端崩）", flush=True)
         return respond_after_sync(rid, syncs)
 
     bts = st.props.get("battle_teach_state")
@@ -100,5 +100,5 @@ def _battle_teach_activate(rid, params, uid=None):
         st.save()
         syncs.append(sync_frame(
             SYNC_SELF, bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
-        _log.info("[dungeon] 激活战斗教学 {}".format(iid))
+        _log.info(f"[dungeon] 激活战斗教学 {iid}")
     return respond_after_sync(rid, syncs)

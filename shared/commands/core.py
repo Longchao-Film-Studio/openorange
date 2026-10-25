@@ -219,11 +219,11 @@ class Target(str):
         kind: "story" | "dungeon"
         返回 (player_dict, err)。
         """
-        info, e = _admin("GET", "/player/{}/{}".format(self.uid, kind))
+        info, e = _admin("GET", f"/player/{self.uid}/{kind}")
         if e:
             return None, admin_down()
         if not info or not info.get("ok"):
-            return None, "查询失败: {}".format(info)
+            return None, f"查询失败: {info}"
         return (info.get("player") or {}), None
 
     def call(self, method, path, payload=None):
@@ -248,8 +248,8 @@ def resolve_target(ctx, token):
     if token == "@" or not token:
         return Target(ctx.actor, ctx, True), None
     if db.get_account_by_username(token) is None:
-        return None, err("找不到账号「{}」".format(token),
-                         chat="✗ 找不到账号 {}".format(token))
+        return None, err(f"找不到账号「{token}」",
+                         chat=f"✗ 找不到账号 {token}")
     return Target(token, ctx, token == ctx.actor), None
 
 
@@ -272,8 +272,8 @@ def execute(text, ctx):
     parts = split_tokens(body)
     cmd = lookup(parts[0])
     if cmd is None:
-        return err("未知命令「{}」，/help 查看全部".format(parts[0]),
-                   chat="✗ 未知命令 {}".format(parts[0]))
+        return err(f"未知命令「{parts[0]}」，/help 查看全部",
+                   chat=f"✗ 未知命令 {parts[0]}")
 
     if cmd.perm > ctx.perm:
         return err("权限不足：该命令需要「{}」".format(PERM_NAMES.get(cmd.perm, "?")),
@@ -290,8 +290,8 @@ def execute(text, ctx):
     target = ctx.actor
     if cmd.needs_target:
         if not rest:
-            return err("缺少目标，用法：/{} {}".format(cmd.name, cmd.args),
-                       chat="✗ 用法: /{} {}".format(cmd.name, cmd.args))
+            return err(f"缺少目标，用法：/{cmd.name} {cmd.args}",
+                       chat=f"✗ 用法: /{cmd.name} {cmd.args}")
         target, e = resolve_target(ctx, rest[0])
         if e is not None:
             return e
@@ -303,7 +303,7 @@ def execute(text, ctx):
     try:
         return cmd.handler(ctx, target, *rest)
     except Exception as ex:  # 命令实现里的 bug 不应拖垮服务
-        return err("命令执行异常：{}: {}".format(type(ex).__name__, ex),
+        return err(f"命令执行异常：{type(ex).__name__}: {ex}",
                    chat="✗ 命令异常")
 
 
@@ -329,7 +329,7 @@ def _ambiguous(kind, cands):
     ids = [str(c.get("id")) for c in cands[:12]]
     tail = " …" if len(cands) > 12 else ""
     return err('「{}」有 {} 条同名记录，请用 ID 指定：{}{}'.format(kind, len(cands), "、".join(ids), tail),
-               chat='✗ 重名 {} 条，用 ID 指定'.format(len(cands)))
+               chat=f'✗ 重名 {len(cands)} 条，用 ID 指定')
 
 
 def _need_num(tok, default=None, lo=None, hi=None, label="数量"):
@@ -338,11 +338,11 @@ def _need_num(tok, default=None, lo=None, hi=None, label="数量"):
     try:
         v = int(tok)
     except (TypeError, ValueError):
-        return None, err("{}必须是整数：{}".format(label, tok))
+        return None, err(f"{label}必须是整数：{tok}")
     if lo is not None and v < lo:
-        return None, err('{}不能小于 {}'.format(label, lo))
+        return None, err(f'{label}不能小于 {lo}')
     if hi is not None and v > hi:
-        return None, err('{}不能大于 {}'.format(label, hi))
+        return None, err(f'{label}不能大于 {hi}')
     return v, None
 
 

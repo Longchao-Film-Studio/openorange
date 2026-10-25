@@ -24,7 +24,7 @@ line-length = 100
 
 [lint]
 select = ["F", "E9", "UP009", "I001", "FURB105", "UP004", "FURB167",
-          "RUF023", "SIM102", "SIM118", "PERF102", "C4", "UP020", "UP031"]
+          "RUF023", "SIM102", "SIM118", "PERF102", "C4", "UP020", "UP031", "UP032"]
 ignore = [
   "BLE001",  # 裸 except 大量是故意的兜底（291 处），收窄需逐处判断
   "S110",    # try-except-pass：同上

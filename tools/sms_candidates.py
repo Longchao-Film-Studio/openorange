@@ -95,7 +95,7 @@ def main():
         print('任务 {:<7} {:<14} {}'.format(t, cfg.get("TaskName"), desc[:24]))
         for hit, tid, cname, text in cands[:4]:
             mark = "  ←已配" if npc_sms__mapped(t) == tid else ""
-            print('    候选 topic={:<6} {:<14} 重合={:d}  首句={}{}'.format(tid, cname, hit, text, mark))
+            print(f'    候选 topic={tid:<6} {cname:<14} 重合={hit:d}  首句={text}{mark}')
         print()
 
 

@@ -44,7 +44,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -110,7 +110,7 @@ def run():
           (len(seeded_ids), len(ch)))
     bag = st.props["story_task_bag"]
     for tid in seeded_ids[:5]:
-        check("任务 {} 最终是 Doing(3)".format(tid),
+        check(f"任务 {tid} 最终是 Doing(3)",
               bag[tid].get("state") == sm.TASK_STATE_DOING,
               bag[tid].get("state"))
     frames = _story_sync_frames(st, ch)
@@ -224,7 +224,7 @@ def run():
     check("通用任务未完成时，跨表任务不被播种", ch7 == [], ch7[:2])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

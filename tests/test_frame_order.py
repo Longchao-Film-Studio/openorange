@@ -101,7 +101,7 @@ def run():
     for i, (rpc, params, must_sync) in enumerate(cases):
         idx = erpc.RPC_INDEX.get(rpc)
         if idx is None:
-            check("{} 已注册".format(rpc), False, "RPC 索引缺失")
+            check(f"{rpc} 已注册", False, "RPC 索引缺失")
             continue
         frames = guarded_handle(idx, msmod.mp_arr(params), 100 + i, uid=uid)
         ts = frame_types(frames)
@@ -110,10 +110,10 @@ def run():
         if has_sync:
             covered += 1
             ok = has_resp and ts.index(msmod.PROPERTY_SYNC_TYPE) < ts.index(2)
-            check("★ {} 同步帧先于应答帧".format(rpc), ok, ts)
+            check(f"★ {rpc} 同步帧先于应答帧", ok, ts)
         else:
             # 该分支没改数据（早退或无需同步）：只要求「不该有同步帧却排在应答后」
-            check("{} 无同步帧时只回应答".format(rpc), must_sync is False and ts == [2],
+            check(f"{rpc} 无同步帧时只回应答", must_sync is False and ts == [2],
                   (must_sync, ts))
 
     print("\n[2] 测试有效性：必须真的覆盖到同步帧（防恒真）")
@@ -152,7 +152,7 @@ def run():
           guarded_handle(msmod.RPC_INDEX_SET_SIGNATURE_CS, msmod.mp_arr(["x"]), 0) == [])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

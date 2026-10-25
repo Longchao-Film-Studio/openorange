@@ -94,12 +94,12 @@ def cmd_build(argv):
     lua_src = os.environ.get("OO_LUA_SRC") or DEFAULT_LUA_SRC
     dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
     if not os.path.isdir(lua_src):
-        raise SystemExit("找不到 Lua 语料目录: {}".format(lua_src))
+        raise SystemExit(f"找不到 Lua 语料目录: {lua_src}")
     if not os.path.isfile(dll):
-        raise SystemExit("找不到 xlua.dll: {}".format(dll))
+        raise SystemExit(f"找不到 xlua.dll: {dll}")
 
     names, n_files = collect_names(lua_src)
-    print('扫描 {} 个 Lua 文件，候选名字 {} 个'.format(n_files, len(names)))
+    print(f'扫描 {n_files} 个 Lua 文件，候选名字 {len(names)} 个')
 
     in_txt = os.path.join(ROOT, "work", "rpc_candidates.txt")
     os.makedirs(os.path.dirname(in_txt), exist_ok=True)
@@ -123,16 +123,16 @@ o:close()
         raise SystemExit("Lua 片段加载失败")
     rc = lib.lua_pcall(state, 0, 0, 0)
     if rc != 0:
-        raise SystemExit("genRpcIndex 批处理失败 rc={}".format(rc))
+        raise SystemExit(f"genRpcIndex 批处理失败 rc={rc}")
     n = sum(1 for _ in open(OUT_TSV, encoding="utf-8"))
-    print('已写出 {}（{} 行）'.format(OUT_TSV, n))
+    print(f'已写出 {OUT_TSV}（{n} 行）')
 
 
 def cmd_lookup(argv):
     if not argv:
         raise SystemExit("用法: hash_rpc_names.py lookup <index> [<index> ...]")
     if not os.path.isfile(OUT_TSV):
-        raise SystemExit("映射表不存在，先跑 build: {}".format(OUT_TSV))
+        raise SystemExit(f"映射表不存在，先跑 build: {OUT_TSV}")
     by_hash = {}
     for line in open(OUT_TSV, encoding="utf-8"):
         parts = line.rstrip("\n").split("\t")
@@ -151,7 +151,7 @@ def cmd_verify(argv):
     """
     dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
     if not os.path.isfile(dll):
-        raise SystemExit("找不到 xlua.dll: {}".format(dll))
+        raise SystemExit(f"找不到 xlua.dll: {dll}")
     sys.path.insert(0, ROOT)
     from game_server.entity_rpc import RPC_INDEX
 
@@ -160,7 +160,7 @@ def cmd_verify(argv):
         ROOT, "work", "verify_hashes.tsv").replace("\\", "/"))]
     lua_lines.append("local names = {")
     for nm in RPC_INDEX:
-        lua_lines.append('  "{}",'.format(nm))
+        lua_lines.append(f'  "{nm}",')
     lua_lines.append("}")
     lua_lines.append("for _, n in ipairs(names) do")
     lua_lines.append("  local ok, v = pcall(phonestcore.genRpcIndex, n)")
@@ -184,8 +184,8 @@ def cmd_verify(argv):
         n += 1
         if RPC_INDEX[nm] != idx:
             bad += 1
-            print('  MISMATCH {:<40} 代码={} 真身={}'.format(nm, RPC_INDEX[nm], idx))
-    print('核对 {} 条，不一致 {} 条'.format(n, bad))
+            print(f'  MISMATCH {nm:<40} 代码={RPC_INDEX[nm]} 真身={idx}')
+    print(f'核对 {n} 条，不一致 {bad} 条')
     return 0 if bad == 0 else 1
 
 

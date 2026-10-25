@@ -27,8 +27,8 @@ def main():
     dll, outp = sys.argv[1], sys.argv[2]
     h = k32.LoadLibraryW(dll)
     if not h:
-        sys.exit('LoadLibrary 失败: {}'.format(ctypes.get_last_error()))
-    print("模块基址: {:#x}".format(h))
+        sys.exit(f'LoadLibrary 失败: {ctypes.get_last_error()}')
+    print(f"模块基址: {h:#x}")
 
     base = h
     hdr = ctypes.string_at(base, 0x1000)
@@ -40,12 +40,12 @@ def main():
     opt = coff + 20
     magic, = struct.unpack_from('<H', hdr, opt)
     size_of_image, = struct.unpack_from('<I', hdr, opt + 56)
-    print('sections={:d}  SizeOfImage={:#x} ({:d} MB)'.format(nsec, size_of_image, size_of_image // 1048576))
+    print(f'sections={nsec:d}  SizeOfImage={size_of_image:#x} ({size_of_image // 1048576:d} MB)')
 
     img = ctypes.string_at(base, size_of_image)
     with open(outp, 'wb') as f:
         f.write(img)
-    print('已 dump {} 字节 -> {}'.format(len(img), outp))
+    print(f'已 dump {len(img)} 字节 -> {outp}')
 
     # 校验：导出地址处应该是正常 x64 代码（luaopen_* 通常是 jmp/call 开头）
     sect = opt + opt_size
@@ -57,7 +57,7 @@ def main():
         secs.append((nm, va, vs))
     print("\n段（内存里）:")
     for nm, va, vs in secs:
-        print('   {:<10} va={:0#10x} vs={:#x}'.format(nm, va, vs))
+        print(f'   {nm:<10} va={va:0#10x} vs={vs:#x}')
     for rva, label in ((0x152a3, 'luaopen_phonestcore'), (0x87a6, 'luaL_newstate')):
         print('  {:<22} rva={:#x} bytes={}'.format(label, rva, img[rva:rva+24].hex(' ')))
 

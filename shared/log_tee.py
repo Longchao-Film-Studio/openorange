@@ -147,8 +147,8 @@ def install(channel, log_dir, level=logging.INFO):
         _rotate_keep(log_dir, channel)
 
         ts = time.strftime("%Y-%m-%d-%H-%M-%S")
-        run_path = os.path.join(log_dir, "{}.{}.log".format(ts, channel))
-        last_path = os.path.join(log_dir, "last.{}.log".format(channel))
+        run_path = os.path.join(log_dir, f"{ts}.{channel}.log")
+        last_path = os.path.join(log_dir, f"last.{channel}.log")
 
         # 文件/控制台 handler 挂在 "oo" 父 logger 上 ——
         # 这样 get_logger("任意模块名")（=oo.任意模块名）都 propagate 到同一批文件

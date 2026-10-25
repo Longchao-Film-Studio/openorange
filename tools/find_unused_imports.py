@@ -90,7 +90,7 @@ def main(argv):
         for path in iter_files(t):
             for name, lineno, text in check_file(path, strict=strict):
                 total += 1
-                print('{}:{}  未使用: {}   | {}'.format(path, lineno, name, text[:80]))
+                print(f'{path}:{lineno}  未使用: {name}   | {text[:80]}')
     print("-" * 56)
     print('共 {} 处{}'.format(total, "（严格口径：含 # noqa）" if strict else ""))
     return 0

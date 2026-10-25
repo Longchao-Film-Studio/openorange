@@ -29,21 +29,21 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
     upstream : (host, port)，把流量转发给上游并记录双向内容
     """
     t0 = time.time()
-    cap_path = os.path.join(CAPTURE_DIR, 'conn_{:03d}_{}.bin'.format(cid, addr[1]))
-    _log.info('[game] #{:03d} OPEN  from {}:{:d}'.format(cid, addr[0], addr[1]))
+    cap_path = os.path.join(CAPTURE_DIR, f'conn_{cid:03d}_{addr[1]}.bin')
+    _log.info(f'[game] #{cid:03d} OPEN  from {addr[0]}:{addr[1]:d}')
 
     f = None
     try:
         f = open(cap_path, "wb")
     except Exception as e:
-        _log.warning('[game] #{:03d} capture file error: {}'.format(cid, e))
+        _log.warning(f'[game] #{cid:03d} capture file error: {e}')
 
     try:
         conn.settimeout(120)
 
         if upstream is not None:
             up_host, up_port = upstream
-            print('[game] #{:03d} upstream -> {}:{:d}'.format(cid, up_host, up_port),
+            print(f'[game] #{cid:03d} upstream -> {up_host}:{up_port:d}',
                   flush=True)
             up = socket.create_connection((up_host, up_port), timeout=10)
             up.settimeout(120)
@@ -68,23 +68,23 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
             try:
                 data = conn.recv(8192)
             except socket.timeout:
-                print('[game] #{:03d} recv timeout (idle 120s), closing'.format(cid),
+                print(f'[game] #{cid:03d} recv timeout (idle 120s), closing',
                       flush=True)
                 break
             except ConnectionResetError:
-                _log.info('[game] #{:03d} reset by peer'.format(cid))
+                _log.info(f'[game] #{cid:03d} reset by peer')
                 break
             if not data:
-                _log.info('[game] #{:03d} peer closed'.format(cid))
+                _log.info(f'[game] #{cid:03d} peer closed')
                 break
             log_packet(cid, "RX", data, t0, f)
             if echo:
                 try:
                     conn.sendall(data)
                 except Exception as e:
-                    _log.warning('[game] #{:03d} echo failed: {}'.format(cid, e))
+                    _log.warning(f'[game] #{cid:03d} echo failed: {e}')
     except Exception as e:
-        _log.warning('[game] #{:03d} error: {}'.format(cid, e))
+        _log.warning(f'[game] #{cid:03d} error: {e}')
     finally:
         try:
             conn.close()
@@ -96,4 +96,4 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
             except Exception:
                 pass
         dur = int((time.time() - t0) * 1000)
-        print('[game] #{:03d} CLOSE after {:d}ms -> {}'.format(cid, dur, os.path.basename(cap_path)), flush=True)
+        print(f'[game] #{cid:03d} CLOSE after {dur:d}ms -> {os.path.basename(cap_path)}', flush=True)

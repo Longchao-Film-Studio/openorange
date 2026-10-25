@@ -97,7 +97,7 @@ def msmod_op(section):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -245,7 +245,7 @@ def run():
             got = bp.get(prop) or set()
             missing = [op for op in need if op not in got]
             if missing:
-                path_bad.append("{}: {} 缺 optype {}（实际 {}）".format(pname, prop, missing, sorted(got)))
+                path_bad.append(f"{pname}: {prop} 缺 optype {missing}（实际 {sorted(got)}）")
     check("★ 4 条代码路径各自发齐了契约要求的 optype", not path_bad, path_bad)
 
     # 汇总视图（用来回答「这个属性到底有没有帧」）
@@ -302,7 +302,7 @@ def run():
         try:
             tree = ast.parse(open(path, encoding="utf-8").read())
         except SyntaxError as e:
-            bad.append("{} 语法错误 {}".format(rel, e))
+            bad.append(f"{rel} 语法错误 {e}")
             continue
         for fn in ast.walk(tree):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -315,11 +315,11 @@ def run():
                         if (isinstance(t, ast.Subscript)
                                 and isinstance(t.slice, ast.Constant)
                                 and t.slice.value == "state"):
-                            bad.append('{}:{}({})'.format(rel, node.lineno, fn.name))
+                            bad.append(f'{rel}:{node.lineno}({fn.name})')
     check("★ 没有白名单外的 [\"state\"] 直接赋值", not bad, bad[:5])
 
     print("\\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

@@ -38,7 +38,7 @@ def check(name, cond, detail=None):
 
 
 def fresh(name):
-    u = "{}_{}".format(name, _TAG)
+    u = f"{name}_{_TAG}"
     msmod._live_init_dict(u)
     return u, pstate.get_state(uid=u)
 
@@ -52,7 +52,7 @@ def frames_ops(frames):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -91,7 +91,7 @@ def run():
     check("条目存在", isinstance(entry, dict), entry)
     if isinstance(entry, dict):
         for k in ("chat_type", "npc_id", "group_npc_ids", "is_over", "update_time", "topic_infos"):
-            check("  条目含 {}".format(k), k in entry)
+            check(f"  条目含 {k}", k in entry)
         check("  update_time 非 0", int(entry.get("update_time") or 0) > 0)
         check("  npc_id = 会话角色", int(entry.get("npc_id")) == 100103)
     check("未读队列已入列 1014",
@@ -121,8 +121,8 @@ def run():
     from game_server import dispatch as dd
     for nm in ("Check_TopicID_CanOpen_CS", "Update_NpcChat_Info_CS", "GmRpcOpenNpcChatTopic"):
         idx = rpc_index.RPC_INDEX.get(nm)
-        check("  {} 有索引".format(nm), idx is not None)
-        check("  {} 有 handler".format(nm), idx in dd._HANDLERS)
+        check(f"  {nm} 有索引", idx is not None)
+        check(f"  {nm} 有 handler", idx in dd._HANDLERS)
 
     print()
     print("[6] unlock_for_task：1044 解锁 1014；未映射任务只告警不动状态")
@@ -136,7 +136,7 @@ def run():
 
     print()
     print("=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

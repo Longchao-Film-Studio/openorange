@@ -107,7 +107,7 @@ def convert_call(call_src):
         # 字符串 + 其余参数：保持 % 语义 —— logging 用 args 传
         rest = args[1:]
         if len(rest) == 1:
-            return lvl, "{}, {}".format(first, rest[0])
+            return lvl, f"{first}, {rest[0]}"
         return lvl, "{}, ({},)".format(first, ", ".join(rest))
     # 多参 print -> "%s %s" 形式
     n = len(args)
@@ -175,7 +175,7 @@ def process_file(path, write):
         prefix = line[:col]
         suffix = line[end + 1:]
         levels[lvl] = levels.get(lvl, 0) + 1
-        new_line = "{}_log.{}({}){}".format(prefix, lvl, new_args, suffix)
+        new_line = f"{prefix}_log.{lvl}({new_args}){suffix}"
         lines[node.lineno - 1] = new_line
         changed += 1
 
@@ -199,7 +199,7 @@ def process_file(path, write):
         rel_norm = os.path.relpath(path, ROOT).replace("\\", "/")
         pkg_depth = rel_norm.count("/")          # 距仓库根的包层级
         dots = "." * pkg_depth
-        log_import = "from {}log_tee import get_logger".format(dots)
+        log_import = f"from {dots}log_tee import get_logger"
         lines.insert(last_top + 1, "")
         lines.insert(last_top + 2, log_import)
         lines.insert(last_top + 3, LOG_FOOTER)
@@ -236,7 +236,7 @@ def main():
             for k, v in r["levels"].items():
                 lvl_sum[k] = lvl_sum.get(k, 0) + v
             print('{:<46} {:3d} 处  {}'.format(r["file"], r["changed"], r["levels"]))
-    print('\n文件 {}，print {} 处，分级 {}'.format(total_files, total_calls, lvl_sum))
+    print(f'\n文件 {total_files}，print {total_calls} 处，分级 {lvl_sum}')
     if not args.write:
         print("(dry run —— 加 --write 落盘)")
     return 0

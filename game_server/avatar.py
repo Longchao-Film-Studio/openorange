@@ -108,7 +108,7 @@ def _set_name(st, name, gender=None, syncs=None):
                 syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
                                         "player_name", name))
             except Exception as e:
-                _log.warning("[avatar] 玩家名同步失败: {}".format(e))
+                _log.warning(f"[avatar] 玩家名同步失败: {e}")
     if gender is not None:
         try:
             g = int(gender)
@@ -122,7 +122,7 @@ def _set_name(st, name, gender=None, syncs=None):
                     syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
                                             "gender", g))
                 except Exception as e:
-                    _log.warning("[avatar] 性别同步失败: {}".format(e))
+                    _log.warning(f"[avatar] 性别同步失败: {e}")
     return changed
 
 
@@ -140,7 +140,7 @@ def _emit_sign(st, syncs):
     try:
         res = _events.apply_event(st, _events.ev_sign())
     except Exception as e:
-        _log.warning("[avatar] Sign 事件失败: {}".format(e))
+        _log.warning(f"[avatar] Sign 事件失败: {e}")
         return
     syncs.extend(drain_event_task_sync(st, res))
     hits = list(getattr(res, "hits", []) or [])
@@ -169,9 +169,9 @@ def _check_nickname(rid, params, uid=None):
     """RpcCheckNickName {name} —— 取名前的合法性检查（不落库）。"""
     syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
     if ok:
-        _log.info("[avatar] 名字检查通过: {}".format(name))
+        _log.info(f"[avatar] 名字检查通过: {name}")
     else:
-        _log.info("[avatar] 名字检查不通过: {!r} code={}".format(name, code))
+        _log.info(f"[avatar] 名字检查不通过: {name!r} code={code}")
     return respond_after_sync(rid, syncs)
 
 
@@ -187,9 +187,9 @@ def _change_nickname(rid, params, uid=None):
     changed = _set_name(st, name, None, syncs)
     if changed:
         st.save()
-        _log.info("[avatar] 改名 {!r} -> {!r}".format(old, name))
+        _log.info(f"[avatar] 改名 {old!r} -> {name!r}")
     else:
-        _log.info("[avatar] 改名：名字没变（{!r}）".format(name))
+        _log.info(f"[avatar] 改名：名字没变（{name!r}）")
     return respond_after_sync(rid, syncs)
 
 
@@ -247,8 +247,8 @@ def _ensure_hero_by_gender(st, gender, syncs):
             syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
                                     "character_choosen_char", want))
         except Exception as e:
-            _log.warning("[avatar] 主角同步失败: {}".format(e))
-        print("[avatar] 主角切换 gender={} -> character_choosen_char={}".format(g, want), flush=True)
+            _log.warning(f"[avatar] 主角同步失败: {e}")
+        print(f"[avatar] 主角切换 gender={g} -> character_choosen_char={want}", flush=True)
     if changed:
         st.set("characterBag", cb)
     # ★ 2026-10-23 实机反馈：街区右下角队伍切换头像还是男主。
@@ -304,8 +304,8 @@ def _set_formation_hero(st, want, syncs):
                 syncs.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
                                          msmod.OP_CHANGE, str(idx), team))
         except Exception as e:
-            _log.warning("[avatar] 编队同步失败: {}".format(e))
-    print('[avatar] 编队主角切换 -> {}（{} 队）'.format(want, len(changed_teams)),
+            _log.warning(f"[avatar] 编队同步失败: {e}")
+    print(f'[avatar] 编队主角切换 -> {want}（{len(changed_teams)} 队）',
           flush=True)
 
 
@@ -344,8 +344,8 @@ def _set_default_card(st, gender, syncs):
         syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
                                 "player_card_id", card_id))
     except Exception as e:
-        _log.warning("[avatar] 名片同步失败: {}".format(e))
-    print("[avatar] 按性别设默认名片 gender={} -> player_card_id={}".format(g, card_id), flush=True)
+        _log.warning(f"[avatar] 名片同步失败: {e}")
+    print(f"[avatar] 按性别设默认名片 gender={g} -> player_card_id={card_id}", flush=True)
 
 
 def _commit_name_gender(rid, params, uid=None):
@@ -362,7 +362,7 @@ def _commit_name_gender(rid, params, uid=None):
     changed = _set_name(st, name, gender, syncs)
     if changed:
         st.save()
-        _log.info("[avatar] 取名 {!r} -> {!r} gender={}".format(old, name, gender))
+        _log.info(f"[avatar] 取名 {old!r} -> {name!r} gender={gender}")
     # P0-7b：按性别设默认名片（男2/女1，见 _set_default_card 的说明）
     _set_default_card(st, gender, syncs)
     # P1-2：按性别设街区/战斗主角（女=9002，男=9001）

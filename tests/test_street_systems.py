@@ -128,7 +128,7 @@ def run():
     _dframes = guarded_handle(erpc.RPC_INDEX["RequestEnterStreetSurface_CS"],
                               msmod.mp_arr([1]), 8, uid="sx")
     _dtypes = [int.from_bytes(bytes(f)[4:6], "little") for f in _dframes]
-    check('有属性同步帧(type={})'.format(msmod.PROPERTY_SYNC_TYPE),
+    check(f'有属性同步帧(type={msmod.PROPERTY_SYNC_TYPE})',
           msmod.PROPERTY_SYNC_TYPE in _dtypes, _dtypes)
     check("有应答帧(type=2)", 2 in _dtypes, _dtypes)
     if msmod.PROPERTY_SYNC_TYPE in _dtypes and 2 in _dtypes:
@@ -140,7 +140,7 @@ def run():
           _dsi.get("surface_enter_time"))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

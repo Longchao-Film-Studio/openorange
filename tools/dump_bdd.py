@@ -160,9 +160,9 @@ def main():
     print("初始化 bdd ...")
     run("bdd.init()", "init")
     print("加载 pmdata.bin ...")
-    run("pcall(bdd.load_from_file, '{}')".format(pm), "load")
+    run(f"pcall(bdd.load_from_file, '{pm}')", "load")
 
-    script = LUA_SCRIPT.replace("local OUT = ...", "local OUT = '{}'".format(out_lua))
+    script = LUA_SCRIPT.replace("local OUT = ...", f"local OUT = '{out_lua}'")
     print("开始导出到", out)
     run(script, "dump")
     return 0

@@ -68,7 +68,7 @@ class Op:
         self.path = path
 
     def __repr__(self):
-        return 'Op(pid={!r} op={:d} name={!r} path={!r})'.format(self.property_id, self.optype, self.name, self.path)
+        return f'Op(pid={self.property_id!r} op={self.optype:d} name={self.name!r} path={self.path!r})'
 
 
 class Tx:
@@ -82,7 +82,7 @@ class Tx:
 
     def __init__(self, props):
         if not isinstance(props, dict):
-            raise TxError("Tx 需要 props dict，收到 {!r}".format(type(props)))
+            raise TxError(f"Tx 需要 props dict，收到 {type(props)!r}")
         self.props = props
         self.ops = []
         self._touched_roots = []
@@ -105,21 +105,21 @@ class Tx:
         if len(path) == 1:
             return self.props, root, 0, (sp.type if sp else None)
         if root not in self.props:
-            raise TxError("根属性 {!r} 不存在，先 set 它".format(root))
+            raise TxError(f"根属性 {root!r} 不存在，先 set 它")
         cur = self.props[root]
         cur_pid = cur.get("__id__") if isinstance(cur, dict) else None
         cur_type = sp.type if sp else None
         if not isinstance(cur_pid, int):
-            raise TxError("根属性 {!r} 没有 __id__，不能改它的子项".format(root))
+            raise TxError(f"根属性 {root!r} 没有 __id__，不能改它的子项")
         for i, key in enumerate(path[1:-1], start=1):
             if not isinstance(cur, dict):
-                raise TxError('路径 {!r} 第 {:d} 段 {!r} 的父不是 dict'.format(path, i, key))
+                raise TxError(f'路径 {path!r} 第 {i:d} 段 {key!r} 的父不是 dict')
             if key not in cur:
-                raise TxError('路径 {!r} 第 {:d} 段 {!r} 不存在'.format(path, i, key))
+                raise TxError(f'路径 {path!r} 第 {i:d} 段 {key!r} 不存在')
             cur = cur[key]
             nid = cur.get("__id__") if isinstance(cur, dict) else None
             if not isinstance(nid, int):
-                raise TxError('路径 {!r} 第 {:d} 段 {!r} 没有 __id__'.format(path, i, key))
+                raise TxError(f'路径 {path!r} 第 {i:d} 段 {key!r} 没有 __id__')
             cur_pid = nid
             # ★ 更新类型：先看「这个 key 是不是当前类型的结构体字段」，
             #   再看「当前类型是不是容器（取元素类型）」。
@@ -158,7 +158,7 @@ class Tx:
             # 根属性：客户端一定已经有这个根（initDict 下发过），所以是 CHANGE
             sp = self._root_spec(key)
             if sp is not None and sp.is_server_only:
-                raise TxError("根属性 {!r} 是 ServerOnly，不该推给客户端".format(key))
+                raise TxError(f"根属性 {key!r} 是 ServerOnly，不该推给客户端")
             self._ensure_id(value)
             parent[key] = value
             self._touch(key)
@@ -166,7 +166,7 @@ class Tx:
             return value
 
         if not isinstance(parent, dict):
-            raise TxError("路径 {!r} 的父不是 dict".format(path))
+            raise TxError(f"路径 {path!r} 的父不是 dict")
         # ★ 区分「结构体字段」和「容器键」：
         #   - 结构体字段：客户端从 initDict 就带着全部字段 -> 永远是 CHANGE
         #   - 容器键：可能是新键 -> OP_ADD
@@ -203,12 +203,12 @@ class Tx:
         path = tuple(path)
         parent, key, pid, ptype = self._walk(path)
         if not isinstance(parent, dict):
-            raise TxError("路径 {!r} 的父不是 dict".format(path))
+            raise TxError(f"路径 {path!r} 的父不是 dict")
         fields = _spec.struct_fields(ptype) if ptype else {}
         if key in fields:
-            raise TxError("不能删除结构体字段 {!r}（客户端会 assert 崩）".format(path))
+            raise TxError(f"不能删除结构体字段 {path!r}（客户端会 assert 崩）")
         if key not in parent:
-            raise TxError("路径 {!r} 的键不存在，不能删除".format(path))
+            raise TxError(f"路径 {path!r} 的键不存在，不能删除")
         kind = _spec.key_kind(ptype) if ptype else None
         optype = OP_REMOVE if kind == "list" else OP_DEL
         del parent[key]
@@ -235,7 +235,7 @@ class Tx:
         n = len(keys)
         idx = _as_index(index, "insert")
         if idx < 1 or idx > n + 1:
-            raise TxError('insert 位置 {} 越界（当前 {} 个元素，合法范围 1..{}）'.format(idx, n, n + 1))
+            raise TxError(f'insert 位置 {idx} 越界（当前 {n} 个元素，合法范围 1..{n + 1}）')
         if isinstance(value, dict):
             self._ensure_id(value)
         # 从后往前挪，避免覆盖
@@ -254,7 +254,7 @@ class Tx:
             path = tuple(path)
         container = self.get(path)
         if not isinstance(container, dict):
-            raise TxError("路径 {!r} 的容器不是 dict".format(path))
+            raise TxError(f"路径 {path!r} 的容器不是 dict")
         keys = _normalize_list_keys(container)
         return self.insert(path, len(keys) + 1, value)
 
@@ -270,7 +270,7 @@ class Tx:
         n = len(keys)
         idx = _as_index(index, "remove_at")
         if idx < 1 or idx > n:
-            raise TxError('remove_at 位置 {} 越界（当前 {} 个元素，合法范围 1..{}）'.format(idx, n, n))
+            raise TxError(f'remove_at 位置 {idx} 越界（当前 {n} 个元素，合法范围 1..{n}）')
         old = container.pop(idx)
         for i in range(idx + 1, n + 1):
             container[i - 1] = container.pop(i)
@@ -286,9 +286,9 @@ class Tx:
             path = tuple(path)
         container, _k, pid, ctype = self._walk(path + (index,))
         if not isinstance(container, dict):
-            raise TxError("路径 {!r} 的容器不是 dict".format(path))
+            raise TxError(f"路径 {path!r} 的容器不是 dict")
         if _spec.key_kind(ctype) != "list":
-            raise TxError("路径 {!r} 的类型 {!r} 不是 list（list 操作要用 set/insert）".format(path, ctype))
+            raise TxError(f"路径 {path!r} 的类型 {ctype!r} 不是 list（list 操作要用 set/insert）")
         return path, container, pid, ctype
 
     def _covered_by_added(self, path):
@@ -342,17 +342,17 @@ class Tx:
         return len(self.ops)
 
     def __repr__(self):
-        return 'Tx({} ops)'.format(len(self.ops))
+        return f'Tx({len(self.ops)} ops)'
 
 
 def _as_index(index, where):
     """把位置参数转成 1-based 整数，非法直接抛（不要静默变 0）。"""
     if isinstance(index, bool):
-        raise TxError("{} 的位置不能是 bool".format(where))
+        raise TxError(f"{where} 的位置不能是 bool")
     try:
         return int(index)
     except Exception:
-        raise TxError("{} 的位置 {!r} 不是整数".format(where, index))
+        raise TxError(f"{where} 的位置 {index!r} 不是整数")
 
 
 def _normalize_list_keys(container):

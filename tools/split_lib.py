@@ -33,10 +33,10 @@ def _starts(lines):
 def take(src, name):
     """整段取走顶层定义 name，返回 (chunk, rest)。"""
     lines = src.split("\n")
-    pat = re.compile(r"^(def {}\(|{} = )".format(re.escape(name), re.escape(name)))
+    pat = re.compile(rf"^(def {re.escape(name)}\(|{re.escape(name)} = )")
     idx = [i for i, l in enumerate(lines) if pat.match(l)]
     if len(idx) != 1:
-        raise SystemExit('take({}): 命中 {} 处'.format(name, len(idx)))
+        raise SystemExit(f'take({name}): 命中 {len(idx)} 处')
     head = idx[0]
     start = head
     while (start > 0 and lines[start - 1].startswith("#")
@@ -68,5 +68,5 @@ def take_all(src, names):
 
 def strip_blank_runs(text, keep=2):
     """把连续空行压到 keep 行以内（搬走一段后常留下大段空白）。"""
-    out = re.sub('\\n{{{:d},}}'.format(keep + 1), "\n" * keep, text)
+    out = re.sub(f'\\n{{{keep + 1:d},}}', "\n" * keep, text)
     return out

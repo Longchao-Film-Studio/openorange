@@ -50,7 +50,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -82,7 +82,7 @@ def _rows_by_type():
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -133,7 +133,7 @@ def run():
     st5 = fresh("level")
     lv_need = min(int(r["unlockParam"]) for r in by[3]
                   if isinstance(r.get("unlockParam"), int))
-    check("数据里最低的等级门槛 = {}".format(lv_need), lv_need > 1, lv_need)
+    check(f"数据里最低的等级门槛 = {lv_need}", lv_need > 1, lv_need)
     set(_unlocked(st5))
     st5.props["level"] = lv_need
     srpc._recalc_system_unlocks(st5)
@@ -178,8 +178,8 @@ def run():
     for stx, tag in ((st1, "新号"), (st4, "完成序章"), (st6, "等级降回1")):
         sat = set(_sat_ids(stx))
         got = set(_unlocked(stx))
-        check("★ [{}] 漏解锁为 0".format(tag), not (sat - got), sorted(sat - got)[:5])
-        check("★ [{}] 误解锁为 0".format(tag), not (got - sat), sorted(got - sat)[:5])
+        check(f"★ [{tag}] 漏解锁为 0", not (sat - got), sorted(sat - got)[:5])
+        check(f"★ [{tag}] 误解锁为 0", not (got - sat), sorted(got - sat)[:5])
 
     print("\n[10] tools/feature_coverage.py 能跑")
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -193,7 +193,7 @@ def run():
         check("★ 工具能跑且输出含 visible", False, e)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

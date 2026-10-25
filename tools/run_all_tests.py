@@ -43,14 +43,14 @@ def main():
         if broken:
             bad.append(name)
         if verbose or broken:
-            print('{:<30} ok={:<4d} fail={:<3d} rc={:d}'.format(name, ok, fail, p.returncode))
+            print(f'{name:<30} ok={ok:<4d} fail={fail:<3d} rc={p.returncode:d}')
         if broken:
             lines = [l for l in out.split("\n")
                      if "FAIL" in l or "Error" in l or "Traceback" in l]
             for l in lines[:10]:
                 print("    " + l)
     print("-" * 56)
-    print('suites={}  items={}  bad={}'.format(len(files), total, bad))
+    print(f'suites={len(files)}  items={total}  bad={bad}')
     return 1 if bad else 0
 
 

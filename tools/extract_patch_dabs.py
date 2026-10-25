@@ -46,12 +46,12 @@ def check_dab(path):
             head = f.read(8)
         size = os.path.getsize(path)
     except OSError as e:
-        return False, "读不到: {}".format(e)
+        return False, f"读不到: {e}"
     if head.startswith(UNITYFS):
-        return True, '正常 (UnityFS, {} B)'.format(size)
+        return True, f'正常 (UnityFS, {size} B)'
     if head == ZEROS:
-        return False, '全零空壳 ({} B)'.format(size)
-    return False, '未知头 {} ({} B)'.format(head.hex(), size)
+        return False, f'全零空壳 ({size} B)'
+    return False, f'未知头 {head.hex()} ({size} B)'
 
 
 def main():
@@ -64,14 +64,13 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(args.zip_path):
-        print("zip 不存在: {}".format(args.zip_path))
+        print(f"zip 不存在: {args.zip_path}")
         return 2
 
-    print("打开 {} ({:.2f} GB)".format(args.zip_path,
-                                 os.path.getsize(args.zip_path) / 1024 ** 3))
+    print(f"打开 {args.zip_path} ({os.path.getsize(args.zip_path) / 1024 ** 3:.2f} GB)")
     with zipfile.ZipFile(args.zip_path) as z:
         infos = z.infolist()
-        print('zip 内条目总数: {}'.format(len(infos)))
+        print(f'zip 内条目总数: {len(infos)}')
 
         by_name = {}
         dab_count = 0
@@ -80,17 +79,17 @@ def main():
             if base.endswith(".dab"):
                 dab_count += 1
                 by_name.setdefault(base, i)
-        print('其中 .dab 条目: {}'.format(dab_count))
+        print(f'其中 .dab 条目: {dab_count}')
 
         want = CORRUPT if not args.all else sorted(by_name.keys())
         found = []
         for name in want:
             info = by_name.get(name)
             if info is None:
-                print("  [缺失] {}".format(name))
+                print(f"  [缺失] {name}")
                 continue
             found.append((name, info))
-            print('  [找到] {}  {} B  路径: {}'.format(name, info.file_size, info.filename))
+            print(f'  [找到] {name}  {info.file_size} B  路径: {info.filename}')
 
         if not found:
             print()
@@ -106,21 +105,21 @@ def main():
         out_dir = args.out or os.path.join(HERE, "work", "patch_dabs")
         os.makedirs(out_dir, exist_ok=True)
         print()
-        print("解压到 {}".format(out_dir))
+        print(f"解压到 {out_dir}")
         ok_files = []
         for name, info in found:
             dst = os.path.join(out_dir, name)
             with z.open(info) as src, open(dst, "wb") as f:
                 shutil.copyfileobj(src, f)
             good, why = check_dab(dst)
-            print("  {} -> {}".format(name, why))
+            print(f"  {name} -> {why}")
             if good:
                 ok_files.append(name)
 
         if not args.install:
             print()
             print("完成。要装进游戏加 --install，或手动拷到:")
-            print("  {}".format(GAME_PATCH_DIR))
+            print(f"  {GAME_PATCH_DIR}")
             return 0
 
         if not ok_files:
@@ -132,17 +131,17 @@ def main():
         bak_dir = os.path.join(GAME_PATCH_DIR, "_corrupt_backup")
         os.makedirs(bak_dir, exist_ok=True)
         print()
-        print("安装到 {}".format(GAME_PATCH_DIR))
+        print(f"安装到 {GAME_PATCH_DIR}")
         for name in ok_files:
             dst = os.path.join(GAME_PATCH_DIR, name)
             if os.path.exists(dst):
                 good, why = check_dab(dst)
                 if not good:
                     shutil.move(dst, os.path.join(bak_dir, name))
-                    print("  备份坏文件 {} -> _corrupt_backup/".format(name))
+                    print(f"  备份坏文件 {name} -> _corrupt_backup/")
             shutil.copy2(os.path.join(out_dir, name), dst)
             good, why = check_dab(dst)
-            print("  装好 {} -> {}".format(name, why))
+            print(f"  装好 {name} -> {why}")
         print()
         print("完成。重启游戏验证 HUD。")
         return 0

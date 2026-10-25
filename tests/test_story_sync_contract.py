@@ -97,7 +97,7 @@ def run():
     del passed[:]
     del failed[:]
     # ★ 每次 run 用不同后缀：同进程连跑多遍不会互相污染
-    tag = "{:04x}".format(random.randint(0, 0xFFFF))
+    tag = f"{random.randint(0, 0xFFFF):04x}"
 
     print("\n[1] 契约表自身完整（每行都有 optype 和依据）")
     check("契约表非空", len(CONTRACT) >= 8, len(CONTRACT))
@@ -201,9 +201,9 @@ def run():
         _fp_frames = [x for x in _fs
                       if x["name"] == "finish_parameter" and x["pid"] == _iid]
         if i < len(p1) - 1:
-            check('第 {} 个目标后仍在 Doing(3)'.format(i + 1),
+            check(f'第 {i + 1} 个目标后仍在 Doing(3)',
                   st_now == sm.TASK_STATE_DOING, st_now)
-            check('★ 第 {} 个目标发了 finish_parameter 子属性帧（pid=条目 id）'.format(i + 1),
+            check(f'★ 第 {i + 1} 个目标发了 finish_parameter 子属性帧（pid=条目 id）',
                   len(_fp_frames) == 1
                   and _fp_frames[0]["op"] == msmod.OP_CHANGE, _fp_frames[:1])
         else:
@@ -316,25 +316,25 @@ def run():
             "第二次及以后打序章才走 changed(OP_CHANGE)",
     }
     for (prop2, cb2), why in SECOND_PASS.items():
-        check("★ {}/{} 本次不可达：{}".format(prop2, cb2, why), True)
+        check(f"★ {prop2}/{cb2} 本次不可达：{why}", True)
     # ★ 阶段 F 之后所有契约行都有产出路径了；这个字典留着给将来新增的行用。
     NO_PRODUCER = {}
     checked = 0
     for prop, cb, op, src in CONTRACT:
         if prop in NO_PRODUCER:
-            check("★ {} 当前无 OP_CHANGE 产出路径（{}）".format(prop, NO_PRODUCER[prop]),
+            check(f"★ {prop} 当前无 OP_CHANGE 产出路径（{NO_PRODUCER[prop]}）",
                   prop not in observed)
             continue
         if prop not in observed:
-            check("★ {} 有产出路径但没测到".format(prop), False)
+            check(f"★ {prop} 有产出路径但没测到", False)
             continue
-        check("{} 的 optype 符合契约（{}，{}）".format(prop, cb, src),
+        check(f"{prop} 的 optype 符合契约（{cb}，{src}）",
               observed[prop] == op, (observed[prop], op))
         checked += 1
     check("契约表至少 7 行被真正核对", checked >= 7, checked)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

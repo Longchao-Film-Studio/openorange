@@ -89,7 +89,7 @@ def main():
         txt = json.dumps(obj, ensure_ascii=False, indent=1)
         if a.out:
             open(a.out, "w", encoding="utf-8").write(txt)
-            print('已写出 {}（明文 {} 字节）'.format(a.out, n))
+            print(f'已写出 {a.out}（明文 {n} 字节）')
         else:
             print(txt[:4000])
         return 0
@@ -102,23 +102,23 @@ def main():
     os.makedirs(outdir, exist_ok=True)
     for tag, path in TARGETS:
         if not os.path.exists(path):
-            print('跳过 {:<18} 不存在: {}'.format(tag, path))
+            print(f'跳过 {tag:<18} 不存在: {path}')
             continue
         try:
             obj, n = decrypt_file(path)
         except Exception as e:
-            print('失败 {:<18} {}'.format(tag, e))
+            print(f'失败 {tag:<18} {e}')
             continue
         out = os.path.join(outdir, tag + ".json")
         open(out, "w", encoding="utf-8").write(
             json.dumps(obj, ensure_ascii=False, indent=1))
-        print('OK   {:<18} 明文 {:8d} 字节 -> {}'.format(tag, n, out))
+        print(f'OK   {tag:<18} 明文 {n:8d} 字节 -> {out}')
         if tag == "patch_info":
             info = obj.get("patchinfo", {})
             rel = info.get("release", {}).get("win64", {}).get("release", {})
             for k in ("patchlist", "dlclist", "hybridlist", "target_full_ver"):
                 if k in rel:
-                    print("       {} = {}".format(k, rel[k]))
+                    print(f"       {k} = {rel[k]}")
     return 0
 
 

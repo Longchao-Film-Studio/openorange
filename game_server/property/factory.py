@@ -66,7 +66,7 @@ def new_instance(props, type_name, with_tp=False):
     返回的 dict 里业务字段都是声明里的默认值，调用方按需填。
     """
     if spec.custom(type_name) is None:
-        raise ValueError("未知的自定义类型 {!r}（spec_data.json 里没有）".format(type_name))
+        raise ValueError(f"未知的自定义类型 {type_name!r}（spec_data.json 里没有）")
     out = {"__id__": _ids.alloc_id(props)}
     if with_tp:
         out["__tp__"] = type_name

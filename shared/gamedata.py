@@ -336,14 +336,14 @@ if __name__ == "__main__":
         elif cands:
             _log.info('{:<10} -> 重名 {:d} 条: {}'.format(tok, len(cands), [c["id"] for c in cands]))
         else:
-            _log.info('{:<10} -> 未找到'.format(tok))
+            _log.info(f'{tok:<10} -> 未找到')
     _log.info("")
     for r in search_items("长命")[:6]:
         _log.info("  search 长命:", (r["id"], r["name"],))
     _log.info("")
     for tok in ("crystal", "101"):
         e, c = resolve_currency(tok)
-        _log.info('  currency {:<8} -> {}'.format(tok, e))
+        _log.info(f'  currency {tok:<8} -> {e}')
     for tok in ("无常", "1020", "寒衣卡池"):
         e, c = resolve_char(tok) if not tok.endswith("卡池") else resolve_activity(tok)
         _log.info('  {:<10} -> {}'.format(tok, e and (e.get("name"), e.get("id"))))

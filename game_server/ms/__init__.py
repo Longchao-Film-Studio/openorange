@@ -139,7 +139,7 @@ def build_server_list_json(gate_port=33101, ms_port=None):
     if ms_port is None:
         ms_port = MS_ADVERTISE_PORT
     return (
-        '{{"clientGate":"127.0.0.1:{:d}","regions":[{{"rid":10,"name":"OpenOrange","clientGate":"127.0.0.1:{:d}"}}],"servers":[{{"hostnum":2000,"name":"OpenOrange","status":1,"openTime":0,"rid":10,"clientGate":"127.0.0.1:{:d}","clusters":[{{"clusterId":20000,"status":1,"addrs":["127.0.0.1:{:d}"]}}]}}]}}'.format(ms_port, ms_port, ms_port, gate_port)
+        f'{{"clientGate":"127.0.0.1:{ms_port:d}","regions":[{{"rid":10,"name":"OpenOrange","clientGate":"127.0.0.1:{ms_port:d}"}}],"servers":[{{"hostnum":2000,"name":"OpenOrange","status":1,"openTime":0,"rid":10,"clientGate":"127.0.0.1:{ms_port:d}","clusters":[{{"clusterId":20000,"status":1,"addrs":["127.0.0.1:{gate_port:d}"]}}]}}]}}'
     )
 
 # ---------------------------------------------------------------- 应答构造

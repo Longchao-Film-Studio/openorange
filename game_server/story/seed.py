@@ -158,7 +158,7 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
     seeded = 0
     for tid in cands:
         if seeded >= limit:
-            print('[story] 播种达到上限 {}，还剩 {} 个候选未播（疑似任务图有环？）'.format(limit, len(cands) - seeded), flush=True)
+            print(f'[story] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播（疑似任务图有环？）', flush=True)
             break
         ch = story_mod.start_story_task(st, tid, now)
         if ch:
@@ -169,7 +169,7 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
                 # 活动系统未实现，无法判定 isActivityValid；按文档策略放行并留痕
                 print("[story] 播种任务 {} 带 activityOn={}（活动系统未实现，按开启处理）".format(tid, cfg.get("activityOn")), flush=True)
     if seeded:
-        print('[story] 播种 {} 个任务（候选 {} 个）'.format(seeded, len(cands)),
+        print(f'[story] 播种 {seeded} 个任务（候选 {len(cands)} 个）',
               flush=True)
     return out
 
@@ -256,19 +256,19 @@ def rescan(st, now=None, limit=SEED_LIMIT):
 
     # 数据缺陷告警（一次性）
     for t, pre in _broken_pre_tasks():
-        _warn_once('broken:{}'.format(t),
-                   "数据缺陷：任务 {} 的 PreTask={} 在 StoryTaskData/TaskData 里都不存在，"
-                   "该任务永远不可达".format(t, pre))
+        _warn_once(f'broken:{t}',
+                   f"数据缺陷：任务 {t} 的 PreTask={pre} 在 StoryTaskData/TaskData 里都不存在，"
+                   "该任务永远不可达")
     dangling = _dangling_task_data_ids()
     if dangling:
         _warn_once("dangling",
-                   '数据缺陷：{} 个 type3/7 任务引用的 TaskData id 不存在，这些任务的完成条件无法判定（例：{}）'.format(len(dangling), dangling[:5]))
+                   f'数据缺陷：{len(dangling)} 个 type3/7 任务引用的 TaskData id 不存在，这些任务的完成条件无法判定（例：{dangling[:5]}）')
 
     # ① 跨表前置
     try:
         out.extend(seed_cross_table(st, now))
     except Exception as e:
-        _log.warning("[story] rescan 跨表播种失败: {}".format(e))
+        _log.warning(f"[story] rescan 跨表播种失败: {e}")
 
     # ② 链式闸门（TaskType 6）
     from . import events as _events
@@ -279,7 +279,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
             from .rpc import _finish_story_tasks
             out.extend(_finish_story_tasks(st, hits, source="chain"))
     except Exception as e:
-        _log.warning("[story] rescan 链式检查失败: {}".format(e))
+        _log.warning(f"[story] rescan 链式检查失败: {e}")
 
     return out
 
@@ -315,5 +315,5 @@ def seed_cross_table(st, now=None):
         ch = story_mod.start_story_task(st, tid, int(now or time.time()))
         if ch:
             out.extend(ch)
-            print("[story] 跨表前置满足，播种任务 {}（PreTask=TaskData[{}]）".format(tid, pre), flush=True)
+            print(f"[story] 跨表前置满足，播种任务 {tid}（PreTask=TaskData[{pre}]）", flush=True)
     return out

@@ -127,11 +127,11 @@ def run():
     check("帮助里 give 已实现（无标注）", "/give " in text and "give" in text, text[:300])
 
     print("\n[3] 玩家权限边界")
-    r = run_cmd(tok_p, "/account {}".format(ADMIN))
+    r = run_cmd(tok_p, f"/account {ADMIN}")
     check("玩家不能查别人账号", r.get("ok") is False, r.get("lines"))
     r = run_cmd(tok_p, "/account @")
     check("玩家能查自己账号", r.get("ok") is True, r.get("lines"))
-    r = run_cmd(tok_p, "/account {} perm 2".format(PLAYER))
+    r = run_cmd(tok_p, f"/account {PLAYER} perm 2")
     check("玩家不能给自己提权", r.get("ok") is False, r.get("lines"))
     r = run_cmd(tok_p, "/give @ 1001 1")
     check("玩家不能执行 GM 命令", r.get("ok") is False, r.get("lines"))
@@ -181,9 +181,9 @@ def run():
           r.get("data"))
 
     print("\n[6] 账号命令与提权")
-    r = run_cmd(tok_a, "/account {}".format(PLAYER))
+    r = run_cmd(tok_a, f"/account {PLAYER}")
     check("管理员能查别人账号", r.get("ok") is True, r.get("lines"))
-    r = run_cmd(tok_a, "/account {} perm 1".format(PLAYER))
+    r = run_cmd(tok_a, f"/account {PLAYER} perm 1")
     check("管理员能给玩家提 GM", r.get("ok") is True, r.get("lines"))
     r = run_cmd(tok_p, "/give @ 1001 1")
     _gv = "\n".join(r.get("lines") or [])
@@ -192,13 +192,13 @@ def run():
     check("GM 命令不再标『未生效』", "未生效" not in _gv, _gv)
     check("GM 命令标记 applied=True", (r.get("data") or {}).get("applied") is True,
           (r.get("data") or {}))
-    r = run_cmd(tok_a, "/account {} perm 2".format(PLAYER))
+    r = run_cmd(tok_a, f"/account {PLAYER} perm 2")
     check("管理员能提到管理员", r.get("ok") is True, r.get("lines"))
-    r = run_cmd(tok_p, "/account {}".format(ADMIN))
+    r = run_cmd(tok_p, f"/account {ADMIN}")
     check("升为管理员后能查别人", r.get("ok") is True, r.get("lines"))
-    r = run_cmd(tok_a, "/account {} perm 9".format(PLAYER))
+    r = run_cmd(tok_a, f"/account {PLAYER} perm 9")
     check("非法权限值被拒", r.get("ok") is False, r.get("lines"))
-    r = run_cmd(tok_a, "/account {} perm 0".format(PLAYER))
+    r = run_cmd(tok_a, f"/account {PLAYER} perm 0")
     check("能降回玩家", r.get("ok") is True, r.get("lines"))
 
     print("\n[7] 错误处理")
@@ -239,7 +239,7 @@ def run():
 def main():
     global BASE
     port = _free_port()
-    BASE = 'http://127.0.0.1:{}'.format(port)
+    BASE = f'http://127.0.0.1:{port}'
     tmpdir = tempfile.mkdtemp(prefix="oo_admin_")
     db_path = os.path.join(tmpdir, "test.db")
     state_dir = os.path.join(tmpdir, "player_state")
@@ -254,14 +254,14 @@ def main():
     env["OO_STATE_DIR"] = state_dir
     env["OO_ADMIN_PORT"] = str(admin_port)
     env["OO_ADMIN_TOKEN"] = admin_token
-    env["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(admin_port)
+    env["OO_ADMIN_URL"] = f'http://127.0.0.1:{admin_port}'
     env["PYTHONIOENCODING"] = "utf-8"
 
     os.environ["OO_DB_PATH"] = db_path
     os.environ["OO_STATE_DIR"] = state_dir
     os.environ["OO_ADMIN_PORT"] = str(admin_port)
     os.environ["OO_ADMIN_TOKEN"] = admin_token
-    os.environ["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(admin_port)
+    os.environ["OO_ADMIN_URL"] = f'http://127.0.0.1:{admin_port}'
 
     # 在测试进程内起 admin_api（线程），web 子进程通过 HTTP 连它
     from game_server import admin_api as _adm
@@ -308,7 +308,7 @@ def main():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     for name in failed:
         print("  - " + name)
     return 0 if not failed else 1

@@ -41,7 +41,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -62,7 +62,7 @@ def _done_tasks(st, tt):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -126,7 +126,7 @@ def run():
           (n1_before, len(_slot_tasks(st6, 1))))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

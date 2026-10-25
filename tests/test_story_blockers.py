@@ -143,7 +143,7 @@ def run():
 
     print()
     print("=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     print()
     print("★ 用途：数据变了（比如官方补了 SpaceTask 链接）就红，")
     print("  提示重新调查，而不是静默地继续按 92.5% 算。")

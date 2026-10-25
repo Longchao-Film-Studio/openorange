@@ -84,8 +84,8 @@ def _serve_capture(host=None, port=None):
         mode = "proxy->{}:{}".format(*UPSTREAM)
     else:
         mode = "echo" if ECHO else "capture-only"
-    _log.info('[game] listening on {}:{} ({})'.format(host, port, mode))
-    _log.info("[game] captures -> {}".format(CAPTURE_DIR))
+    _log.info(f'[game] listening on {host}:{port} ({mode})')
+    _log.info(f"[game] captures -> {CAPTURE_DIR}")
     return srv
 
 
@@ -103,9 +103,9 @@ def _run_ms_mode():
     os.makedirs(CAPTURE_DIR, exist_ok=True)
     ms_srv = _listen("0.0.0.0", MS_PORT)
     gate_srv = _listen("0.0.0.0", GATE_PORT)
-    _log.info('[ms] ms service  listening on 0.0.0.0:{}'.format(MS_PORT))
-    _log.info('[ms] gate listening on 0.0.0.0:{}'.format(GATE_PORT))
-    _log.info("[ms] captures -> {}".format(CAPTURE_DIR))
+    _log.info(f'[ms] ms service  listening on 0.0.0.0:{MS_PORT}')
+    _log.info(f'[ms] gate listening on 0.0.0.0:{GATE_PORT}')
+    _log.info(f"[ms] captures -> {CAPTURE_DIR}")
 
     threading.Thread(target=_accept_loop, args=(gate_srv, handle_gate),
                      daemon=True).start()
@@ -139,7 +139,7 @@ def _configure_scaffold(argv):
         tasks_done = False
     sc = ooconf.configure_scaffold(unlock_all=unlock_all, level=level,
                                    all_tasks_done=tasks_done)
-    _log.info("[cfg] 脚手架: {}".format(sc.describe()))
+    _log.info(f"[cfg] 脚手架: {sc.describe()}")
 
 
 def _configure_dungeon(argv):
@@ -165,9 +165,9 @@ def _start_admin():
     try:
         from . import admin_api as _admin_api
         _admin_api.start()
-        print('[admin] 管理接口 http://127.0.0.1:{}（命令系统用）'.format(_admin_api._port()), flush=True)
+        print(f'[admin] 管理接口 http://127.0.0.1:{_admin_api._port()}（命令系统用）', flush=True)
     except Exception as _e:
-        _log.warning("[admin] 管理接口启动失败: {}".format(_e))
+        _log.warning(f"[admin] 管理接口启动失败: {_e}")
 
 
 def main():
@@ -184,7 +184,7 @@ def main():
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-        _log.warning("[log] 统一日志安装失败，退回控制台模式: {}".format(_e))
+        _log.warning(f"[log] 统一日志安装失败，退回控制台模式: {_e}")
 
     argv = sys.argv[1:]
     if "--echo" in argv:

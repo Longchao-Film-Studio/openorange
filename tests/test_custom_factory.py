@@ -64,7 +64,7 @@ def run():
               "StreetInfo", "StreetDispatchInfo", "TaskBag"):
         obj = factory.new_instance(st.props, t, with_tp=True)
         expect = sorted(spec.struct_fields(t).keys())
-        check('{} 字段一致（{} 个）'.format(t, len(expect)),
+        check(f'{t} 字段一致（{len(expect)} 个）',
               fields_of(obj) == expect,
               (fields_of(obj), expect))
 
@@ -82,10 +82,10 @@ def run():
     for t in ("CharacterInfo", "StreetInfo", "StoryTaskItem", "TaskItem"):
         obj = factory.new_instance(st.props, t, with_tp=True)
         ks = nested_containers(obj)
-        check('{} 嵌套容器都带 __id__（{} 个）'.format(t, len(ks)),
+        check(f'{t} 嵌套容器都带 __id__（{len(ks)} 个）',
               bool(ks) and all(isinstance(obj[k].get("__id__"), int) for k in ks))
         ids = [obj["__id__"]] + [obj[k]["__id__"] for k in ks]
-        check("{} 同批 __id__ 唯一".format(t), len(ids) == len(set(ids)), ids)
+        check(f"{t} 同批 __id__ 唯一", len(ids) == len(set(ids)), ids)
 
     print("\n[4] make_character：皮肤取 BDD，且不继承源角色状态")
     st = new_state()
@@ -136,11 +136,11 @@ def run():
                 continue
             for b in banned:
                 if b in src:
-                    hits.append("{}: {}".format(os.path.relpath(p, root), b))
+                    hits.append(f"{os.path.relpath(p, root)}: {b}")
     check("★ 手抄字段表已全部清除", not hits, hits[:5])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

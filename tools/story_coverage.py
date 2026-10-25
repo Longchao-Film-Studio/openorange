@@ -52,9 +52,9 @@ EVENT_PARAM_KEYS = {
 
 
 def _table(name):
-    p = os.path.join(BDD_DIR, "TableData.CommonData.{}.json".format(name))
+    p = os.path.join(BDD_DIR, f"TableData.CommonData.{name}.json")
     if not os.path.exists(p):
-        print("[coverage] 找不到 {}".format(p), file=sys.stderr)
+        print(f"[coverage] 找不到 {p}", file=sys.stderr)
         return {}
     with open(p, encoding="utf-8") as f:
         d = json.load(f)
@@ -160,8 +160,8 @@ def completable(S, T, E, tid, SP=None):
         except Exception:
             return False, "type4 的 Parameter1[0] 不是整数"
         if want not in street_ids():
-            return False, "type4 的 Parameter1[0]={} 不是合法 StreetData 键".format(want)
-        return True, "街区型（切街到 Parameter1[0]={}）".format(want)
+            return False, f"type4 的 Parameter1[0]={want} 不是合法 StreetData 键"
+        return True, f"街区型（切街到 Parameter1[0]={want}）"
     if tt in (3, 7):
         # 阶段 I 修正：Parameter1 对 type3/7 不总是指向 TaskData。
         # 实测 92 条指向 TaskData（有 TriggerEventList，可判定），
@@ -184,7 +184,7 @@ def completable(S, T, E, tid, SP=None):
             return True, "事件型（{}）".format(",".join(sorted(set(ok))))
         return False, "需要未实现事件：{}".format(",".join(
             sorted({e for e in ets if e not in IMPL_EVENTS})))
-    return False, "未知 TaskType={}".format(tt)
+    return False, f"未知 TaskType={tt}"
 
 
 def E_by_type(E, etype):
@@ -273,7 +273,7 @@ def main():
     print("-" * W)
     print("阻塞原因：")
     for why, cnt in report["blocked_reasons"].items():
-        print('  {:<46} {:d}'.format(why, cnt))
+        print(f'  {why:<46} {cnt:d}')
         print("      例: {}".format(report["blocked_samples"][why][:8]))
     print("=" * W)
     return 0

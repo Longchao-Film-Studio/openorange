@@ -91,7 +91,7 @@ def dump_message(blob, lines):
     mname = b"?"
     for f, wt, v in fs:
         if f == 1 and wt == 2: mname = v
-    lines.append("**{}**".format(mname.decode()))
+    lines.append(f"**{mname.decode()}**")
     lines.append("")
     for f, wt, v in fs:
         if f != 2 or wt != 2: continue
@@ -153,4 +153,4 @@ for fname in (b"client_gate.proto", b"ms_gate.proto", b"phonest.proto", b"ms_com
             lines.append("")
 
 open(OUT, "w", encoding="utf-8").write("\n".join(lines) + "\n")
-print('已写出 {}（{} 行）'.format(OUT, len(lines)))
+print(f'已写出 {OUT}（{len(lines)} 行）')

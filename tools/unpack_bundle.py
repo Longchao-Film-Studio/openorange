@@ -118,14 +118,14 @@ def decompress(data, comp, uncompressed_size):
         import lzma
         # Unity 的 LZMA 有 5 字节属性 + 8 字节大小头，这里只做兜底
         return lzma.decompress(data)
-    raise RuntimeError('不支持的压缩类型 {}'.format(comp))
+    raise RuntimeError(f'不支持的压缩类型 {comp}')
 
 
 def parse_bundle(data):
     p = 0
     sig, p = read_cstr(data, p)
     if sig not in ("UnityFS", "ENCR"):
-        raise RuntimeError("不是 UnityFS 包: {!r}".format(sig))
+        raise RuntimeError(f"不是 UnityFS 包: {sig!r}")
     version = struct.unpack_from(">I", data, p)[0]; p += 4
     unity_ver, p = read_cstr(data, p)
     unity_rev, p = read_cstr(data, p)

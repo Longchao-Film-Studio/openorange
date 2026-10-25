@@ -172,11 +172,11 @@ def transition(st, task_id, to_state, source=""):
     props = st.props
     bag = _bag(props)
     if bag is None:
-        raise TransitionError('story_task_bag 不存在，无法迁移 task {}'.format(task_id))
+        raise TransitionError(f'story_task_bag 不存在，无法迁移 task {task_id}')
     item = bag.get(task_id)
     if not isinstance(item, dict):
         raise TransitionError(
-            'task {} 不在 story_task_bag 里（当前状态 {}），不能迁移到 {}'.format(task_id, current_state(props, task_id), state_name(to_state)))
+            f'task {task_id} 不在 story_task_bag 里（当前状态 {current_state(props, task_id)}），不能迁移到 {state_name(to_state)}')
     frm = int(item.get("state") or 0)
     if frm == to_state:
         return []
@@ -216,7 +216,7 @@ def move_to_done(st, task_id, now=None):
     frm = int(item.get("state") or 0)
     if frm != TASK_STATE_FINISHED:
         raise TransitionError(
-            'task {} 还没 Finished（当前 {}），不能归档'.format(task_id, state_name(frm)))
+            f'task {task_id} 还没 Finished（当前 {state_name(frm)}），不能归档')
     # 保留原始时间戳（get_time = 领到任务的时间，start_time = 开始的时间）
     start_time = int(item.get("start_time") or 0)
     get_time = int(item.get("get_time") or 0)

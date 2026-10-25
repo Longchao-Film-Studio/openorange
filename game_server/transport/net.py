@@ -35,11 +35,11 @@ def hexdump(data, width=16, limit=None):
     out = []
     for off in range(0, n, width):
         chunk = data[off:off + width]
-        hx = " ".join("{:02X}".format(b) for b in chunk)
+        hx = " ".join(f"{b:02X}" for b in chunk)
         asc = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         out.append(f"      {off:04X}  {hx:<{width * 3}}  |{asc}|")
     if limit is not None and len(data) > limit:
-        out.append('      ... (共 {} 字节，其余见 .bin)'.format(len(data)))
+        out.append(f'      ... (共 {len(data)} 字节，其余见 .bin)')
     return "\n".join(out)
 
 
@@ -58,12 +58,12 @@ def maybe_hexdump(data, limit=None):
 def log_packet(cid, direction, data, t0, f):
     """打印一帧，并（可选）写进 .bin 抓包文件。"""
     dt = int((time.time() - t0) * 1000)
-    _log.info('[game] #{:03d} {} +{:d}ms  {:d} B'.format(cid, direction, dt, len(data)))
+    _log.info(f'[game] #{cid:03d} {direction} +{dt:d}ms  {len(data):d} B')
     if ooconf.packet_log_enabled():
         _log.info(hexdump(data, limit=512))
     if f is not None:
         try:
-            f.write(('{} {} {}\n'.format(direction, dt, len(data))).encode())
+            f.write((f'{direction} {dt} {len(data)}\n').encode())
             f.write(data)
             f.flush()
         except Exception:
@@ -86,7 +86,7 @@ def pump(src, dst, direction, cid, t0, f, done_evt):
             try:
                 dst.sendall(data)
             except OSError as e:
-                _log.warning('[game] #{:03d} {} forward failed: {}'.format(cid, direction, e))
+                _log.warning(f'[game] #{cid:03d} {direction} forward failed: {e}')
                 break
     finally:
         try:

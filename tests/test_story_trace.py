@@ -56,7 +56,7 @@ def check(name, cond, detail=None):
 
 
 def fresh(name):
-    u = "{}_{}".format(name, _TAG)
+    u = f"{name}_{_TAG}"
     msmod._live_init_dict(u)
     st = pstate.get_state(uid=u)
     SD.seed(st, NOW)
@@ -65,7 +65,7 @@ def fresh(name):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -260,7 +260,7 @@ def run():
 
     print()
     print("=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

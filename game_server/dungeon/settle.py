@@ -215,7 +215,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
         cleared[lv_key] = 1
         st.set("_oo_cleared_levels", cleared)
     if hits:
-        print("[dungeon] 结算推进剧情 {}（事件参数 {}）".format(hits, ev),
+        print(f"[dungeon] 结算推进剧情 {hits}（事件参数 {ev}）",
               flush=True)
     return out
 
@@ -293,5 +293,5 @@ def _storyline_finish_game(rid, params, uid=None):
             SYNC_SELF, sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
-    _log.info("[dungeon] 剧情段落 {} 完成".format(sid))
+    _log.info(f"[dungeon] 剧情段落 {sid} 完成")
     return respond_after_sync(rid, syncs)

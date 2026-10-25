@@ -32,7 +32,7 @@ def check(name, cond, detail=None):
 
 
 def read_last(channel):
-    p = os.path.join(_LOG_DIR, "last.{}.log".format(channel))
+    p = os.path.join(_LOG_DIR, f"last.{channel}.log")
     if not os.path.exists(p):
         return ""
     with open(p, "r", encoding="utf-8", errors="replace") as f:
@@ -82,7 +82,7 @@ def run():
         torn = 0
         for t in ("a", "b", "c"):
             for i in range(50):
-                if ('line-{}-{:04d}'.format(t, i)) not in content:
+                if (f'line-{t}-{i:04d}') not in content:
                     torn += 1
         check("150 行全部完整（无撕裂）", torn == 0, torn)
 
@@ -99,7 +99,7 @@ def run():
         print("\n[6] 轮转：30 份保留")
         for i in range(35):
             with open(os.path.join(
-                    _LOG_DIR, '2026-01-01-00-00-{:02d}.test.log'.format(i)), "w") as f:
+                    _LOG_DIR, f'2026-01-01-00-00-{i:02d}.test.log'), "w") as f:
                 f.write("old")
         log_tee._rotate_keep(_LOG_DIR, "test")
         left = [f for f in os.listdir(_LOG_DIR)
@@ -115,7 +115,7 @@ def run():
         sys.stdout = orig_stdout
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

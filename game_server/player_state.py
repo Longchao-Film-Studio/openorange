@@ -102,7 +102,7 @@ def _keys_to_json(obj):
         out = {}
         for k, v in obj.items():
             if isinstance(k, int):
-                out['#{}'.format(k)] = _keys_to_json(v)
+                out[f'#{k}'] = _keys_to_json(v)
             else:
                 out[k] = _keys_to_json(v)
         return out
@@ -176,7 +176,7 @@ class PlayerState:
 
     # ---- 持久化 ----
     def path(self):
-        return os.path.join(_STATE_DIR, "{}.json".format(self.uid))
+        return os.path.join(_STATE_DIR, f"{self.uid}.json")
 
     def save(self):
         d = self.to_dict()
@@ -227,14 +227,14 @@ def _migrate_item_bag_keys(props):
             grid["id"] = sk
         n += 1
     if n:
-        print('[state] item_bag 迁移了 {} 个整数键 -> 字符串键'.format(n),
+        print(f'[state] item_bag 迁移了 {n} 个整数键 -> 字符串键',
               flush=True)
     return n
 
 
 def load(uid=DEFAULT_UID):
     """读盘；没有存档就返回 None。"""
-    p = os.path.join(_STATE_DIR, "{}.json".format(uid))
+    p = os.path.join(_STATE_DIR, f"{uid}.json")
     if not os.path.exists(p):
         return None
     try:

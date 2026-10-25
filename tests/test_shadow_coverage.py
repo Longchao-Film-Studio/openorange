@@ -176,7 +176,7 @@ def run():
     #   所以如果 pre=None 被静默放行，本用例会绿 —— 它是真正能区分修复前后的一条。
     root_scalar = msmod.build_property_sync(
         prop_sync.SYNC_SELF, 0, _tx.OP_CHANGE, "signature", "ghost_sig")
-    ghost = 'ghost_uid_{}'.format(os.getpid())
+    ghost = f'ghost_uid_{os.getpid()}'
     real_handle = fg._erpc.handle
     try:
         fg._erpc.handle = lambda index, params, rid, uid=None: [root_scalar]
@@ -237,7 +237,7 @@ def run():
           len(frames or []))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

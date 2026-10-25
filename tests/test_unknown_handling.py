@@ -83,7 +83,7 @@ def run():
     for nm in ("RpcDrawGacha", "RpcBuyShop", "Cmd_BuyBpLevel_CS"):
         idx = rpc_catalog.index_of(nm)
         ret = erpc.unknown_rpc_ret(idx, uid="u1")
-        check("{} 始终失败".format(nm), ret.get("status") is False, (nm, ret))
+        check(f"{nm} 始终失败", ret.get("status") is False, (nm, ret))
 
     print("\n[5] 走完整 handle 路径（帧形状 + retStatus）")
     # BreakCharacter_CS 未实现（UpgradePlayerStage_CS 已实现，会走 handler）
@@ -110,7 +110,7 @@ def run():
     check("★ 邮件领取：兼容模式也失败", p["Ret"][0] is False, p)
     for m in ("deleteMail", "setAllMailHaveRead", "setMailHaveRead", "star", "unstar"):
         p = msmod.mp_decode(ms_service.unknown_ms_params("MailService", m))[0]
-        check("★ 邮件 {} 硬黑名单".format(m), p["Ret"][0] is False, p)
+        check(f"★ 邮件 {m} 硬黑名单", p["Ret"][0] is False, p)
 
     print("\n[7] 落盘：两种模式都记录 + 聚合计数")
     st = ulog.stats()
@@ -136,7 +136,7 @@ def run():
     check("有序", counts == sorted(counts, reverse=True), counts[:6])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

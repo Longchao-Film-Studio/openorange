@@ -118,7 +118,7 @@ def main():
     extra = sorted(f for f in os.listdir(pack_dir)
                    if f.endswith(".bytes") and f not in listed)
     names = names + extra
-    print('LuaPackInfo.json 条目: {}，目录补充: {}，合计: {}'.format(len(listed), len(extra), len(names)))
+    print(f'LuaPackInfo.json 条目: {len(listed)}，目录补充: {len(extra)}，合计: {len(names)}')
     if extra:
         print("  补充的包:", ", ".join(extra))
 
@@ -167,7 +167,7 @@ def main():
             f.write(body)
         written += 1
         if written % 5000 == 0:
-            print('  已写 {}'.format(written))
+            print(f'  已写 {written}')
 
     print("完成，写出", written, "个文件 ->", out_dir)
 

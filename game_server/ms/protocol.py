@@ -50,7 +50,7 @@ def pb_parse(data):
             out.setdefault(fn, []).append(data[i:i + 8])
             i += 8
         else:
-            raise ValueError('unsupported wiretype {} at field {}'.format(wt, fn))
+            raise ValueError(f'unsupported wiretype {wt} at field {fn}')
     return out
 
 def pb_varint_field(fn, v):
@@ -138,7 +138,7 @@ def mp_any(v):
         return mp_arr(v)
     if isinstance(v, dict):
         return mp_map(v)
-    raise TypeError("unsupported msgpack value: {!r}".format(v))
+    raise TypeError(f"unsupported msgpack value: {v!r}")
 
 def mp_map(d):
     """msgpack map。

@@ -107,9 +107,9 @@ def run():
     ack_only = [r for r in rows if r["resp"] and not r["sync"]]
 
     print("\n[2] 统计")
-    print('      走过唯一入口 respond_after_sync 的函数：{}'.format(len(entries)))
-    print('      纯 ACK（无同步帧，无需排序）：{}'.format(len(ack_only)))
-    print('      违规：{}'.format(len(offenders)))
+    print(f'      走过唯一入口 respond_after_sync 的函数：{len(entries)}')
+    print(f'      纯 ACK（无同步帧，无需排序）：{len(ack_only)}')
+    print(f'      违规：{len(offenders)}')
 
     print("\n[3] 违规必须为 0")
     check("★ 没有任何 handler 手写「先应答、后同步」", not offenders,
@@ -121,7 +121,7 @@ def run():
           all(bool(v) for v in ALLOW.values()), ALLOW)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

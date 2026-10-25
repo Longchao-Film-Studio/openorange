@@ -56,7 +56,7 @@ def _grant_treasure_reward(st, tid):
                     SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(gkey), grid))
-            print("[street] 宝箱 {} 发道具 {} x{} -> 现在 {}".format(tid, iid, cnt, num), flush=True)
+            print(f"[street] 宝箱 {tid} 发道具 {iid} x{cnt} -> 现在 {num}", flush=True)
     # 2) 声望经验（AwardAttr.prestige_exp）
     aa = cfg.get("AwardAttr") or {}
     exp = 0

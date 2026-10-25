@@ -120,7 +120,7 @@ def init_new_player(st, now=None):
         if ch[0] == "add" and ch[1] == "story_task_bag":
             out.append(int(ch[2]))
     if out:
-        _log.info('[story] 剧情播种：{} 个根任务进包'.format(len(out)))
+        _log.info(f'[story] 剧情播种：{len(out)} 个根任务进包')
     return out
 
 def story_state(props, task_id):
@@ -180,7 +180,7 @@ def mark_finish_parameter(st, task_id, param):
         # ★ 不能在这里凭空建 finish_parameter：客户端 _changeSubProperty 对
         #   oldVal=nil 会在 puppetpropertycomponent.lua:209-210 崩。
         #   正常存档（avatar_init.json / 新建 item）都带这个字段，缺了说明数据异常。
-        print("[story] 警告：任务 {} 没有 finish_parameter，跳过进度记录".format(task_id),
+        print(f"[story] 警告：任务 {task_id} 没有 finish_parameter，跳过进度记录",
               flush=True)
         return []
     for k, v in _fp_items(fp):
@@ -348,7 +348,7 @@ def already_awarded(st, task_id):
     log = st.props.get(_AWARD_LOG)
     if not isinstance(log, dict):
         return False
-    prefix = '{}:'.format(int(task_id))
+    prefix = f'{int(task_id)}:'
     return any(str(k).startswith(prefix) for k in log)
 
 
@@ -357,7 +357,7 @@ def drop_award_log(st, task_id):
     log = st.props.get(_AWARD_LOG)
     if not isinstance(log, dict):
         return
-    prefix = '{}:'.format(int(task_id))
+    prefix = f'{int(task_id)}:'
     for k in [k for k in log if str(k).startswith(prefix)]:
         log.pop(k, None)
     st.set(_AWARD_LOG, log)
@@ -471,7 +471,7 @@ def story_award(st, task_id, now=None):
             continue
         if count <= 0:
             continue
-        key = '{}:{}'.format(int(task_id), item_id)
+        key = f'{int(task_id)}:{item_id}'
         if key in log:
             continue
         got = add_item(props, item_id, count)
@@ -694,7 +694,7 @@ def evaluate_event(st, event_type, params, now=None):
     #   踩过的坑：这里如果直接 finish_story_task，外层再调 _finish_story_tasks 时
     #   会因为已经是 Finished 而跳过，导致**不发奖、不推同步帧**。
     if hits:
-        print("[story] 事件 {}{} 命中剧情任务 {}".format(event_type, params, hits),
+        print(f"[story] 事件 {event_type}{params} 命中剧情任务 {hits}",
               flush=True)
     return hits, []
 
@@ -718,7 +718,7 @@ def check_chain_tasks(st, now=None):
             hits.append(task_id)
     # 同 evaluate_event：只检测，不落状态。
     if hits:
-        _log.info("[story] 前置任务全完成，命中 {}".format(hits))
+        _log.info(f"[story] 前置任务全完成，命中 {hits}")
     return hits, []
 
 def add_item(props, item_id, count):

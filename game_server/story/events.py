@@ -81,8 +81,7 @@ class GameEvent:
         self.event_id = event_id
 
     def __repr__(self):
-        return "GameEvent({}, {!r}, src={}, id={})".format(
-            self.type, self.params, self.source, self.event_id)
+        return f"GameEvent({self.type}, {self.params!r}, src={self.source}, id={self.event_id})"
 
     def to_dict(self):
         return {"type": self.type, "params": self.params,
@@ -128,8 +127,7 @@ class EventResult:
         return list(self.hits) + list(self.chain_hits)
 
     def __repr__(self):
-        return "EventResult(hits={!r}, chain={!r}, deduped={!r})".format(
-            self.hits, self.chain_hits, self.deduped)
+        return f"EventResult(hits={self.hits!r}, chain={self.chain_hits!r}, deduped={self.deduped!r})"
 
 
 # ---------------------------------------------------------------- 去重
@@ -184,7 +182,7 @@ def apply_event(st, event, now=None):
     try:
         hits, _ = _story.evaluate_event(st, event.type, event.params, now)
     except Exception as e:
-        _log.warning("[story] 事件求值失败 {}: {}".format(event.type, e))
+        _log.warning(f"[story] 事件求值失败 {event.type}: {e}")
         hits = []
     _mark_seen(st, event.event_id, now)
 
@@ -193,7 +191,7 @@ def apply_event(st, event, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        _log.warning("[story] 链式检查失败: {}".format(e))
+        _log.warning(f"[story] 链式检查失败: {e}")
         chain = []
 
     # 4) 通用任务（TaskData 那套，P1 阶段 N-a3）
@@ -215,7 +213,7 @@ def apply_event(st, event, now=None):
             else:
                 task_sync.extend(_tasks.finish_task(st, _tid, now))
     except Exception as e:
-        _log.warning("[task] 通用任务事件推进失败 {}: {}".format(event.type, e))
+        _log.warning(f"[task] 通用任务事件推进失败 {event.type}: {e}")
         task_hits, task_sync = [], []
 
     # 5) 系统解锁重算（roadmap 队列第 2 项）
@@ -226,7 +224,7 @@ def apply_event(st, event, now=None):
         from .rpc import _recalc_system_unlocks
         unlock_frames = _recalc_system_unlocks(st)
     except Exception as e:
-        _log.warning("[story] 系统解锁重算失败: {}".format(e))
+        _log.warning(f"[story] 系统解锁重算失败: {e}")
 
     return EventResult(hits=hits, chain_hits=chain, event=event,
                        task_hits=task_hits, task_sync=task_sync,
@@ -243,7 +241,7 @@ def tick(st, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        _log.warning("[story] tick 链式检查失败: {}".format(e))
+        _log.warning(f"[story] tick 链式检查失败: {e}")
         chain = []
     return EventResult(chain_hits=chain)
 
@@ -279,7 +277,7 @@ def ev_finish_task(task_id, source="internal"):
     """某个任务完成（通用任务 / 剧情任务都算）。"""
     return GameEvent(EV_FINISH_TASK, {"taskId": int(task_id)},
                      source=source,
-                     event_id='FinishTask:{}'.format(int(task_id)))
+                     event_id=f'FinishTask:{int(task_id)}')
 
 
 
@@ -319,7 +317,7 @@ def ev_street_interact(actor_id, interact_id, street_id=None, actor_type=None,
     if actor_type is not None:
         params["actorType"] = int(actor_type)
     return GameEvent(EV_STREET_INTERACT, params, source=source,
-                     event_id='StreetInteract:{}:{}'.format(int(actor_id), int(interact_id)))
+                     event_id=f'StreetInteract:{int(actor_id)}:{int(interact_id)}')
 
 
 def ev_submit_item(item_id=0, count=1, submit_id=None, item_ids=None,
@@ -404,4 +402,4 @@ def ev_char_data(level=None, ascend=None, char_id=None, source="internal"):
         p["charId"] = int(char_id)
     return GameEvent(EV_CHAR_DATA, p, source=source,
                      event_id="CharData:{}".format("/".join(
-                         "{}={}".format(k, p[k]) for k in sorted(p))))
+                         f"{k}={p[k]}" for k in sorted(p))))

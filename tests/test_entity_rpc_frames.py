@@ -200,7 +200,7 @@ def run():
     ooconf.configure_unknown_fake_ok(False)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 if __name__ == "__main__":

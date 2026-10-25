@@ -24,7 +24,7 @@ size_of_image, = struct.unpack_from('<I', img, opt + 56)
 size_of_headers, = struct.unpack_from('<I', img, opt + 60)
 sect = opt + opt_size
 
-print('SizeOfImage={:#x} SizeOfHeaders={:#x} sections={:d}'.format(size_of_image, size_of_headers, nsec))
+print(f'SizeOfImage={size_of_image:#x} SizeOfHeaders={size_of_headers:#x} sections={nsec:d}')
 for i in range(nsec):
     o = sect + i * 40
     nm = img[o:o+8].rstrip(b'\x00').decode('ascii', 'replace')
@@ -32,8 +32,8 @@ for i in range(nsec):
     # 关键：让文件偏移 = RVA
     struct.pack_into('<I', img, o + 16, vaddr)   # PointerToRawData
     struct.pack_into('<I', img, o + 20, vsize)   # SizeOfRawData
-    print('   {:<10} va={:0#10x} vs={:#x} -> raw={:#x} rsz={:#x}'.format(nm, vaddr, vsize, vaddr, vsize))
+    print(f'   {nm:<10} va={vaddr:0#10x} vs={vsize:#x} -> raw={vaddr:#x} rsz={vsize:#x}')
 
 with open(OUT, 'wb') as f:
     f.write(img)
-print('已写出 {} ({} 字节)'.format(OUT, len(img)))
+print(f'已写出 {OUT} ({len(img)} 字节)')

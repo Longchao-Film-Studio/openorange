@@ -97,7 +97,7 @@ def give_char(props, char_id, slot=None):
     info = cd.get(str(char_id)) or cd.get(char_id) or {}
     default_skin = info.get("DefaultSkin")
     if not default_skin:
-        raise SystemExit("CharData 里找不到角色 {} 的 DefaultSkin（id 对吗？）".format(char_id))
+        raise SystemExit(f"CharData 里找不到角色 {char_id} 的 DefaultSkin（id 对吗？）")
 
     newbie = reid(copy.deepcopy(template), props)
     newbie["useSkinId"] = int(default_skin)
@@ -105,7 +105,7 @@ def give_char(props, char_id, slot=None):
 
     if slot:
         _put_formation(props, char_id, slot)
-    return True, "已添加（默认皮肤 {}）".format(default_skin)
+    return True, f"已添加（默认皮肤 {default_skin}）"
 
 
 def _put_formation(props, char_id, slot):
@@ -119,7 +119,7 @@ def _put_formation(props, char_id, slot):
     lst = team.get("value")
     if not isinstance(lst, dict):
         raise SystemExit("编队 value 不是字典")
-    lst['#{}'.format(slot)] = int(char_id)
+    lst[f'#{slot}'] = int(char_id)
 
 
 def main():
@@ -131,12 +131,12 @@ def main():
     args = ap.parse_args()
 
     props, src = load_props(args.uid)
-    print('来源: {}（属性 {} 条）'.format(src, len(props)))
+    print(f'来源: {src}（属性 {len(props)} 条）')
 
     added, msg = give_char(props, args.char, args.slot)
-    print("角色 {}：{}".format(args.char, msg))
+    print(f"角色 {args.char}：{msg}")
     if args.slot:
-        print('已放入编队第 {} 格'.format(args.slot))
+        print(f'已放入编队第 {args.slot} 格')
 
     if args.dry_run:
         print("--dry-run，不写盘")
@@ -144,8 +144,8 @@ def main():
 
     st = pstate.PlayerState(uid=args.uid, props=props)
     if not st.save():
-        raise SystemExit("写盘失败: {}".format(st.path()))
-    print("已写入 {}".format(st.path()))
+        raise SystemExit(f"写盘失败: {st.path()}")
+    print(f"已写入 {st.path()}")
     print("提示：需要重新登录游戏才生效。")
     return 0
 

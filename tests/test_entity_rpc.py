@@ -140,7 +140,7 @@ def run():
         check("ONE_WAY 包含 " + nm, nm in erpc.RPC_INDEX, nm)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 if __name__ == "__main__":

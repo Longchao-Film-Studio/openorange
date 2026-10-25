@@ -75,7 +75,7 @@ def table_key_set(name):
     """一张 BDD 表的全部可用键（外层键 + uiD/id/ID）。"""
     BDD = os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "..", "archive", "game_data", "BDD")
-    p = os.path.join(BDD, "TableData.CommonData.{}.json".format(name))
+    p = os.path.join(BDD, f"TableData.CommonData.{name}.json")
     if not os.path.exists(p):
         return set()
     with open(p, encoding="utf-8") as f:
@@ -161,7 +161,7 @@ def run():
               for t in in_td))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

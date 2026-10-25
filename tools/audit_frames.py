@@ -65,7 +65,7 @@ def install():
             from shadow_cache import frames_safe
             _sc, errs = frames_safe(pre, frames, "")
         except Exception as e:
-            errs = ["frames_safe 自己抛异常: {}".format(e)]
+            errs = [f"frames_safe 自己抛异常: {e}"]
         if errs:
             _ERRORS.append({
                 "test": _CURRENT[0],

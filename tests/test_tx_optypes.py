@@ -117,20 +117,20 @@ def run():
     for root, key, value in cases:
         container = st.props.get(root)
         if not isinstance(container, dict):
-            check("{} 容器存在".format(root), False, type(container))
+            check(f"{root} 容器存在", False, type(container))
             continue
         t = _tx.Tx(st.props)
         t.set((root, key), value)
         pid, op, name, _v = op_of(t.frames(strict=True)[0])
-        check("{} 新键 {!r} -> OP_ADD".format(root, key), op == _tx.OP_ADD,
+        check(f"{root} 新键 {key!r} -> OP_ADD", op == _tx.OP_ADD,
               (pid, op, name))
-        check("{} 的 propertyId = 容器 __id__".format(root),
+        check(f"{root} 的 propertyId = 容器 __id__",
               pid == container.get("__id__"), (pid, container.get("__id__")))
         # 同一个键再改一次 -> 必须是 OP_CHANGE
         t2 = _tx.Tx(st.props)
         t2.set((root, key), value)
         _pid, op2, _n2, _v2 = op_of(t2.frames(strict=True)[0])
-        check("{} 已有键 {!r} -> OP_CHANGE".format(root, key), op2 == _tx.OP_CHANGE, op2)
+        check(f"{root} 已有键 {key!r} -> OP_CHANGE", op2 == _tx.OP_CHANGE, op2)
 
     print("\n[3] 嵌套容器新建：先父后子（container_add -> child_add）")
     st3 = state("txopt_b")
@@ -257,7 +257,7 @@ def run():
         check("客户端 item_bag 存在", False, type(after))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

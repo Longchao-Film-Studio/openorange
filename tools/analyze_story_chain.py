@@ -49,7 +49,7 @@ CHAIN_CLASSES = [
 def bdd_dir(arg):
     p = os.path.abspath(arg or _DEFAULT_BDD)
     if not os.path.isdir(p):
-        sys.exit("找不到 BDD 目录: {}\n用 --bdd 指定（例如 F:/haowancheng/archive/game_data/BDD）".format(p))
+        sys.exit(f"找不到 BDD 目录: {p}\n用 --bdd 指定（例如 F:/haowancheng/archive/game_data/BDD）")
     return p
 
 
@@ -102,7 +102,7 @@ def cmd_scan(bdd):
     for cname, _ in CHAIN_CLASSES:
         d = byclass[cname]
         print("\n" + "=" * 70)
-        print('【{}】{} 个表'.format(cname, len(d)))
+        print(f'【{cname}】{len(d)} 个表')
         for t in sorted(d):
             print('  {:<46} {}'.format(t, ", ".join(sorted(d[t])[:8])))
 
@@ -141,7 +141,7 @@ def cmd_walk(bdd, start):
             unlock_by_task[v.get("unlockParam")].append(v.get("sysName"))
 
     cur, seen, i = int(start), set(), 0
-    print('=== 从 TaskID={} 沿 PostTasks 走 ==='.format(cur))
+    print(f'=== 从 TaskID={cur} 沿 PostTasks 走 ===')
     while cur in byid and cur not in seen and i < 200:
         seen.add(cur)
         i += 1
@@ -153,7 +153,7 @@ def cmd_walk(bdd, start):
         posts = v.get("PostTasks") or []
         cur = posts[0] if posts else None
     if i == 0:
-        print("  任务 {} 不在 StoryTaskData 里".format(start))
+        print(f"  任务 {start} 不在 StoryTaskData 里")
 
 
 def cmd_actor(bdd):
@@ -181,7 +181,7 @@ def cmd_actor(bdd):
                 continue
             states[s] += 1
     print("=== 街景 NPC 的 preTask 条件分布 ===")
-    print('StreetActorInfoData 共 {} 条，其中 {} 条带 preTask'.format(len(rows), with_pre))
+    print(f'StreetActorInfoData 共 {len(rows)} 条，其中 {with_pre} 条带 preTask')
     print()
     for s, n in states.most_common():
         print('  state={:<3} {:<10}  {:d} 条'.format(s, TASK_STATE.get(s, "?"), n))

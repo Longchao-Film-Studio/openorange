@@ -62,7 +62,7 @@ def run():
     # 嵌套的自定义属性必须带 __id__，否则客户端 init 报
     #   class ClientAvatar function init must have a boolean return value
     for f in ("doing_targets", "finish_targets", "finish_parameter"):
-        check("嵌套字段 {} 带 __id__".format(f),
+        check(f"嵌套字段 {f} 带 __id__",
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
 
     print("\n[4] 通过事件完成 1000（TaskType=3 是事件驱动，客户端不会为它发 RPC）")
@@ -79,7 +79,7 @@ def run():
 
     print("\n[5] 自动推进到 PostTasks 的第一个任务")
     nxt = int((cfg.get("PostTasks") or [0])[0])
-    check('story_task_bag 里有下一个任务 {}'.format(nxt),
+    check(f'story_task_bag 里有下一个任务 {nxt}',
           nxt in st.props["story_task_bag"], list(st.props["story_task_bag"].keys())[:5])
     check("下一个任务是 Doing(3)",
           st.props["story_task_bag"].get(nxt, {}).get("state") == 3)
@@ -90,7 +90,7 @@ def run():
     bag = st.props.get("item_bag") or {}
     have = {g.get("itemId") for g in bag.values() if isinstance(g, dict)}
     if ids:
-        check("奖励道具 {} 进了背包".format(ids), all(i in have for i in ids), sorted(have))
+        check(f"奖励道具 {ids} 进了背包", all(i in have for i in ids), sorted(have))
     else:
         check("1000 无奖励（跳过）", True)
 
@@ -115,7 +115,7 @@ def run():
         story.start_story_task(st, tid, now)
         frames = guarded_handle(erpc.RPC_INDEX["RequestStreetActor_CS"],
                              msmod.mp_arr([actor]), 3, uid="story_test")
-        check('命中并完成 {}'.format(tid),
+        check(f'命中并完成 {tid}',
               story.story_state(st.props, tid) == story.TASK_STATE_FINISHED,
               story.story_state(st.props, tid))
 
@@ -140,7 +140,7 @@ def run():
     check("系统 55 已解锁", us.get(55) is True, us.get(55))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

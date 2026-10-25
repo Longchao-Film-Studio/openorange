@@ -66,9 +66,9 @@ def check_ports():
         s.settimeout(1.0)
         try:
             s.connect(("127.0.0.1", p))
-            print('  {:<6d} 监听中'.format(p))
+            print(f'  {p:<6d} 监听中')
         except Exception:
-            print('  {:<6d} 未监听（看新开的窗口里有没有报错）'.format(p))
+            print(f'  {p:<6d} 未监听（看新开的窗口里有没有报错）')
             ok = False
         finally:
             s.close()
@@ -84,8 +84,8 @@ def main():
     if not only_backend and not only_game:
         only_backend = only_game = True
 
-    print("root: {}".format(ROOT))
-    print("python: {}".format(sys.executable))
+    print(f"root: {ROOT}")
+    print(f"python: {sys.executable}")
     print()
 
     if only_backend:

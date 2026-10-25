@@ -121,7 +121,7 @@ class Scaffold:
         if self.all_tasks_done:
             parts.append("任务全完成")
         if self.level is not None:
-            parts.append("等级={}".format(self.level))
+            parts.append(f"等级={self.level}")
         return "开启（{}）".format("、".join(parts))
 
 

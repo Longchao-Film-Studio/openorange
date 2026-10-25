@@ -55,7 +55,7 @@ RE_CB = re.compile(r'^\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,?\s*$')
 
 def parse_config():
     if not os.path.exists(CONFIG_LUA):
-        print("[gen_contract] 找不到 {}".format(CONFIG_LUA), file=sys.stderr)
+        print(f"[gen_contract] 找不到 {CONFIG_LUA}", file=sys.stderr)
         return {}
     with open(CONFIG_LUA, encoding="utf-8") as f:
         lines = f.read().split("\n")
@@ -157,7 +157,7 @@ def main():
 
     if args.check:
         if not os.path.exists(OUT):
-            print("[gen_contract] {} 不存在".format(OUT), file=sys.stderr)
+            print(f"[gen_contract] {OUT} 不存在", file=sys.stderr)
             return 1
         with open(OUT, encoding="utf-8") as f:
             old = json.load(f)
@@ -176,7 +176,7 @@ def main():
         rows = doc["properties"][k]
         desc = "; ".join("{}->{}(op={})".format(r["callback"], r["section"],
                                            r["optype"]) for r in rows)
-        print('  {:<42} {}'.format(k, desc))
+        print(f'  {k:<42} {desc}')
     return 0
 
 

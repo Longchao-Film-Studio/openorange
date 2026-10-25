@@ -55,7 +55,7 @@ def check(name, cond, detail=None):
 
 
 def fresh(name):
-    u = "{}_{}".format(name, _TAG)
+    u = f"{name}_{_TAG}"
     msmod._live_init_dict(u)
     st = pstate.get_state(uid=u)
     SD.seed(st, NOW)
@@ -84,22 +84,22 @@ def assert_inv1(tag, st, street_id=None):
         items = TR._bag_items(st)
         cands = [t for t, it in items.items()
                  if TR._is_doing(it) and TR._scene_ok(t, sid)]
-        check("{}：为 0 时确实没有可用候选".format(tag), not cands, cands)
+        check(f"{tag}：为 0 时确实没有可用候选", not cands, cands)
         return
     sid = TR._street_of(st, street_id)
     items = TR._bag_items(st)
     item = items.get(tid)
     ok_doing = bool(item) and TR._is_doing(item)
     ok_scene = TR._scene_ok(tid, sid)
-    check("{}：{} 正在做".format(tag, tid), ok_doing,
+    check(f"{tag}：{tid} 正在做", ok_doing,
           (item or {}).get("state"))
-    check("{}：{} 属于街区 {}".format(tag, tid, sid), ok_scene,
+    check(f"{tag}：{tid} 属于街区 {sid}", ok_scene,
           (gamedata.story_task(tid) or {}).get("GuideSceneId"))
 
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -178,7 +178,7 @@ def run():
 
     print()
     print("=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

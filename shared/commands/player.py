@@ -12,16 +12,16 @@ def cmd_help(ctx, target, *args):
     if args:
         cmd = lookup(args[0])
         if cmd is None:
-            return err("没有命令「{}」".format(args[0]), chat="✗ 没有命令 {}".format(args[0]))
+            return err(f"没有命令「{args[0]}」", chat=f"✗ 没有命令 {args[0]}")
         lines = [
-            "/{} {}".format(cmd.name, cmd.args),
-            "  {}".format(cmd.desc),
+            f"/{cmd.name} {cmd.args}",
+            f"  {cmd.desc}",
             "  权限: {}{}".format(PERM_NAMES.get(cmd.perm, "?"),
                             "" if cmd.implemented else "   [尚未实现]"),
         ]
         if cmd.aliases:
             lines.append("  别名: {}".format("、".join("/" + a for a in cmd.aliases)))
-        return ok(lines, chat="看 {}: {}".format(cmd.name, cmd.desc))
+        return ok(lines, chat=f"看 {cmd.name}: {cmd.desc}")
 
     groups = {}
     for cmd in COMMANDS.values():
@@ -34,15 +34,15 @@ def cmd_help(ctx, target, *args):
     for gname in names:
         if gname not in groups:
             continue
-        lines.append("【{}】".format(gname))
+        lines.append(f"【{gname}】")
         for cmd in sorted(groups[gname], key=lambda c: c.name):
             mark = "" if cmd.implemented else "  (未实现)"
-            lines.append("  /{} {}{}".format(_pad(cmd.name, 9), _pad(cmd.args, 30), cmd.desc + mark))
+            lines.append(f"  /{_pad(cmd.name, 9)} {_pad(cmd.args, 30)}{cmd.desc + mark}")
         lines.append("")
     lines.append("语法：/命令 <target> <参数>，target 用 @ 表示自己")
     lines.append("同名条目默认取「可用」的那条（可玩角色 / 给角色的物品）；")
     lines.append("加 --allow-unavailables 可取消该规则，改为返回全部候选。")
-    chat = '共 {} 条命令，网页 /admin/command 查看完整列表'.format(len(COMMANDS))
+    chat = f'共 {len(COMMANDS)} 条命令，网页 /admin/command 查看完整列表'
     return ok(lines, chat=chat)
 
 
@@ -54,14 +54,14 @@ def cmd_who(ctx, target, *args):
     rows = db.list_game_online()
     if not rows:
         return ok(["当前没有游戏内在线玩家。"], chat="在线 0 人")
-    lines = ['在线 {} 人：'.format(len(rows))]
+    lines = [f'在线 {len(rows)} 人：']
     for r in rows:
         name = r.get("username") or "?"
         perm = PERM_NAMES.get(int(r.get("perm_level") or 0), "?")
         uid = r.get("uid") or "-"
         addr = r.get("addr") or "-"
         since = time.strftime("%m-%d %H:%M", time.localtime(int(r.get("since_ts") or 0)))
-        lines.append('  {:<16} {:<8} uid={:<12} {}  上线 {}'.format(name, perm, uid, addr, since))
+        lines.append(f'  {name:<16} {perm:<8} uid={uid:<12} {addr}  上线 {since}')
     chat = '在线 {} 人: {}'.format(len(rows), " ".join(r.get("username") or "?" for r in rows[:4]))
     return ok(lines, chat=chat)
 
@@ -86,20 +86,20 @@ def cmd_search(ctx, target, *args):
     chars = gamedata.search_chars(keyword)
     total = len(items) + len(chars)
     if total == 0:
-        return err("没有匹配「{}」的物品或角色".format(keyword),
-                   chat="✗ 没有匹配 {}".format(keyword))
+        return err(f"没有匹配「{keyword}」的物品或角色",
+                   chat=f"✗ 没有匹配 {keyword}")
 
-    lines = ['搜「{}」：物品 {} 条，角色 {} 条'.format(keyword, len(items), len(chars))]
+    lines = [f'搜「{keyword}」：物品 {len(items)} 条，角色 {len(chars)} 条']
 
     if chars:
         lines.append("")
-        lines.append('角色 ({})'.format(len(chars)))
+        lines.append(f'角色 ({len(chars)})')
         for ch in chars[:20]:
             lines.append('  {:<7d} {} {:<8} {}星  {}'.format(ch["id"], _pad(gamedata.tier_name(ch), 4), ch["name"], ch.get("grade") or "-", ch.get("area") or ""))
 
     if items:
         lines.append("")
-        lines.append('物品 ({})'.format(len(items)))
+        lines.append(f'物品 ({len(items)})')
         for it in items[:30]:
             lines.append('  {:<7d} {} {:<20} type={} quality={}'.format(it["id"], _pad(gamedata.tier_name(it), 4), it["name"], it.get("type"), it.get("quality")))
 
@@ -109,11 +109,11 @@ def cmd_search(ctx, target, *args):
     start = (page - 1) * PAGE_SIZE
     chunk = flat[start:start + PAGE_SIZE]
     if not chunk:
-        return ok(lines, chat='共 {} 条，没有第 {} 页'.format(total, page))
-    parts = ['{}{}'.format(cid, name) for _, cid, name in chunk]
+        return ok(lines, chat=f'共 {total} 条，没有第 {page} 页')
+    parts = [f'{cid}{name}' for _, cid, name in chunk]
     chat = '共{}条 {}-{}: {}'.format(total, start + 1, start + len(chunk), " ".join(parts))
     if len(flat) > start + PAGE_SIZE:
-        chat += '  /search {} {}'.format(keyword, page + 1)
+        chat += f'  /search {keyword} {page + 1}'
     return ok(lines, chat=chat, data={"total": total, "page": page})
 
 
@@ -123,7 +123,7 @@ def cmd_search(ctx, target, *args):
 def cmd_account(ctx, target, *args):
     acc = db.get_account_by_username(target)
     if not acc:
-        return err("找不到账号「{}」".format(target), chat="✗ 找不到账号 {}".format(target))
+        return err(f"找不到账号「{target}」", chat=f"✗ 找不到账号 {target}")
 
     sub = (args[0].lower() if args else "info")
 
@@ -131,7 +131,7 @@ def cmd_account(ctx, target, *args):
         if ctx.perm < PERM_ADMIN:
             return err("只有管理员能改权限", chat="✗ 需要管理员权限")
         if len(args) < 2:
-            return err("用法：/account {} perm <0|1|2>".format(target),
+            return err(f"用法：/account {target} perm <0|1|2>",
                        chat="✗ 用法: /account 名 perm 0|1|2")
         try:
             level = int(args[1])
@@ -140,8 +140,8 @@ def cmd_account(ctx, target, *args):
         if level not in PERM_NAMES:
             return err("权限等级必须是 0 / 1 / 2", chat="✗ 权限要是 0/1/2")
         db.set_perm_level(target, level)
-        return ok(['已把「{}」的权限设为 {}（{}）'.format(target, level, PERM_NAMES[level])],
-                  chat="✓ {} -> {}".format(target, PERM_NAMES[level]))
+        return ok([f'已把「{target}」的权限设为 {level}（{PERM_NAMES[level]}）'],
+                  chat=f"✓ {target} -> {PERM_NAMES[level]}")
 
     perm = int(acc.get("perm_level") or 0)
     lines = [
@@ -165,7 +165,7 @@ def cmd_server(ctx, target, *args):
     lines = [
         '服务器：{}'.format(ctx.server_name or "OpenOrange"),
         '账号：{}'.format(st.get("accounts", 0)),
-        '在线：{}'.format(online),
+        f'在线：{online}',
         '票据：{}'.format(st.get("tickets", 0)),
         '物品索引：{} 条'.format(gs["items"]),
         '角色索引：{} 条'.format(gs["chars"]),

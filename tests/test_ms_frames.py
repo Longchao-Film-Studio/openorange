@@ -42,7 +42,7 @@ def call(name, fn, *args, **kw):
     try:
         out = fn(*args, **kw)
     except Exception as e:
-        check(name + " 不抛异常", False, "{}: {}".format(type(e).__name__, e))
+        check(name + " 不抛异常", False, f"{type(e).__name__}: {e}")
         return None
     check(name + " 不抛异常", True)
     check(name + " 返回非空 bytes", isinstance(out, bytes) and len(out) > 0,
@@ -63,7 +63,7 @@ def run():
     for v in (1, -1, 3.5, True, "s", [1, 2], {"a": 1}):
         enc = msmod.mp_any(v)
         dec, used = msmod.mp_decode(enc)
-        check("msgpack 往返 {!r}".format(v), dec == v and used == len(enc),
+        check(f"msgpack 往返 {v!r}", dec == v and used == len(enc),
               (dec, used, len(enc)))
     check("mp_map 往返", msmod.mp_decode(msmod.mp_map({"a": 1}))[0] == {"a": 1})
     check("mp_arr 往返", msmod.mp_decode(msmod.mp_arr([1, "x"]))[0] == [1, "x"])
@@ -173,7 +173,7 @@ def run():
         pass
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

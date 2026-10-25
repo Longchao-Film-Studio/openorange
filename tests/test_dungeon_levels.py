@@ -121,8 +121,8 @@ def run():
     for bad in (0, 99, -1):
         frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                              msmod.mp_arr([bad]), 4, uid="dglv_a")
-        check('copyIndex={} 不抛异常'.format(bad), isinstance(frames, list), frames)
-        check('copyIndex={} 不改当前关卡'.format(bad),
+        check(f'copyIndex={bad} 不抛异常', isinstance(frames, list), frames)
+        check(f'copyIndex={bad} 不改当前关卡',
               st.props.get("_oo_cur_level") == 50003, st.props.get("_oo_cur_level"))
     frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                          msmod.mp_arr(["x"]), 5, uid="dglv_a")
@@ -177,7 +177,7 @@ def run():
     check("结算的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 if __name__ == "__main__":

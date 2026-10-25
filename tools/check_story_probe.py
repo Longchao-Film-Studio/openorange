@@ -34,10 +34,10 @@ def main():
     print("=" * 60)
     text = read_log(LOG)
     if text is None:
-        print("找不到注入日志：{}".format(LOG))
+        print(f"找不到注入日志：{LOG}")
         return 2
     lines = text.split(chr(10))
-    print('日志行数：{}'.format(len(lines)))
+    print(f'日志行数：{len(lines)}')
 
     # 1) storycb 钩子
     cb_lines = [l for l in lines if "storycb|" in l]
@@ -53,7 +53,7 @@ def main():
         hits = [l for l in cb_lines if "次触发" in l]
         reports = [l for l in cb_lines if "报告：" in l]
         print('    钩子安装：{}'.format("[OK]" if installed else "[X]"))
-        print('    触发次数：{} 条触发日志'.format(len(hits)))
+        print(f'    触发次数：{len(hits)} 条触发日志')
         for l in hits[:8]:
             print("      " + l.split("storycb|", 1)[1].strip()[:100])
         print("    汇报行：")
@@ -82,7 +82,7 @@ def main():
         n = sum(1 for l in lines if kw in l)
         if n:
             found_any = True
-            print('    {:<12} {:d} 条'.format(name, n))
+            print(f'    {name:<12} {n:d} 条')
     if not found_any:
         print("    日志里没有服务端剧情日志（注入日志只记客户端，服务端日志在控制台）")
 

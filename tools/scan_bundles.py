@@ -63,7 +63,7 @@ def main():
                 files.append((sz, fp))
     files.sort()
 
-    print('待扫 {} 个包'.format(len(files)), flush=True)
+    print(f'待扫 {len(files)} 个包', flush=True)
     t0 = time.time()
     allc = {}
     hits = 0
@@ -77,12 +77,12 @@ def main():
             for c, t in conts:
                 if any(k in c.lower() for k in kws):
                     hits += 1
-                    print('  *** {:<28} {:<18} {}'.format(os.path.basename(fp), t, c), flush=True)
+                    print(f'  *** {os.path.basename(fp):<28} {t:<18} {c}', flush=True)
         if (i + 1) % 50 == 0:
             el = time.time() - t0
-            print('  ...{:d}/{:d}  用时 {:.0f}s  已收 {:d} 条路径  命中 {:d}'.format(i + 1, len(files), el, sum(len(v) for v in allc.values()), hits), flush=True)
+            print(f'  ...{i + 1:d}/{len(files):d}  用时 {el:.0f}s  已收 {sum(len(v) for v in allc.values()):d} 条路径  命中 {hits:d}', flush=True)
 
-    print('完成：{:d} 个包，用时 {:.0f}s，路径 {:d} 条，命中 {:d}'.format(len(files), time.time() - t0, sum(len(v) for v in allc.values()), hits), flush=True)
+    print(f'完成：{len(files):d} 个包，用时 {time.time() - t0:.0f}s，路径 {sum(len(v) for v in allc.values()):d} 条，命中 {hits:d}', flush=True)
     if args.dump:
         with open(args.dump, "w", encoding="utf-8") as f:
             json.dump(allc, f, ensure_ascii=False, indent=1)

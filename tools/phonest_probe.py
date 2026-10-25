@@ -132,7 +132,7 @@ def start_server(port, cap):
                 if not d:
                     break
                 cap.append(d)
-                print('  [srv] RX {:2d} B  {}'.format(len(d), d.hex()), flush=True)
+                print(f'  [srv] RX {len(d):2d} B  {d.hex()}', flush=True)
         except Exception:
             pass
 
@@ -153,13 +153,13 @@ def main():
     ph = Phonest(args.xlua)
     ph.run("phonestcore.startIO(1)", "startIO")
     ph.run("C = phonestcore.newClient(phonestcore.ConTypeTcp)", "newClient")
-    ph.run("C:startClient('127.0.0.1', {}, phonestcore.HandlerTypeMsGateClient, 'HID', 'S', 'F')".format(args.port), "startClient")
+    ph.run(f"C:startClient('127.0.0.1', {args.port}, phonestcore.HandlerTypeMsGateClient, 'HID', 'S', 'F')", "startClient")
     ph.pump(40)
 
-    print('[probe] 已连接，抓包 {} 个'.format(len(cap)), flush=True)
-    ph.run("pcall(function() COBJ:dispatchRpc({!r}, 'A') end)".format(args.rpc), "dispatch")
+    print(f'[probe] 已连接，抓包 {len(cap)} 个', flush=True)
+    ph.run(f"pcall(function() COBJ:dispatchRpc({args.rpc!r}, 'A') end)", "dispatch")
     ph.pump(20)
-    print('[probe] dispatch 后抓包: {}'.format([x.hex() for x in cap]), flush=True)
+    print(f'[probe] dispatch 后抓包: {[x.hex() for x in cap]}', flush=True)
 
     if args.mode == "fuzz":
         trials = [
@@ -168,11 +168,11 @@ def main():
             ("len2+0000",  bytes.fromhex("020000000000")),
         ]
         for label, payload in trials:
-            print("[probe] 发送 {}: {}".format(label, payload.hex()), flush=True)
+            print(f"[probe] 发送 {label}: {payload.hex()}", flush=True)
             try:
                 holder["conn"].sendall(payload)
             except Exception as e:
-                print("  发送失败: {}".format(e), flush=True)
+                print(f"  发送失败: {e}", flush=True)
             ph.pump(25)
             ph.run(r"""
 local n = #CALLED

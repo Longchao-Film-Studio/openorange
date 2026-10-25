@@ -39,7 +39,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -95,13 +95,13 @@ def t1():
     ch = (bag2.get(cid) or bag2.get(str(cid)) or {}) if isinstance(bag2, dict) else {}
     level_after = int(ch.get("CharLevel") or 1)
     check("T1.level 增量>=1", level_after > level_before,
-          "before={} after={}".format(level_before, level_after))
+          f"before={level_before} after={level_after}")
     if iid and item_before is not None:
         ib2 = st2.get("item_bag") or {}
         it2 = ib2.get(iid) or ib2.get(int(iid)) or {}
         item_after = int(it2.get("num") or 0)
         check("T1.items 道具被扣", item_after < item_before,
-              "before={} after={}".format(item_before, item_after))
+              f"before={item_before} after={item_after}")
     s = str(resp_of(ret))
     check("T6 应答含 status", "status" in s, s[:120])
 
@@ -187,8 +187,8 @@ def main():
     EXPECTED_RED = set()
     unexpected = [f for f in failed if f not in EXPECTED_RED]
     red = [f for f in failed if f in EXPECTED_RED]
-    print('=== 结果: PASS={} FAIL={} ==='.format(len(passed), len(unexpected)))
-    print('通过 {} 项，失败 {} 项（另有 {} 项预期红，为审计实锤缺口，修复前属结论本身）'.format(len(passed), len(unexpected), len(red)))
+    print(f'=== 结果: PASS={len(passed)} FAIL={len(unexpected)} ===')
+    print(f'通过 {len(passed)} 项，失败 {len(unexpected)} 项（另有 {len(red)} 项预期红，为审计实锤缺口，修复前属结论本身）')
     for f in red:
         print("  预期红(待修):", f)
     for f in unexpected:

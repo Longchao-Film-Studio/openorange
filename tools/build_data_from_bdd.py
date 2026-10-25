@@ -50,7 +50,7 @@ def item_tier(item_type, use_type):
 
 
 def load(bdd_dir, name):
-    path = os.path.join(bdd_dir, "TableData.CommonData.{}.json".format(name))
+    path = os.path.join(bdd_dir, f"TableData.CommonData.{name}.json")
     if not os.path.exists(path):
         return None
     with open(path, "r", encoding="utf-8") as f:

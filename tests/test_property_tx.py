@@ -236,7 +236,7 @@ def run():
                     ("CharShownList", "int"),
                     ("EndlessRankInfoRecordList", "int")):
         got = spec.key_kind(t)
-        check("{} -> {}".format(t, want), got == want, got)
+        check(f"{t} -> {want}", got == want, got)
     check("ItemBag 仍是 str 键", spec.key_kind("ItemBag") == "str")
     check("StoryTaskBag 仍是 int 键", spec.key_kind("StoryTaskBag") == "int")
 
@@ -265,7 +265,7 @@ def run():
         check("生成器存在", False, _gen)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

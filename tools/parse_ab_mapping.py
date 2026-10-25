@@ -117,7 +117,7 @@ def load(tag):
         bundles = parse_ab_mapping(ab) if os.path.exists(ab) else {}
         packs = parse_big_pack(bp) if os.path.exists(bp) else []
         return bundles, packs
-    raise SystemExit("未知清单: {}".format(tag))
+    raise SystemExit(f"未知清单: {tag}")
 
 
 def cmd_stats(_argv):
@@ -125,10 +125,10 @@ def cmd_stats(_argv):
         bundles, packs = load(tag)
         n_paths = sum(len(v) for v in bundles.values())
         dabs = [f for f in os.listdir(d) if f.lower().endswith(".dab")] if os.path.isdir(d) else []
-        print("== {} ({})".format(tag, d))
-        print('   资源包 {} 个，资源路径 {} 条'.format(len(bundles), n_paths))
-        print('   big_pack_info 名字 {} 个（含包名与大包名）'.format(len(packs)))
-        print('   盘上 .dab 大包 {} 个'.format(len(dabs)))
+        print(f"== {tag} ({d})")
+        print(f'   资源包 {len(bundles)} 个，资源路径 {n_paths} 条')
+        print(f'   big_pack_info 名字 {len(packs)} 个（含包名与大包名）')
+        print(f'   盘上 .dab 大包 {len(dabs)} 个')
 
 
 def cmd_lookup(argv):
@@ -136,12 +136,12 @@ def cmd_lookup(argv):
         raise SystemExit("用法: parse_ab_mapping.py lookup <关键字> [关键字 ...]")
     for tag, _d in SOURCES:
         bundles, _packs = load(tag)
-        print("== {}".format(tag))
+        print(f"== {tag}")
         for kw in argv:
             hits = [(b, a) for b, ps in bundles.items() for a in ps if kw.lower() in a.lower()]
-            print('   关键字 {:<20} 命中 {:d}'.format(kw, len(hits)))
+            print(f'   关键字 {kw:<20} 命中 {len(hits):d}')
             for b, a in hits[:10]:
-                print("      {}  <-  {}".format(b, a))
+                print(f"      {b}  <-  {a}")
 
 
 def cmd_scene(argv):
@@ -158,11 +158,11 @@ def cmd_scene(argv):
         raise SystemExit("用法: parse_ab_mapping.py scene <场景名> [...]")
     bundles, _packs = load("patch")
     all_paths = [a for ps in bundles.values() for a in ps]
-    print('清单：patch（{} 条资源路径）'.format(len(all_paths)))
+    print(f'清单：patch（{len(all_paths)} 条资源路径）')
     for name in argv:
         seg = "/" + name + "/"
         hits = [a for a in all_paths if seg in ("/" + a)]
-        print('   {:<24} {}'.format(name, '有资源目录（{} 条）'.format(len(hits)) if hits else "★ 清单里没有"))
+        print('   {:<24} {}'.format(name, f'有资源目录（{len(hits)} 条）' if hits else "★ 清单里没有"))
 
 
 def main():

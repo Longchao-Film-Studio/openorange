@@ -93,7 +93,7 @@ def _use_item(rid, params, uid=None):
         except (TypeError, ValueError):
             is_unlocked = True
         if not is_unlocked:
-            print("[bag] 道具 {} 需要 system {}（未解锁，放行留痕）".format(item_id, need_sys), flush=True)
+            print(f"[bag] 道具 {item_id} 需要 system {need_sys}（未解锁，放行留痕）", flush=True)
 
     # ---- 1) 扣数量 ----
     grid["num"] = old_num - count
@@ -162,7 +162,7 @@ def _apply_item_effect(st, item_id, count):
                 out.append((stamina_mod.PROP_TOTAL, st.props.get(stamina_mod.PROP_TOTAL)))
                 continue
             except Exception as e:
-                _log.warning("[item] 体力加算失败: {}".format(e))
+                _log.warning(f"[item] 体力加算失败: {e}")
         cur = st.props.get(prop)
         if not isinstance(cur, (int, float)):
             continue
@@ -234,7 +234,7 @@ def _submit_item(rid, params, uid=None):
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         syncs.extend(_finish_story_tasks(st, nxt, source="event") or [])
-    print("[story] 提交道具 submit_id={} item={} x{} 需求={}".format(submit_id, item_id, count, item_ids), flush=True)
+    print(f"[story] 提交道具 submit_id={submit_id} item={item_id} x{count} 需求={item_ids}", flush=True)
     st.save()
     return respond_after_sync(rid, syncs)
 
@@ -289,7 +289,7 @@ def _record_item_obtain(rid, params, uid=None):
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         syncs.extend(_finish_story_tasks(st, nxt) or [])
-    _log.info("[story] 获得道具 {} x{}".format(item_id, count))
+    _log.info(f"[story] 获得道具 {item_id} x{count}")
     st.save()
     return respond_after_sync(rid, syncs)
 

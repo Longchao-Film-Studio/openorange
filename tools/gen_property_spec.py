@@ -201,7 +201,7 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(CONFIG_LUA):
-        raise SystemExit("找不到 config.lua: {}".format(CONFIG_LUA))
+        raise SystemExit(f"找不到 config.lua: {CONFIG_LUA}")
     txt = open(CONFIG_LUA, encoding="utf-8", errors="replace").read()
 
     types = parse_custom_types(txt)
@@ -221,19 +221,19 @@ def main():
     dicts = sum(1 for t in types.values()
                 if not t["props"] and t["value_type"])
     print('config.lua: {} 行'.format(txt.count("\n")))
-    print('  自定义类型 {}（结构体 {} / 字典或列表 {} / 其它 {}）'.format(len(types), structs, dicts, len(types) - structs - dicts))
-    print('  AvatarProperties 属性 {}'.format(len(props)))
+    print(f'  自定义类型 {len(types)}（结构体 {structs} / 字典或列表 {dicts} / 其它 {len(types) - structs - dicts}）')
+    print(f'  AvatarProperties 属性 {len(props)}')
 
     simple = [p for p in props.values()
               if p["type"] in ("int", "double", "string", "boolean")]
-    print('    简单类型 {} / 自定义类型 {}'.format(len(simple), len(props) - len(simple)))
+    print(f'    简单类型 {len(simple)} / 自定义类型 {len(props) - len(simple)}')
 
     # 自检：属性里引用的自定义类型必须都在 Custom 里
     missing = sorted({p["type"] for p in props.values()
                       if p["type"] not in ("int", "double", "string", "boolean")
                       and p["type"] not in types})
     if missing:
-        print("  ⚠ 属性引用了但 Custom 里没有的类型: {}".format(missing))
+        print(f"  ⚠ 属性引用了但 Custom 里没有的类型: {missing}")
     else:
         print("  ✅ 属性引用的自定义类型全部存在")
 
@@ -242,9 +242,9 @@ def main():
     for tn, t in types.items():
         for f, (ft, _dv) in t["props"].items():
             if ft not in ("int", "double", "string", "boolean") and ft not in types:
-                bad_fields.append("{}.{} -> {}".format(tn, f, ft))
+                bad_fields.append(f"{tn}.{f} -> {ft}")
     if bad_fields:
-        print("  ⚠ 结构体字段引用了不存在的类型: {}".format(bad_fields[:8]))
+        print(f"  ⚠ 结构体字段引用了不存在的类型: {bad_fields[:8]}")
     else:
         print("  ✅ 结构体字段类型全部存在")
 
@@ -258,7 +258,7 @@ def main():
         # ★ 审计 P1-6：--check 必须做 diff，否则客户端版本更新后
         #   spec_data.json 会静默变旧，Tx 的 struct/container 判断跟着错。
         if not os.path.exists(OUT_JSON):
-            print("❌ {} 不存在".format(OUT_JSON))
+            print(f"❌ {OUT_JSON} 不存在")
             return 1
         with open(OUT_JSON, "r", encoding="utf-8") as f:
             old = json.load(f)
@@ -272,11 +272,11 @@ def main():
             only_b = sorted(set(b) - set(a))
             changed = sorted(k for k in (set(a) & set(b)) if a[k] != b[k])
             if only_a:
-                diffs.append('  {} 少了 {} 项: {}'.format(key, len(only_a), only_a[:5]))
+                diffs.append(f'  {key} 少了 {len(only_a)} 项: {only_a[:5]}')
             if only_b:
-                diffs.append('  {} 多了 {} 项: {}'.format(key, len(only_b), only_b[:5]))
+                diffs.append(f'  {key} 多了 {len(only_b)} 项: {only_b[:5]}')
             if changed:
-                diffs.append('  {} 变了 {} 项: {}'.format(key, len(changed), changed[:5]))
+                diffs.append(f'  {key} 变了 {len(changed)} 项: {changed[:5]}')
         if diffs:
             print("❌ spec_data.json 已过期，请重新生成：")
             for d in diffs:
@@ -288,7 +288,7 @@ def main():
     os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     with open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
-    print("写出 {}（{:.1f} KB）".format(OUT_JSON, os.path.getsize(OUT_JSON) / 1024.0))
+    print(f"写出 {OUT_JSON}（{os.path.getsize(OUT_JSON) / 1024.0:.1f} KB）")
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ def slot_holder(props, ttype):
 
 def run():
     import random
-    tag = "{:04x}".format(random.randint(0, 0xFFFF))
+    tag = f"{random.randint(0, 0xFFFF):04x}"
     U = "task_test_" + tag
     del passed[:]
     del failed[:]
@@ -95,7 +95,7 @@ def run():
     check("TaskItem __tp__", it.get("__tp__") == "TaskItem", it.get("__tp__"))
     check("state = Doing(3)", it.get("state") == 3, it.get("state"))
     for f in ("doing_targets", "finish_targets", "cache"):
-        check("嵌套字段 {} 带 __id__".format(f),
+        check(f"嵌套字段 {f} 带 __id__",
               isinstance((it.get(f) or {}).get("__id__"), int), it.get(f))
     check("task_state(1) = 3", tasks.task_state(st.props, 1) == 3)
 
@@ -142,7 +142,7 @@ def run():
     guarded_handle(erpc.RPC_INDEX["RequestDoneSomeTypeTask_CS"],
                 msmod.mp_arr([t1]), 4, uid=U)
     for tid in same:
-        check('任务 {} 已完成'.format(tid), tasks.task_state(st.props, tid) == 6,
+        check(f'任务 {tid} 已完成', tasks.task_state(st.props, tid) == 6,
               tasks.task_state(st.props, tid))
 
     print("\n[7] 未知任务不崩")
@@ -151,7 +151,7 @@ def run():
     check("返回应答帧", len(frames) >= 1, len(frames))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

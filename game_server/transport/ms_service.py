@@ -43,7 +43,7 @@ _NEVER_FAKE_OK_MS = frozenset((
 
 def unknown_ms_params(service, method, uid=None, params=None):
     """未实现微服务方法的应答参数（msgpack bytes）：记日志 + 按模式决定成败。"""
-    key = "{}.{}".format(service, method)
+    key = f"{service}.{method}"
     fake = ooconf.unknown_fake_ok() and (key not in _NEVER_FAKE_OK_MS)
     _ulog.record("ms", key, uid=uid, params=params, fake_ok=fake,
                  reply="ack" if fake else "fail")
@@ -55,8 +55,8 @@ def unknown_ms_params(service, method, uid=None, params=None):
 def handle_ms(conn, addr, cid):
     """微服务连接：解析请求帧并回 MsResponse。"""
     t0 = time.time()
-    cap_path = os.path.join(CAPTURE_DIR, 'ms_{:03d}_{}.bin'.format(cid, addr[1]))
-    _log.info('[ms] #{:03d} OPEN from {}:{:d}'.format(cid, addr[0], addr[1]))
+    cap_path = os.path.join(CAPTURE_DIR, f'ms_{cid:03d}_{addr[1]}.bin')
+    _log.info(f'[ms] #{cid:03d} OPEN from {addr[0]}:{addr[1]:d}')
     f = None
     try:
         f = open(cap_path, "wb")
@@ -68,15 +68,15 @@ def handle_ms(conn, addr, cid):
         while True:
             hdr = recv_exact(conn, 4)
             if hdr is None:
-                _log.info('[ms] #{:03d} peer closed'.format(cid))
+                _log.info(f'[ms] #{cid:03d} peer closed')
                 break
             ln = struct.unpack("<I", hdr)[0]
             if ln <= 0 or ln > 1 << 20:
-                _log.info('[ms] #{:03d} bad length {:d}'.format(cid, ln))
+                _log.info(f'[ms] #{cid:03d} bad length {ln:d}')
                 break
             payload = recv_exact(conn, ln)
             if payload is None:
-                _log.info('[ms] #{:03d} truncated payload'.format(cid))
+                _log.info(f'[ms] #{cid:03d} truncated payload')
                 break
 
             mtype = struct.unpack("<H", payload[:2])[0]
@@ -91,7 +91,7 @@ def handle_ms(conn, addr, cid):
             try:
                 fields = msmod.pb_parse(body)
             except Exception as e:
-                _log.warning('[ms] #{:03d} protobuf parse failed: {}'.format(cid, e))
+                _log.warning(f'[ms] #{cid:03d} protobuf parse failed: {e}')
                 _log.info(maybe_hexdump(payload, limit=256))
                 continue
 
@@ -104,7 +104,7 @@ def handle_ms(conn, addr, cid):
             except Exception:
                 pass
 
-            print('[ms] #{:03d} RX type={:d} seq={} service={} method={}  ({:d} B)'.format(cid, mtype, seq, service, method, len(payload)), flush=True)
+            print(f'[ms] #{cid:03d} RX type={mtype:d} seq={seq} service={service} method={method}  ({len(payload):d} B)', flush=True)
             _log.info(maybe_hexdump(payload, limit=256))
 
             # 按方法名区分负载：
@@ -130,7 +130,7 @@ def handle_ms(conn, addr, cid):
                     try:
                         _req = msmod.mp_decode(fields[4][0])[0]
                     except Exception as _e:
-                        print('[ms] #{:03d} batchGetAttribute 参数解析失败: {}'.format(cid, _e), flush=True)
+                        print(f'[ms] #{cid:03d} batchGetAttribute 参数解析失败: {_e}', flush=True)
                         _req = []
                 params = msmod.build_userdata_batch_params(_req)
                 print('[ms] #{:03d}    -> 回 {:d} 条 Results'.format(cid, len(msmod.mp_decode(params)[0].get("Results", []))),
@@ -164,12 +164,12 @@ def handle_ms(conn, addr, cid):
             pkt = msmod.frame_ms_response(seq, params, service)
             try:
                 conn.sendall(pkt)
-                print('[ms] #{:03d} TX MsResponse type=3 rid={} service={} method={} ({:d} B)'.format(cid, seq, service, method, len(pkt)), flush=True)
+                print(f'[ms] #{cid:03d} TX MsResponse type=3 rid={seq} service={service} method={method} ({len(pkt):d} B)', flush=True)
             except Exception as e:
-                _log.warning('[ms] #{:03d} send failed: {}'.format(cid, e))
+                _log.warning(f'[ms] #{cid:03d} send failed: {e}')
 
     except Exception as e:
-        _log.warning('[ms] #{:03d} error: {}'.format(cid, e))
+        _log.warning(f'[ms] #{cid:03d} error: {e}')
     finally:
         try:
             conn.close()
@@ -180,5 +180,5 @@ def handle_ms(conn, addr, cid):
                 f.close()
             except Exception:
                 pass
-        print('[ms] #{:03d} CLOSE after {:d}ms'.format(cid, int((time.time() - t0) * 1000)),
+        print(f'[ms] #{cid:03d} CLOSE after {int((time.time() - t0) * 1000):d}ms',
               flush=True)

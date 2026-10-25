@@ -97,7 +97,7 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
     st.set("street_info", si)
     if save:
         st.save()
-    _log.info("[street] 声望 +{} -> level={} exp={}".format(add, lv, exp))
+    _log.info(f"[street] 声望 +{add} -> level={lv} exp={exp}")
     frames.extend(_prestige_push(st, si, street_id, entry, is_new))
     return frames
 
@@ -137,7 +137,7 @@ def _get_prestige_award(rid, params, uid=None):
     entry["prestige_awarded"][level] = 1
     st.set("street_info", si)
     st.save()
-    _log.info("[street] 领声望奖励 street={} level={}".format(street_id, level))
+    _log.info(f"[street] 领声望奖励 street={street_id} level={level}")
     syncs = _prestige_push(st, si, sid, entry, _is_new)
     return respond_after_sync(rid, syncs)
 
@@ -158,6 +158,6 @@ def _get_prestige_task_award(rid, params, uid=None):
     entry["prestige_tasks"][task_id] = 1
     st.set("street_info", si)
     st.save()
-    _log.info("[street] 领声望任务奖励 street={} task={}".format(street_id, task_id))
+    _log.info(f"[street] 领声望任务奖励 street={street_id} task={task_id}")
     syncs = _prestige_push(st, si, sid, entry, _is_new)
     return respond_after_sync(rid, syncs)

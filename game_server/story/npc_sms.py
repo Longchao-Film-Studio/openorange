@@ -199,7 +199,7 @@ def unlock_for_task(st, task_id, source="task"):
             cfg = _topic_cfg(tid) or {}
             chat_id = _chat_id_of(cfg)
             frames.extend(unlock_topic(st, chat_id, tid,
-                                       source="{}:task{}".format(source, task_id)))
+                                       source=f"{source}:task{task_id}"))
         return frames
     except Exception as e:
         _log.warning("[sms] 任务 %s 短信解锁失败: %s", task_id, e)

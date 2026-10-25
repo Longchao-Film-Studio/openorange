@@ -37,7 +37,7 @@ _WARNED = set()
 
 
 def _path(name):
-    return os.path.join(config.BDD_DIR, "TableData.CommonData.{}.json".format(name))
+    return os.path.join(config.BDD_DIR, f"TableData.CommonData.{name}.json")
 
 
 def table(name):
@@ -54,11 +54,11 @@ def table(name):
             except Exception as e:
                 if name not in _WARNED:
                     _WARNED.add(name)
-                    _log.warning("[data] {} 读取失败: {}".format(name, e))
+                    _log.warning(f"[data] {name} 读取失败: {e}")
         else:
             if "dir" not in _WARNED:
                 _WARNED.add("dir")
-                print("[data] 警告：找不到 BDD 目录 {} —— 道具效果/体力恢复等规则不可用。".format(config.BDD_DIR), flush=True)
+                print(f"[data] 警告：找不到 BDD 目录 {config.BDD_DIR} —— 道具效果/体力恢复等规则不可用。", flush=True)
         _CACHE[name] = data
         return data
 

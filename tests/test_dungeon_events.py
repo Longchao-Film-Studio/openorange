@@ -57,16 +57,16 @@ EVENT = 5009
 
 def run():
     print("\n[0] BDD 前提校验")
-    check("副本 {} 存在".format(COPY), bool(gamedata.level_copy(COPY)))
-    check('副本 {} -> areaid {}（MainlineData）'.format(COPY, AREA),
+    check(f"副本 {COPY} 存在", bool(gamedata.level_copy(COPY)))
+    check(f'副本 {COPY} -> areaid {AREA}（MainlineData）',
           gamedata.area_of_copy(COPY) == AREA,
           gamedata.area_of_copy(COPY))
     ev = gamedata.task_event(EVENT) or {}
-    check('事件 {:d} 是 FinishDungeon{{typeId:1000, areaid:{:d}}}'.format(EVENT, AREA),
+    check(f'事件 {EVENT:d} 是 FinishDungeon{{typeId:1000, areaid:{AREA:d}}}',
           ev.get("EventType") == "FinishDungeon"
           and (ev.get("EventParam") or {}).get("areaid") == AREA, ev)
     st_cfg = gamedata.story_task(TASK) or {}
-    check('任务 {} 是 TaskType 3'.format(TASK), st_cfg.get("TaskType") == 3,
+    check(f'任务 {TASK} 是 TaskType 3', st_cfg.get("TaskType") == 3,
           st_cfg.get("TaskType"))
 
     print("\n[1] 进副本时记下关卡和区域")
@@ -76,10 +76,10 @@ def run():
     guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                 msmod.mp_arr([{"copyId": COPY, "system_type": 1000, "modeId": 1}]),
                 1, uid="dgev_a")
-    check("_oo_cur_copy = {}".format(COPY), st.props.get("_oo_cur_copy") == COPY)
-    check('_oo_cur_level = {}'.format(LEVEL),
+    check(f"_oo_cur_copy = {COPY}", st.props.get("_oo_cur_copy") == COPY)
+    check(f'_oo_cur_level = {LEVEL}',
           st.props.get("_oo_cur_level") == LEVEL, st.props.get("_oo_cur_level"))
-    check('_oo_cur_area = {}'.format(AREA),
+    check(f'_oo_cur_area = {AREA}',
           st.props.get("_oo_cur_area") == AREA, st.props.get("_oo_cur_area"))
 
     print("\n[2] 战斗中激活教学 -> 记下 instructionid")
@@ -94,18 +94,18 @@ def run():
             "dgev_a": {"win": True, "battle_items": {}}}
     guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                 msmod.mp_arr([info]), 3, uid="dgev_a")
-    check('任务 {} = Finished'.format(TASK),
+    check(f'任务 {TASK} = Finished',
           story.story_state(st.props, TASK) == story.TASK_STATE_FINISHED,
           story.story_state(st.props, TASK))
 
     print("\n[4] 首通记录 + 上下文清理")
-    check('_oo_cleared_levels 记下了 {}'.format(LEVEL),
+    check(f'_oo_cleared_levels 记下了 {LEVEL}',
           isinstance(st.props.get("_oo_cleared_levels"), dict)
           and str(LEVEL) in st.props["_oo_cleared_levels"],
           st.props.get("_oo_cleared_levels"))
     for k in ("_oo_cur_copy", "_oo_cur_match", "_oo_cur_level",
               "_oo_cur_area", "_oo_cur_teach"):
-        check("{} 已清".format(k), k not in st.props)
+        check(f"{k} 已清", k not in st.props)
 
     print("\n[5] 第二次通关不再是 first_pass")
     st2 = fresh("dgev_b")
@@ -203,10 +203,10 @@ def run():
                           7, uid="dgev_ssm")
     check("返回 1 帧", len(frames5) == 1, len(frames5))
     check("是应答帧", b"__rpc_response__" in frames5[0])
-    check("copyId 从 MainlineData 取到 {}".format(want_copy),
+    check(f"copyId 从 MainlineData 取到 {want_copy}",
           st5.props.get("_oo_cur_copy") == want_copy,
           st5.props.get("_oo_cur_copy"))
-    check("areaid = {}".format(area_id), st5.props.get("_oo_cur_area") == area_id,
+    check(f"areaid = {area_id}", st5.props.get("_oo_cur_area") == area_id,
           st5.props.get("_oo_cur_area"))
     check("level 用副本首关",
           st5.props.get("_oo_cur_level") ==
@@ -229,7 +229,7 @@ def run():
                       ("dgarea_arcade_12", 10312),
                       ("dgarea_arcade_13", 10313)):
         got = _gd.area_of_copy(cid)
-        check('{} -> areaid {}（不是别人的）'.format(cid, want),
+        check(f'{cid} -> areaid {want}（不是别人的）',
               got == want, got)
     check("arcade_04 仍是 10304", _gd.area_of_copy("dgarea_arcade_04") == 10304)
     check("MainlineData 里没有的副本返回 None",
@@ -237,7 +237,7 @@ def run():
           _gd.area_of_copy("guide_01"))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

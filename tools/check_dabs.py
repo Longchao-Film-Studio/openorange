@@ -45,14 +45,14 @@ def scan_dir(d, quiet=False):
                     head = f.read(8)
                 size = os.path.getsize(p)
             except OSError as e:
-                bad.append((p, "读失败: {}".format(e)))
+                bad.append((p, f"读失败: {e}"))
                 continue
             if head.startswith(UNITYFS):
                 good += 1
             elif head == ZEROS:
-                bad.append((p, '全零空壳 {} B'.format(size)))
+                bad.append((p, f'全零空壳 {size} B'))
             else:
-                bad.append((p, '未知头 {} {} B'.format(head.hex(), size)))
+                bad.append((p, f'未知头 {head.hex()} {size} B'))
     return total, good, bad
 
 
@@ -67,24 +67,24 @@ def main():
     all_bad = []
     for d in targets:
         if not os.path.isdir(d):
-            print("跳过（不存在）: {}".format(d))
+            print(f"跳过（不存在）: {d}")
             continue
-        print("扫描 {}".format(d))
+        print(f"扫描 {d}")
         total, good, bad = scan_dir(d, args.quiet)
-        print('  共 {} 个 .dab，正常 {}，异常 {}'.format(total, good, len(bad)))
+        print(f'  共 {total} 个 .dab，正常 {good}，异常 {len(bad)}')
         grand_total += total
         grand_good += good
         all_bad.extend(bad)
 
     print()
     print("=" * 60)
-    print('合计: {} 个 .dab，正常 {}，异常 {}'.format(grand_total, grand_good, len(all_bad)))
+    print(f'合计: {grand_total} 个 .dab，正常 {grand_good}，异常 {len(all_bad)}')
     if all_bad:
         print()
         print("异常文件清单:")
         for p, why in all_bad:
-            print("  {}".format(p))
-            print("     {}".format(why))
+            print(f"  {p}")
+            print(f"     {why}")
         print()
         print("修复：用整合包里的同名文件替换，或")
         print("      python tools/extract_patch_dabs.py <zip> --install")

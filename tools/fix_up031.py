@@ -183,8 +183,7 @@ def main():
         files += 1
         if apply:
             open(path, "w", encoding="utf-8", newline=chr(10)).write(new_src)
-    print("ruff {} / 转换 {} / 文件 {} / 跳过 {} / apply={}".format(
-        total, done, files, skipped, apply))
+    print(f"ruff {total} / 转换 {done} / 文件 {files} / 跳过 {skipped} / apply={apply}")
 
 
 if __name__ == "__main__":

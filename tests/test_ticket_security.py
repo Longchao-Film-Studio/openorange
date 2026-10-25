@@ -84,7 +84,7 @@ def run():
           (ratelimit.CHAT_MAX, ratelimit.CHAT_WINDOW))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

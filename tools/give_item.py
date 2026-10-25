@@ -122,10 +122,10 @@ def main():
         raise SystemExit("--num 必须 > 0")
 
     props, src = load_props(args.uid)
-    print('来源: {}（属性 {} 条）'.format(src, len(props)))
+    print(f'来源: {src}（属性 {len(props)} 条）')
 
     key, total, how = give(props, args.item, args.num, args.grid)
-    print('道具 {}：{} -> 格子 "{}"，当前数量 {}'.format(args.item, how, key, total))
+    print(f'道具 {args.item}：{how} -> 格子 "{key}"，当前数量 {total}')
 
     if args.dry_run:
         print("--dry-run，不写盘")
@@ -133,8 +133,8 @@ def main():
 
     st = pstate.PlayerState(uid=args.uid, props=props)
     if not st.save():
-        raise SystemExit("写盘失败: {}".format(st.path()))
-    print("已写入 {}".format(st.path()))
+        raise SystemExit(f"写盘失败: {st.path()}")
+    print(f"已写入 {st.path()}")
     print("提示：需要重新登录游戏才生效。")
     return 0
 

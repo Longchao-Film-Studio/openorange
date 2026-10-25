@@ -282,14 +282,14 @@ def seed_tasks(st, now=None, limit=400):
         cands.append(tid)
     for tid in cands:
         if seeded >= limit:
-            print('[task] 播种达到上限 {}，还剩 {} 个候选未播'.format(limit, len(cands) - seeded), flush=True)
+            print(f'[task] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播', flush=True)
             break
         ch = start_task(st, tid, now)
         if ch:
             out.extend(ch)
             seeded += 1
     if seeded:
-        print('[task] 通用任务播种：{} 个进包（候选 {} 个）'.format(seeded, len(cands)),
+        print(f'[task] 通用任务播种：{seeded} 个进包（候选 {len(cands)} 个）',
               flush=True)
     return out
 
@@ -467,7 +467,7 @@ def daily_reset(st, now=None):
         reset_types.append(tt)
     ch = seed_tasks(st, now)
     if reset_types:
-        print('[task] 跨天重置 {}，重播 {} 条同步描述'.format(list(reset_types), len(ch)), flush=True)
+        print(f'[task] 跨天重置 {list(reset_types)}，重播 {len(ch)} 条同步描述', flush=True)
     return reset_types, ch
 
 

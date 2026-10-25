@@ -126,17 +126,17 @@ def walk(S, st, chain):
             want = int(p1[0]) if p1 else None
             hits = story.street_arrival_tasks(st, want)
             if tid not in hits:
-                return walked, tid, "type4 切街到 {} 未命中".format(want)
+                return walked, tid, f"type4 切街到 {want} 未命中"
             story.finish_story_task(st, tid, NOW)
         elif t in (3, 7):
-            return walked, tid, "TaskType {} 需要玩法事件".format(t)
+            return walked, tid, f"TaskType {t} 需要玩法事件"
         walked.append(tid)
     return walked, None, None
 
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -188,7 +188,7 @@ def run():
            if story.story_state(st.props, t) != sm.TASK_STATE_FINISHED][:5])
     check("卡点就是 1102（TaskType 0，证据充分的阻塞）",
           stopped_at == 1102, (stopped_at, stop_why))
-    print('      可玩段 {} -> {} 共 {} 步；卡点 {}（{}）'.format(walked[0], walked[-1], len(walked), stopped_at, stop_why))
+    print(f'      可玩段 {walked[0]} -> {walked[-1]} 共 {len(walked)} 步；卡点 {stopped_at}（{stop_why}）')
 
     print("\n[5] 帧全部过客户端影子缓存")
     uid2 = "mlf_" + _TAG
@@ -210,7 +210,7 @@ def run():
     check("主线帧无客户端警告", not sc.warnings, sc.warnings[:2])
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

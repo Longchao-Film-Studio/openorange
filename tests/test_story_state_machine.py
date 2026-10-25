@@ -63,7 +63,7 @@ _TAG = ""
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -122,7 +122,7 @@ def desc_ids(descs):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -181,7 +181,7 @@ def run():
     print("\n[4] 非法迁移必须抛 TransitionError")
     for frm, to in ((sm.TASK_STATE_FINISHED, sm.TASK_STATE_DOING),
                     (sm.TASK_STATE_DOING, sm.TASK_STATE_INIT)):
-        st2 = fresh('sm_bad_{}_{}'.format(frm, to))
+        st2 = fresh(f'sm_bad_{frm}_{to}')
         sm.create_task(st2, 1003, NOW)
         if frm != sm.TASK_STATE_INIT and sm.can_transition(sm.TASK_STATE_INIT, frm):
             sm.transition(st2, 1003, frm, source="setup")
@@ -190,7 +190,7 @@ def run():
             sm.transition(st2, 1003, to, source="bad")
         except sm.TransitionError:
             raised = True
-        check("非法迁移 {}->{} 抛异常".format(sm.state_name(frm), sm.state_name(to)), raised)
+        check(f"非法迁移 {sm.state_name(frm)}->{sm.state_name(to)} 抛异常", raised)
 
     print("\n[5] 不在包里的任务不能迁移")
     st3 = fresh("sm_c")
@@ -396,7 +396,7 @@ def run():
         try:
             hits = _scan_state_writes(src)
         except SyntaxError as e:
-            neg_miss.append((src, "SyntaxError:{}".format(e)))
+            neg_miss.append((src, f"SyntaxError:{e}"))
             continue
         if not hits:
             neg_miss.append((src, "没抓到"))
@@ -414,18 +414,18 @@ def run():
         try:
             src = open(path, encoding="utf-8").read()
         except Exception as e:
-            offenders.append("{} 读取失败 {}".format(rel, e))
+            offenders.append(f"{rel} 读取失败 {e}")
             continue
         try:
             hits = _scan_state_writes(src)
         except SyntaxError as e:
             # ★ 不许静默跳过：语法错的文件也要报出来
-            offenders.append("{} 语法错误 {}".format(rel, e))
+            offenders.append(f"{rel} 语法错误 {e}")
             continue
         for lineno, fname, kind in hits:
             if (rel, fname) in ALLOW:
                 continue
-            offenders.append('{}:{}({}) {}'.format(rel, lineno, fname, kind))
+            offenders.append(f'{rel}:{lineno}({fname}) {kind}')
     check('全仓没有白名单外的 ["state"] 写入', not offenders, offenders[:6])
 
     print("\n[12] finish_story_task 兼容封装（含重复调用 no-op）")
@@ -442,7 +442,7 @@ def run():
     try:
         repeat = story.finish_story_task(st8, 1000, NOW)
     except Exception as e:
-        repeat = "EXC:{}".format(e)
+        repeat = f"EXC:{e}"
     check("★ P1-3 重复 finish_story_task 是 no-op（不抛）", repeat == [], repeat)
     st9 = fresh("sm_i")
     kinds9 = [c[0] for c in story.finish_story_task(st9, 1003, NOW)]
@@ -540,7 +540,7 @@ def run():
     idx14 = erpc.RPC_INDEX.get("Street_Actor_InteractID_Update_CS")
     if _forge is not None:
         fg.guarded_handle(idx14, msmod.mp_arr([1, 1, 0, _forge, 0]), 1, uid=uid_of("sm_forge"))
-        check("★ 伪造 NPC taskId={} 被拒（不在包里）".format(_forge),
+        check(f"★ 伪造 NPC taskId={_forge} 被拒（不在包里）",
               story.story_state(st14.props, _forge) == -1,
               story.story_state(st14.props, _forge))
         check("★ 伪造后没有进 done", _forge not in st14.props["done_story_tasks"])
@@ -548,7 +548,7 @@ def run():
     if _forge is not None:
         fg.guarded_handle(erpc.RPC_INDEX["RequestDoneStoryTaskParamInt_CS"],
                     msmod.mp_arr([_forge, 0]), 2, uid=uid_of("sm_forge"))
-        check("★ 伪造 ParamInt taskId={} 被拒".format(_forge),
+        check(f"★ 伪造 ParamInt taskId={_forge} 被拒",
               story.story_state(st14.props, _forge) == -1,
               story.story_state(st14.props, _forge))
     # ③ 奖励零变化
@@ -576,7 +576,7 @@ def run():
         if cfg_g.get("TaskType") != 6:
             continue
         p1_g = [int(x) for x in (cfg_g.get("Parameter1") or [])]
-        stg = fresh('sm_gate_{}'.format(gate))
+        stg = fresh(f'sm_gate_{gate}')
         story.start_story_task(stg, gate, NOW)
         # 把前置全部标成 Finished（模拟前置都完成）
         for pre in p1_g:
@@ -586,10 +586,10 @@ def run():
             story.archive_story_task(stg, pre, NOW)
         # 走真实路径：链式检查 -> 落状态
         hits_g, _ = story.check_chain_tasks(stg, NOW)
-        check("Type6 闸门 {} 被链式检查命中".format(gate), gate in hits_g, hits_g[:4])
+        check(f"Type6 闸门 {gate} 被链式检查命中", gate in hits_g, hits_g[:4])
         if gate in hits_g:
             erpc._finish_story_tasks(stg, list(hits_g))
-        check("★ Type6 闸门 {} 前置满足后能完成（不被多目标挡住）".format(gate),
+        check(f"★ Type6 闸门 {gate} 前置满足后能完成（不被多目标挡住）",
               story.story_state(stg.props, gate) == sm.TASK_STATE_FINISHED,
               story.story_state(stg.props, gate))
 
@@ -612,7 +612,7 @@ def run():
           (done_item16 or {}).get("finish_parameter"))
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 

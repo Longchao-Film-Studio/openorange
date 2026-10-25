@@ -46,7 +46,7 @@ def check(name, cond, detail=None):
 
 
 def uid_of(name):
-    return "{}_{}".format(name, _TAG)
+    return f"{name}_{_TAG}"
 
 
 def fresh(name):
@@ -73,7 +73,7 @@ def _bag_item(st, tid):
 
 def run():
     global _TAG
-    _TAG = "{:04x}".format(random.randint(0, 0xFFFF))
+    _TAG = f"{random.randint(0, 0xFFFF):04x}"
     del passed[:]
     del failed[:]
 
@@ -174,14 +174,14 @@ def run():
         dt8 = (it8 or {}).get("doing_targets") or {}
         check("★ 喂 1 次后 doing_targets 记到 1",
               int(dt8.get(eid8) or 0) == 1, dict(dt8))
-        check('★ 喂 1 次后还没完成（need={}）'.format(need8), tid8 not in d1, d1)
+        check(f'★ 喂 1 次后还没完成（need={need8}）', tid8 not in d1, d1)
         done8 = []
         for _ in range(need8 - 1):
             done8, _s2 = tasks.evaluate_event(st8, etype8, ep8)
-        check('★ 喂够 {} 次后达到完成条件'.format(need8), tid8 in done8, done8)
+        check(f'★ 喂够 {need8} 次后达到完成条件', tid8 in done8, done8)
 
     print("\n" + "=" * 56)
-    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
+    print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1
 
 
