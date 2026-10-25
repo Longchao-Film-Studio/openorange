@@ -95,7 +95,7 @@ def run():
     t4 = sorted(t for t, v in S.items() if v.get("TaskType") == 4)
     t0 = sorted(t for t, v in S.items() if v.get("TaskType") == 0)
 
-    print("\n[1] 数据事实：type4 共 %d 条，type0 共 %d 条" % (len(t4), len(t0)))
+    print('\n[1] 数据事实：type4 共 {} 条，type0 共 {} 条'.format(len(t4), len(t0)))
     check("type4 共 13 条", len(t4) == 13, len(t4))
     check("type0 共 270 条", len(t0) == 270, len(t0))
     check("★ 13 条 type4 全部有 Parameter1（目标街区）",
@@ -154,7 +154,7 @@ def run():
     print("\n[4] Type4：13 条全部能靠「切街到达」判定（不漏、不误）")
     miss = []
     for t in t4:
-        stx = clear_story(fresh("t04_%d" % t))
+        stx = clear_story(fresh('t04_{}'.format(t)))
         story.start_story_task(stx, t, NOW)
         want = int(S[t]["Parameter1"][0])
         hits = story.street_arrival_tasks(stx, want)
@@ -164,7 +164,7 @@ def run():
     # 反向：切到无关街区不该命中任何一条
     false_hits = []
     for t in t4:
-        sty = clear_story(fresh("t04n_%d" % t))
+        sty = clear_story(fresh('t04n_{}'.format(t)))
         story.start_story_task(sty, t, NOW)
         want = int(S[t]["Parameter1"][0])
         bad_street = want + 888888
@@ -195,7 +195,7 @@ def run():
           story.story_state(st6.props, 1102))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

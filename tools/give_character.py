@@ -119,7 +119,7 @@ def _put_formation(props, char_id, slot):
     lst = team.get("value")
     if not isinstance(lst, dict):
         raise SystemExit("编队 value 不是字典")
-    lst["#%d" % slot] = int(char_id)
+    lst['#{}'.format(slot)] = int(char_id)
 
 
 def main():
@@ -131,12 +131,12 @@ def main():
     args = ap.parse_args()
 
     props, src = load_props(args.uid)
-    print("来源: %s（属性 %d 条）" % (src, len(props)))
+    print('来源: {}（属性 {} 条）'.format(src, len(props)))
 
     added, msg = give_char(props, args.char, args.slot)
     print("角色 {}：{}".format(args.char, msg))
     if args.slot:
-        print("已放入编队第 %d 格" % args.slot)
+        print('已放入编队第 {} 格'.format(args.slot))
 
     if args.dry_run:
         print("--dry-run，不写盘")

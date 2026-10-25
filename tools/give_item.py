@@ -122,10 +122,10 @@ def main():
         raise SystemExit("--num 必须 > 0")
 
     props, src = load_props(args.uid)
-    print("来源: %s（属性 %d 条）" % (src, len(props)))
+    print('来源: {}（属性 {} 条）'.format(src, len(props)))
 
     key, total, how = give(props, args.item, args.num, args.grid)
-    print("道具 %d：%s -> 格子 \"%s\"，当前数量 %d" % (args.item, how, key, total))
+    print('道具 {}：{} -> 格子 "{}"，当前数量 {}'.format(args.item, how, key, total))
 
     if args.dry_run:
         print("--dry-run，不写盘")

@@ -63,7 +63,7 @@ def main():
                 files.append((sz, fp))
     files.sort()
 
-    print("待扫 %d 个包" % len(files), flush=True)
+    print('待扫 {} 个包'.format(len(files)), flush=True)
     t0 = time.time()
     allc = {}
     hits = 0

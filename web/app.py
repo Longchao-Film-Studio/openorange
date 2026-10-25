@@ -284,7 +284,7 @@ class WebHandler(BaseHTTPRequestHandler):
             ctx = cmds.Context(username, perm, source="chat", server_name=_server_name())
             text = str(req.get("text") or "")
             res = cmds.execute(text, ctx)
-            _log.info("[chatcmd] %s(perm=%d) > %s -> %s" % (username, perm, text, res.ok))
+            _log.info('[chatcmd] {}(perm={}) > {} -> {}'.format(username, perm, text, res.ok))
             self._json({
                 "ok": res.ok,
                 "chat": res.chat,
@@ -302,7 +302,7 @@ class WebHandler(BaseHTTPRequestHandler):
             ctx = cmds.Context(acc["username"], perm, source="web", server_name=_server_name())
             text = str(req.get("text") or "")
             res = cmds.execute(text, ctx)
-            _log.info("[admin] %s(perm=%d) > %s -> %s" % (acc["username"], perm, text, res.ok))
+            _log.info('[admin] {}(perm={}) > {} -> {}'.format(acc["username"], perm, text, res.ok))
             self._json({
                 "ok": res.ok,
                 "lines": res.lines,
@@ -388,7 +388,7 @@ def serve(host=None, port=None):
     host = host or HOST
     port = port or PORT
     httpd = ThreadingHTTPServer((host, port), WebHandler)
-    _log.info("[web] http://%s:%d" % (host, port))
+    _log.info('[web] http://{}:{}'.format(host, port))
     _log.info("[web] server_name = {}".format(_server_name()))
     return httpd
 

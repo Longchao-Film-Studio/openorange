@@ -50,7 +50,7 @@ def main():
             for l in lines[:10]:
                 print("    " + l)
     print("-" * 56)
-    print("suites=%d  items=%d  bad=%s" % (len(files), total, bad))
+    print('suites={}  items={}  bad={}'.format(len(files), total, bad))
     return 1 if bad else 0
 
 

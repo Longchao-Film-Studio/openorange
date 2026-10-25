@@ -138,7 +138,7 @@ def t3():
     # 帧存在且不是 "not implemented" 的错误应答（弱断言会漏：错误应答也是帧）
     is_not_impl = "not implemented" in txt
     check("T3 有真广播帧", (fr is not None) and (hasattr(fr, "__len__") and len(fr) > 0) and not is_not_impl,
-          ("len=%s" % (len(fr) if hasattr(fr, "__len__") else "?")) + (" not_implemented" if is_not_impl else "") + " " + txt[:100])
+          ('len={}'.format(len(fr) if hasattr(fr, "__len__") else "?")) + (" not_implemented" if is_not_impl else "") + " " + txt[:100])
 
 
 # ---------------- T4: Set* 根属性帧 ----------------
@@ -187,9 +187,8 @@ def main():
     EXPECTED_RED = set()
     unexpected = [f for f in failed if f not in EXPECTED_RED]
     red = [f for f in failed if f in EXPECTED_RED]
-    print("=== 结果: PASS=%d FAIL=%d ===" % (len(passed), len(unexpected)))
-    print("通过 %d 项，失败 %d 项（另有 %d 项预期红，为审计实锤缺口，修复前属结论本身）"
-          % (len(passed), len(unexpected), len(red)))
+    print('=== 结果: PASS={} FAIL={} ==='.format(len(passed), len(unexpected)))
+    print('通过 {} 项，失败 {} 项（另有 {} 项预期红，为审计实锤缺口，修复前属结论本身）'.format(len(passed), len(unexpected), len(red)))
     for f in red:
         print("  预期红(待修):", f)
     for f in unexpected:

@@ -111,9 +111,9 @@ def main():
     print("系统入口真实可用率（tools/feature_coverage.py，现场生成）")
     print("=" * W)
     print("账号            : {}（level={}）".format(args.uid, st.props.get("level")))
-    print("系统入口总数    : %d" % total)
-    print("数据条件满足    : %d" % n_data)
-    print("服务端已推送    : %d" % n_push)
+    print('系统入口总数    : {}'.format(total))
+    print('数据条件满足    : {}'.format(n_data))
+    print('服务端已推送    : {}'.format(n_push))
     print("★ 按钮真实可见  : %d（%.1f%%）" % (n_vis, report["visible_pct"]))
     print("-" * W)
     print("%-22s %6s %6s %6s %6s" % ("unlockType", "总数", "数据", "推送", "可见"))
@@ -123,13 +123,11 @@ def main():
                                           v["visible"]))
     print("-" * W)
     if miss:
-        print("★ 漏解锁（数据满足但没推）%d 个：%s"
-              % (len(miss), miss[:args.limit]))
+        print('★ 漏解锁（数据满足但没推）{} 个：{}'.format(len(miss), miss[:args.limit]))
     else:
         print("漏解锁：无")
     if extra:
-        print("★ 误解锁（推了但数据不满足）%d 个：%s"
-              % (len(extra), extra[:args.limit]))
+        print('★ 误解锁（推了但数据不满足）{} 个：{}'.format(len(extra), extra[:args.limit]))
     else:
         print("误解锁：无")
     print("=" * W)

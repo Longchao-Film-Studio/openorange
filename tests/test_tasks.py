@@ -142,7 +142,7 @@ def run():
     guarded_handle(erpc.RPC_INDEX["RequestDoneSomeTypeTask_CS"],
                 msmod.mp_arr([t1]), 4, uid=U)
     for tid in same:
-        check("任务 %d 已完成" % tid, tasks.task_state(st.props, tid) == 6,
+        check('任务 {} 已完成'.format(tid), tasks.task_state(st.props, tid) == 6,
               tasks.task_state(st.props, tid))
 
     print("\n[7] 未知任务不崩")
@@ -151,7 +151,7 @@ def run():
     check("返回应答帧", len(frames) >= 1, len(frames))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

@@ -48,10 +48,10 @@ def check_dab(path):
     except OSError as e:
         return False, "读不到: {}".format(e)
     if head.startswith(UNITYFS):
-        return True, "正常 (UnityFS, %d B)" % size
+        return True, '正常 (UnityFS, {} B)'.format(size)
     if head == ZEROS:
-        return False, "全零空壳 (%d B)" % size
-    return False, "未知头 %s (%d B)" % (head.hex(), size)
+        return False, '全零空壳 ({} B)'.format(size)
+    return False, '未知头 {} ({} B)'.format(head.hex(), size)
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
                                  os.path.getsize(args.zip_path) / 1024 ** 3))
     with zipfile.ZipFile(args.zip_path) as z:
         infos = z.infolist()
-        print("zip 内条目总数: %d" % len(infos))
+        print('zip 内条目总数: {}'.format(len(infos)))
 
         by_name = {}
         dab_count = 0
@@ -80,7 +80,7 @@ def main():
             if base.endswith(".dab"):
                 dab_count += 1
                 by_name.setdefault(base, i)
-        print("其中 .dab 条目: %d" % dab_count)
+        print('其中 .dab 条目: {}'.format(dab_count))
 
         want = CORRUPT if not args.all else sorted(by_name.keys())
         found = []
@@ -90,8 +90,7 @@ def main():
                 print("  [缺失] {}".format(name))
                 continue
             found.append((name, info))
-            print("  [找到] %s  %d B  路径: %s"
-                  % (name, info.file_size, info.filename))
+            print('  [找到] {}  {} B  路径: {}'.format(name, info.file_size, info.filename))
 
         if not found:
             print()

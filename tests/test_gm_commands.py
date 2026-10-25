@@ -22,7 +22,7 @@ _TEST_PORT = 33197
 _TEST_TOKEN = "testtok"
 os.environ["OO_ADMIN_PORT"] = str(_TEST_PORT)
 os.environ["OO_ADMIN_TOKEN"] = _TEST_TOKEN
-os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % _TEST_PORT
+os.environ["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(_TEST_PORT)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -233,7 +233,7 @@ def run():
         srv.shutdown()
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

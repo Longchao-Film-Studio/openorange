@@ -133,12 +133,12 @@ def main():
     hashes = load_hashes()
     implemented = load_implemented()
 
-    print("服务端->客户端（ServerOnlyMsg）: %d 条" % len(sonly))
-    print("客户端->服务端（serverRpc/serverMsg）: %d 条" % len(sites))
-    print("genRpcIndex 已算好: %d 个名字" % len(hashes))
-    print("我们已实现: %d 条" % len(implemented))
+    print('服务端->客户端（ServerOnlyMsg）: {} 条'.format(len(sonly)))
+    print('客户端->服务端（serverRpc/serverMsg）: {} 条'.format(len(sites)))
+    print('genRpcIndex 已算好: {} 个名字'.format(len(hashes)))
+    print('我们已实现: {} 条'.format(len(implemented)))
     miss = [n for n in list(sonly) + list(sites) if n not in hashes]
-    print("还没算索引的: %d 条" % len(miss))
+    print('还没算索引的: {} 条'.format(len(miss)))
 
     if args.check:
         return 0
@@ -228,8 +228,8 @@ def main():
     lines.append("|---|---|---|")
     c2s_impl = len([n for n in sites if n in implemented])
     s2c_impl = len([n for n in sonly if n in implemented])
-    lines.append("| 客户端 → 服务端 | %d | %d |" % (len(sites), c2s_impl))
-    lines.append("| 服务端 → 客户端 | %d | %d |" % (len(sonly), s2c_impl))
+    lines.append('| 客户端 → 服务端 | {} | {} |'.format(len(sites), c2s_impl))
+    lines.append('| 服务端 → 客户端 | {} | {} |'.format(len(sonly), s2c_impl))
     lines.append("")
     lines.append("## 服务端 → 客户端（ServerOnlyMsg 声明，带参数类型）")
     lines.append("")

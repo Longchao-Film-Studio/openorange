@@ -172,20 +172,17 @@ def transition(st, task_id, to_state, source=""):
     props = st.props
     bag = _bag(props)
     if bag is None:
-        raise TransitionError("story_task_bag 不存在，无法迁移 task %d" % task_id)
+        raise TransitionError('story_task_bag 不存在，无法迁移 task {}'.format(task_id))
     item = bag.get(task_id)
     if not isinstance(item, dict):
         raise TransitionError(
-            "task %d 不在 story_task_bag 里（当前状态 %s），不能迁移到 %s"
-            % (task_id, current_state(props, task_id), state_name(to_state)))
+            'task {} 不在 story_task_bag 里（当前状态 {}），不能迁移到 {}'.format(task_id, current_state(props, task_id), state_name(to_state)))
     frm = int(item.get("state") or 0)
     if frm == to_state:
         return []
     if not can_transition(frm, to_state):
         raise TransitionError(
-            "非法迁移 task %d: %s(%d) -> %s(%d)，来源=%s"
-            % (task_id, state_name(frm), frm, state_name(to_state), to_state,
-               source or "?"))
+            '非法迁移 task {}: {}({}) -> {}({})，来源={}'.format(task_id, state_name(frm), frm, state_name(to_state), to_state, source or "?"))
     item["state"] = to_state
     st.set("story_task_bag", bag)
     return [("sub", "story_task_bag", task_id, item)]
@@ -219,8 +216,7 @@ def move_to_done(st, task_id, now=None):
     frm = int(item.get("state") or 0)
     if frm != TASK_STATE_FINISHED:
         raise TransitionError(
-            "task %d 还没 Finished（当前 %s），不能归档"
-            % (task_id, state_name(frm)))
+            'task {} 还没 Finished（当前 {}），不能归档'.format(task_id, state_name(frm)))
     # 保留原始时间戳（get_time = 领到任务的时间，start_time = 开始的时间）
     start_time = int(item.get("start_time") or 0)
     get_time = int(item.get("get_time") or 0)

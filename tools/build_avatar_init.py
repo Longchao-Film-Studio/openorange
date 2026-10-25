@@ -481,8 +481,7 @@ def main():
         raise SystemExit("找不到 config.lua: {}".format(CONFIG_LUA))
     txt = open(CONFIG_LUA, encoding="utf-8", errors="replace").read()
     types = parse_custom_types(txt)
-    print("自定义类型: %d（结构体 %d）"
-          % (len(types), sum(1 for t in types.values() if t["props"])))
+    print('自定义类型: {}（结构体 {}）'.format(len(types), sum(1 for t in types.values() if t["props"])))
 
     # AvatarProperties 里的简单类型属性，全部给默认值
     i = txt.find("    AvatarProperties = {")
@@ -535,7 +534,7 @@ def main():
         for char_id, overrides in chars.items():
             info = gen_nested(types, "CharacterInfo")
             info.update(overrides)
-            node["#%d" % char_id] = info
+            node['#{}'.format(char_id)] = info
 
     # ★ 系统解锁 / 任务全完成 等脚手架不在这里生成，
     #   由 game_server/scaffold.py 在运行时按开关覆盖。
@@ -553,9 +552,9 @@ def main():
                 ent[k] = v
             lst = gen_nested(types, "IntList")
             for i, cv in enumerate(item.get("value") or [], 1):
-                lst["#%d" % i] = cv
+                lst['#{}'.format(i)] = cv
             ent["value"] = lst
-            node["#%d" % idx] = ent
+            node['#{}'.format(idx)] = ent
 
     # 初始货币（见 STARTER_ITEMS 注释）
     for prop, entries in STARTER_ITEMS.items():
@@ -576,7 +575,7 @@ def main():
             ent = gen_nested(types, "Fashion")
             ent["id"] = fid
             # FashionBag 的 __IntTypeKey__ = true -> JSON 里用 "#N" 表示整数键
-            node["#%d" % fid] = ent
+            node['#{}'.format(fid)] = ent
 
     # 关键简单值
     props["uid"] = "OO00000001"
@@ -628,8 +627,7 @@ def main():
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, OUT)
-    print("属性数: %d  输出: %s (%d B)"
-          % (len(props), OUT, os.path.getsize(OUT)))
+    print('属性数: {}  输出: {} ({} B)'.format(len(props), OUT, os.path.getsize(OUT)))
 
 
 if __name__ == "__main__":

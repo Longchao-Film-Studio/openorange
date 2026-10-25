@@ -153,14 +153,13 @@ def main():
     ph = Phonest(args.xlua)
     ph.run("phonestcore.startIO(1)", "startIO")
     ph.run("C = phonestcore.newClient(phonestcore.ConTypeTcp)", "newClient")
-    ph.run("C:startClient('127.0.0.1', %d, phonestcore.HandlerTypeMsGateClient, 'HID', 'S', 'F')"
-           % args.port, "startClient")
+    ph.run("C:startClient('127.0.0.1', {}, phonestcore.HandlerTypeMsGateClient, 'HID', 'S', 'F')".format(args.port), "startClient")
     ph.pump(40)
 
-    print("[probe] 已连接，抓包 %d 个" % len(cap), flush=True)
+    print('[probe] 已连接，抓包 {} 个'.format(len(cap)), flush=True)
     ph.run("pcall(function() COBJ:dispatchRpc({!r}, 'A') end)".format(args.rpc), "dispatch")
     ph.pump(20)
-    print("[probe] dispatch 后抓包: %s" % [x.hex() for x in cap], flush=True)
+    print('[probe] dispatch 后抓包: {}'.format([x.hex() for x in cap]), flush=True)
 
     if args.mode == "fuzz":
         trials = [

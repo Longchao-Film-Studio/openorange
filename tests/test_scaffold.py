@@ -55,7 +55,7 @@ def run():
     check("解锁条目数 = 常量表长度", len(int_keys) == len(scaffold.SYSTEM_UNLOCKS),
           (len(int_keys), len(scaffold.SYSTEM_UNLOCKS)))
     for sid in (1, 4, 7, 11, 30, 1001):
-        check("系统 %d 已解锁" % sid, us.get(sid) is True, us.get(sid))
+        check('系统 {} 已解锁'.format(sid), us.get(sid) is True, us.get(sid))
     check("改动里报告了解锁", any("系统解锁" in c for c in changed2), changed2)
 
     print("\n[3] all_tasks_done：任务数据形状正确")
@@ -74,7 +74,7 @@ def run():
     check("done_tasks[1] 是 dict", isinstance(dt1, dict), type(dt1))
     check("done_tasks[1] 带 __id__", isinstance(dt1.get("__id__"), int), dt1.get("__id__"))
     for tid in scaffold.DONE_TASK_IDS:
-        check("done_tasks[1][%d] 为真" % tid, bool(dt1.get(tid)), dt1.get(tid))
+        check('done_tasks[1][{}] 为真'.format(tid), bool(dt1.get(tid)), dt1.get(tid))
 
     dst = p2.get("done_story_tasks") or {}
     item = dst.get(1005) or {}
@@ -102,7 +102,7 @@ def run():
     ids = []
     all_ids(p2, ids)
     dup = len(ids) - len(set(ids))
-    check("没有重复 __id__", dup == 0, "重复 %d 个" % dup)
+    check("没有重复 __id__", dup == 0, '重复 {} 个'.format(dup))
 
     print("\n[5] level 覆盖")
     cfg3 = config.Scaffold(level=42)
@@ -134,8 +134,8 @@ def run():
     tb = p3.get("task_bag") or {}
     for tt in [k for k in tb if isinstance(k, int)]:
         slot = tb.get(tt) or {}
-        check("task_bag[%d] 有 __id__" % tt, isinstance(slot.get("__id__"), int), slot)
-        check("task_bag[%d] 没有 __tp__" % tt, "__tp__" not in slot, slot.get("__tp__"))
+        check('task_bag[{}] 有 __id__'.format(tt), isinstance(slot.get("__id__"), int), slot)
+        check('task_bag[{}] 没有 __tp__'.format(tt), "__tp__" not in slot, slot.get("__tp__"))
 
     print("\n[9] 脚手架要把 story_finished[1] 置真（跳过序章）")
     # 2026-10-21：脚手架模式下 ms.py:464 会跳过 init_new_player，
@@ -157,7 +157,7 @@ def run():
           sorted([k for k in sf5 if isinstance(k, int)]))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

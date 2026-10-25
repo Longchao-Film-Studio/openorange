@@ -328,9 +328,8 @@ def _ambiguous(kind, cands):
     """重名时的统一提示。"""
     ids = [str(c.get("id")) for c in cands[:12]]
     tail = " …" if len(cands) > 12 else ""
-    return err("「%s」有 %d 条同名记录，请用 ID 指定：%s%s"
-               % (kind, len(cands), "、".join(ids), tail),
-               chat="✗ 重名 %d 条，用 ID 指定" % len(cands))
+    return err('「{}」有 {} 条同名记录，请用 ID 指定：{}{}'.format(kind, len(cands), "、".join(ids), tail),
+               chat='✗ 重名 {} 条，用 ID 指定'.format(len(cands)))
 
 
 def _need_num(tok, default=None, lo=None, hi=None, label="数量"):
@@ -341,9 +340,9 @@ def _need_num(tok, default=None, lo=None, hi=None, label="数量"):
     except (TypeError, ValueError):
         return None, err("{}必须是整数：{}".format(label, tok))
     if lo is not None and v < lo:
-        return None, err("%s不能小于 %d" % (label, lo))
+        return None, err('{}不能小于 {}'.format(label, lo))
     if hi is not None and v > hi:
-        return None, err("%s不能大于 %d" % (label, hi))
+        return None, err('{}不能大于 {}'.format(label, hi))
     return v, None
 
 

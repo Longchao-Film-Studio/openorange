@@ -215,21 +215,18 @@ def main():
             info["container_kind"] = k
             if k:
                 hit += 1
-    print("  容器类型权威判定: %d / %d（其余未在客户端类定义里找到）"
-          % (hit, sum(1 for t in types.values() if t.get("value_type"))))
+    print('  容器类型权威判定: {} / {}（其余未在客户端类定义里找到）'.format(hit, sum(1 for t in types.values() if t.get("value_type"))))
 
     structs = sum(1 for t in types.values() if t["props"])
     dicts = sum(1 for t in types.values()
                 if not t["props"] and t["value_type"])
-    print("config.lua: %d 行" % txt.count("\n"))
-    print("  自定义类型 %d（结构体 %d / 字典或列表 %d / 其它 %d）"
-          % (len(types), structs, dicts, len(types) - structs - dicts))
-    print("  AvatarProperties 属性 %d" % len(props))
+    print('config.lua: {} 行'.format(txt.count("\n")))
+    print('  自定义类型 {}（结构体 {} / 字典或列表 {} / 其它 {}）'.format(len(types), structs, dicts, len(types) - structs - dicts))
+    print('  AvatarProperties 属性 {}'.format(len(props)))
 
     simple = [p for p in props.values()
               if p["type"] in ("int", "double", "string", "boolean")]
-    print("    简单类型 %d / 自定义类型 %d"
-          % (len(simple), len(props) - len(simple)))
+    print('    简单类型 {} / 自定义类型 {}'.format(len(simple), len(props) - len(simple)))
 
     # 自检：属性里引用的自定义类型必须都在 Custom 里
     missing = sorted({p["type"] for p in props.values()
@@ -275,11 +272,11 @@ def main():
             only_b = sorted(set(b) - set(a))
             changed = sorted(k for k in (set(a) & set(b)) if a[k] != b[k])
             if only_a:
-                diffs.append("  %s 少了 %d 项: %s" % (key, len(only_a), only_a[:5]))
+                diffs.append('  {} 少了 {} 项: {}'.format(key, len(only_a), only_a[:5]))
             if only_b:
-                diffs.append("  %s 多了 %d 项: %s" % (key, len(only_b), only_b[:5]))
+                diffs.append('  {} 多了 {} 项: {}'.format(key, len(only_b), only_b[:5]))
             if changed:
-                diffs.append("  %s 变了 %d 项: %s" % (key, len(changed), changed[:5]))
+                diffs.append('  {} 变了 {} 项: {}'.format(key, len(changed), changed[:5]))
         if diffs:
             print("❌ spec_data.json 已过期，请重新生成：")
             for d in diffs:

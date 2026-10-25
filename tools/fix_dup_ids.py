@@ -57,7 +57,7 @@ def collect(obj, path="", out=None):
             collect(v2, "{}.{}".format(path, k), out)
     elif isinstance(obj, list):
         for i, v2 in enumerate(obj):
-            collect(v2, "%s[%d]" % (path, i), out)
+            collect(v2, '{}[{}]'.format(path, i), out)
     return out
 
 
@@ -78,13 +78,12 @@ def fix(props, dry_run=False):
     real_max = _ids.max_id(props)
     if not isinstance(props.get("_oo_next_id"), int) or props["_oo_next_id"] < real_max:
         props["_oo_next_id"] = real_max
-        report.append("  校正 _oo_next_id -> %d" % real_max)
+        report.append('  校正 _oo_next_id -> {}'.format(real_max))
 
     for nid in sorted(dups):
         group = sorted(dups[nid], key=lambda x: x[0])
         keep = group[0]
-        report.append("  __id__ %d 出现 %d 次，保留 %s"
-                      % (nid, len(group), keep[0]))
+        report.append('  __id__ {} 出现 {} 次，保留 {}'.format(nid, len(group), keep[0]))
         for path, ref in group[1:]:
             if dry_run:
                 report.append("    [dry-run] {} 需要重新分配".format(path))
@@ -92,7 +91,7 @@ def fix(props, dry_run=False):
             new_id = _ids.alloc_id(props)
             ref["__id__"] = new_id
             fixed += 1
-            report.append("    %s -> %d" % (path, new_id))
+            report.append('    {} -> {}'.format(path, new_id))
     return fixed, report
 
 
@@ -134,11 +133,11 @@ def main():
             shutil.copy2(p, bak)
             with open(p, "w", encoding="utf-8", newline="\n") as f:
                 json.dump(d, f, ensure_ascii=False, indent=1)
-            print("  已修 %d 个，备份 %s" % (fixed, bak))
+            print('  已修 {} 个，备份 {}'.format(fixed, bak))
         total += fixed
 
     print()
-    print("合计修复 %d 个%s" % (total, "（dry-run，未写盘）" if args.dry_run else ""))
+    print('合计修复 {} 个{}'.format(total, "（dry-run，未写盘）" if args.dry_run else ""))
 
 
 if __name__ == "__main__":

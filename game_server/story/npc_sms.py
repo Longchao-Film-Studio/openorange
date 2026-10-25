@@ -86,8 +86,7 @@ def _unmapped_hit(task_id):
     try:
         cfg = gamedata.story_task(task_id) or {}
         desc = "".join(str(x) for x in (cfg.get("Description") or []))
-        line = "%d\t%s\t%s\t%s" % (int(time.time()), task_id,
-                                    cfg.get("GuideSceneId"), desc)
+        line = '{}\t{}\t{}\t{}'.format(int(time.time()), task_id, cfg.get("GuideSceneId"), desc)
         path = _unmapped_tsv_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
         new_file = not os.path.exists(path)

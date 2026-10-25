@@ -84,7 +84,7 @@ def _serve_capture(host=None, port=None):
         mode = "proxy->%s:%d" % UPSTREAM
     else:
         mode = "echo" if ECHO else "capture-only"
-    _log.info("[game] listening on %s:%d (%s)" % (host, port, mode))
+    _log.info('[game] listening on {}:{} ({})'.format(host, port, mode))
     _log.info("[game] captures -> {}".format(CAPTURE_DIR))
     return srv
 
@@ -103,8 +103,8 @@ def _run_ms_mode():
     os.makedirs(CAPTURE_DIR, exist_ok=True)
     ms_srv = _listen("0.0.0.0", MS_PORT)
     gate_srv = _listen("0.0.0.0", GATE_PORT)
-    _log.info("[ms] ms service  listening on 0.0.0.0:%d" % MS_PORT)
-    _log.info("[ms] gate listening on 0.0.0.0:%d" % GATE_PORT)
+    _log.info('[ms] ms service  listening on 0.0.0.0:{}'.format(MS_PORT))
+    _log.info('[ms] gate listening on 0.0.0.0:{}'.format(GATE_PORT))
     _log.info("[ms] captures -> {}".format(CAPTURE_DIR))
 
     threading.Thread(target=_accept_loop, args=(gate_srv, handle_gate),
@@ -165,8 +165,7 @@ def _start_admin():
     try:
         from . import admin_api as _admin_api
         _admin_api.start()
-        print("[admin] 管理接口 http://127.0.0.1:%d（命令系统用）"
-              % _admin_api._port(), flush=True)
+        print('[admin] 管理接口 http://127.0.0.1:{}（命令系统用）'.format(_admin_api._port()), flush=True)
     except Exception as _e:
         _log.warning("[admin] 管理接口启动失败: {}".format(_e))
 

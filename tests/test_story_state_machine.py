@@ -181,7 +181,7 @@ def run():
     print("\n[4] 非法迁移必须抛 TransitionError")
     for frm, to in ((sm.TASK_STATE_FINISHED, sm.TASK_STATE_DOING),
                     (sm.TASK_STATE_DOING, sm.TASK_STATE_INIT)):
-        st2 = fresh("sm_bad_%d_%d" % (frm, to))
+        st2 = fresh('sm_bad_{}_{}'.format(frm, to))
         sm.create_task(st2, 1003, NOW)
         if frm != sm.TASK_STATE_INIT and sm.can_transition(sm.TASK_STATE_INIT, frm):
             sm.transition(st2, 1003, frm, source="setup")
@@ -425,7 +425,7 @@ def run():
         for lineno, fname, kind in hits:
             if (rel, fname) in ALLOW:
                 continue
-            offenders.append("%s:%d(%s) %s" % (rel, lineno, fname, kind))
+            offenders.append('{}:{}({}) {}'.format(rel, lineno, fname, kind))
     check('全仓没有白名单外的 ["state"] 写入', not offenders, offenders[:6])
 
     print("\n[12] finish_story_task 兼容封装（含重复调用 no-op）")
@@ -576,7 +576,7 @@ def run():
         if cfg_g.get("TaskType") != 6:
             continue
         p1_g = [int(x) for x in (cfg_g.get("Parameter1") or [])]
-        stg = fresh("sm_gate_%d" % gate)
+        stg = fresh('sm_gate_{}'.format(gate))
         story.start_story_task(stg, gate, NOW)
         # 把前置全部标成 Finished（模拟前置都完成）
         for pre in p1_g:
@@ -612,7 +612,7 @@ def run():
           (done_item16 or {}).get("finish_parameter"))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

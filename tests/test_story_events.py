@@ -185,7 +185,7 @@ def run():
           story.story_state(st8.props, 1003))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

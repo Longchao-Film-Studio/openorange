@@ -162,8 +162,7 @@ def main():
         with open(OUT, encoding="utf-8") as f:
             old = json.load(f)
         if old.get("properties") == doc["properties"]:
-            print("[gen_contract] 契约表和 config.lua 一致（%d 个属性）"
-                  % len(doc["properties"]))
+            print('[gen_contract] 契约表和 config.lua 一致（{} 个属性）'.format(len(doc["properties"])))
             return 0
         print("[gen_contract] 契约表已过期，请重新生成", file=sys.stderr)
         return 1
@@ -172,9 +171,7 @@ def main():
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=1)
         f.write("\n")
-    print("[gen_contract] 已生成 %s（%d 个属性，来自 %s）"
-          % (os.path.relpath(OUT, ROOT), len(doc["properties"]),
-             doc["_source"]))
+    print('[gen_contract] 已生成 {}（{} 个属性，来自 {}）'.format(os.path.relpath(OUT, ROOT), len(doc["properties"]), doc["_source"]))
     for k in sorted(doc["properties"]):
         rows = doc["properties"][k]
         desc = "; ".join("{}->{}(op={})".format(r["callback"], r["section"],

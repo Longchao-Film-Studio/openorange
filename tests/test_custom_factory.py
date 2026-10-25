@@ -64,7 +64,7 @@ def run():
               "StreetInfo", "StreetDispatchInfo", "TaskBag"):
         obj = factory.new_instance(st.props, t, with_tp=True)
         expect = sorted(spec.struct_fields(t).keys())
-        check("%s 字段一致（%d 个）" % (t, len(expect)),
+        check('{} 字段一致（{} 个）'.format(t, len(expect)),
               fields_of(obj) == expect,
               (fields_of(obj), expect))
 
@@ -82,7 +82,7 @@ def run():
     for t in ("CharacterInfo", "StreetInfo", "StoryTaskItem", "TaskItem"):
         obj = factory.new_instance(st.props, t, with_tp=True)
         ks = nested_containers(obj)
-        check("%s 嵌套容器都带 __id__（%d 个）" % (t, len(ks)),
+        check('{} 嵌套容器都带 __id__（{} 个）'.format(t, len(ks)),
               bool(ks) and all(isinstance(obj[k].get("__id__"), int) for k in ks))
         ids = [obj["__id__"]] + [obj[k]["__id__"] for k in ks]
         check("{} 同批 __id__ 唯一".format(t), len(ids) == len(set(ids)), ids)
@@ -140,7 +140,7 @@ def run():
     check("★ 手抄字段表已全部清除", not hits, hits[:5])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

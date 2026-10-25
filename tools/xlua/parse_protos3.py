@@ -153,4 +153,4 @@ for fname in (b"client_gate.proto", b"ms_gate.proto", b"phonest.proto", b"ms_com
             lines.append("")
 
 open(OUT, "w", encoding="utf-8").write("\n".join(lines) + "\n")
-print("已写出 %s（%d 行）" % (OUT, len(lines)))
+print('已写出 {}（{} 行）'.format(OUT, len(lines)))

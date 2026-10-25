@@ -99,7 +99,7 @@ def cmd_build(argv):
         raise SystemExit("找不到 xlua.dll: {}".format(dll))
 
     names, n_files = collect_names(lua_src)
-    print("扫描 %d 个 Lua 文件，候选名字 %d 个" % (n_files, len(names)))
+    print('扫描 {} 个 Lua 文件，候选名字 {} 个'.format(n_files, len(names)))
 
     in_txt = os.path.join(ROOT, "work", "rpc_candidates.txt")
     os.makedirs(os.path.dirname(in_txt), exist_ok=True)
@@ -125,7 +125,7 @@ o:close()
     if rc != 0:
         raise SystemExit("genRpcIndex 批处理失败 rc={}".format(rc))
     n = sum(1 for _ in open(OUT_TSV, encoding="utf-8"))
-    print("已写出 %s（%d 行）" % (OUT_TSV, n))
+    print('已写出 {}（{} 行）'.format(OUT_TSV, n))
 
 
 def cmd_lookup(argv):
@@ -185,7 +185,7 @@ def cmd_verify(argv):
         if RPC_INDEX[nm] != idx:
             bad += 1
             print("  MISMATCH %-40s 代码=%s 真身=%s" % (nm, RPC_INDEX[nm], idx))
-    print("核对 %d 条，不一致 %d 条" % (n, bad))
+    print('核对 {} 条，不一致 {} 条'.format(n, bad))
     return 0 if bad == 0 else 1
 
 

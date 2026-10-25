@@ -201,10 +201,9 @@ def run():
         _fp_frames = [x for x in _fs
                       if x["name"] == "finish_parameter" and x["pid"] == _iid]
         if i < len(p1) - 1:
-            check("第 %d 个目标后仍在 Doing(3)" % (i + 1),
+            check('第 {} 个目标后仍在 Doing(3)'.format(i + 1),
                   st_now == sm.TASK_STATE_DOING, st_now)
-            check("★ 第 %d 个目标发了 finish_parameter 子属性帧（pid=条目 id）"
-                  % (i + 1),
+            check('★ 第 {} 个目标发了 finish_parameter 子属性帧（pid=条目 id）'.format(i + 1),
                   len(_fp_frames) == 1
                   and _fp_frames[0]["op"] == msmod.OP_CHANGE, _fp_frames[:1])
         else:
@@ -335,7 +334,7 @@ def run():
     check("契约表至少 7 行被真正核对", checked >= 7, checked)
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

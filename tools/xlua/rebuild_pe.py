@@ -36,4 +36,4 @@ for i in range(nsec):
 
 with open(OUT, 'wb') as f:
     f.write(img)
-print("已写出 %s (%d 字节)" % (OUT, len(img)))
+print('已写出 {} ({} 字节)'.format(OUT, len(img)))

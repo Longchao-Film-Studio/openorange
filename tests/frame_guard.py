@@ -70,8 +70,7 @@ def check_frames(pre, frames, tag):
         return None, []
     sc, errs = frames_safe(pre, frames, tag)
     if errs:
-        raise AssertionError("帧不安全(%s)，客户端会崩 %d 处: %s"
-                             % (tag, len(errs), errs[:3]))
+        raise AssertionError('帧不安全({})，客户端会崩 {} 处: {}'.format(tag, len(errs), errs[:3]))
     return sc, errs
 
 

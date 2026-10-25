@@ -27,7 +27,7 @@ def main():
     dll, outp = sys.argv[1], sys.argv[2]
     h = k32.LoadLibraryW(dll)
     if not h:
-        sys.exit("LoadLibrary 失败: %d" % ctypes.get_last_error())
+        sys.exit('LoadLibrary 失败: {}'.format(ctypes.get_last_error()))
     print("模块基址: {:#x}".format(h))
 
     base = h
@@ -45,7 +45,7 @@ def main():
     img = ctypes.string_at(base, size_of_image)
     with open(outp, 'wb') as f:
         f.write(img)
-    print("已 dump %d 字节 -> %s" % (len(img), outp))
+    print('已 dump {} 字节 -> {}'.format(len(img), outp))
 
     # 校验：导出地址处应该是正常 x64 代码（luaopen_* 通常是 jmp/call 开头）
     sect = opt + opt_size

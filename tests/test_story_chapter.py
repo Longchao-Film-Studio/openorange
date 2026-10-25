@@ -101,7 +101,7 @@ def run():
 
     SL = gamedata.table("StoryLineData") or {}
     SL = list(SL.values()) if isinstance(SL, dict) else SL
-    print("\n[1] 数据事实：StoryLineData 共 %d 条" % len(SL))
+    print('\n[1] 数据事实：StoryLineData 共 {} 条'.format(len(SL)))
     check("StoryLineData 共 17 条", len(SL) == 17, len(SL))
     check("★ 17 条全有 passAward", all(r.get("passAward") for r in SL))
     check("★ 15 条有 collectItem", sum(1 for r in SL if r.get("collectItem")) == 15)
@@ -208,7 +208,7 @@ def run():
     check("★ 登录后 story_reward_list 有值", bool(_rl6), _rl6[:6])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

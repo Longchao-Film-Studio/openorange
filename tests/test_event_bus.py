@@ -126,11 +126,11 @@ def run():
         ("CharData", 7020, lambda: events.ev_char_data(level=10)),
     ]
     for name, tid, mk in cases:
-        stx = fresh("ev_t%d" % tid)
+        stx = fresh('ev_t{}'.format(tid))
         tt = activate(stx, tid)
-        check("任务 %d 已激活（TaskType=%s）" % (tid, tt), tt == story.TASK_STATE_DOING, tt)
+        check('任务 {} 已激活（TaskType={}）'.format(tid, tt), tt == story.TASK_STATE_DOING, tt)
         res = events.apply_event(stx, mk())
-        check("%s 命中任务 %d" % (name, tid), tid in res.hits, res.hits)
+        check('{} 命中任务 {}'.format(name, tid), tid in res.hits, res.hits)
 
     print("\n[E] 链式任务自动检查")
     st = fresh("ev_chain")
@@ -291,7 +291,7 @@ def run():
     check("确实处理了属性同步帧", sc.frame_count > 0, sc.frame_count)
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

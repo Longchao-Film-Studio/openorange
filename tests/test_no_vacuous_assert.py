@@ -34,9 +34,9 @@ ALLOW = {
         "在 try 内、check_frames 调用之后；能走到就说明没抛 AssertionError",
     ("tests/test_story.py", 95):
         "信息性：1000 无奖励是已知事实，有奖励时的真实验证在 if 分支里",
-    ("tests/test_story_sync_contract.py", 285):
+    ("tests/test_story_sync_contract.py", 284):
         "文档化不适用：首通本来就不走 changed，真验证在第二次触发那一项",
-    ("tests/test_story_sync_contract.py", 320):
+    ("tests/test_story_sync_contract.py", 319):
         "文档化不适用：SECOND_PASS 里列出的是本次场景不可达的契约行",
     ("tests/test_phase2_coverage.py", 102):
         "汇总信息性输出；每条 RPC 的覆盖在上方逐条断言",
@@ -199,7 +199,7 @@ def run():
           _count_literal(src2, False))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

@@ -42,7 +42,7 @@ def cmd_help(ctx, target, *args):
     lines.append("语法：/命令 <target> <参数>，target 用 @ 表示自己")
     lines.append("同名条目默认取「可用」的那条（可玩角色 / 给角色的物品）；")
     lines.append("加 --allow-unavailables 可取消该规则，改为返回全部候选。")
-    chat = "共 %d 条命令，网页 /admin/command 查看完整列表" % len(COMMANDS)
+    chat = '共 {} 条命令，网页 /admin/command 查看完整列表'.format(len(COMMANDS))
     return ok(lines, chat=chat)
 
 
@@ -54,7 +54,7 @@ def cmd_who(ctx, target, *args):
     rows = db.list_game_online()
     if not rows:
         return ok(["当前没有游戏内在线玩家。"], chat="在线 0 人")
-    lines = ["在线 %d 人：" % len(rows)]
+    lines = ['在线 {} 人：'.format(len(rows))]
     for r in rows:
         name = r.get("username") or "?"
         perm = PERM_NAMES.get(int(r.get("perm_level") or 0), "?")
@@ -62,7 +62,7 @@ def cmd_who(ctx, target, *args):
         addr = r.get("addr") or "-"
         since = time.strftime("%m-%d %H:%M", time.localtime(int(r.get("since_ts") or 0)))
         lines.append("  %-16s %-8s uid=%-12s %s  上线 %s" % (name, perm, uid, addr, since))
-    chat = "在线 %d 人: %s" % (len(rows), " ".join(r.get("username") or "?" for r in rows[:4]))
+    chat = '在线 {} 人: {}'.format(len(rows), " ".join(r.get("username") or "?" for r in rows[:4]))
     return ok(lines, chat=chat)
 
 
@@ -89,11 +89,11 @@ def cmd_search(ctx, target, *args):
         return err("没有匹配「{}」的物品或角色".format(keyword),
                    chat="✗ 没有匹配 {}".format(keyword))
 
-    lines = ["搜「%s」：物品 %d 条，角色 %d 条" % (keyword, len(items), len(chars))]
+    lines = ['搜「{}」：物品 {} 条，角色 {} 条'.format(keyword, len(items), len(chars))]
 
     if chars:
         lines.append("")
-        lines.append("角色 (%d)" % len(chars))
+        lines.append('角色 ({})'.format(len(chars)))
         for ch in chars[:20]:
             lines.append("  %-7d %s %-8s %s星  %s" % (
                 ch["id"], _pad(gamedata.tier_name(ch), 4), ch["name"],
@@ -101,7 +101,7 @@ def cmd_search(ctx, target, *args):
 
     if items:
         lines.append("")
-        lines.append("物品 (%d)" % len(items))
+        lines.append('物品 ({})'.format(len(items)))
         for it in items[:30]:
             lines.append("  %-7d %s %-20s type=%s quality=%s" % (
                 it["id"], _pad(gamedata.tier_name(it), 4), it["name"],
@@ -113,11 +113,11 @@ def cmd_search(ctx, target, *args):
     start = (page - 1) * PAGE_SIZE
     chunk = flat[start:start + PAGE_SIZE]
     if not chunk:
-        return ok(lines, chat="共 %d 条，没有第 %d 页" % (total, page))
-    parts = ["%d%s" % (cid, name) for _, cid, name in chunk]
-    chat = "共%d条 %d-%d: %s" % (total, start + 1, start + len(chunk), " ".join(parts))
+        return ok(lines, chat='共 {} 条，没有第 {} 页'.format(total, page))
+    parts = ['{}{}'.format(cid, name) for _, cid, name in chunk]
+    chat = '共{}条 {}-{}: {}'.format(total, start + 1, start + len(chunk), " ".join(parts))
     if len(flat) > start + PAGE_SIZE:
-        chat += "  /search %s %d" % (keyword, page + 1)
+        chat += '  /search {} {}'.format(keyword, page + 1)
     return ok(lines, chat=chat, data={"total": total, "page": page})
 
 
@@ -144,14 +144,14 @@ def cmd_account(ctx, target, *args):
         if level not in PERM_NAMES:
             return err("权限等级必须是 0 / 1 / 2", chat="✗ 权限要是 0/1/2")
         db.set_perm_level(target, level)
-        return ok(["已把「%s」的权限设为 %d（%s）" % (target, level, PERM_NAMES[level])],
+        return ok(['已把「{}」的权限设为 {}（{}）'.format(target, level, PERM_NAMES[level])],
                   chat="✓ {} -> {}".format(target, PERM_NAMES[level]))
 
     perm = int(acc.get("perm_level") or 0)
     lines = [
         "账号：{}".format(acc["username"]),
         "账号 ID：{}".format(acc["account_id"]),
-        "权限：%d（%s）" % (perm, PERM_NAMES.get(perm, "?")),
+        '权限：{}（{}）'.format(perm, PERM_NAMES.get(perm, "?")),
         "注册：{}".format(time.strftime("%Y-%m-%d %H:%M", time.localtime(int(acc["created_ts"])))),
         "最后登录：{}".format(time.strftime("%Y-%m-%d %H:%M",
                                     time.localtime(int(acc.get("last_login_ts") or acc["created_ts"])))),
@@ -167,14 +167,14 @@ def cmd_server(ctx, target, *args):
     gs = gamedata.stats()
     online = len(db.online_accounts())
     lines = [
-        "服务器：%s" % (ctx.server_name or "OpenOrange"),
-        "账号：%d" % st.get("accounts", 0),
-        "在线：%d" % online,
-        "票据：%d" % st.get("tickets", 0),
-        "物品索引：%d 条" % gs["items"],
-        "角色索引：%d 条" % gs["chars"],
+        '服务器：{}'.format(ctx.server_name or "OpenOrange"),
+        '账号：{}'.format(st.get("accounts", 0)),
+        '在线：{}'.format(online),
+        '票据：{}'.format(st.get("tickets", 0)),
+        '物品索引：{} 条'.format(gs["items"]),
+        '角色索引：{} 条'.format(gs["chars"]),
     ]
-    chat = "%s 账号%d 在线%d" % (ctx.server_name or "OpenOrange", st.get("accounts", 0), online)
+    chat = '{} 账号{} 在线{}'.format(ctx.server_name or "OpenOrange", st.get("accounts", 0), online)
     return ok(lines, chat=chat)
 
 

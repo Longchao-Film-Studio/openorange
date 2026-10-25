@@ -236,8 +236,7 @@ class Tx:
         n = len(keys)
         idx = _as_index(index, "insert")
         if idx < 1 or idx > n + 1:
-            raise TxError("insert 位置 %d 越界（当前 %d 个元素，合法范围 1..%d）"
-                          % (idx, n, n + 1))
+            raise TxError('insert 位置 {} 越界（当前 {} 个元素，合法范围 1..{}）'.format(idx, n, n + 1))
         if isinstance(value, dict):
             self._ensure_id(value)
         # 从后往前挪，避免覆盖
@@ -272,8 +271,7 @@ class Tx:
         n = len(keys)
         idx = _as_index(index, "remove_at")
         if idx < 1 or idx > n:
-            raise TxError("remove_at 位置 %d 越界（当前 %d 个元素，合法范围 1..%d）"
-                          % (idx, n, n))
+            raise TxError('remove_at 位置 {} 越界（当前 {} 个元素，合法范围 1..{}）'.format(idx, n, n))
         old = container.pop(idx)
         for i in range(idx + 1, n + 1):
             container[i - 1] = container.pop(i)
@@ -345,7 +343,7 @@ class Tx:
         return len(self.ops)
 
     def __repr__(self):
-        return "Tx(%d ops)" % len(self.ops)
+        return 'Tx({} ops)'.format(len(self.ops))
 
 
 def _as_index(index, where):

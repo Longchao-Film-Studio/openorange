@@ -39,7 +39,7 @@ def hexdump(data, width=16, limit=None):
         asc = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         out.append("      %04X  %-*s  |%s|" % (off, width * 3, hx, asc))
     if limit is not None and len(data) > limit:
-        out.append("      ... (共 %d 字节，其余见 .bin)" % len(data))
+        out.append('      ... (共 {} 字节，其余见 .bin)'.format(len(data)))
     return "\n".join(out)
 
 
@@ -63,7 +63,7 @@ def log_packet(cid, direction, data, t0, f):
         _log.info(hexdump(data, limit=512))
     if f is not None:
         try:
-            f.write(("%s %d %d\n" % (direction, dt, len(data))).encode())
+            f.write(('{} {} {}\n'.format(direction, dt, len(data))).encode())
             f.write(data)
             f.flush()
         except Exception:

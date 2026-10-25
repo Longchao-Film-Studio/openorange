@@ -103,7 +103,7 @@ def run():
         # ★ admin_call 从**包命名空间**取 ADMIN_URL/ADMIN_TOKEN
         #   （见 backend.py 注释：这样 tests 里 cmds.ADMIN_URL = ... 才生效）
         old_url, old_tok = cmds.ADMIN_URL, cmds.ADMIN_TOKEN
-        cmds.ADMIN_URL = "http://127.0.0.1:%d" % port
+        cmds.ADMIN_URL = 'http://127.0.0.1:{}'.format(port)
         cmds.ADMIN_TOKEN = None             # 强制走 admin_token.get_token()
         backend.admin_call("GET", "/health")
         check("服务端收到自动生成的口令",
@@ -119,7 +119,7 @@ def run():
         srv.shutdown()
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

@@ -144,7 +144,7 @@ def _apply_property(prop_name, new_value, uid=None):
         newobj = {"__tp__": cur["__tp__"], "__id__": cur.get("__id__", 0)}
         if isinstance(new_value, list):
             for i, v in enumerate(new_value, 1):
-                newobj["#%d" % i] = v
+                newobj['#{}'.format(i)] = v
         st.set(prop_name, newobj)
         st.save()
         return newobj

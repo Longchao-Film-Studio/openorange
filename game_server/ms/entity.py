@@ -61,7 +61,7 @@ def parse_entity_response(pkt):
             val = body[i:i + ln]
             i += ln
         else:
-            raise ValueError("unsupported wire type %d" % wt)
+            raise ValueError('unsupported wire type {}'.format(wt))
         if fn == 2:
             method = val.decode("utf-8", "replace")
         elif fn == 4:

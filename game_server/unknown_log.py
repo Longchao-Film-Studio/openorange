@@ -62,9 +62,7 @@ def _append(kind, key, uid, fake_ok, reply, sample, now):
         with open(p, "a", encoding="utf-8", newline="") as f:
             if new:
                 f.write("ts\tkind\tkey\tuid\tmode\treply\tsample\n")
-            f.write("%d\t%s\t%s\t%s\t%s\t%s\t%s\n" % (
-                int(now), kind, key, uid or "-",
-                "compat" if fake_ok else "strict", reply, sample))
+            f.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(int(now), kind, key, uid or "-", "compat" if fake_ok else "strict", reply, sample))
     except OSError:
         pass
 

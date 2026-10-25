@@ -224,7 +224,7 @@ def run():
     check("通用任务未完成时，跨表任务不被播种", ch7 == [], ch7[:2])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

@@ -239,7 +239,7 @@ def run():
 def main():
     global BASE
     port = _free_port()
-    BASE = "http://127.0.0.1:%d" % port
+    BASE = 'http://127.0.0.1:{}'.format(port)
     tmpdir = tempfile.mkdtemp(prefix="oo_admin_")
     db_path = os.path.join(tmpdir, "test.db")
     state_dir = os.path.join(tmpdir, "player_state")
@@ -254,14 +254,14 @@ def main():
     env["OO_STATE_DIR"] = state_dir
     env["OO_ADMIN_PORT"] = str(admin_port)
     env["OO_ADMIN_TOKEN"] = admin_token
-    env["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % admin_port
+    env["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(admin_port)
     env["PYTHONIOENCODING"] = "utf-8"
 
     os.environ["OO_DB_PATH"] = db_path
     os.environ["OO_STATE_DIR"] = state_dir
     os.environ["OO_ADMIN_PORT"] = str(admin_port)
     os.environ["OO_ADMIN_TOKEN"] = admin_token
-    os.environ["OO_ADMIN_URL"] = "http://127.0.0.1:%d" % admin_port
+    os.environ["OO_ADMIN_URL"] = 'http://127.0.0.1:{}'.format(admin_port)
 
     # 在测试进程内起 admin_api（线程），web 子进程通过 HTTP 连它
     from game_server import admin_api as _adm
@@ -308,7 +308,7 @@ def main():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     for name in failed:
         print("  - " + name)
     return 0 if not failed else 1

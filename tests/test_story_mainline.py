@@ -188,8 +188,7 @@ def run():
            if story.story_state(st.props, t) != sm.TASK_STATE_FINISHED][:5])
     check("卡点就是 1102（TaskType 0，证据充分的阻塞）",
           stopped_at == 1102, (stopped_at, stop_why))
-    print("      可玩段 %s -> %s 共 %d 步；卡点 %s（%s）"
-          % (walked[0], walked[-1], len(walked), stopped_at, stop_why))
+    print('      可玩段 {} -> {} 共 {} 步；卡点 {}（{}）'.format(walked[0], walked[-1], len(walked), stopped_at, stop_why))
 
     print("\n[5] 帧全部过客户端影子缓存")
     uid2 = "mlf_" + _TAG
@@ -211,7 +210,7 @@ def run():
     check("主线帧无客户端警告", not sc.warnings, sc.warnings[:2])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

@@ -250,7 +250,7 @@ def run():
     # 所以这里造一份够大的，才能验证往返。
     _props = {1: {"a": 2}, 3: "x"}
     for _i in range(12):
-        _props["k%d" % _i] = _i
+        _props['k{}'.format(_i)] = _i
     # 用独立的 uid，别污染真实玩家存档（load 会优先读盘）
     st = pstate.PlayerState(uid="OO_TEST_SAVE", props=_props)
     st.save()
@@ -284,7 +284,7 @@ def run():
         check("★ {} 同步帧先于应答帧".format(_rpc), _ok, _ts)
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

@@ -48,12 +48,12 @@ def cmd_give(ctx, target, *args):
         "✔ 已发放",
         "  目标    {}".format(target),
         "  物品    {}（ID {}）".format(entry["name"], entry["id"]),
-        "  数量    +%d" % num,
+        '  数量    +{}'.format(num),
     ]
     if now is not None:
-        lines.append("  现有    %d" % now)
+        lines.append('  现有    {}'.format(now))
     return ok(lines,
-              chat="✔ %s ×%d → %s" % (entry["name"], num, target),
+              chat='✔ {} ×{} → {}'.format(entry["name"], num, target),
               data={"action": "give", "target": target, "item": entry,
                     "num": num, "applied": True})
 
@@ -97,8 +97,8 @@ def cmd_lv(ctx, target, *args):
         return err(res.get("error") if res else "level 失败", chat="✗ 设置失败")
     return ok(["✔ 已设置等级",
                "  目标    {}".format(target),
-               "  等级    %d" % lv],
-              chat="✔ %s 等级 → %d" % (target, lv),
+               '  等级    {}'.format(lv)],
+              chat='✔ {} 等级 → {}'.format(target, lv),
               data={"action": "lv", "target": target, "level": lv,
                     "applied": True})
 
@@ -130,8 +130,8 @@ def cmd_money(ctx, target, *args):
     return ok(["✔ 已发放",
                "  目标    {}".format(target),
                "  货币    {}（物品 {} {}）".format(entry["id"], entry["item_id"], item.get("name") or ""),
-               "  数量    +%d" % num],
-              chat="✔ %s +%d → %s" % (entry["id"], num, target),
+               '  数量    +{}'.format(num)],
+              chat='✔ {} +{} → {}'.format(entry["id"], num, target),
               data={"action": "money", "target": target, "currency": entry,
                     "num": num, "applied": True})
 
@@ -213,14 +213,14 @@ def cmd_act(ctx, target, *args):
     if not args:
         rows = gamedata._activities
         shown = rows[:15]
-        lines = ["活动共 %d 个，前 %d 个：" % (len(rows), len(shown))]
+        lines = ['活动共 {} 个，前 {} 个：'.format(len(rows), len(shown))]
         for a in shown:
             lines.append("  %-6s %-16s type=%-4s %s"
                          % (a["id"], a.get("name") or "-", a.get("type"),
                             "显示" if a.get("show") else "隐藏"))
         lines.append("")
         lines.append("  用法：/act <id或名字> [open|close]")
-        return ok(lines, chat="活动 %d 个" % len(rows),
+        return ok(lines, chat='活动 {} 个'.format(len(rows)),
                   data={"action": "act_list", "count": len(rows)})
     entry, cands = gamedata.resolve_activity(args[0], ctx.allow_unavailables)
     if entry is None:

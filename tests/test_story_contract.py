@@ -315,11 +315,11 @@ def run():
                         if (isinstance(t, ast.Subscript)
                                 and isinstance(t.slice, ast.Constant)
                                 and t.slice.value == "state"):
-                            bad.append("%s:%d(%s)" % (rel, node.lineno, fn.name))
+                            bad.append('{}:{}({})'.format(rel, node.lineno, fn.name))
     check("★ 没有白名单外的 [\"state\"] 直接赋值", not bad, bad[:5])
 
     print("\\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

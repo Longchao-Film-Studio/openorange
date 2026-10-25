@@ -259,9 +259,7 @@ def _dungeon_finish(rid, params, uid=None):
     st.props.pop("_oo_cur_area", None)
     st.props.pop("_oo_cur_teach", None)
     st.save()
-    print("[dungeon] 结算完成：奖励 %d 项，回街区 %s 位置 %s"
-          % (len(reward_list), settle.get("toStreetId"),
-             settle.get("toStreetPosId")), flush=True)
+    print('[dungeon] 结算完成：奖励 {} 项，回街区 {} 位置 {}'.format(len(reward_list), settle.get("toStreetId"), settle.get("toStreetPosId")), flush=True)
     return respond_after_sync(rid, syncs, tail=pushes)
 
 def _storyline_finish_game(rid, params, uid=None):

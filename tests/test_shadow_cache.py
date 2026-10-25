@@ -65,7 +65,7 @@ def feed(sc, frames, tag):
         sc.apply_frame(f)
     new = sc.errors[before:]
     if new:
-        print("    [%s] 客户端会崩 %d 处：" % (tag, len(new)))
+        print('    [{}] 客户端会崩 {} 处：'.format(tag, len(new)))
         for e in new[:5]:
             print("      " + e[:110])
     return new
@@ -263,10 +263,9 @@ def run():
         errs = feed(sc6, frames, name)
         if errs:
             bad_rpcs.append("{}: {}".format(name, errs[0][:80]))
-    check("抽样 %d 个 RPC，全部帧合法" % len(sweep), not bad_rpcs, bad_rpcs[:5])
+    check('抽样 {} 个 RPC，全部帧合法'.format(len(sweep)), not bad_rpcs, bad_rpcs[:5])
     check("影子缓存确实处理了帧", sc6.frame_count > 10, sc6.frame_count)
-    print("    （处理 %d 条属性同步帧，跳过 %d 条非同步帧）"
-          % (sc6.frame_count, sc6.skipped))
+    print('    （处理 {} 条属性同步帧，跳过 {} 条非同步帧）'.format(sc6.frame_count, sc6.skipped))
 
     print("\n[F] ★ P0-1 回归：接任务后重新登录，initDict 不能带嵌套 __tp__")
     # 审计实测：tasks.ensure_type_slot 把 {"__tp__":"TaskBag"} 写进 state，
@@ -304,13 +303,13 @@ def run():
                 _scan(v2, path + "." + str(k2))
         elif isinstance(o, (list, tuple)):
             for i2, v2 in enumerate(o):
-                _scan(v2, path + "[%d]" % i2)
+                _scan(v2, path + '[{}]'.format(i2))
     for k2, v2 in dF["__Properties__"].items():
         _scan(v2, k2)
     check("登录 initDict 里没有嵌套 __tp__ 残留", not bad_tp, bad_tp[:5])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

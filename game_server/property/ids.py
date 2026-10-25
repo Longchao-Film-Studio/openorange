@@ -138,7 +138,7 @@ def verify_unique(props):
                 walk(v2, "{}.{}".format(path, k))
         elif isinstance(obj, (list, tuple)):
             for i, v2 in enumerate(obj):
-                walk(v2, "%s[%d]" % (path, i))
+                walk(v2, '{}[{}]'.format(path, i))
 
     walk(props, "")
     dup = {k: v for k, v in seen.items() if len(v) > 1}

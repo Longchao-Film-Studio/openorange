@@ -126,9 +126,9 @@ def cmd_stats(_argv):
         n_paths = sum(len(v) for v in bundles.values())
         dabs = [f for f in os.listdir(d) if f.lower().endswith(".dab")] if os.path.isdir(d) else []
         print("== {} ({})".format(tag, d))
-        print("   资源包 %d 个，资源路径 %d 条" % (len(bundles), n_paths))
-        print("   big_pack_info 名字 %d 个（含包名与大包名）" % len(packs))
-        print("   盘上 .dab 大包 %d 个" % len(dabs))
+        print('   资源包 {} 个，资源路径 {} 条'.format(len(bundles), n_paths))
+        print('   big_pack_info 名字 {} 个（含包名与大包名）'.format(len(packs)))
+        print('   盘上 .dab 大包 {} 个'.format(len(dabs)))
 
 
 def cmd_lookup(argv):
@@ -158,11 +158,11 @@ def cmd_scene(argv):
         raise SystemExit("用法: parse_ab_mapping.py scene <场景名> [...]")
     bundles, _packs = load("patch")
     all_paths = [a for ps in bundles.values() for a in ps]
-    print("清单：patch（%d 条资源路径）" % len(all_paths))
+    print('清单：patch（{} 条资源路径）'.format(len(all_paths)))
     for name in argv:
         seg = "/" + name + "/"
         hits = [a for a in all_paths if seg in ("/" + a)]
-        print("   %-24s %s" % (name, "有资源目录（%d 条）" % len(hits) if hits else "★ 清单里没有"))
+        print("   %-24s %s" % (name, '有资源目录（{} 条）'.format(len(hits)) if hits else "★ 清单里没有"))
 
 
 def main():

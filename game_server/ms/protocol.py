@@ -50,7 +50,7 @@ def pb_parse(data):
             out.setdefault(fn, []).append(data[i:i + 8])
             i += 8
         else:
-            raise ValueError("unsupported wiretype %d at field %d" % (wt, fn))
+            raise ValueError('unsupported wiretype {} at field {}'.format(wt, fn))
     return out
 
 def pb_varint_field(fn, v):

@@ -102,7 +102,7 @@ def _keys_to_json(obj):
         out = {}
         for k, v in obj.items():
             if isinstance(k, int):
-                out["#%d" % k] = _keys_to_json(v)
+                out['#{}'.format(k)] = _keys_to_json(v)
             else:
                 out[k] = _keys_to_json(v)
         return out
@@ -227,7 +227,7 @@ def _migrate_item_bag_keys(props):
             grid["id"] = sk
         n += 1
     if n:
-        print("[state] item_bag 迁移了 %d 个整数键 -> 字符串键" % n,
+        print('[state] item_bag 迁移了 {} 个整数键 -> 字符串键'.format(n),
               flush=True)
     return n
 

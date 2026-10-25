@@ -89,7 +89,7 @@ def main():
         txt = json.dumps(obj, ensure_ascii=False, indent=1)
         if a.out:
             open(a.out, "w", encoding="utf-8").write(txt)
-            print("已写出 %s（明文 %d 字节）" % (a.out, n))
+            print('已写出 {}（明文 {} 字节）'.format(a.out, n))
         else:
             print(txt[:4000])
         return 0

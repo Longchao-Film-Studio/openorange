@@ -305,7 +305,7 @@ def _set_formation_hero(st, want, syncs):
                                          msmod.OP_CHANGE, str(idx), team))
         except Exception as e:
             _log.warning("[avatar] 编队同步失败: {}".format(e))
-    print("[avatar] 编队主角切换 -> %s（%d 队）" % (want, len(changed_teams)),
+    print('[avatar] 编队主角切换 -> {}（{} 队）'.format(want, len(changed_teams)),
           flush=True)
 
 

@@ -24,7 +24,7 @@ def decompile_one(java, jar, src, dst):
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            timeout=120)
         if r.returncode != 0 or not r.stdout:
-            return False, "rc=%d" % r.returncode
+            return False, 'rc={}'.format(r.returncode)
         d = os.path.dirname(dst)
         if d:
             os.makedirs(d, exist_ok=True)

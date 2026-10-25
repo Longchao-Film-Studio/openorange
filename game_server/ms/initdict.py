@@ -306,8 +306,7 @@ def _live_init_dict_impl(uid=None):
         from .. import tasks as _tasks_d
         _rt, _rch = _tasks_d.daily_reset(st)
         if _rt:
-            print("[init] 跨天重置 %s（%d 条同步描述，已进初始快照）"
-                  % (list(_rt), len(_rch)), flush=True)
+            print('[init] 跨天重置 {}（{} 条同步描述，已进初始快照）'.format(list(_rt), len(_rch)), flush=True)
     except Exception as e:
         _log.warning("[init] 跨天重置失败: {}".format(e))
 
@@ -326,7 +325,7 @@ def _live_init_dict_impl(uid=None):
         from .. import tasks as _tasks_mod
         _gt = _tasks_mod.seed_tasks(st)
         if _gt:
-            print("[init] 通用任务播种：%d 条同步描述（已进初始快照）" % len(_gt),
+            print('[init] 通用任务播种：{} 条同步描述（已进初始快照）'.format(len(_gt)),
                   flush=True)
     except Exception as e:
         _log.warning("[init] 通用任务播种失败: {}".format(e))
@@ -340,7 +339,7 @@ def _live_init_dict_impl(uid=None):
             _sl = _story_mod.sync_story_max_collect_num(st)
             _sl += _story_mod.sync_story_reward_list(st)
             if _sl:
-                _log.info("[init] 章节属性补全 %d 项" % len(_sl))
+                _log.info('[init] 章节属性补全 {} 项'.format(len(_sl)))
         except Exception as e:
             _log.warning("[init] 章节属性补全失败: {}".format(e))
     except Exception:
@@ -399,7 +398,7 @@ def _live_init_dict_impl(uid=None):
         from ..story.rpc import _recalc_system_unlocks as _recalc_u
         _uf = _recalc_u(st)
         if _uf:
-            print("[init] 系统解锁重算：%d 条（已进初始快照）" % len(_uf),
+            print('[init] 系统解锁重算：{} 条（已进初始快照）'.format(len(_uf)),
                   flush=True)
     except Exception as e:
         _log.warning("[init] 系统解锁重算失败: {}".format(e))

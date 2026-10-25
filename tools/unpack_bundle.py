@@ -118,7 +118,7 @@ def decompress(data, comp, uncompressed_size):
         import lzma
         # Unity 的 LZMA 有 5 字节属性 + 8 字节大小头，这里只做兜底
         return lzma.decompress(data)
-    raise RuntimeError("不支持的压缩类型 %d" % comp)
+    raise RuntimeError('不支持的压缩类型 {}'.format(comp))
 
 
 def parse_bundle(data):

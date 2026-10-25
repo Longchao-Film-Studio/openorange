@@ -103,7 +103,7 @@ def run():
         t.start()
     for t in ts:
         t.join(timeout=30)
-    check("最终计数 = %d" % (rounds * threads),
+    check('最终计数 = {}'.format(rounds * threads),
           st.props.get("n") == rounds * threads, st.props.get("n"))
 
     print("\n[4] dispatch.handle 确实走 per-uid 锁")
@@ -154,7 +154,7 @@ def run():
     check("持 lock_x 时 lock_y 仍可获得", got["v"])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

@@ -79,7 +79,7 @@ def run():
 
     print("\n[5] 自动推进到 PostTasks 的第一个任务")
     nxt = int((cfg.get("PostTasks") or [0])[0])
-    check("story_task_bag 里有下一个任务 %d" % nxt,
+    check('story_task_bag 里有下一个任务 {}'.format(nxt),
           nxt in st.props["story_task_bag"], list(st.props["story_task_bag"].keys())[:5])
     check("下一个任务是 Doing(3)",
           st.props["story_task_bag"].get(nxt, {}).get("state") == 3)
@@ -115,7 +115,7 @@ def run():
         story.start_story_task(st, tid, now)
         frames = guarded_handle(erpc.RPC_INDEX["RequestStreetActor_CS"],
                              msmod.mp_arr([actor]), 3, uid="story_test")
-        check("命中并完成 %d" % tid,
+        check('命中并完成 {}'.format(tid),
               story.story_state(st.props, tid) == story.TASK_STATE_FINISHED,
               story.story_state(st.props, tid))
 
@@ -140,7 +140,7 @@ def run():
     check("系统 55 已解锁", us.get(55) is True, us.get(55))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

@@ -108,7 +108,7 @@ def apply(props, cfg=None):
             if isinstance(us, dict):
                 for sid in SYSTEM_UNLOCKS:
                     us[sid] = True
-                changed.append("系统解锁 %d 项" % len(SYSTEM_UNLOCKS))
+                changed.append('系统解锁 {} 项'.format(len(SYSTEM_UNLOCKS)))
 
     if cfg.all_tasks_done:
         # task_bag：getSystemTaskState 会先看 task_bag[taskType] 是否存在，
@@ -147,7 +147,7 @@ def apply(props, cfg=None):
                 item["id"] = tid
                 item["state"] = TASK_STATE_FINISHED
                 dst[tid] = item
-            changed.append("done_story_tasks %d 条" % len(DONE_STORY_TASK_IDS))
+            changed.append('done_story_tasks {} 条'.format(len(DONE_STORY_TASK_IDS)))
 
         # story_finished：BooleanDictKeyInt（int 键 + bool 值）。
         # 置 1 表示「序章已过」，客户端 entities/clientavatar.lua:180 的

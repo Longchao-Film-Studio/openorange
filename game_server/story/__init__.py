@@ -120,7 +120,7 @@ def init_new_player(st, now=None):
         if ch[0] == "add" and ch[1] == "story_task_bag":
             out.append(int(ch[2]))
     if out:
-        _log.info("[story] 剧情播种：%d 个根任务进包" % len(out))
+        _log.info('[story] 剧情播种：{} 个根任务进包'.format(len(out)))
     return out
 
 def story_state(props, task_id):
@@ -348,7 +348,7 @@ def already_awarded(st, task_id):
     log = st.props.get(_AWARD_LOG)
     if not isinstance(log, dict):
         return False
-    prefix = "%d:" % int(task_id)
+    prefix = '{}:'.format(int(task_id))
     return any(str(k).startswith(prefix) for k in log)
 
 
@@ -357,7 +357,7 @@ def drop_award_log(st, task_id):
     log = st.props.get(_AWARD_LOG)
     if not isinstance(log, dict):
         return
-    prefix = "%d:" % int(task_id)
+    prefix = '{}:'.format(int(task_id))
     for k in [k for k in log if str(k).startswith(prefix)]:
         log.pop(k, None)
     st.set(_AWARD_LOG, log)
@@ -471,7 +471,7 @@ def story_award(st, task_id, now=None):
             continue
         if count <= 0:
             continue
-        key = "%d:%d" % (int(task_id), item_id)
+        key = '{}:{}'.format(int(task_id), item_id)
         if key in log:
             continue
         got = add_item(props, item_id, count)

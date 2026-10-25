@@ -100,7 +100,7 @@ def run():
     cfg2 = gamedata.street_treasure(10158) or {}
     ai2 = cfg2.get("AwardItemList") or {}
     first_iid = int([k for k in ai2 if k not in ("KeyList", "__bdd_metatype__")][0])
-    check("道具 %d 已发放" % first_iid, after3.get(first_iid) is not None, after3)
+    check('道具 {} 已发放'.format(first_iid), after3.get(first_iid) is not None, after3)
     entry3 = street_entry(st2)
     check("声望经验 +6",
           int(entry3.get("prestige_exp") or 0) == 6, entry3.get("prestige_exp"))
@@ -132,7 +132,7 @@ def run():
           entry5.get("prestige_exp"))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

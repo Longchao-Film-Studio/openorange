@@ -279,7 +279,7 @@ def ev_finish_task(task_id, source="internal"):
     """某个任务完成（通用任务 / 剧情任务都算）。"""
     return GameEvent(EV_FINISH_TASK, {"taskId": int(task_id)},
                      source=source,
-                     event_id="FinishTask:%d" % int(task_id))
+                     event_id='FinishTask:{}'.format(int(task_id)))
 
 
 
@@ -319,8 +319,7 @@ def ev_street_interact(actor_id, interact_id, street_id=None, actor_type=None,
     if actor_type is not None:
         params["actorType"] = int(actor_type)
     return GameEvent(EV_STREET_INTERACT, params, source=source,
-                     event_id="StreetInteract:%d:%d" % (int(actor_id),
-                                                        int(interact_id)))
+                     event_id='StreetInteract:{}:{}'.format(int(actor_id), int(interact_id)))
 
 
 def ev_submit_item(item_id=0, count=1, submit_id=None, item_ids=None,

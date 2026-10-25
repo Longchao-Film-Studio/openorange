@@ -91,7 +91,7 @@ def run():
         else:
             missing.append((rel, n))
     check("★ 没有漏 drain 的文件", not missing, missing)
-    print("      豁免文件：%s" % (exempt or "无"))
+    print('      豁免文件：{}'.format(exempt or "无"))
 
     print("\n[3] 豁免清单不许有「死条目」（文件已不存在或已不调 apply_event）")
     live = {s[0] for s in sites}
@@ -114,7 +114,7 @@ def run():
     check("EventResult 默认 task_sync 是空 list", r.task_sync == [])
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

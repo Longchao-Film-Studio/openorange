@@ -36,7 +36,7 @@ def take(src, name):
     pat = re.compile(r"^(def {}\(|{} = )".format(re.escape(name), re.escape(name)))
     idx = [i for i, l in enumerate(lines) if pat.match(l)]
     if len(idx) != 1:
-        raise SystemExit("take(%s): 命中 %d 处" % (name, len(idx)))
+        raise SystemExit('take({}): 命中 {} 处'.format(name, len(idx)))
     head = idx[0]
     start = head
     while (start > 0 and lines[start - 1].startswith("#")

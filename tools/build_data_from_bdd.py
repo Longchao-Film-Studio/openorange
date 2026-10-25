@@ -239,7 +239,7 @@ def main():
     chars = build_chars(args.bdd)["chars"]
     build_items(args.bdd)["items"]
     print()
-    print("可玩角色（tier 0）共 %d 个：" % sum(1 for c in chars if c["tier"] == 0))
+    print('可玩角色（tier 0）共 {} 个：'.format(sum(1 for c in chars if c["tier"] == 0)))
     for c in chars:
         if c["tier"] == 0:
             print("  %-6d %-8s %-10s grade=%s cv=%s"

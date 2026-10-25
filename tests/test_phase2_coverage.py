@@ -87,24 +87,24 @@ def handled(name):
 def run():
     total = 0
     for gname, names in GROUPS.items():
-        print("\n[%s] %d 条" % (gname, len(names)))
+        print('\n[{}] {} 条'.format(gname, len(names)))
         missing = [n for n in names if not handled(n)]
         check("{} 全部已实现".format(gname), not missing, missing)
         total += len(names)
 
-    print("\n[account] %d 条（确认无需实现）" % len(ACCOUNT_NOOP))
+    print('\n[account] {} 条（确认无需实现）'.format(len(ACCOUNT_NOOP)))
     # 它们不在 RPC_INDEX 里是预期行为；这里只断言索引表里确实没有，
     # 避免以后有人误加半成品处理器。
     for n in ACCOUNT_NOOP:
         check("{} 按设计不实现".format(n), n not in erpc.RPC_INDEX, n)
 
     print("\n[汇总]")
-    check("阶段 2 四组共 %d 条全部覆盖" % total, True)
-    print("  RPC_INDEX 总数 = %d" % len(erpc.RPC_INDEX))
-    print("  单向处理器数 = %d" % len(erpc._ONE_WAY_HANDLERS))
+    check('阶段 2 四组共 {} 条全部覆盖'.format(total), True)
+    print('  RPC_INDEX 总数 = {}'.format(len(erpc.RPC_INDEX)))
+    print('  单向处理器数 = {}'.format(len(erpc._ONE_WAY_HANDLERS)))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

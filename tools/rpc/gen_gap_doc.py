@@ -67,11 +67,11 @@ A("## 一、总量")
 A("")
 A("| | 条数 |")
 A("|---|---|")
-A("| C2S（客户端 → 服务端） | %d |" % len(c2s))
-A("| S2C（服务端 → 客户端） | %d |" % len(s2c))
-A("| 我们已实现 | %d |" % len([r for r in rows if r["impl"] == "yes"]))
-A("| **C2S 里属于调试/GM 的** | **%d** |" % debug_n)
-A("| **真实业务 RPC** | **%d** |" % real_n)
+A('| C2S（客户端 → 服务端） | {} |'.format(len(c2s)))
+A('| S2C（服务端 → 客户端） | {} |'.format(len(s2c)))
+A('| 我们已实现 | {} |'.format(len([r for r in rows if r["impl"] == "yes"])))
+A('| **C2S 里属于调试/GM 的** | **{}** |'.format(debug_n))
+A('| **真实业务 RPC** | **{}** |'.format(real_n))
 A("")
 A("调试/GM 类（debug 82 + rankdebug 21 + gachadebug 8 + donatedebug 3 + gm 9 + core 3）")
 A("**不需要实现** —— 那是策划调试面板和 GM 命令，正常玩家走不到。")
@@ -87,7 +87,7 @@ for k in TIER2:
         continue
     g = groups[k]
     done = len([r for r in g if r["impl"] == "yes"])
-    A("| %s | %d | %d |" % (k, len(g), done))
+    A('| {} | {} | {} |'.format(k, len(g), done))
 A("")
 A("### 明细")
 A("")
@@ -95,7 +95,7 @@ for k in TIER2:
     if k not in groups:
         continue
     g = sorted(groups[k], key=lambda r: r["name"])
-    A("#### %s（%d 条）" % (k, len(g)))
+    A('#### {}（{} 条）'.format(k, len(g)))
     A("")
     A("| RPC | 索引 | 已实现 | 调用点 |")
     A("|---|---|---|---|")
@@ -111,9 +111,9 @@ for k in sorted(groups, key=lambda x: -len(groups[x])):
     g = groups[k]
     done = len([r for r in g if r["impl"] == "yes"])
     mark = "（调试）" if k in DEBUG else ""
-    A("| %s%s | %d | %d |" % (k, mark, len(g), done))
+    A('| {}{} | {} | {} |'.format(k, mark, len(g), done))
 A("")
 
 open(OUT, "w", encoding="utf-8").write("\n".join(lines) + "\n")
-print("已写出 %s（%d 行）" % (OUT, len(lines)))
-print("C2S %d，调试类 %d，真实业务 %d" % (len(c2s), debug_n, real_n))
+print('已写出 {}（{} 行）'.format(OUT, len(lines)))
+print('C2S {}，调试类 {}，真实业务 {}'.format(len(c2s), debug_n, real_n))

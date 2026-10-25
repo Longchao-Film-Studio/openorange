@@ -117,7 +117,7 @@ def run():
     guarded = [os.path.basename(p) for p in _test_files()
                if os.path.basename(p) != "test_shadow_coverage.py"
                and _uses_guard(p)]
-    print("      已接入 %d 个套件：%s" % (len(guarded), "、".join(guarded)))
+    print('      已接入 {} 个套件：{}'.format(len(guarded), "、".join(guarded)))
     check("接入守卫的套件数 >= 19", len(guarded) >= 19, len(guarded))
     callers = [os.path.basename(p) for p in _test_files() if _call_lines(p)]
     missing = [c for c in callers
@@ -176,7 +176,7 @@ def run():
     #   所以如果 pre=None 被静默放行，本用例会绿 —— 它是真正能区分修复前后的一条。
     root_scalar = msmod.build_property_sync(
         prop_sync.SYNC_SELF, 0, _tx.OP_CHANGE, "signature", "ghost_sig")
-    ghost = "ghost_uid_%d" % os.getpid()
+    ghost = 'ghost_uid_{}'.format(os.getpid())
     real_handle = fg._erpc.handle
     try:
         fg._erpc.handle = lambda index, params, rid, uid=None: [root_scalar]
@@ -237,7 +237,7 @@ def run():
           len(frames or []))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     return 0 if not failed else 1
 
 

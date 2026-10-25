@@ -261,15 +261,14 @@ def main():
     print("=" * W)
     print("剧情任务覆盖率（tools/story_coverage.py，数字现场生成）")
     print("=" * W)
-    print("StoryTaskData 总条数      : %d" % report["total"])
-    print("无 PreTask 的根           : %d" % report["roots"])
+    print('StoryTaskData 总条数      : {}'.format(report["total"]))
+    print('无 PreTask 的根           : {}'.format(report["roots"]))
     print("从全部根 PostTasks BFS 可达: %d（%.1f%%）"
           % (report["reachable"], 100.0 * report["reachable"] / report["total"]))
-    print("  任何根都不可达           : %d  %s"
-          % (report["unreachable"], report["unreachable_ids"][:8]))
+    print('  任何根都不可达           : {}  {}'.format(report["unreachable"], report["unreachable_ids"][:8]))
     print("其中按当前实现可完成       : %d（%.1f%% of 可达）"
           % (report["completable"], report["coverage_pct"]))
-    print("  阻塞                     : %d" % report["blocked"])
+    print('  阻塞                     : {}'.format(report["blocked"]))
     print("-" * W)
     print("可达任务的 TaskType 分布   : {}".format(report["reachable_by_type"]))
     print("可完成任务的 TaskType 分布 : {}".format(report["completable_by_type"]))

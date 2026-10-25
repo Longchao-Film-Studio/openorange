@@ -102,7 +102,7 @@ def cmd_scan(bdd):
     for cname, _ in CHAIN_CLASSES:
         d = byclass[cname]
         print("\n" + "=" * 70)
-        print("【%s】%d 个表" % (cname, len(d)))
+        print('【{}】{} 个表'.format(cname, len(d)))
         for t in sorted(d):
             print("  %-46s %s" % (t, ", ".join(sorted(d[t])[:8])))
 
@@ -141,7 +141,7 @@ def cmd_walk(bdd, start):
             unlock_by_task[v.get("unlockParam")].append(v.get("sysName"))
 
     cur, seen, i = int(start), set(), 0
-    print("=== 从 TaskID=%d 沿 PostTasks 走 ===" % cur)
+    print('=== 从 TaskID={} 沿 PostTasks 走 ==='.format(cur))
     while cur in byid and cur not in seen and i < 200:
         seen.add(cur)
         i += 1
@@ -183,7 +183,7 @@ def cmd_actor(bdd):
                 continue
             states[s] += 1
     print("=== 街景 NPC 的 preTask 条件分布 ===")
-    print("StreetActorInfoData 共 %d 条，其中 %d 条带 preTask" % (len(rows), with_pre))
+    print('StreetActorInfoData 共 {} 条，其中 {} 条带 preTask'.format(len(rows), with_pre))
     print()
     for s, n in states.most_common():
         print("  state=%-3s %-10s  %d 条" % (s, TASK_STATE.get(s, "?"), n))

@@ -50,9 +50,9 @@ def scan_dir(d, quiet=False):
             if head.startswith(UNITYFS):
                 good += 1
             elif head == ZEROS:
-                bad.append((p, "全零空壳 %d B" % size))
+                bad.append((p, '全零空壳 {} B'.format(size)))
             else:
-                bad.append((p, "未知头 %s %d B" % (head.hex(), size)))
+                bad.append((p, '未知头 {} {} B'.format(head.hex(), size)))
     return total, good, bad
 
 
@@ -71,15 +71,14 @@ def main():
             continue
         print("扫描 {}".format(d))
         total, good, bad = scan_dir(d, args.quiet)
-        print("  共 %d 个 .dab，正常 %d，异常 %d" % (total, good, len(bad)))
+        print('  共 {} 个 .dab，正常 {}，异常 {}'.format(total, good, len(bad)))
         grand_total += total
         grand_good += good
         all_bad.extend(bad)
 
     print()
     print("=" * 60)
-    print("合计: %d 个 .dab，正常 %d，异常 %d"
-          % (grand_total, grand_good, len(all_bad)))
+    print('合计: {} 个 .dab，正常 {}，异常 {}'.format(grand_total, grand_good, len(all_bad)))
     if all_bad:
         print()
         print("异常文件清单:")

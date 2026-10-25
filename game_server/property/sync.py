@@ -100,7 +100,7 @@ def validate(ops):
                 walk_ids(v2, "{}.{}".format(path, k))
         elif isinstance(obj, (list, tuple)):
             for i, v2 in enumerate(obj):
-                walk_ids(v2, "%s[%d]" % (path, i))
+                walk_ids(v2, '{}[{}]'.format(path, i))
 
     for op in ops:
         path = op.path or ()

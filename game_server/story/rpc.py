@@ -406,8 +406,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
             except Exception as e:
                 _log.warning("[story] FinishTask 事件失败 {}: {}".format(tid, e))
     elif finished_now:
-        print("[story] 事件链超过 %d 层，停止递归（任务 %s）"
-              % (EVENT_MAX_DEPTH, finished_now[:5]), flush=True)
+        print('[story] 事件链超过 {} 层，停止递归（任务 {}）'.format(EVENT_MAX_DEPTH, finished_now[:5]), flush=True)
     frames.extend(_recalc_story_unlocks(st))
     # ★ 阶段 C：增量播种。只扫「PreTask 指向刚完成的任务」的那些，不是全表重扫
     #   （全表重扫是阶段 D 的事）。depth==0 才做，避免递归里反复播。

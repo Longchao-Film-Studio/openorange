@@ -26,7 +26,7 @@ def main():
         _log.info("> " + line)
         _log.info(r.text or "(空)")
         _log.info("[chat] " + r.chat)
-    _log.info("已注册命令数: %d" % len(COMMANDS))
+    _log.info('已注册命令数: {}'.format(len(COMMANDS)))
 
 
 if __name__ == "__main__":

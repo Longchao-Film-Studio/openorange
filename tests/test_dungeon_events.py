@@ -58,7 +58,7 @@ EVENT = 5009
 def run():
     print("\n[0] BDD 前提校验")
     check("副本 {} 存在".format(COPY), bool(gamedata.level_copy(COPY)))
-    check("副本 %s -> areaid %d（MainlineData）" % (COPY, AREA),
+    check('副本 {} -> areaid {}（MainlineData）'.format(COPY, AREA),
           gamedata.area_of_copy(COPY) == AREA,
           gamedata.area_of_copy(COPY))
     ev = gamedata.task_event(EVENT) or {}
@@ -66,7 +66,7 @@ def run():
           ev.get("EventType") == "FinishDungeon"
           and (ev.get("EventParam") or {}).get("areaid") == AREA, ev)
     st_cfg = gamedata.story_task(TASK) or {}
-    check("任务 %d 是 TaskType 3" % TASK, st_cfg.get("TaskType") == 3,
+    check('任务 {} 是 TaskType 3'.format(TASK), st_cfg.get("TaskType") == 3,
           st_cfg.get("TaskType"))
 
     print("\n[1] 进副本时记下关卡和区域")
@@ -77,9 +77,9 @@ def run():
                 msmod.mp_arr([{"copyId": COPY, "system_type": 1000, "modeId": 1}]),
                 1, uid="dgev_a")
     check("_oo_cur_copy = {}".format(COPY), st.props.get("_oo_cur_copy") == COPY)
-    check("_oo_cur_level = %d" % LEVEL,
+    check('_oo_cur_level = {}'.format(LEVEL),
           st.props.get("_oo_cur_level") == LEVEL, st.props.get("_oo_cur_level"))
-    check("_oo_cur_area = %d" % AREA,
+    check('_oo_cur_area = {}'.format(AREA),
           st.props.get("_oo_cur_area") == AREA, st.props.get("_oo_cur_area"))
 
     print("\n[2] 战斗中激活教学 -> 记下 instructionid")
@@ -94,12 +94,12 @@ def run():
             "dgev_a": {"win": True, "battle_items": {}}}
     guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
                 msmod.mp_arr([info]), 3, uid="dgev_a")
-    check("任务 %d = Finished" % TASK,
+    check('任务 {} = Finished'.format(TASK),
           story.story_state(st.props, TASK) == story.TASK_STATE_FINISHED,
           story.story_state(st.props, TASK))
 
     print("\n[4] 首通记录 + 上下文清理")
-    check("_oo_cleared_levels 记下了 %d" % LEVEL,
+    check('_oo_cleared_levels 记下了 {}'.format(LEVEL),
           isinstance(st.props.get("_oo_cleared_levels"), dict)
           and str(LEVEL) in st.props["_oo_cleared_levels"],
           st.props.get("_oo_cleared_levels"))
@@ -229,7 +229,7 @@ def run():
                       ("dgarea_arcade_12", 10312),
                       ("dgarea_arcade_13", 10313)):
         got = _gd.area_of_copy(cid)
-        check("%s -> areaid %d（不是别人的）" % (cid, want),
+        check('{} -> areaid {}（不是别人的）'.format(cid, want),
               got == want, got)
     check("arcade_04 仍是 10304", _gd.area_of_copy("dgarea_arcade_04") == 10304)
     check("MainlineData 里没有的副本返回 None",
@@ -237,7 +237,7 @@ def run():
           _gd.area_of_copy("guide_01"))
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     if failed:
         print("失败项：" + ", ".join(failed))
     return 0 if not failed else 1

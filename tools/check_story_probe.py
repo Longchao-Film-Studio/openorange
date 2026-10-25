@@ -37,7 +37,7 @@ def main():
         print("找不到注入日志：{}".format(LOG))
         return 2
     lines = text.split(chr(10))
-    print("日志行数：%d" % len(lines))
+    print('日志行数：{}'.format(len(lines)))
 
     # 1) storycb 钩子
     cb_lines = [l for l in lines if "storycb|" in l]
@@ -52,8 +52,8 @@ def main():
         installed = [l for l in cb_lines if "钩子已安装" in l]
         hits = [l for l in cb_lines if "次触发" in l]
         reports = [l for l in cb_lines if "报告：" in l]
-        print("    钩子安装：%s" % ("[OK]" if installed else "[X]"))
-        print("    触发次数：%d 条触发日志" % len(hits))
+        print('    钩子安装：{}'.format("[OK]" if installed else "[X]"))
+        print('    触发次数：{} 条触发日志'.format(len(hits)))
         for l in hits[:8]:
             print("      " + l.split("storycb|", 1)[1].strip()[:100])
         print("    汇报行：")

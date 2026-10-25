@@ -112,10 +112,10 @@ class ShadowCache:
     def report(self):
         lines = []
         if self.errors:
-            lines.append("客户端会崩 %d 处：" % len(self.errors))
+            lines.append('客户端会崩 {} 处：'.format(len(self.errors)))
             lines.extend("  " + e for e in self.errors[:20])
         if self.warnings:
-            lines.append("客户端警告 %d 条：" % len(self.warnings))
+            lines.append('客户端警告 {} 条：'.format(len(self.warnings)))
             lines.extend("  " + w for w in self.warnings[:20])
         return "\n".join(lines)
 
@@ -445,8 +445,7 @@ class ShadowCache:
         n = len(obj.props)
         if k > n + 1:        # table.insert 越界
             self._err("__OpInsert__",
-                      "位置 %s 越界（当前 %d 个元素）-> :340 table.insert 崩"
-                      % (k, n))
+                      '位置 {} 越界（当前 {} 个元素）-> :340 table.insert 崩'.format(k, n))
             return
         if isinstance(value, dict):
             child = self._create_ro(vtype, k, value, obj, False, "__OpInsert__")
@@ -610,7 +609,7 @@ def frames_safe(pre_init_dict, frames, tag=""):
     for f in frames:
         sc.apply_frame(f)
     if tag and sc.errors:
-        print("    [%s] 客户端会崩 %d 处：" % (tag, len(sc.errors)))
+        print('    [{}] 客户端会崩 {} 处：'.format(tag, len(sc.errors)))
         for e in sc.errors[:5]:
             print("      " + e[:110])
     return sc, list(sc.errors)

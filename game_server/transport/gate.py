@@ -36,7 +36,7 @@ def handle_gate(conn, addr, cid):
     t0 = time.time()
     _log.info("")
     _log.info("=" * 64)
-    _log.info("[GATE] ★ 收到网关连接 %s:%d" % (addr[0], addr[1]))
+    _log.info('[GATE] ★ 收到网关连接 {}:{}'.format(addr[0], addr[1]))
     _log.info("=" * 64)
     try:
         conn.settimeout(60)
@@ -240,7 +240,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         except Exception as e:
             _log.warning("[GATE] #%03d 解析客户端时间失败: %s" % (cid, e))
         rpkt = msmod.build_time_sync(ct, int(time.time()))
-        label = "RpcOnSyncServerTime(ct=%d)" % ct
+        label = 'RpcOnSyncServerTime(ct={})'.format(ct)
     elif idx == msmod.RPC_NETWORK_CHECK:
         # networkCheckAfterChange_CS：客户端心跳，必须回
         # networkCheckAfterChange_SC(index)，否则 15 次后断线重连
@@ -252,7 +252,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         except Exception as e:
             _log.warning("[GATE] #%03d 解析心跳序号失败: %s" % (cid, e))
         rpkt = msmod.build_net_check_ack(hb)
-        label = "networkCheckAfterChange_SC(%d)" % hb
+        label = 'networkCheckAfterChange_SC({})'.format(hb)
     elif idx == msmod.RPC_INDEX_NOT_FOUND:
         # __rpc_index_not_found__：客户端在说「你发了个我不认识的 rpc」。
         # ★ 必须显式 no-op：这类帧 rid 可能 > 0，交给 erpc.handle 会落进
@@ -264,7 +264,7 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         # 其余全部交给实体 RPC 层：带 rid 的一律回 entityMessageResponse，
         # 单向的返回空列表。
         rpkt = erpc.handle(idx, params, rid, uid=accounts.uid_of(cid))
-        label = "%s(rid=%d)" % (erpc.describe(idx), rid)
+        label = '{}(rid={})'.format(erpc.describe(idx), rid)
 
     # ★ rpkt 有两种形态：
     #   - 裸 bytes：时间同步 / 心跳应答；
@@ -336,7 +336,7 @@ def _push_bind_message(conn, addr, cid, proto_req):
                 username=sid,
                 uid=sid,
                 entity_id=ooconf.avatar_entity_id(sid),
-                addr="%s:%d" % (addr[0], addr[1]))
+                addr='{}:{}'.format(addr[0], addr[1]))
             _log.info("[GATE] #%03d 在线登记 %s" % (cid, sid))
         except Exception as _e:
             _log.warning("[GATE] #%03d 在线登记失败: %s" % (cid, _e))

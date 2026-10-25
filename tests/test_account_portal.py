@@ -217,7 +217,7 @@ def run():
     reg(U2, P1)
     tok = login(U2, P1).get("token") or ""
     for i in range(5):
-        login(U2, "nope%d" % i)
+        login(U2, 'nope{}'.format(i))
     r = login(U2, P1)
     check("连续失败后正确密码也被暂时拒绝", r.get("ok") is False, r)
     check("提示限速文案", "过多" in str(r.get("msg", "")), r.get("msg"))
@@ -228,7 +228,7 @@ def run():
 def main():
     global BASE
     port = _free_port()
-    BASE = "http://127.0.0.1:%d" % port
+    BASE = 'http://127.0.0.1:{}'.format(port)
     tmpdir = tempfile.mkdtemp(prefix="oo_test_")
     env = dict(os.environ)
     env["OO_DB_PATH"] = os.path.join(tmpdir, "test.db")
@@ -259,7 +259,7 @@ def main():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     print("\n" + "=" * 56)
-    print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
+    print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))
     for name in failed:
         print("  - " + name)
     return 0 if not failed else 1
