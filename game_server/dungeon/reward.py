@@ -9,7 +9,7 @@ RecordItemObtain_CS，剧情任务要的 701/118 永远等不到 RPC。
 from .. import ms as msmod
 from .. import story
 from ..rpc_common import SYNC_SELF, sync_frame
-from ..story.rpc import _emit_get_item, _finish_story_tasks
+from ..story.rpc import _emit_get_item, finish_story_tasks
 
 
 def _grant_battle_items(st, battle_items):
@@ -52,5 +52,5 @@ def _grant_battle_items(st, battle_items):
     for _iid, _cnt in granted:
         _hits = _emit_get_item(st, _iid, _cnt)
         if _hits:
-            frames.extend(_finish_story_tasks(st, _hits, source="event"))
+            frames.extend(finish_story_tasks(st, _hits, source="event"))
     return frames, reward_list

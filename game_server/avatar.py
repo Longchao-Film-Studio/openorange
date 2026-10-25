@@ -72,7 +72,7 @@ def _clean_name(v):
     return str(v).strip()
 
 
-def _validate_name(name):
+def validate_name(name):
     """返回 (ok, errorcode)。"""
     if not name:
         return False, NAME_INVALID
@@ -136,7 +136,7 @@ def _emit_sign(st, syncs):
       达到 TriggerTimes 的通用任务会被自动完成，同步帧由调用方 drain 出去。
     """
     from .story import events as _events
-    from .story.rpc import _finish_story_tasks
+    from .story.rpc import finish_story_tasks
     try:
         res = _events.apply_event(st, _events.ev_sign())
     except Exception as e:
@@ -145,7 +145,7 @@ def _emit_sign(st, syncs):
     syncs.extend(drain_event_task_sync(st, res))
     hits = list(getattr(res, "hits", []) or [])
     if hits:
-        syncs.extend(_finish_story_tasks(st, hits, source="event") or [])
+        syncs.extend(finish_story_tasks(st, hits, source="event") or [])
 
 
 def _name_rpc_common(rid, params, uid, _want_gender):
@@ -155,7 +155,7 @@ def _name_rpc_common(rid, params, uid, _want_gender):
     if not (isinstance(vals, list) and vals):
         return syncs, None, "", False, NAME_INVALID
     name = _clean_name(vals[0])
-    ok, code = _validate_name(name)
+    ok, code = validate_name(name)
     if not ok:
         # 客户端 checkNameResult 会读 ret.errorcode 弹对应提示
         return (respond_after_sync(rid, [],

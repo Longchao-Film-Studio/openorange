@@ -55,7 +55,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u), u
 
 
@@ -317,7 +317,7 @@ def run():
     st13b.set("character_list", _cl)
     st13b.save()
     # 重新走登录流程（initdict 里的校正块）
-    msmod._live_init_dict(u13b)
+    msmod.live_init_dict(u13b)
     _stB = pstate.get_state(uid=u13b)
     _f13b = _formation_ids(_stB)
     check("★ 老号登录后编队 9001->9002 校正",

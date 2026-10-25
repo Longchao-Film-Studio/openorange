@@ -71,9 +71,9 @@ from .initdict import (  # noqa: F401  (re-export)
     CLIENT_AVATAR_CLASS,
     DEFAULT_INIT_DICT,
     MSGPACK_EMPTY_MAP,
-    _live_init_dict,
     _login_tick,
     build_channel_entity,
+    live_init_dict,
 )
 from .property import (  # noqa: F401  (re-export)
     OP_ADD,
@@ -88,7 +88,7 @@ from .property import (  # noqa: F401  (re-export)
     build_property_sync,
 )
 from .protocol import (  # noqa: F401  (re-export)
-    _conv_int_keys,  # noqa: F401  (re-export)
+    conv_int_keys,  # noqa: F401  (re-export)
     mp_any,
     mp_arr,
     mp_bool,

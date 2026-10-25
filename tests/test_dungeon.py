@@ -47,7 +47,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 PROLOGUE_MATCH = {"match_type": 3, "system_type": 1004, "modeId": 1, "storyID": 1}
@@ -133,8 +133,8 @@ def run():
           (st2.props.get("story_finished") or {}).get(1))
 
     print("\n[5] 下次登录：story_finished[1] 已真 -> 客户端跳过序章进街区")
-    pstate._STATES.clear()
-    d = msmod._live_init_dict("dg_b")["__Properties__"]
+    pstate.STATES.clear()
+    d = msmod.live_init_dict("dg_b")["__Properties__"]
     check("initDict 里 story_finished 有整数键 1",
           1 in (d.get("story_finished") or {}),
           list((d.get("story_finished") or {}).keys())[:5])

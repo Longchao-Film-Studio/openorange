@@ -89,7 +89,7 @@ def run():
 
     print("\n[6] UseItem_CS 端到端（扣数量 + 加体力 + 推同步）")
     config.configure_scaffold(unlock_all=True)
-    msmod._live_init_dict("stamina_test")
+    msmod.live_init_dict("stamina_test")
     st = pstate.get_state(uid="stamina_test")
     st.props[S.PROP_KEYS] = 100
     bag = st.props["item_bag"]

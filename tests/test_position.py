@@ -50,7 +50,7 @@ def run():
     #   core/propertysync/customdict.lua:21-30 的 __index 直接读 _properties[k]，
     #   所以客户端 streetsystemmgrbase.lua:562 的 posinfo.x 能正常工作。
     config.configure_scaffold()
-    d = msmod._live_init_dict("pos_a")["__Properties__"]
+    d = msmod.live_init_dict("pos_a")["__Properties__"]
     spi = d.get("street_pos_info") or {}
     check("street_pos_info 存在", bool(spi))
     check("__tp__ = DoubleDict", spi.get("__tp__") == "DoubleDict",
@@ -70,27 +70,27 @@ def run():
     st = pstate.get_state(uid="pos_a")
     guarded_handle(1920167376, msmod.mp_arr([12.5, -3.25, 88.75, 1.57]), 0,
                 uid="pos_a")
-    erpc._LAST_SAVE.clear()
+    erpc.LAST_SAVE.clear()
     guarded_handle(294469585,
                 msmod.mp_arr([101, {"x": 12.5, "y": -3.25, "z": 88.75, "dir": 1.57}]),
                 0, uid="pos_a")
     check("_oo_street_pos 已记录",
           (st.props.get("_oo_street_pos") or {}).get("x") == 12.5,
           st.props.get("_oo_street_pos"))
-    pstate._STATES.clear()
-    d2 = msmod._live_init_dict("pos_a")["__Properties__"]
+    pstate.STATES.clear()
+    d2 = msmod.live_init_dict("pos_a")["__Properties__"]
     spi2 = d2.get("street_pos_info") or {}
     check("重登后 x 恢复", abs(spi2.get("x", 0) - 12.5) < 1e-6, spi2)
     check("重登后 z 恢复", abs(spi2.get("z", 0) - 88.75) < 1e-6, spi2)
     check("重登后 dir 也带上", abs(spi2.get("dir", 0) - 1.57) < 1e-6, spi2)
 
     print("\n[3] 节流：短时间内第二次上报不重复写盘")
-    erpc._LAST_SAVE.clear()
+    erpc.LAST_SAVE.clear()
     st = pstate.get_state(uid="pos_a")
     guarded_handle(1920167376, msmod.mp_arr([1, 2, 3, 0]), 0, uid="pos_a")
-    first = erpc._LAST_SAVE.get("pos_a")
+    first = erpc.LAST_SAVE.get("pos_a")
     guarded_handle(1920167376, msmod.mp_arr([4, 5, 6, 0]), 0, uid="pos_a")
-    check("5 秒内不重复落盘", erpc._LAST_SAVE.get("pos_a") == first)
+    check("5 秒内不重复落盘", erpc.LAST_SAVE.get("pos_a") == first)
     check("内存里的值仍然更新",
           (st.props.get("_oo_street_pos") or {}).get("x") == 4.0)
 

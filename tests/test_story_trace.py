@@ -57,7 +57,7 @@ def check(name, cond, detail=None):
 
 def fresh(name):
     u = f"{name}_{_TAG}"
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     st = pstate.get_state(uid=u)
     SD.seed(st, NOW)
     return u, st
@@ -163,7 +163,7 @@ def run():
     #   （第一次播完 bag 已经是 83，再登录即使不播种也还是 83 ——
     #    这个假阳性是破坏性验证抓出来的，审计也提过同类问题）。
     u7 = "ti_" + _TAG
-    msmod._live_init_dict(u7)
+    msmod.live_init_dict(u7)
     st7 = pstate.get_state(uid=u7)
     # 手工把 bag 削成「只有 1000」+ 清空 done，模拟旧代码留下的存档
     bag7 = st7.props.get("story_task_bag")
@@ -176,9 +176,9 @@ def run():
     n7a = sum(1 for k in bag7 if k not in ("__id__", "__tp__"))
     check("模拟老存档：bag 只有 1 个任务", n7a == 1, n7a)
     st7.save()
-    # 模拟「老号再次登录」：清缓存 + 重新走 _live_init_dict
-    pstate._STATES.clear()
-    msmod._live_init_dict(u7)
+    # 模拟「老号再次登录」：清缓存 + 重新走 live_init_dict
+    pstate.STATES.clear()
+    msmod.live_init_dict(u7)
     st7b = pstate.get_state(uid=u7)
     n7b = sum(1 for k in (st7b.props.get("story_task_bag") or {})
               if k not in ("__id__", "__tp__"))

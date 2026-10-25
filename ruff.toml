@@ -25,7 +25,7 @@ line-length = 100
 [lint]
 select = ["F", "E9", "UP009", "I001", "FURB105", "UP004", "FURB167",
           "RUF023", "SIM102", "SIM118", "PERF102", "C4", "UP020", "UP031", "UP032",
-          "ARG001", "ARG005", "B007", "RUF059"]
+          "ARG001", "ARG005", "B007", "RUF059", "SLF001"]
 ignore = [
   "BLE001",  # 裸 except：服务端在 RPC / 数据边界必须有兜底——一个坏请求不能拖垮进程。
              #   2026-10-25 已把「静默吞异常」清零（291 -> 223）：
@@ -43,5 +43,11 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
+# 工具脚本会给自己/被测模块打私有标记（如 audit_frames 的 _frame_audited），
+# 属于脚本化改造的正常手段。
+"tools/*" = ["SLF001"]
 # 测试里故意保留的姿势与游戏存档往返相关，不强行规范
-"tests/*" = ["SIM118"]
+"tests/*" = ["SIM118", "SLF001", "S101", "S105", "S310", "S603", "S607", "S104"]
+# 测试的职责就是验证内部实现（_erpc / _rotate_keep / _token 等），
+# 所以 SLF001 在 tests 下豁免；S101(assert) / S105(测试口令) / S310(本地 HTTP)
+# / S603(受控 subprocess) 同理。

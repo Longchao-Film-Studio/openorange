@@ -29,7 +29,7 @@ def cmd_dungeon(_ctx, target, *args):
       /dungeon testplay 50003     给 testplay 设
 
     存法：玩家存档的 _oo_dungeon_force_level 私有字段（_oo_ 前缀会被
-    ms._live_init_dict 过滤掉，客户端看不到），按账号隔离、重启不丢。
+    ms.live_init_dict 过滤掉，客户端看不到），按账号隔离、重启不丢。
 
     原理：客户端 dispatchhubonline.lua:49-59 优先用服务端给的
     spaceInfo.levelIds，所以只给一个关卡 id 就只打那一关。

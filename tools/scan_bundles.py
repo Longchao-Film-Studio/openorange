@@ -69,7 +69,7 @@ def main():
     for i, (_sz, fp) in enumerate(files):
         try:
             conts = bundle_containers(fp)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         allc[os.path.basename(fp)] = conts
         if kws:

@@ -90,7 +90,7 @@ TASK_STATE_FINISHED = 6
 def apply(props, cfg=None):
     """把脚手架覆盖到 props 上（原地修改）。
 
-    props 必须已经是 _conv_int_keys 之后的形态 —— 所以这里一律用**整数键**，
+    props 必须已经是 conv_int_keys 之后的形态 —— 所以这里一律用**整数键**，
     不能再写 "#1"（那是 JSON 里的写法，转换之后就变成 1 了）。
     返回实际改动了哪些项，便于日志。
     """

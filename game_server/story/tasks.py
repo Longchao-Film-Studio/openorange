@@ -34,7 +34,7 @@ def _task_sync_frames(st, changes):
             # ★ 必须剥嵌套 __tp__（审计 P0-2 实锤：TaskBag 槽位的 __tp__
             #   会让客户端把字符串当 TaskItem 解析 -> index a string value 崩）
             if optype != msmod.OP_DEL and value is not None:
-                value = _sync._strip_private(value, is_root=False)
+                value = _sync.strip_private(value, is_root=False)
             if not isinstance(name, str):
                 name = str(name)
             frames.append(sync_frame(
@@ -231,7 +231,7 @@ def _refresh_title_daily_task(rid, params, uid=None):
     ch = []
     reset = []
     # 该 DailyType 下、当前不在包里的任务 -> 重新播
-    for tid in tasks._all_task_ids():
+    for tid in tasks.all_task_ids():
         cfg = gamedata.task(tid) or {}
         if cfg.get("TaskType") != 9:
             continue

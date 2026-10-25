@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """剧情任务的 RPC 入口与落状态（P0-E2 第 2 步）。
 
-落状态的**唯一**入口是 _finish_story_tasks：
+落状态的**唯一**入口是 finish_story_tasks：
   - story.events / story.check_chain_tasks 只做「检测」，返回命中的 taskId；
   - 这里才真正调 story.finish_story_task（写 story_task_bag / done_story_tasks）、
     发奖、发 GetItem 事件、重算系统解锁位。
@@ -140,7 +140,7 @@ def _unlock_data_satisfied(st, row):
     return True
 
 
-def _recalc_system_unlocks(st):
+def recalc_system_unlocks(st):
     """按 AllSystemCatalogueData 重算 system_p.unlocked_system（三类 unlockType 全覆盖）。
 
     ★ 这是系统解锁的**唯一写入口**。客户端判定在
@@ -205,7 +205,7 @@ def _recalc_system_unlocks(st):
 
 
 # 兼容旧名字（dispatch / 测试里用过 _recalc_story_unlocks）
-_recalc_story_unlocks = _recalc_system_unlocks
+_recalc_story_unlocks = recalc_system_unlocks
 
 
 def _emit_get_item(st, item_id, count):
@@ -252,7 +252,7 @@ def _emit_get_item(st, item_id, count):
 # ★ P1 阶段 N（审计 P0-1 修复）：完成剧情任务的「来源 -> 允许的 TaskType」白名单。
 #
 #   为什么必须有：审计实测 `Street_Actor_InteractID_Update_CS` 的第 4 个参数
-#   被当成 taskId 直接喂给 _finish_story_tasks，可以在街区里完成任意在包任务
+#   被当成 taskId 直接喂给 finish_story_tasks，可以在街区里完成任意在包任务
 #   （含 3 条 type0 根）—— 因为那条路径绕过了 _done_story_task 的 TaskType 白名单。
 #
 #   修在唯一入口而不是各调用点（R3）：每个来源只能完成它语义上该完成的任务类型。
@@ -279,7 +279,7 @@ def drain_event_task_sync(st, res):
     return _d(st, res)
 
 
-def _finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
+def finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
     """完成若干剧情任务，返回全部同步帧。
 
     ★ P0-D：完成之后会发一条 FinishTask 事件进事件总线。
@@ -362,7 +362,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
             #   所以必须服务端自己发）
             _get_hits = _emit_get_item(st, _item_id, _cnt)
             if _get_hits and depth < EVENT_MAX_DEPTH:
-                frames.extend(_finish_story_tasks(st, _get_hits, depth + 1))
+                frames.extend(finish_story_tasks(st, _get_hits, depth + 1))
             bag = st.props.get("item_bag")
             if not isinstance(bag, dict):
                 break
@@ -401,7 +401,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
                 frames.extend(drain_event_task_sync(st, res))
                 nxt = list(res.hits) + list(res.chain_hits)
                 if nxt:
-                    frames.extend(_finish_story_tasks(st, nxt, depth + 1))
+                    frames.extend(finish_story_tasks(st, nxt, depth + 1))
             except Exception as e:
                 _log.warning(f"[story] FinishTask 事件失败 {tid}: {e}")
     elif finished_now:
@@ -425,9 +425,9 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,
 def _ready_to_finish(st, tid, param, frames):
     """判定任务是否**真的可以完成**；顺便把本次 param 记进 finish_parameter。
 
-    ★ 这个判定必须放在 _finish_story_tasks（唯一落状态入口）里，不能放在各个 RPC 调用点。
+    ★ 这个判定必须放在 finish_story_tasks（唯一落状态入口）里，不能放在各个 RPC 调用点。
       审计实测：真实 NPC 路径走 street/interact.py:_actor_interact，它以前直接
-      _finish_story_tasks(st,[task_id]) 不经过累积 —— 4 条 TaskType 2 的多目标任务照样「第一个就完成」。
+      finish_story_tasks(st,[task_id]) 不经过累积 —— 4 条 TaskType 2 的多目标任务照样「第一个就完成」。
       修在调用点 = 补丁（R3）；修在入口 = 模型。
 
     规则：
@@ -489,7 +489,7 @@ def _done_story_task(rid, params, uid=None):
             param = int(vals[1])
         except Exception:
             param = None
-    syncs = _finish_story_tasks(st, [tid], param=param, source="client") or []
+    syncs = finish_story_tasks(st, [tid], param=param, source="client") or []
     return respond_after_sync(rid, syncs)
 
 def _finish_space_task(rid, params, uid=None):
@@ -510,7 +510,7 @@ def _finish_space_task(rid, params, uid=None):
         :451  startSyncAvatarTask 最终也是发同一条 RPC（带 5 次重试）
 
       服务端要做的：按 SpaceTaskData[spaceTaskId].avatarTask 找到剧情任务，
-      走**同一条** _finish_story_tasks 落状态（不另拼帧）。
+      走**同一条** finish_story_tasks 落状态（不另拼帧）。
 
     ★ 防刷：只接受「avatarTask 指向的剧情任务确实在包里」的请求；
       不在包里就忽略（和 _done_story_task 的规则一致）。
@@ -552,7 +552,7 @@ def _finish_space_task(rid, params, uid=None):
         print(f"[story] 拒绝 SpaceTask {sid}：当前关卡 {cur_level}，要求 {want_level}", flush=True)
         return respond_after_sync(rid, [])
     _log.info(f"[story] SpaceTask {sid} 完成 -> 剧情任务 {tid}")
-    syncs = _finish_story_tasks(st, [tid], source="space_task") or []
+    syncs = finish_story_tasks(st, [tid], source="space_task") or []
     return respond_after_sync(rid, syncs)
 
 
@@ -574,7 +574,7 @@ def _street_actor(rid, params, uid=None):
     st = state(uid)
     hits = _find_story_tasks_by_param(st, actor_id, 2)
     if hits:
-        syncs = _finish_story_tasks(st, hits, param=actor_id,
+        syncs = finish_story_tasks(st, hits, param=actor_id,
                                     source="street_interact") or []
         return respond_after_sync(rid, syncs)
     return respond_after_sync(rid, [])

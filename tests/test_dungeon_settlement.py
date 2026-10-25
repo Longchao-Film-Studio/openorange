@@ -41,7 +41,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 def bag_items(st):
@@ -198,7 +198,7 @@ def run():
                 continue
             try:
                 decoded, _u = msmod.mp_decode(params)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             if not (isinstance(decoded, list) and len(decoded) == 2):
                 continue

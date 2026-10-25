@@ -89,7 +89,7 @@ def frame_fields(f):
 
 
 def fresh(uid):
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 

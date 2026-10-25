@@ -88,7 +88,7 @@ RPC_INDEX = {
     "RequestRefreshTitleDailyTask_CS": 1068584076,
     "RequestDoneTitleTask_CS": 719776379,
     # --- 单向消息（serverMsg / CallServer，rid=0） ---
-    # 这些不带回调，服务端只改数据不回包，处理器在 _ONE_WAY_HANDLERS 里。
+    # 这些不带回调，服务端只改数据不回包，处理器在 ONE_WAY_HANDLERS 里。
     # 也登记进索引表，方便统计和覆盖率核对。
     "RequestUpdateStreetPos_CS": 294469585,
     "RpcEnterSpace": 1277075552,

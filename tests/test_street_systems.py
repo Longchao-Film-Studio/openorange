@@ -42,8 +42,8 @@ def run():
               "RequestGetPrestigeTaskAward_CS", "RequestDispatchChar_CS",
               "RequestFinishDispatch_CS", "RequestCancelDispatchChar_CS"):
         check(n + " 在索引表", n in erpc.RPC_INDEX)
-        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc._HANDLERS)
-    check("RpcPlayActEmoji 是单向处理器", 2000707256 in erpc._ONE_WAY_HANDLERS)
+        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc.HANDLERS)
+    check("RpcPlayActEmoji 是单向处理器", 2000707256 in erpc.ONE_WAY_HANDLERS)
 
     print("\n[2] StreetPrestigeData 能读到升级阈值")
     rows = gamedata.street_prestige(101)
@@ -54,11 +54,11 @@ def run():
 
     print("\n[3] 加声望经验会升级")
     config.configure_scaffold(unlock_all=True)
-    msmod._live_init_dict("sx")
+    msmod.live_init_dict("sx")
     st = pstate.get_state(uid="sx")
     st.props["street_id"] = 101
     need1 = int((rows[0] or {}).get("needExpNum") or 100)
-    _pre = msmod._live_init_dict("sx")   # RPC 前快照（审计 P0-3）
+    _pre = msmod.live_init_dict("sx")   # RPC 前快照（审计 P0-3）
     frames = guarded_handle(erpc.RPC_INDEX["RequestAddPrestigeExp_CS"],
                          msmod.mp_arr([need1 + 30]), 1, uid="sx")
     entry = (st.props.get("street_info") or {}).get(101) or {}

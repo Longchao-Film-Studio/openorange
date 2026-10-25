@@ -44,7 +44,7 @@ def check(name, cond, detail=None):
 
 
 def state(uid):
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 

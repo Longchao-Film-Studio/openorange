@@ -168,7 +168,7 @@ def run():
     # ★ 升级/使用语义修复后不再是"通用 ACK"：
     #   UpgradeCharacter_CS 要真材料、UseItem_CS 要真道具，空参数回失败是正确行为。
     #   这里改为「真数据调用 + 断言应答帧形状」，BreakCharacter 等未实现的仍走兼容 ACK。
-    msmod._live_init_dict("frames_t6")   # 先建完整存档
+    msmod.live_init_dict("frames_t6")   # 先建完整存档
     _pst = __import__("game_server.player_state", fromlist=["get_state"]).get_state(uid="frames_t6")
     _ib = _pst.props.setdefault("item_bag", {})
     _ib["991"] = {"__id__": 990011, "id": "991", "itemId": 201, "num": 9}

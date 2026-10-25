@@ -154,7 +154,7 @@ def mp_map(d):
         out = bytearray(b"\xde" + struct.pack(">H", n))
     for k, v in d.items():
         # 键也要走 mp_any：自定义字典里 __IntTypeKey__=true 的类型（如
-        # BooleanDictKeyInt）键必须是 msgpack 整数。见 _conv_int_keys。
+        # BooleanDictKeyInt）键必须是 msgpack 整数。见 conv_int_keys。
         out += mp_str(k) if isinstance(k, str) else mp_any(k)
         out += mp_any(v)
     return bytes(out)
@@ -265,7 +265,7 @@ def mp_decode(b, i=0):
     return None, i
 
 
-def _conv_int_keys(obj):
+def conv_int_keys(obj):
     """把 JSON 里 "#<int>" 形式的键转成真正的整数键。
 
     JSON 的对象键只能是字符串，但客户端自定义字典（CustomDict:roinit）
@@ -276,10 +276,10 @@ def _conv_int_keys(obj):
         out = {}
         for k, v in obj.items():
             if isinstance(k, str) and k.startswith("#") and k[1:].lstrip("-").isdigit():
-                out[int(k[1:])] = _conv_int_keys(v)
+                out[int(k[1:])] = conv_int_keys(v)
             else:
-                out[k] = _conv_int_keys(v)
+                out[k] = conv_int_keys(v)
         return out
     if isinstance(obj, list):
-        return [_conv_int_keys(v) for v in obj]
+        return [conv_int_keys(v) for v in obj]
     return obj

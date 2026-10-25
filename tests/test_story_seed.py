@@ -49,14 +49,14 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
 def fresh_empty(name):
     """建一个「剧情任务全空」的状态。
 
-    ★ 必须有这个 helper：_live_init_dict 现在会调 init_new_player -> 播全部 83 个根，
+    ★ 必须有这个 helper：live_init_dict 现在会调 init_new_player -> 播全部 83 个根，
       所以默认 fresh 出来的状态 story_task_bag 已经是满的。
       要单独测「增量播种 / 上限」就必须先清空。
 
@@ -130,7 +130,7 @@ def run():
     roots2 = seed_mod.roots()
     reach = set()
     q = list(roots2)
-    idx = seed_mod._INDEX or {}
+    idx = seed_mod.INDEX or {}
     while q:
         t = q.pop(0)
         if t in reach or t not in idx:
@@ -183,7 +183,7 @@ def run():
     # 所以任何非根任务都会被上游 PostTasks 自动启动，增量播种永远是空操作。
     # 这个断言把事实钉住：一旦数据不一致，这里会红。
     mism = []
-    for t, cfg in (seed_mod._INDEX or {}).items():
+    for t, cfg in (seed_mod.INDEX or {}).items():
         pre = cfg.get("PreTask")
         if pre is None:
             continue
@@ -191,7 +191,7 @@ def run():
             pre = int(pre)
         except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
-        idx_all = seed_mod._INDEX or {}
+        idx_all = seed_mod.INDEX or {}
         if pre not in idx_all:
             continue
         posts = [int(x) for x in (idx_all.get(pre) or {}).get("PostTasks") or []]

@@ -26,14 +26,14 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 _items = None
 _chars = None
-_item_by_id = {}
+item_by_id = {}
 _item_by_name = {}
 _char_by_id = {}
 _char_by_name = {}
 
 # 命令系统用到的附加表（同样是 BDD 来的真数据）
-_currencies = None
-_activities = None
+currencies = None
+activities = None
 _tasks = None
 _maps = None
 _gachas = None
@@ -67,27 +67,27 @@ def _load_optional(name, list_key):
 
 
 def _ensure_loaded():
-    global _items, _chars, _currencies, _activities, _tasks, _maps, _gachas, _stories
+    global _items, _chars, currencies, activities, _tasks, _maps, _gachas, _stories
     if _items is not None:
         return
     _items = _load("items.json", "items")
     _chars = _load("chars.json", "chars")
     for it in _items:
-        _item_by_id[it["id"]] = it
+        item_by_id[it["id"]] = it
         _item_by_name.setdefault(it["name"], []).append(it)
     for ch in _chars:
         _char_by_id[ch["id"]] = ch
         _char_by_name.setdefault(ch["name"], []).append(ch)
 
-    _currencies = _load_optional("currencies.json", "currencies")
-    _activities = _load_optional("activities.json", "activities")
+    currencies = _load_optional("currencies.json", "currencies")
+    activities = _load_optional("activities.json", "activities")
     _tasks = _load_optional("tasks.json", "tasks")
     _maps = _load_optional("maps.json", "maps")
     _gachas = _load_optional("gachas.json", "gachas")
     _stories = _load_optional("stories.json", "stories")
-    for c in _currencies:
+    for c in currencies:
         _currency_by_id[c["id"]] = c
-    for a in _activities:
+    for a in activities:
         _activity_by_id[a["id"]] = a
         if a.get("name"):
             _activity_by_name.setdefault(a["name"], []).append(a)
@@ -113,8 +113,8 @@ def stats():
         "chars": len(_chars),
         "char_names": len(_char_by_name),
         "playable_chars": sum(1 for c in _chars if _tier(c) == 0),
-        "currencies": len(_currencies),
-        "activities": len(_activities),
+        "currencies": len(currencies),
+        "activities": len(activities),
         "tasks": len(_tasks),
         "maps": len(_maps),
         "gachas": len(_gachas),
@@ -176,7 +176,7 @@ def tier_name(entry):
 
 def resolve_item(token, allow_unavailables=False):
     """解析物品。返回 (entry, candidates)。"""
-    return _resolve(token, _item_by_id, _item_by_name, allow_unavailables)
+    return _resolve(token, item_by_id, _item_by_name, allow_unavailables)
 
 
 def resolve_char(token, allow_unavailables=False):
@@ -255,7 +255,7 @@ def resolve_currency(token):
         return entry, []
     # 也允许传物品 ID
     if token.isdigit():
-        for c in _currencies:
+        for c in currencies:
             if c.get("item_id") == int(token):
                 return c, []
     return None, []

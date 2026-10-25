@@ -55,7 +55,7 @@ def _as_int(v, default=None):
         return default
 
 
-def _bag_items(st):
+def bag_items(st):
     """story_task_bag 归一化成 {int task_id: item}。"""
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict):
@@ -71,7 +71,7 @@ def _bag_items(st):
     return out
 
 
-def _is_doing(item):
+def is_doing(item):
     return _as_int(item.get("state"), -1) == TASK_STATE_DOING
 
 
@@ -145,7 +145,7 @@ def resolve(st, street_id=None, mode="auto", manual_task=None):
             return 0
         return tid if _scene_ok(tid, sid) else 0
 
-    items = _bag_items(st)
+    items = bag_items(st)
     if not items:
         return 0
 
@@ -159,7 +159,7 @@ def resolve(st, street_id=None, mode="auto", manual_task=None):
     # (b) 自动候选：先「明确指定本街区」的，再「不限街区」的。
     #     分两层是为了不让 gs=None 的任务抢掉真正属于本街区的任务
     #     （tests [8]：切到街区 100 后必须给出 GuideSceneId=100 的任务）。
-    doing = {t: it for t, it in items.items() if _is_doing(it)}
+    doing = {t: it for t, it in items.items() if is_doing(it)}
     tier_explicit = [t for t in doing if _gs(t) == sid]
     tier_any = [t for t in doing if _gs(t) is None]
     for cands in (tier_explicit, tier_any):

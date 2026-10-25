@@ -131,7 +131,7 @@ def run():
 
     print("\n[4d] UpgradeCharacter_CS 升级 + characterBag 子属性同步")
     # ★ 升级语义修复后：需要真材料；应答 + 材料扣减 + bag 同步多帧是正确行为
-    msmod._live_init_dict("psync_4d")
+    msmod.live_init_dict("psync_4d")
     _pst4d = pstate.get_state(uid="psync_4d")
     _ib4d = _pst4d.props.setdefault("item_bag", {})
     _ib4d["995"] = {"__id__": 990015, "id": "995", "itemId": 201, "num": 2}
@@ -233,7 +233,7 @@ def run():
 
     print("\n[5] 其它 RPC 应答帧在最前（升级修复后含材料同步帧）")
     # ★ 升级语义修复后：升级 = 应答 + 材料扣减 + characterBag 同步（多帧是正确行为）
-    msmod._live_init_dict("psync_t5")
+    msmod.live_init_dict("psync_t5")
     _pst = pstate.get_state(uid="psync_t5")
     _ib5 = _pst.props.setdefault("item_bag", {})
     _ib5["990"] = {"__id__": 990010, "id": "990", "itemId": 201, "num": 5}

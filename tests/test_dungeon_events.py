@@ -46,7 +46,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 COPY = "dgarea_arcade_04"
@@ -184,7 +184,7 @@ def run():
     check("RPC_INDEX 里有 SingleStartMatch_CS",
           erpc.RPC_INDEX.get("SingleStartMatch_CS") == 1996394131,
           erpc.RPC_INDEX.get("SingleStartMatch_CS"))
-    check("_HANDLERS 里注册了", 1996394131 in erpc._HANDLERS)
+    check("HANDLERS 里注册了", 1996394131 in erpc.HANDLERS)
 
     # 用 MainlineData 的一条真实数据：dungeonId 是整数 ID，copyId 从表里取
     md = _gd2.table("MainlineData") or {}

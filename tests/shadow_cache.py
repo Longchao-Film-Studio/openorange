@@ -595,7 +595,7 @@ def frames_safe(pre_init_dict, frames, tag=""):
       那条新数据了，于是「新键用 OP_CHANGE」这种回归**抓不到**。
       正确用法：
 
-        pre = msmod._live_init_dict(uid)      # 先快照
+        pre = msmod.live_init_dict(uid)      # 先快照
         frames = erpc.handle(...)             # 再跑 RPC
         sc, errs = frames_safe(pre, frames)   # 用 pre 建缓存
         assert not errs, errs

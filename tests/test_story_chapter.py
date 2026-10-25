@@ -65,7 +65,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -198,7 +198,7 @@ def run():
     check("奖励列表帧在客户端模型里不崩且无警告",
           not errs5 and not sc5.warnings, (errs5[:1], sc5.warnings[:1]))
 
-    print("\n[6] 登录时自动补全（_live_init_dict 里跑）")
+    print("\n[6] 登录时自动补全（live_init_dict 里跑）")
     st6 = fresh("ch_e")
     _mc6 = [k for k in (st6.props.get("story_max_collect_num") or {})
             if k not in ("__id__", "__tp__")]

@@ -179,7 +179,7 @@ def _submit_item(rid, params, uid=None):
     """
     # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
     from ..story import events as _events
-    from ..story.rpc import _finish_story_tasks
+    from ..story.rpc import finish_story_tasks
     syncs = []
     vals = decode_params(params)
     submit_id = None
@@ -233,7 +233,7 @@ def _submit_item(rid, params, uid=None):
     syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        syncs.extend(_finish_story_tasks(st, nxt, source="event") or [])
+        syncs.extend(finish_story_tasks(st, nxt, source="event") or [])
     print(f"[story] 提交道具 submit_id={submit_id} item={item_id} x{count} 需求={item_ids}", flush=True)
     st.save()
     return respond_after_sync(rid, syncs)
@@ -248,7 +248,7 @@ def _record_item_obtain(rid, params, uid=None):
     """
     # 延迟导入 story（避免 property <-> story 双向依赖，见文件头注释）
     from ..story import events as _events
-    from ..story.rpc import _finish_story_tasks
+    from ..story.rpc import finish_story_tasks
     syncs = []
     vals = decode_params(params)
     item_id, count = 0, 1
@@ -288,7 +288,7 @@ def _record_item_obtain(rid, params, uid=None):
     syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        syncs.extend(_finish_story_tasks(st, nxt) or [])
+        syncs.extend(finish_story_tasks(st, nxt) or [])
     _log.info(f"[story] 获得道具 {item_id} x{count}")
     st.save()
     return respond_after_sync(rid, syncs)

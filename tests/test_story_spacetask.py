@@ -28,7 +28,7 @@
      SpaceTaskData[spaceTaskId].avatarTask 指向的那一个剧情任务。
   2. 剧情任务必须在 story_task_bag 里才允许完成（防伪造）。
   3. 没有 avatarTask 的 SpaceTask 不改剧情状态。
-  4. 走**同一条** _finish_story_tasks 落状态，不另拼帧。
+  4. 走**同一条** finish_story_tasks 落状态，不另拼帧。
 
 用法: python tests/test_story_spacetask.py
 """
@@ -137,7 +137,7 @@ def run():
 
     print("\n[4] 真实链路：推进到 1102 -> SpaceTask 完成 -> 1103 启动")
     uid = "st_" + _TAG
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     st = pstate.get_state(uid=uid)
     SD.seed(st, NOW)
     chain = [1000]
@@ -210,7 +210,7 @@ def run():
     print("\n[5] 防伪造：不在副本里 / 不在包里的请求都要被拒")
     # 5a 不在副本里（_oo_cur_copy 为 None）-> 拒
     uid_d = "std_" + _TAG
-    msmod._live_init_dict(uid_d)
+    msmod.live_init_dict(uid_d)
     st_d = pstate.get_state(uid=uid_d)
     SD.seed(st_d, NOW)
     story.start_story_task(st_d, 1102, NOW)
@@ -233,7 +233,7 @@ def run():
           story.story_state(st_d.props, 1102) != sm.TASK_STATE_FINISHED,
           story.story_state(st_d.props, 1102))
     uid2 = "st2_" + _TAG
-    msmod._live_init_dict(uid2)
+    msmod.live_init_dict(uid2)
     st2 = pstate.get_state(uid=uid2)
     check("未播种时 1102 不在包里",
           1102 not in (st2.props.get("story_task_bag") or {}))
@@ -247,7 +247,7 @@ def run():
     no_avatar = [sid for sid, row in SP.items() if row.get("avatarTask") is None]
     check("存在没有 avatarTask 的 SpaceTask", bool(no_avatar), len(no_avatar))
     uid3 = "st3_" + _TAG
-    msmod._live_init_dict(uid3)
+    msmod.live_init_dict(uid3)
     st3 = pstate.get_state(uid=uid3)
     SD.seed(st3, NOW)
     before = len([k for k in (st3.props.get("done_story_tasks") or {})
@@ -261,7 +261,7 @@ def run():
 
     print("\n[6.5] 防伪造：断线重连后副本上下文必须清空")
     uid_r = "str_" + _TAG
-    msmod._live_init_dict(uid_r)
+    msmod.live_init_dict(uid_r)
     st_r = pstate.get_state(uid=uid_r)
     SD.seed(st_r, NOW)
     story.start_story_task(st_r, 1102, NOW)
@@ -273,8 +273,8 @@ def run():
           st_r.props.get("_oo_cur_copy"))
     st_r.save()
     # 模拟断线重连：清内存缓存 + 重新登录
-    pstate._STATES.clear()
-    msmod._live_init_dict(uid_r)
+    pstate.STATES.clear()
+    msmod.live_init_dict(uid_r)
     st_r2 = pstate.get_state(uid=uid_r)
     check("★ 6.5b 重连后 _oo_cur_copy / _oo_cur_level 被清空",
           st_r2.props.get("_oo_cur_copy") is None
@@ -287,7 +287,7 @@ def run():
 
     print("\n[7] 端到端：进副本 -> SpaceTask -> 剧情推进 -> 结算")
     uid4 = "st4_" + _TAG
-    msmod._live_init_dict(uid4)
+    msmod.live_init_dict(uid4)
     st4 = pstate.get_state(uid=uid4)
     SD.seed(st4, NOW)
     # 直接给 1102 建 Doing 条目（省掉主线推进，本用例只验副本内链路）

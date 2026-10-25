@@ -11,7 +11,7 @@
 
 审计发现两个真实 bug：
 
-- ms._live_init_dict 的 _oo_ 过滤**只过滤顶层**，嵌套层的 _oo_* 会原样发给客户端，
+- ms.live_init_dict 的 _oo_ 过滤**只过滤顶层**，嵌套层的 _oo_* 会原样发给客户端，
   客户端 initProperty 里 assert(customType ~= nil) 直接崩
 - 各处手拼帧时没人检查「OP_ADD 的值有没有 __id__」
 
@@ -29,7 +29,7 @@ _log = get_logger(__name__)
 SYNC_SELF = ""
 
 
-def _strip_private(value, is_root=False):
+def strip_private(value, is_root=False):
     """递归剥掉私有键。返回新对象（不改原值）。
 
     剥两类：
@@ -53,12 +53,12 @@ def _strip_private(value, is_root=False):
                 continue
             if k == "__tp__" and not is_root:
                 continue
-            out[k] = _strip_private(v, is_root=False)
+            out[k] = strip_private(v, is_root=False)
         return out
     if isinstance(value, list):
-        return [_strip_private(v, is_root=False) for v in value]
+        return [strip_private(v, is_root=False) for v in value]
     if isinstance(value, tuple):
-        return tuple(_strip_private(v, is_root=False) for v in value)
+        return tuple(strip_private(v, is_root=False) for v in value)
     return value
 
 
@@ -189,7 +189,7 @@ def ops_to_frames(ops, strict=False):
         else:
             # ★ 根属性值保留 __tp__，嵌套值剥掉（审计 P0-1/P0-2）
             is_root = len(op.path or ()) == 1
-            value = _strip_private(op.value, is_root=is_root)
+            value = strip_private(op.value, is_root=is_root)
         frames.append(_ms.build_property_sync(
             SYNC_SELF, op.property_id, op.optype, op.name, value))
     return frames

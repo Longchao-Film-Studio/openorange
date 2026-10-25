@@ -43,7 +43,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 
@@ -98,7 +98,7 @@ def run():
 
     print("\n[5] ★ 回归：审计里的撞号场景（真实发奖路径）")
     # 审计指出：story.finish_story_task 只写 done_story_tasks、**不发奖**，
-    # 真正建背包格子的是 entity_rpc._finish_story_tasks -> story_award -> add_item。
+    # 真正建背包格子的是 entity_rpc.finish_story_tasks -> story_award -> add_item。
     # 这里必须走真实发奖路径才能复现撞号场景。
     st2 = fresh("ids_b")
     bag_before = len(bag_ids(st2))
@@ -108,8 +108,8 @@ def run():
     # ★ 审计 P2-9：这条路径以前直接调 handler 并把帧丢掉，没有任何影子缓存校验。
     #   发奖/建背包格子正是最容易产生新 __id__ 和属性帧的地方，必须过一遍客户端模型。
     _pre = pre_snapshot("ids_b")
-    _frames = erpc._finish_story_tasks(st2, [1005])
-    _frames += erpc._finish_story_tasks(st2, [1003])
+    _frames = erpc.finish_story_tasks(st2, [1005])
+    _frames += erpc.finish_story_tasks(st2, [1003])
     st2.save()
     check("真实发奖路径产生了属性帧", bool(_frames), len(_frames or []))
     # ★ 审计 P2-10：只断言「有帧」不够 —— 任务帧也会让这条绿。
@@ -121,7 +121,7 @@ def run():
             continue
         try:
             _fl = msmod.pb_parse(bytes(_f[6:]))
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if _fl.get(2, [None])[0] == _bag_pid and _fl.get(3, [None])[0] == msmod.OP_ADD:
             _bag_add += 1
@@ -159,7 +159,7 @@ def run():
     x1 = st4.next_property_id()
     st4.save()
     # 清内存缓存，从盘里重新读
-    pstate._STATES.pop("ids_d", None)
+    pstate.STATES.pop("ids_d", None)
     st4b = pstate.get_state(uid="ids_d")
     x2 = st4b.next_property_id()
     check("重启后继续递增（不回退）", x2 > x1, (x1, x2))
@@ -178,7 +178,7 @@ def run():
     st6 = fresh("ids_f")
     st6.next_property_id()
     st6.save()
-    d = msmod._live_init_dict("ids_f")
+    d = msmod.live_init_dict("ids_f")
     pub = d.get("__Properties__") or {}
     check("initDict 里没有 _oo_next_id", "_oo_next_id" not in pub,
           [k for k in pub if str(k).startswith("_oo_")])
@@ -216,7 +216,7 @@ def run():
     check("发完道具后 props 无重复 __id__", ok7 is True, dup7)
     # 模拟「重登」：重新读档后第一次分配必须不撞
     st7.save()
-    pstate._STATES.pop("ids_g", None)
+    pstate.STATES.pop("ids_g", None)
     st7b = pstate.get_state(uid="ids_g")
     nid7 = st7b.next_property_id()
     ok8, dup8 = ids_mod.verify_unique(st7b.props)

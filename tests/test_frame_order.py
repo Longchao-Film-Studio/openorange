@@ -57,7 +57,7 @@ def entity_method(frame):
 
 def run():
     uid = "frameorder"
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     # _use_item 需要背包里有该道具，否则会早退（只回应答），用例就测不到顺序。
     _st = pstate.get_state(uid=uid)
     _st.props["item_bag"] = {

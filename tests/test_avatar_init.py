@@ -178,14 +178,14 @@ def run():
           len([k for k in (props.get("task_bag") or {}) if k.startswith("#")]) == 0)
 
     print("\n[6] 整数键约定（CustomDict:roinit 不做键类型转换）")
-    conv = msmod._conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
+    conv = msmod.conv_int_keys({"a": {"#1": True, "#12": 3, "b": {"#7": 0}}})
     check("#1 -> 1", 1 in conv["a"])
     check("#12 -> 12", 12 in conv["a"])
     check("嵌套也转换", 7 in conv["a"]["b"])
     check("普通键保留", "b" in conv["a"])
 
     print("\n[7] 整体 msgpack 编码可解码且能还原 characterBag 整数键")
-    raw = msmod.mp_map(msmod._conv_int_keys(props))
+    raw = msmod.mp_map(msmod.conv_int_keys(props))
     check("编码非空", len(raw) > 10000, len(raw))
     back, used = msmod.mp_decode(raw)
     check("解码消耗完整个缓冲区", used == len(raw), (used, len(raw)))

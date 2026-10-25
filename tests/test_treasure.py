@@ -35,7 +35,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 def bag_items(st):
@@ -63,7 +63,7 @@ def run():
     print("\n[2] 开箱发道具 + 声望经验")
     st = fresh("tr_a")
     before = bag_items(st)
-    _pre = msmod._live_init_dict("tr_a")   # RPC 前快照（审计 P0-3）
+    _pre = msmod.live_init_dict("tr_a")   # RPC 前快照（审计 P0-3）
     frames = guarded_handle(erpc.RPC_INDEX["RequestStreetTreasure_CS"],
                          msmod.mp_arr([10157]), 1, uid="tr_a")
     after = bag_items(st)

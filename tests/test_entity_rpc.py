@@ -99,7 +99,7 @@ def run():
 
     print("\n[4] 通用 ACK：帧类型、rid 回带、参数是 [retStatus, response]")
     # ★ 升级语义修复后空参数会失败——测试意图是帧形状，用真材料调用
-    _msmod_live = msmod._live_init_dict("rpc_t1")   # 先建完整存档（含 item_bag __tp__）
+    _msmod_live = msmod.live_init_dict("rpc_t1")   # 先建完整存档（含 item_bag __tp__）
     _st4 = __import__("game_server.player_state", fromlist=["get_state"]).get_state(uid="rpc_t1")
     _ib = _st4.props.setdefault("item_bag", {})
     _ib["990"] = {"__id__": 990010, "id": "990", "itemId": 201, "num": 5}

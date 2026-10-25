@@ -50,7 +50,7 @@ def pre_snapshot(uid):
     for k, v in st.props.items():
         if isinstance(k, str) and k.startswith("_oo_"):
             continue
-        props[k] = _sync._strip_private(v, is_root=True)
+        props[k] = _sync.strip_private(v, is_root=True)
     return {"__Properties__": props}
 
 

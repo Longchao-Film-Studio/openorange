@@ -81,10 +81,10 @@ def _apply_street_change(new_id, uid):
     #   时应该完成它，之后 1004 才能进包 -> actor 40005 -> playTimeline 7。
     try:
         from ..story import street_arrival_tasks
-        from ..story.rpc import _finish_story_tasks
+        from ..story.rpc import finish_story_tasks
         _hits = street_arrival_tasks(st, new_id)
         if _hits:
-            syncs.extend(_finish_story_tasks(st, _hits, source="street_arrival") or [])
+            syncs.extend(finish_story_tasks(st, _hits, source="street_arrival") or [])
     except Exception as _e:
         _log.warning(f"[street] 切街完成 type4 失败: {_e}")
     # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）

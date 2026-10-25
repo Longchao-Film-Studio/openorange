@@ -87,7 +87,7 @@ def scan_client_calls():
             p = os.path.join(dp, f)
             try:
                 t = open(p, encoding="utf-8", errors="replace").read()
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             for i, ln in enumerate(t.split("\n"), 1):
                 for m in pat.finditer(ln):

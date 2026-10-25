@@ -49,7 +49,7 @@ def find_descriptor(name):
             if s2 < 0: continue
             try:
                 l2, i2 = rv(d, s2)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             if l2 == len(name) and i2 == off:
                 starts.append(s2)

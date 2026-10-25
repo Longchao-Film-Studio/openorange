@@ -44,7 +44,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -146,7 +146,7 @@ def t4():
     print("T4 Set* 系列: 根属性同步帧 propertyId=0 + 落库")
     u = uid_of("t4")
     fresh("t4")
-    pre = msmod._live_init_dict(u)   # RPC 之前的 initDict 快照（frames_safe 要求）
+    pre = msmod.live_init_dict(u)   # RPC 之前的 initDict 快照（frames_safe 要求）
     ret = call("SetSignature_CS", ["审计签名"], 104, uid=u)
     fr = frames_of(ret)
     check("T4.帧 非空", bool(fr), str(fr)[:100])
@@ -162,7 +162,7 @@ def t5():
     print("T5 取名三件套: player_name/gender 同步帧（回归）")
     u = uid_of("t5")
     fresh("t5")
-    pre = msmod._live_init_dict(u)
+    pre = msmod.live_init_dict(u)
     ret = call("RpcCommitNameGender", ["审计名", 2], 105, uid=u)
     fr = frames_of(ret)
     txt = str(fr)

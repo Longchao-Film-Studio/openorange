@@ -107,19 +107,19 @@ def cmd_lv(_ctx, target, *args):
           desc="增加货币", perm=PERM_GM, needs_target=True, group="GM")
 def cmd_money(_ctx, target, *args):
     if len(args) < 2:
-        return err("用法：/money <目标> <货币> <数量>\n可用货币：{}".format("、".join(c["id"] for c in gamedata._currencies)),
+        return err("用法：/money <目标> <货币> <数量>\n可用货币：{}".format("、".join(c["id"] for c in gamedata.currencies)),
                    chat="✗ 用法: /money <目标> <货币> <数量>")
     num, e = _need_num(args[1], None, 1, 99999999)
     if e:
         return e
     entry, _cands = gamedata.resolve_currency(args[0])
     if entry is None:
-        return err("找不到货币「{}」，可用：{}".format(args[0], "、".join(c["id"] for c in gamedata._currencies)),
+        return err("找不到货币「{}」，可用：{}".format(args[0], "、".join(c["id"] for c in gamedata.currencies)),
                    chat="✗ 找不到货币")
     if not entry.get("item_id"):
         return err("货币「{}」没有对应物品 id，无法发放".format(entry["id"]),
                    chat="✗ 货币 {} 无物品 id".format(entry["id"]))
-    item = gamedata._item_by_id.get(entry.get("item_id")) or {}
+    item = gamedata.item_by_id.get(entry.get("item_id")) or {}
     # ★ 真写入：货币本质就是物品，走 /player/grant
     res, e = target.call("POST", "/player/grant",
                          {"items": {str(entry["item_id"]): num}})
@@ -173,7 +173,7 @@ def cmd_quest(_ctx, target, *args):
         return err(f"找不到任务「{args[0]}」", chat="✗ 找不到任务")
     lines = [
         "✗ 未实现",
-        "  强制完成任务需要走剧情/任务唯一入口（_finish_story_tasks），" +
+        "  强制完成任务需要走剧情/任务唯一入口（finish_story_tasks），" +
         "未做命令直通。",
         "  已解析：#{}  {}".format(entry["id"], entry.get("desc") or ""),
     ]
@@ -211,7 +211,7 @@ def cmd_story(_ctx, target, *args):
           implemented=False)
 def cmd_act(ctx, _target, *args):
     if not args:
-        rows = gamedata._activities
+        rows = gamedata.activities
         shown = rows[:15]
         lines = [f'活动共 {len(rows)} 个，前 {len(shown)} 个：']
         for a in shown:

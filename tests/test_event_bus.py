@@ -49,7 +49,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 def activate(st, task_id):
@@ -103,7 +103,7 @@ def run():
     r4 = events.apply_event(st, e2)
     check("不带 event_id 的事件不去重", not r3.deduped and not r4.deduped)
     # 去重记录不落进 initDict
-    d = msmod._live_init_dict("ev_dedup")
+    d = msmod.live_init_dict("ev_dedup")
     check("_oo_event_seen 不下发给客户端",
           "_oo_event_seen" not in d["__Properties__"])
 
@@ -213,8 +213,8 @@ def run():
     activate(st, 201000)          # 链式任务，前置 1031
     story.finish_story_task(st, 1031, 0)
     st.save()
-    pstate._STATES.pop("ev_login", None)      # 模拟进程重启
-    msmod._live_init_dict("ev_login")         # 登录
+    pstate.STATES.pop("ev_login", None)      # 模拟进程重启
+    msmod.live_init_dict("ev_login")         # 登录
     st2 = pstate.get_state(uid="ev_login")
     pend = st2.props.get("_oo_pending_chain")
     check("登录 tick 把命中的链式任务记进 _oo_pending_chain",
@@ -233,8 +233,8 @@ def run():
     activate(st, 400015)          # 需要 AvatarAttr level=3
     st.props["level"] = 3
     st.save()
-    pstate._STATES.pop("ev_p01", None)
-    msmod._live_init_dict("ev_p01")
+    pstate.STATES.pop("ev_p01", None)
+    msmod.live_init_dict("ev_p01")
     st = pstate.get_state(uid="ev_p01")
     pend = st.props.get("_oo_pending_chain") or []
     check("P0-1 登录 tick 把 hits 记进 pending", 400015 in pend, pend)
@@ -249,7 +249,7 @@ def run():
     r1 = events.apply_event(st, events.ev_avatar_attr("level", 3))
     check("P0-4 第一次 level=3 同时命中 7006 和 7007",
           7006 in r1.hits and 7007 in r1.hits, r1.hits)
-    erpc._finish_story_tasks(st, [7006])
+    erpc.finish_story_tasks(st, [7006])
     r2 = events.apply_event(st, events.ev_avatar_attr("level", 3))
     check("P0-4 第二次 level=3 仍能命中 7007（没被去重挡住）",
           7007 in r2.hits and not r2.deduped, (r2.hits, r2.deduped))
@@ -267,17 +267,17 @@ def run():
     _orig_save = st.save
     st.save = lambda *a, **k: (_saved.append(1), _orig_save(*a, **k))[1]
     try:
-        erpc._finish_story_tasks(st, [50290])
+        erpc.finish_story_tasks(st, [50290])
     finally:
         st.save = _orig_save
-    check("P1-4 _finish_story_tasks 结束时会 save", bool(_saved), len(_saved))
+    check("P1-4 finish_story_tasks 结束时会 save", bool(_saved), len(_saved))
 
     print("\n[H] 帧安全：以上路径的帧喂进影子缓存不崩")
     st = fresh("ev_shadow")
     activate(st, 50290)
     # ★ pre 必须在 activate 之后取：activate() 是测试辅助、不发帧，
     #   而真实游戏里任务是通过 PostTasks 用 OP_ADD 推给客户端的。
-    pre = msmod._live_init_dict("ev_shadow")
+    pre = msmod.live_init_dict("ev_shadow")
     frames = []
     frames += guarded_handle(erpc.RPC_INDEX["SubmitItem_CS"],
                           msmod.mp_arr([101, 1]), 1, uid="ev_shadow")

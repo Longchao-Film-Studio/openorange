@@ -50,7 +50,7 @@ def load_props(uid):
     else:
         with open(INIT_JSON, "r", encoding="utf-8") as f:
             d = json.load(f)
-        props = msmod._conv_int_keys(d["__Properties__"])
+        props = msmod.conv_int_keys(d["__Properties__"])
         src = "initDict"
     props["uid"] = uid
     return props, src

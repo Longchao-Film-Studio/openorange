@@ -55,7 +55,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -104,7 +104,7 @@ def run():
     from game_server import story
     story.start_story_task(st3, 1005, 1700000000)
     set(_unlocked(st3))
-    fr = srpc._finish_story_tasks(st3, [1005], source="client")
+    fr = srpc.finish_story_tasks(st3, [1005], source="client")
     after = set(_unlocked(st3))
     want2 = {r["id"] for r in by[2] if r.get("unlockParam") == 1005}
     check("★ 1005 完成后对应入口解锁", want2 <= after, (want2, after))
@@ -136,7 +136,7 @@ def run():
     check(f"数据里最低的等级门槛 = {lv_need}", lv_need > 1, lv_need)
     set(_unlocked(st5))
     st5.props["level"] = lv_need
-    srpc._recalc_system_unlocks(st5)
+    srpc.recalc_system_unlocks(st5)
     after5 = set(_unlocked(st5))
     want3 = {r["id"] for r in by[3]
              if isinstance(r.get("unlockParam"), int)
@@ -150,19 +150,19 @@ def run():
     print("\n[6] 双向：条件不满足时摘除（防误解锁）")
     st6 = fresh("reverse")
     st6.props["level"] = 30
-    srpc._recalc_system_unlocks(st6)
+    srpc.recalc_system_unlocks(st6)
     n6a = len(_unlocked(st6))
     check("等级 30 时解锁了一批", n6a > 0, n6a)
     st6.props["level"] = 1
-    srpc._recalc_system_unlocks(st6)
+    srpc.recalc_system_unlocks(st6)
     n6b = len(_unlocked(st6))
     check("★ 等级降回 1 后那些等级入口被摘除", n6b < n6a, (n6a, n6b))
 
     print("\n[7] 幂等：重复重算不重复推帧")
     st7 = fresh("idem")
     st7.props["level"] = 30
-    f1 = srpc._recalc_system_unlocks(st7)
-    f2 = srpc._recalc_system_unlocks(st7)
+    f1 = srpc.recalc_system_unlocks(st7)
+    f2 = srpc.recalc_system_unlocks(st7)
     check("第一次有帧", len(f1) > 0, len(f1))
     check("★ 第二次没有帧（幂等）", f2 == [], len(f2))
 

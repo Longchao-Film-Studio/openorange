@@ -360,7 +360,7 @@ def _normalize_list_keys(container):
 
     为什么会有两种形态：
       - "#N"：avatar_init.json 里就是这么写的；_apply_property 重建 list 时也写 "#N"
-      - N   ：ms._conv_int_keys 之后的形态
+      - N   ：ms.conv_int_keys 之后的形态
     两种在发给客户端时都会转成整数（build_property_sync 里做），但服务端做位移时
     必须统一，否则 pop 和写回会互相看不见。
     """

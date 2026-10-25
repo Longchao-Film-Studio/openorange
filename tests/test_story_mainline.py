@@ -155,7 +155,7 @@ def run():
     print("\n[2] 登录播种：story_task_bag 应该是 83 个根（不是 1 个）")
     uid = "ml_" + _TAG
     st = pstate.get_state(
-        msmod._conv_int_keys(
+        msmod.conv_int_keys(
             msmod.AVATAR_INIT_DICT.get("__Properties__") or {}), uid=uid)
     SD.seed(st, NOW)
     bag_n = sum(1 for k in (st.props.get("story_task_bag") or {})
@@ -193,7 +193,7 @@ def run():
     print("\n[5] 帧全部过客户端影子缓存")
     uid2 = "mlf_" + _TAG
     st2 = pstate.get_state(
-        msmod._conv_int_keys(
+        msmod.conv_int_keys(
             msmod.AVATAR_INIT_DICT.get("__Properties__") or {}), uid=uid2)
     SD.seed(st2, NOW)
     pre2 = pre_snapshot(uid2)

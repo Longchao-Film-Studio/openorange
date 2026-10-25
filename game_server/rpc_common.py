@@ -25,7 +25,7 @@ EVENT_MAX_DEPTH = 8
 
 # 位置上报很频繁（每次移动都发），不能每次都写盘。
 # 同一个 uid 每 5 秒最多落盘一次；正常退出/切场景时 force 写。
-_LAST_SAVE = {}
+LAST_SAVE = {}
 _SAVE_INTERVAL = 5.0
 
 
@@ -43,8 +43,8 @@ def decode_params(params):
 def state(uid=None):
     """服务端可变玩家状态（按 uid 分开，懒加载，首次用 initDict 初始化）。"""
     from . import player_state as pstate
-    # 和 ms._live_init_dict 保持一致：状态里一律用整数键
-    props = msmod._conv_int_keys(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
+    # 和 ms.live_init_dict 保持一致：状态里一律用整数键
+    props = msmod.conv_int_keys(msmod.AVATAR_INIT_DICT.get("__Properties__") or {})
     return pstate.get_state(props, uid=uid or pstate.DEFAULT_UID)
 
 
@@ -86,7 +86,7 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
         val = None
     else:
         # 只有根属性值（propertyId == 0）保留 __tp__
-        val = _sync._strip_private(value, is_root=(int(property_id) == 0))
+        val = _sync.strip_private(value, is_root=(int(property_id) == 0))
     if not isinstance(name, str):
         name = str(name)
     return msmod.build_property_sync(ownerid, property_id, op_type, name,
@@ -135,9 +135,9 @@ def throttled_save(st, uid, force=False):
     """节流落盘：同一账号 5 秒内最多写一次。"""
     key = uid or ""
     now = time.time()
-    if not force and (now - _LAST_SAVE.get(key, 0)) < _SAVE_INTERVAL:
+    if not force and (now - LAST_SAVE.get(key, 0)) < _SAVE_INTERVAL:
         return
-    _LAST_SAVE[key] = now
+    LAST_SAVE[key] = now
     try:
         st.save()
     except Exception as e:

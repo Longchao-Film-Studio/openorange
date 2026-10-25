@@ -132,7 +132,7 @@ def run():
             p = os.path.join(dirpath, fn)
             try:
                 src = open(p, encoding="utf-8").read()
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             for b in banned:
                 if b in src:

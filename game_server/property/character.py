@@ -7,7 +7,7 @@ addLevel > 0 时 post ECharLevelUp（升级特效）。
 
 characterBag 结构（initDict 实测）：
   {__tp__:"CharacterPersistentDict", __id__:1326, 9001:{__id__:1341, ...}}
-键在 _conv_int_keys 之后是整数 9001；但 proto 的 name 字段是字符串，
+键在 conv_int_keys 之后是整数 9001；但 proto 的 name 字段是字符串，
 所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
 """
 from .. import ms as msmod
@@ -51,7 +51,7 @@ def _upgrade_character(rid, params, uid=None):
     """
     from .. import gamedata as _gd
     from ..story import events as _events
-    from ..story.rpc import _finish_story_tasks
+    from ..story.rpc import finish_story_tasks
     from . import items as _items_mod
     syncs = []
     vals = decode_params(params)
@@ -181,7 +181,7 @@ def _upgrade_character(rid, params, uid=None):
     syncs.extend(drain_event_task_sync(st, res))
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
-        syncs.extend(_finish_story_tasks(st, nxt, source="event"))
+        syncs.extend(finish_story_tasks(st, nxt, source="event"))
     st.save()
     syncs.append(sync_frame(
         SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))

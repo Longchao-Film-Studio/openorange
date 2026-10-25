@@ -4,7 +4,7 @@
 三个要点：
   1. AVATAR_INIT_DICT 来自 avatar_init.json（property/spec 的序列化缓存），
      登录时整包下发给客户端，客户端 initProperty 会逐项 assert。
-  2. _live_init_dict 是「登录那一刻的状态快照」：先跑一次 _login_tick（事件总线
+  2. live_init_dict 是「登录那一刻的状态快照」：先跑一次 _login_tick（事件总线
      主动推进），再按根属性剥掉 _oo_* 私有键和嵌套 __tp__。
      ★ 嵌套 __tp__ 漏出去会让客户端 roinit 把字符串当子项 -> 崩（审计 P0-1）。
   3. 新号的剧情起点（StoryTask 1000 设为 Doing）也在这里落，不在脚手架里 ——
@@ -18,7 +18,7 @@ from shared.log_tee import get_logger
 
 from .defaults import _DEF_AVATAR_EID, _DEF_UID, ooconf
 from .frames import frame
-from .protocol import _conv_int_keys, mp_map, pb_bytes_field
+from .protocol import conv_int_keys, mp_map, pb_bytes_field
 
 _log = get_logger(__name__)
 
@@ -156,7 +156,7 @@ def _login_tick(st):
     except Exception as e:
         _log.warning(f"[init] 登录事件 tick 失败: {e}")
 
-def _live_init_dict(uid=None):
+def live_init_dict(uid=None):
     """登录时的 initDict（雷5：整段在 per-uid 锁内执行）。
 
     ★ 登录初始化会写很多状态（脚手架 / 播种 / 跨天重置 / 系统解锁重算），
@@ -183,10 +183,10 @@ def _live_init_dict_impl(uid=None):
             return DEFAULT_INIT_DICT
     try:
         # ★ 服务端状态必须用整数键（和客户端一致）。
-        #   avatar_init.json 里是 "#9001" 这种写法，_conv_int_keys 之后才是 9001。
+        #   avatar_init.json 里是 "#9001" 这种写法，conv_int_keys 之后才是 9001。
         #   以前只有发包时才转换，导致 player_state 里存的是 "#9001"，
         #   改数据、算同步的 name 时对不上。
-        st = pstate.get_state(_conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
+        st = pstate.get_state(conv_int_keys(AVATAR_INIT_DICT.get("__Properties__") or {}),
                               uid=uid)
         # ★ P0-D / 2026-10-23：每次登录重置「剧情补完」标记，
         #   让本轮登录的**首条 RPC** 重新 drain 一次 _oo_pending_chain。
@@ -200,7 +200,7 @@ def _live_init_dict_impl(uid=None):
     # ★ 脚手架覆盖层：只在「该账号首次建状态」时应用一次，默认关闭。
     #   以前是烤进 avatar_init.json 的，生成后关不掉，见 scaffold.py 头部注释。
     # 只有「新建存档」才应用脚手架（老存档里的进度不能被覆盖）
-    if getattr(st, "is_new", False) and not getattr(st, "_scaffold_applied", False):
+    if getattr(st, "is_new", False) and not getattr(st, "scaffold_applied", False):
         try:
             from .. import scaffold as scaffold_mod
         except Exception:
@@ -215,7 +215,7 @@ def _live_init_dict_impl(uid=None):
                     print("[init] 脚手架已应用(uid={}): {}".format(uid, "、".join(changed)), flush=True)
             except Exception as e:
                 _log.warning(f"[init] 脚手架应用失败: {e}")
-        st._scaffold_applied = True
+        st.scaffold_applied = True
 
     # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
     #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
@@ -355,9 +355,9 @@ def _live_init_dict_impl(uid=None):
     if stamina_mod is not None:
         try:
             _lv = int(st.props.get("level") or 1)
-            if getattr(st, "is_new", False) and not getattr(st, "_stamina_inited", False):
+            if getattr(st, "is_new", False) and not getattr(st, "stamina_inited", False):
                 stamina_mod.init_new(st.props, _lv)
-                st._stamina_inited = True
+                st.stamina_inited = True
                 print("[init] 体力初始化(uid={}): {}/{}".format(uid, st.props.get("tower_reward_keys"),
                          stamina_mod.max_stamina(_lv)), flush=True)
             else:
@@ -381,7 +381,7 @@ def _live_init_dict_impl(uid=None):
     #     value.__id__ = nil（customdict.lua:449）-> 崩
     #   实测：接一个通用任务后重新登录，客户端必崩。
     #
-    #   _strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
+    #   strip_private(is_root=True) 保留根属性值的 __tp__（客户端靠它认类型），
     #   递归进去的值一律剥掉。
     # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
     _login_tick(st)
@@ -389,10 +389,10 @@ def _live_init_dict_impl(uid=None):
     # ★ roadmap 队列第 2 项：登录时**全量重算系统解锁**。
     #   为什么要在登录做：
     #     - 玩家离线期间可能完成任务 / 升级，内存里的 unlocked_system 会落后；
-    #     - `_recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
+    #     - `recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
     #     - 这里在快照构建之前，所以重算结果直接进 initDict，不需要推帧。
     try:
-        from ..story.rpc import _recalc_system_unlocks as _recalc_u
+        from ..story.rpc import recalc_system_unlocks as _recalc_u
         _uf = _recalc_u(st)
         if _uf:
             print(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）',
@@ -405,7 +405,7 @@ def _live_init_dict_impl(uid=None):
     for k, v in st.props.items():
         if isinstance(k, str) and k.startswith("_oo_"):
             continue
-        _public[k] = _syncmod._strip_private(v, is_root=True)
+        _public[k] = _syncmod.strip_private(v, is_root=True)
     return {"__Properties__": _public}
 
 def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
@@ -421,8 +421,8 @@ def build_channel_entity(entity_type=CLIENT_AVATAR_CLASS,
     if not isinstance(entity_type, bytes):
         entity_type = str(entity_type).encode("utf-8")
     if init_dict is None:
-        init_dict = _live_init_dict(uid)
-    info = mp_map(_conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
+        init_dict = live_init_dict(uid)
+    info = mp_map(conv_int_keys(init_dict)) if init_dict else MSGPACK_EMPTY_MAP
     body = pb_bytes_field(1, entity_type)
     body += pb_bytes_field(2, info)
     body += pb_bytes_field(3, entity_id.encode("utf-8"))

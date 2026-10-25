@@ -20,18 +20,18 @@ story.evaluate_event 全仓库**只有 1 个调用点**（副本结算里写死 
         **检测入口**。业务只发事件，不直接改任务状态。
 
     注意用词：apply_event 只**检测**哪些任务可以完成，
-    真正落状态的是 entity_rpc._finish_story_tasks -> story.finish_story_task。
+    真正落状态的是 entity_rpc.finish_story_tasks -> story.finish_story_task。
     所以它是「检测入口」，不是「写入口」——
     2026-10-21 审计指出原文档写「唯一写入口」是夸大且自相矛盾。
 
 ## 为什么 apply_event 不直接落状态
 
 踩过的坑（2026-10-20 阶段 2）：如果这里直接 finish_story_task，
-外层 _finish_story_tasks 会因为任务已经是 Finished 而跳过，
+外层 finish_story_tasks 会因为任务已经是 Finished 而跳过，
 导致**不发奖、不推同步帧** —— 客户端看不到变化。
 
 所以 apply_event 只**检测**，落状态 + 发奖 + 推同步统一走
-entity_rpc._finish_story_tasks。
+entity_rpc.finish_story_tasks。
 
 ## 去重
 
@@ -166,7 +166,7 @@ def apply_event(st, event, now=None):
 
     ★ 这是剧情推进的**检测入口**（不是写入口）：业务代码只负责发事件，
       不要自己判断「该完成哪个任务」。本函数只返回命中的 taskId，
-      真正落状态（发奖 / 推同步 / 重算解锁）统一走 story.rpc._finish_story_tasks。
+      真正落状态（发奖 / 推同步 / 重算解锁）统一走 story.rpc.finish_story_tasks。
     """
     now = int(now if now is not None else time.time())
     if event is None:
@@ -221,8 +221,8 @@ def apply_event(st, event, now=None):
     #    这里重算一次并把现成帧带回，由 drain_event_task_sync 统一吐出。
     unlock_frames = []
     try:
-        from .rpc import _recalc_system_unlocks
-        unlock_frames = _recalc_system_unlocks(st)
+        from .rpc import recalc_system_unlocks
+        unlock_frames = recalc_system_unlocks(st)
     except Exception as e:
         _log.warning(f"[story] 系统解锁重算失败: {e}")
 
@@ -249,7 +249,7 @@ def tick(st, now=None):
 def pending_tasks(st):
     """列出当前「进行中但还没完成」的剧情任务，用于诊断。"""
     out = []
-    for task_id, item in _story._active_story_tasks(st):
+    for task_id, item in _story.active_story_tasks(st):
         cfg = gamedata.story_task(task_id) or {}
         out.append({
             "taskId": task_id,

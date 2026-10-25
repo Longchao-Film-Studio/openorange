@@ -39,7 +39,7 @@ def run():
     for n in ("RequestDoneStoryTaskParamInt_CS", "RequestDoneStoryTaskParamStr_CS",
               "RequestStreetActor_CS"):
         check(n + " 在索引表", n in erpc.RPC_INDEX)
-        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc._HANDLERS)
+        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc.HANDLERS)
 
     print("\n[2] StoryTaskData[1000] 的 PostTasks 是推进依据")
     cfg = gamedata.story_task(1000) or {}
@@ -49,7 +49,7 @@ def run():
 
     print("\n[3] 把 1000 设为进行中")
     config.configure_scaffold(unlock_all=True)
-    msmod._live_init_dict("story_test")
+    msmod.live_init_dict("story_test")
     st = pstate.get_state(uid="story_test")
     now = 1700000000
     changes = story.start_story_task(st, 1000, now)
@@ -70,7 +70,7 @@ def run():
     #   1000 是 TaskType 3，必须走真实的事件路径（和 dungeon/settle.py 一样）。
     from game_server.story import events as _sev
     _res = _sev.apply_event(st, _sev.ev_dungeon_finish(1004, 1, 1))
-    frames = erpc._finish_story_tasks(st, list(_res.hits))
+    frames = erpc.finish_story_tasks(st, list(_res.hits))
     check("返回多帧", len(frames) >= 3, len(frames))
     check("done_story_tasks 里有 1000", 1000 in st.props["done_story_tasks"])
     check("story_task_bag 里没有 1000", 1000 not in st.props["story_task_bag"])

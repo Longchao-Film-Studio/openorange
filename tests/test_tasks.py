@@ -63,7 +63,7 @@ def run():
     # ★ 不能用 --unlock-all：脚手架会把 Task 1 / 15 标成已完成，
     #   那正是要淘汰的假数据，会把这里要测的真流程挡住。
     config.configure_scaffold()
-    msmod._live_init_dict(U)
+    msmod.live_init_dict(U)
     st = pstate.get_state(uid=U)
     frames = guarded_handle(erpc.RPC_INDEX["RequestFetchTask_CS"],
                          msmod.mp_arr([1]), 1, uid=U)

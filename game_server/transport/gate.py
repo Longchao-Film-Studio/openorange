@@ -172,7 +172,7 @@ def _on_heartbeat(conn, cid):
             frames = []
             gained = 0
             with _pstate.lock_for(uid):
-                st = erpc._state(uid)
+                st = erpc.state(uid)
                 lv = int(st.props.get("level") or 1)
                 gained, _ = stamina_mod.apply_recovery(st.props, lv)
                 if gained:
@@ -180,7 +180,7 @@ def _on_heartbeat(conn, cid):
                     for prop in (stamina_mod.PROP_KEYS, stamina_mod.PROP_NEXT,
                                  stamina_mod.PROP_TOTAL):
                         # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
-                        frames.append(erpc._sync_frame(
+                        frames.append(erpc.sync_frame(
                             SYNC_SELF, 0, msmod.OP_CHANGE, prop,
                             st.props.get(prop)))
                     keys_now = st.props.get(stamina_mod.PROP_KEYS)

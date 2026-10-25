@@ -69,7 +69,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -467,7 +467,7 @@ def run():
     story.story_award = boom
     try:
         with contextlib.suppress(Exception):
-            erpc._finish_story_tasks(st10, [AWARD_TASK])
+            erpc.finish_story_tasks(st10, [AWARD_TASK])
     finally:
         story.story_award = orig_award
     check("发奖失败后任务仍在 bag 且 state=6",
@@ -475,7 +475,7 @@ def run():
           and st10.props["story_task_bag"][AWARD_TASK]["state"] == sm.TASK_STATE_FINISHED,
           st10.props["story_task_bag"].get(AWARD_TASK, {}).get("state"))
     check("发奖失败后还没进 done", AWARD_TASK not in st10.props["done_story_tasks"])
-    frames_retry = erpc._finish_story_tasks(st10, [AWARD_TASK])
+    frames_retry = erpc.finish_story_tasks(st10, [AWARD_TASK])
     check("★ 重试主路径真的会动（不是 0 帧）", len(frames_retry) > 0, len(frames_retry))
     check("★ 重试后完成归档", AWARD_TASK in st10.props["done_story_tasks"]
           and AWARD_TASK not in st10.props["story_task_bag"])
@@ -567,7 +567,7 @@ def run():
     print("\n[15] P1-A 回归：Type6 链式任务不被多目标判定误伤")
     # Type6 的 Parameter1 是前置 story id 列表，完成条件由 check_chain_tasks 的 all() 判完。
     # _ready_to_finish 必须对 TaskType 6 放行，否则链式任务被自己的判定挡住、永远卡 Doing。
-    # 注意：Type6 不是客户端上报型，必须走 check_chain_tasks -> _finish_story_tasks 这条真实路径。
+    # 注意：Type6 不是客户端上报型，必须走 check_chain_tasks -> finish_story_tasks 这条真实路径。
     for gate in (201000, 4000, 5000, 417607):
         cfg_g = gamedata.story_task(gate) or {}
         if cfg_g.get("TaskType") != 6:
@@ -585,7 +585,7 @@ def run():
         hits_g, _ = story.check_chain_tasks(stg, NOW)
         check(f"Type6 闸门 {gate} 被链式检查命中", gate in hits_g, hits_g[:4])
         if gate in hits_g:
-            erpc._finish_story_tasks(stg, list(hits_g))
+            erpc.finish_story_tasks(stg, list(hits_g))
         check(f"★ Type6 闸门 {gate} 前置满足后能完成（不被多目标挡住）",
               story.story_state(stg.props, gate) == sm.TASK_STATE_FINISHED,
               story.story_state(stg.props, gate))

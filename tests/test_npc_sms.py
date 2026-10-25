@@ -39,7 +39,7 @@ def check(name, cond, detail=None):
 
 def fresh(name):
     u = f"{name}_{_TAG}"
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return u, pstate.get_state(uid=u)
 
 
@@ -122,7 +122,7 @@ def run():
     for nm in ("Check_TopicID_CanOpen_CS", "Update_NpcChat_Info_CS", "GmRpcOpenNpcChatTopic"):
         idx = rpc_index.RPC_INDEX.get(nm)
         check(f"  {nm} 有索引", idx is not None)
-        check(f"  {nm} 有 handler", idx in dd._HANDLERS)
+        check(f"  {nm} 有 handler", idx in dd.HANDLERS)
 
     print()
     print("[6] unlock_for_task：1044 解锁 1014；未映射任务只告警不动状态")

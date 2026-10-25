@@ -82,7 +82,7 @@ def cmd_scan(bdd):
         try:
             with open(os.path.join(bdd, fn), encoding="utf-8") as f:
                 d = json.load(f)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if not d:
             continue

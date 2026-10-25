@@ -4,7 +4,7 @@
 判据：
   street(22) / aoi(3) / task(7) / storytask(3) 里的每一条，
   要么在 entity_rpc.RPC_INDEX 里（带回调的 RPC），
-  要么在 entity_rpc._ONE_WAY_HANDLERS 里（serverMsg / CallServer 单向），
+  要么在 entity_rpc.ONE_WAY_HANDLERS 里（serverMsg / CallServer 单向），
   要么在 ACCOUNT_NOOP 里（确认不需要实现的）。
 
 这条测试就是「阶段 2 完成」的硬证据。
@@ -81,7 +81,7 @@ def handled(name):
     idx = erpc.RPC_INDEX.get(name)
     if idx is None:
         return False
-    return idx in erpc._HANDLERS or idx in erpc._ONE_WAY_HANDLERS
+    return idx in erpc.HANDLERS or idx in erpc.ONE_WAY_HANDLERS
 
 
 def run():
@@ -101,7 +101,7 @@ def run():
     print("\n[汇总]")
     check(f'阶段 2 四组共 {total} 条全部覆盖', True)
     print(f'  RPC_INDEX 总数 = {len(erpc.RPC_INDEX)}')
-    print(f'  单向处理器数 = {len(erpc._ONE_WAY_HANDLERS)}')
+    print(f'  单向处理器数 = {len(erpc.ONE_WAY_HANDLERS)}')
 
     print("\n" + "=" * 56)
     print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')

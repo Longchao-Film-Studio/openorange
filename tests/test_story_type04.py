@@ -35,7 +35,7 @@ from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server.story import events as sev  # noqa: E402
 from game_server.story import state_machine as sm  # noqa: E402
-from game_server.story.rpc import _finish_story_tasks  # noqa: E402
+from game_server.story.rpc import finish_story_tasks  # noqa: E402
 from tests.frame_guard import pre_snapshot  # noqa: E402
 from tests.shadow_cache import frames_safe  # noqa: E402
 
@@ -59,7 +59,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -124,7 +124,7 @@ def run():
     hits_ok = story.street_arrival_tasks(st2, p1)
     check("★ 切到 Parameter1 才命中 1045", 1045 in hits_ok, hits_ok)
     pre2 = pre_snapshot(uid_of("t04_a"))
-    frames = _finish_story_tasks(st2, hits_ok, source="street_arrival")
+    frames = finish_story_tasks(st2, hits_ok, source="street_arrival")
     check("★ 完成后 1045 归档", 1045 in st2.props["done_story_tasks"])
     check("★ PostTasks 1004 被启动（主线断点打通）",
           1004 in st2.props["story_task_bag"])

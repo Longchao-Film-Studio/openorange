@@ -45,7 +45,7 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 PROLOGUE_MATCH = {"match_type": 3, "system_type": 1004, "modeId": 1, "storyID": 1}
@@ -57,7 +57,7 @@ def parse_resp(frames):
             continue
         try:
             fields = msmod.pb_parse(bytes(f[6:]))
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if fields.get(2, [b""])[0] != b"__rpc_response__":
             continue
@@ -78,11 +78,11 @@ def run():
     check("Cmd_Avatar_EnterNext_CS 在索引表里",
           "Cmd_Avatar_EnterNext_CS" in erpc.RPC_INDEX)
     check("Cmd_Avatar_EnterNext_CS 有处理器",
-          erpc.RPC_INDEX.get("Cmd_Avatar_EnterNext_CS") in erpc._HANDLERS)
+          erpc.RPC_INDEX.get("Cmd_Avatar_EnterNext_CS") in erpc.HANDLERS)
 
     print("\n[2] StartGame 一次下发三关")
     fresh("dglv_a")
-    _pre = msmod._live_init_dict("dglv_a")
+    _pre = msmod.live_init_dict("dglv_a")
     frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                          msmod.mp_arr([PROLOGUE_MATCH]), 1, uid="dglv_a")
     resp = parse_resp(frames)
@@ -96,7 +96,7 @@ def run():
     check("进副本的帧在客户端不会崩", not _errs, _errs[:2])
 
     print("\n[3] 打完第一关 -> EnterNext(copyIndex=2) 回第二关 levelInfo")
-    _pre = msmod._live_init_dict("dglv_a")
+    _pre = msmod.live_init_dict("dglv_a")
     frames = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_EnterNext_CS"],
                          msmod.mp_arr([2]), 2, uid="dglv_a")
     resp = parse_resp(frames)
@@ -140,7 +140,7 @@ def run():
 
     _events.apply_event = _spy
     try:
-        _pre = msmod._live_init_dict("dglv_a")
+        _pre = msmod.live_init_dict("dglv_a")
         frames = guarded_handle(
             erpc.RPC_INDEX["Cmd_Avatar_FinishGame_CS"],
             msmod.mp_arr([{"toStreetId": 101, "toStreetPosId": 0,

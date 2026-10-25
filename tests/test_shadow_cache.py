@@ -46,13 +46,13 @@ def check(name, cond, detail=None):
 
 def fresh(uid):
     config.configure_scaffold(unlock_all=False)
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 
 def new_cache(uid):
     """建一个已初始化好的影子缓存。"""
-    d = msmod._live_init_dict(uid)
+    d = msmod.live_init_dict(uid)
     sc = ShadowCache()
     sc.init_property(d["__Properties__"])
     return sc
@@ -78,7 +78,7 @@ def frame(pid, op, name, value=None):
 def run():
     print("\n[A] 影子缓存能抓出审计列的崩溃（合成坏帧）")
     st0 = fresh("sc_probe")
-    d0 = msmod._live_init_dict("sc_probe")
+    d0 = msmod.live_init_dict("sc_probe")
 
     def fresh_cache():
         sc = ShadowCache()
@@ -175,7 +175,7 @@ def run():
     sc3 = new_cache("sc_e")
     from game_server.story import events as _sev3
     _r3 = _sev3.apply_event(st3, _sev3.ev_dungeon_finish(1004, 1, 1))
-    errs = feed(sc3, erpc._finish_story_tasks(st3, list(_r3.hits)),
+    errs = feed(sc3, erpc.finish_story_tasks(st3, list(_r3.hits)),
                 "剧情任务 1000")
     check("剧情任务帧安全", not errs, errs[:2])
     check("任务 1000 在客户端变成 Finished",
@@ -269,7 +269,7 @@ def run():
 
     print("\n[F] ★ P0-1 回归：接任务后重新登录，initDict 不能带嵌套 __tp__")
     # 审计实测：tasks.ensure_type_slot 把 {"__tp__":"TaskBag"} 写进 state，
-    # 之前 _live_init_dict 只过滤顶层 _oo_，嵌套 __tp__ 原样进登录 initDict ->
+    # 之前 live_init_dict 只过滤顶层 _oo_，嵌套 __tp__ 原样进登录 initDict ->
     # 客户端 initProperty -> TaskBag:roinit 把 "TaskBag" 字符串当子项 ->
     # value.__id__ 对字符串取值 -> 崩。
     stF = fresh("sc_relogin")
@@ -280,8 +280,8 @@ def run():
             break
     erpc.handle(1744435905, msmod.mp_arr([tidF]), 1, uid="sc_relogin")
     stF.save()
-    pstate._STATES.pop("sc_relogin", None)          # 模拟进程重启
-    dF = msmod._live_init_dict("sc_relogin")
+    pstate.STATES.pop("sc_relogin", None)          # 模拟进程重启
+    dF = msmod.live_init_dict("sc_relogin")
     tbF = (dF["__Properties__"].get("task_bag") or {})
     check("根属性 task_bag 仍带 __tp__（客户端靠它认类型）",
           tbF.get("__tp__") == "TaskTypeBag", tbF.get("__tp__"))

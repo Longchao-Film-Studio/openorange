@@ -56,7 +56,7 @@ def check(name, cond, detail=None):
 
 def fresh(name):
     u = f"{name}_{_TAG}"
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     st = pstate.get_state(uid=u)
     SD.seed(st, NOW)
     return u, st
@@ -69,7 +69,7 @@ def auto_frame_names(frames):
         if isinstance(f, (bytes, bytearray)):
             try:
                 s = bytes(f).decode("utf-8", "replace")
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             names.append(s)
     return names
@@ -81,15 +81,15 @@ def assert_inv1(tag, st, street_id=None):
     if tid == 0:
         # 为 0 必须是「真的没有候选」，不能是随手返回 0 —— 否则这条断言会红
         sid = TR._street_of(st, street_id)
-        items = TR._bag_items(st)
+        items = TR.bag_items(st)
         cands = [t for t, it in items.items()
-                 if TR._is_doing(it) and TR._scene_ok(t, sid)]
+                 if TR.is_doing(it) and TR._scene_ok(t, sid)]
         check(f"{tag}：为 0 时确实没有可用候选", not cands, cands)
         return
     sid = TR._street_of(st, street_id)
-    items = TR._bag_items(st)
+    items = TR.bag_items(st)
     item = items.get(tid)
-    ok_doing = bool(item) and TR._is_doing(item)
+    ok_doing = bool(item) and TR.is_doing(item)
     ok_scene = TR._scene_ok(tid, sid)
     check(f"{tag}：{tid} 正在做", ok_doing,
           (item or {}).get("state"))

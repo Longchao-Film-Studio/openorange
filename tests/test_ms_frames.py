@@ -68,7 +68,7 @@ def run():
               (dec, used, len(enc)))
     check("mp_map 往返", msmod.mp_decode(msmod.mp_map({"a": 1}))[0] == {"a": 1})
     check("mp_arr 往返", msmod.mp_decode(msmod.mp_arr([1, "x"]))[0] == [1, "x"])
-    check("_conv_int_keys 去 # 号", msmod._conv_int_keys({"#9001": 1}) == {9001: 1})
+    check("conv_int_keys 去 # 号", msmod.conv_int_keys({"#9001": 1}) == {9001: 1})
 
     print("\n[2] 帧封装与拆帧")
     pkt = msmod.frame(3, b"\x08\x01")
@@ -161,8 +161,8 @@ def run():
     print("\n[7] initDict / 登录 tick")
     check("AVATAR_INIT_DICT 有 __Properties__",
           isinstance(msmod.AVATAR_INIT_DICT.get("__Properties__"), dict))
-    init = msmod._live_init_dict(uid="__ms_frame_test__")
-    check("_live_init_dict 返回 __Properties__",
+    init = msmod.live_init_dict(uid="__ms_frame_test__")
+    check("live_init_dict 返回 __Properties__",
           isinstance(init.get("__Properties__"), dict), type(init))
     check("initDict 顶层无 _oo_ 字段",
           not [k for k in init["__Properties__"] if str(k).startswith("_oo_")])

@@ -40,12 +40,12 @@ def run():
     check("SPACE_EDEN = 1000", erpc.SPACE_EDEN == 1000, erpc.SPACE_EDEN)
     check("RpcOnEnterSpace 索引非 0", erpc.RPC_ON_ENTER_SPACE > 0, erpc.RPC_ON_ENTER_SPACE)
     check("RpcLeaveSpace 在索引表", "RpcLeaveSpace" in erpc.RPC_INDEX)
-    check("RpcEnterSpace 是单向处理器", 1277075552 in erpc._ONE_WAY_HANDLERS)
-    check("RpcOnSceneLoaded 是单向处理器", 996547331 in erpc._ONE_WAY_HANDLERS)
+    check("RpcEnterSpace 是单向处理器", 1277075552 in erpc.ONE_WAY_HANDLERS)
+    check("RpcOnSceneLoaded 是单向处理器", 996547331 in erpc.ONE_WAY_HANDLERS)
 
     print("\n[2] 进空间 RpcEnterSpace（单向）")
     config.configure_scaffold()
-    msmod._live_init_dict("space_test")
+    msmod.live_init_dict("space_test")
     st = pstate.get_state(uid="space_test")
     sp0 = st.props.get("space_p") or {}
     check("初始 spaceno = 0", sp0.get("spaceno") == 0, sp0.get("spaceno"))

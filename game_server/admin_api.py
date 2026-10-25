@@ -47,7 +47,7 @@ def _token():
     return _admin_token.get_token()
 
 
-def _port():
+def port():
     try:
         return int(os.environ.get("OO_ADMIN_PORT") or DEFAULT_PORT)
     except (TypeError, ValueError):
@@ -69,11 +69,11 @@ def _do_unlock_npc_topic(uid, topic_id):
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
         player_state.reset_state(
-            msmod._conv_int_keys(
+            msmod.conv_int_keys(
                 msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
             uid=uid)
         player_state.peek(uid).is_new = True
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     st = player_state.get_state(uid=uid)
     cfg = __import__("game_server.gamedata", fromlist=["gamedata"]).npc_message(topic_id)
     if not isinstance(cfg, dict):
@@ -89,7 +89,7 @@ def _do_unlock_npc_topic(uid, topic_id):
 def _do_skip_prologue(uid):
     """立刻把某个账号的序章标完成（不等下次登录）。
 
-    必须先走一遍 `ms._live_init_dict(uid)`：
+    必须先走一遍 `ms.live_init_dict(uid)`：
       - 新号第一次被创建时，它会应用脚手架/新号剧情起点（任务 1000 设为进行中）
       - 直接 get_state 拿到的是**空白状态**，story_task_bag 还没有 1000，
         后面 finish_story_task 就找不到任务（实测 story_task_1000 返回 -1）。
@@ -100,19 +100,19 @@ def _do_skip_prologue(uid):
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
         player_state.reset_state(
-            msmod._conv_int_keys(
+            msmod.conv_int_keys(
                 msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
             uid=uid)
         player_state.peek(uid).is_new = True
-    msmod._live_init_dict(uid)          # 走一遍新号初始化（任务 1000 设为进行中）
+    msmod.live_init_dict(uid)          # 走一遍新号初始化（任务 1000 设为进行中）
     st = player_state.get_state(uid=uid)
     done_before = story.story_state(st.props, story.FIRST_STORY_TASK)
     if done_before != story.TASK_STATE_FINISHED:
         # ★ 审计 P1-2：不能直接调 story.finish_story_task —— 那会绕过发奖、
         #   属性同步和 _recalc_story_unlocks，和「落状态唯一入口」的声明矛盾。
         #   走同一条主路径，返回的帧这里没人可推（GM 命令不带连接），直接丢弃。
-        from .story.rpc import _finish_story_tasks
-        _finish_story_tasks(st, [story.FIRST_STORY_TASK])
+        from .story.rpc import finish_story_tasks
+        finish_story_tasks(st, [story.FIRST_STORY_TASK])
     sf = st.props.get("story_finished")
     if isinstance(sf, dict):
         sf[1] = True
@@ -164,7 +164,7 @@ def _set_player_force_level(uid, level):
     """设置某个账号的副本关卡覆盖。level=0 表示取消。
 
     ★ 按账号存，不是全局。存在玩家存档的 _oo_ 私有字段里：
-      - _oo_ 前缀在 ms._live_init_dict 里会被过滤，客户端看不到
+      - _oo_ 前缀在 ms.live_init_dict 里会被过滤，客户端看不到
       - 重启游戏服不丢
       - 多开/换号互不影响
     """
@@ -179,11 +179,11 @@ def _set_player_force_level(uid, level):
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
         player_state.reset_state(
-            msmod._conv_int_keys(
+            msmod.conv_int_keys(
                 msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
             uid=uid)
         player_state.peek(uid).is_new = True
-        msmod._live_init_dict(uid)
+        msmod.live_init_dict(uid)
     st = player_state.get_state(uid=uid)
     if v:
         st.props["_oo_dungeon_force_level"] = v
@@ -201,11 +201,11 @@ def _ensure_player_state(uid):
     st = player_state.peek(uid)
     if st is None or not isinstance(st.props.get("story_task_bag"), dict):
         player_state.reset_state(
-            msmod._conv_int_keys(
+            msmod.conv_int_keys(
                 msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
             uid=uid)
         player_state.peek(uid).is_new = True
-        msmod._live_init_dict(uid)
+        msmod.live_init_dict(uid)
     return player_state.get_state(uid=uid)
 
 
@@ -401,7 +401,7 @@ def start(host="127.0.0.1", port=None):
     """在后台线程起管理接口。返回 (server, thread)。"""
     if runtime.STARTED_AT is None:
         runtime.STARTED_AT = int(time.time())
-    p = port or _port()
+    p = port or port()
     srv = ThreadingHTTPServer((host, p), _Handler)
     th = threading.Thread(target=srv.serve_forever, name="oo-admin-api",
                           daemon=True)

@@ -166,7 +166,7 @@ def _start_admin():
     try:
         from . import admin_api as _admin_api
         _admin_api.start()
-        print(f'[admin] 管理接口 http://127.0.0.1:{_admin_api._port()}（命令系统用）', flush=True)
+        print(f'[admin] 管理接口 http://127.0.0.1:{_admin_api.port()}（命令系统用）', flush=True)
     except Exception as _e:
         _log.warning(f"[admin] 管理接口启动失败: {_e}")
 

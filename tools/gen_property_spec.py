@@ -161,7 +161,7 @@ def parse_container_kinds():
             p = os.path.join(dirpath, fn)
             try:
                 txt = open(p, encoding="utf-8", errors="replace").read()
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             if "class.Class" not in txt:
                 continue

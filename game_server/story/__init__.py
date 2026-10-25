@@ -519,7 +519,7 @@ TASK_TYPE_STREET = (4,)        # 街区 id：完成条件 = street_id 变成 Par
 TASK_TYPE_NONE = (0,)          # 副本内目标：无可判定完成条件（见 docs/P1 阶段 E）
 
 
-def _active_story_tasks(st):
+def active_story_tasks(st):
     """返回 [(taskId, StoryTaskItem)]，只含进行中的。"""
     bag = _as_map(st.props, "story_task_bag")
     if not isinstance(bag, dict):
@@ -636,7 +636,7 @@ def street_arrival_tasks(st, street_id):
         return hits
     if want <= 0:
         return hits
-    for task_id, _item in _active_story_tasks(st):
+    for task_id, _item in active_story_tasks(st):
         cfg = gamedata.story_task(task_id) or {}
         if cfg.get("TaskType") not in TASK_TYPE_STREET:
             continue
@@ -662,7 +662,7 @@ def evaluate_event(st, event_type, params, now=None):
     import time as _t
     now = int(now if now is not None else _t.time())
     hits = []
-    for task_id, _item in _active_story_tasks(st):
+    for task_id, _item in active_story_tasks(st):
         cfg = gamedata.story_task(task_id) or {}
         tt = cfg.get("TaskType")
         if tt in TASK_TYPE_STREET:
@@ -689,9 +689,9 @@ def evaluate_event(st, event_type, params, now=None):
                 break
         if done:
             hits.append(task_id)
-    # ★ 只做检测，不落状态 —— 落状态统一走 entity_rpc._finish_story_tasks，
+    # ★ 只做检测，不落状态 —— 落状态统一走 entity_rpc.finish_story_tasks，
     #   那里才发奖 + 推同步 + 重算解锁。
-    #   踩过的坑：这里如果直接 finish_story_task，外层再调 _finish_story_tasks 时
+    #   踩过的坑：这里如果直接 finish_story_task，外层再调 finish_story_tasks 时
     #   会因为已经是 Finished 而跳过，导致**不发奖、不推同步帧**。
     if hits:
         print(f"[story] 事件 {event_type}{params} 命中剧情任务 {hits}",
@@ -707,7 +707,7 @@ def check_chain_tasks(st, now=None):
     import time as _t
     now = int(now if now is not None else _t.time())
     hits = []
-    for task_id, _item in _active_story_tasks(st):
+    for task_id, _item in active_story_tasks(st):
         cfg = gamedata.story_task(task_id) or {}
         if cfg.get("TaskType") not in TASK_TYPE_CHAIN:
             continue

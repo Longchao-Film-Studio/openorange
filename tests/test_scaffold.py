@@ -32,7 +32,7 @@ def check(name, cond, detail=None):
 
 
 def base_props():
-    return msmod._conv_int_keys(copy.deepcopy(msmod.AVATAR_INIT_DICT["__Properties__"]))
+    return msmod.conv_int_keys(copy.deepcopy(msmod.AVATAR_INIT_DICT["__Properties__"]))
 
 
 def run():

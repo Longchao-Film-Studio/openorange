@@ -137,7 +137,7 @@ def run():
     #   第一版把所有帧混成一批，结果属性维度是「所有路径的并集」——
     #   堵掉一条路径，别的路径仍然产生同样的属性帧，检查就失效了。
     st = pstate.get_state(
-        msmod._conv_int_keys(
+        msmod.conv_int_keys(
             msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
         uid=uid)
 

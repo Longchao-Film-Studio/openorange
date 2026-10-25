@@ -51,7 +51,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -91,16 +91,16 @@ def run():
 
     print("\n[1] 名字校验（纯函数）")
     check("空名字 -> (False, 8002)",
-          avatar._validate_name("") == (False, avatar.NAME_INVALID),
-          avatar._validate_name(""))
+          avatar.validate_name("") == (False, avatar.NAME_INVALID),
+          avatar.validate_name(""))
     check("超长名字 -> (False, 8004)",
-          avatar._validate_name("x" * (avatar.NAME_MAX_LEN + 1))
+          avatar.validate_name("x" * (avatar.NAME_MAX_LEN + 1))
           == (False, avatar.NAME_LENGTH))
     check("合法名字 -> (True, 8001)",
-          avatar._validate_name("未具名导演") == (True, avatar.NAME_OK),
-          avatar._validate_name("未具名导演"))
+          avatar.validate_name("未具名导演") == (True, avatar.NAME_OK),
+          avatar.validate_name("未具名导演"))
     check("带控制字符 -> (False, 8002)",
-          avatar._validate_name("a\x01b") == (False, avatar.NAME_INVALID))
+          avatar.validate_name("a\x01b") == (False, avatar.NAME_INVALID))
 
     print("\n[2] RpcCheckNickName：只校验，不落库")
     st2 = fresh("chk")

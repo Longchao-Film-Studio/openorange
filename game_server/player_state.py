@@ -35,10 +35,10 @@ _STATE_DIR = _cfg.STATE_DIR
 _LOCK = threading.RLock()
 # 每个账号一份状态：uid -> PlayerState。
 # 以前只有一个 _CURRENT，多开时所有客户端会共用同一份数据。
-_STATES = {}
+STATES = {}
 
 # ★ 登录后首条 RPC 的剧情补完标记（P0-D / 2026-10-23 优化）：
-#   _live_init_dict 每次登录把 _oo_pending_chain 记进状态，dispatch 在
+#   live_init_dict 每次登录把 _oo_pending_chain 记进状态，dispatch 在
 #   第一条 RPC 里 drain 补完。以前**每条 RPC 都跑** _state()+pop，虽然幂等
 #   但浪费。现在改成「每登录一次只补完一次」：登录时 reset，首条 RPC 后 mark。
 # ★ 雷5（2026-10-23）：per-uid 可重入锁。
@@ -265,7 +265,7 @@ def _clear_session_context(st):
       等于用「断线」绕过全部副本内容。
 
       ★ 为什么放在「从盘加载」而不是「登录函数」：
-        登录函数（ms/initdict.py 的 _live_init_dict）也被测试当作「取状态」调用，
+        登录函数（ms/initdict.py 的 live_init_dict）也被测试当作「取状态」调用，
         在那里清会误伤「刚设好副本上下文、又取一次状态」的用例。
         而「从盘加载」精确等于「新会话开始」—— 一次新会话不可能还在副本里
         （我们没有战斗断线重连）。
@@ -282,7 +282,7 @@ def get_state(init_props=None, uid=DEFAULT_UID):
     """
     uid = uid or DEFAULT_UID
     with _LOCK:
-        st = _STATES.get(uid)
+        st = STATES.get(uid)
         if st is None:
             st = load(uid)
             if st is None:
@@ -295,7 +295,7 @@ def get_state(init_props=None, uid=DEFAULT_UID):
             else:
                 st.is_new = False
                 _clear_session_context(st)
-            _STATES[uid] = st
+            STATES[uid] = st
         return st
 
 
@@ -308,7 +308,7 @@ def peek(uid=DEFAULT_UID):
     """
     uid = uid or DEFAULT_UID
     with _LOCK:
-        st = _STATES.get(uid)
+        st = STATES.get(uid)
         if st is not None:
             return st
         st = load(uid)
@@ -316,25 +316,25 @@ def peek(uid=DEFAULT_UID):
             return None
         st.is_new = False
         _clear_session_context(st)
-        _STATES[uid] = st
+        STATES[uid] = st
         return st
 
 
 def reset_state(init_props=None, uid=DEFAULT_UID):
     uid = uid or DEFAULT_UID
     with _LOCK:
-        _STATES[uid] = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
-        return _STATES[uid]
+        STATES[uid] = PlayerState(uid=uid, props=copy.deepcopy(init_props or {}))
+        return STATES[uid]
 
 
 def save_state(uid=None):
     """保存状态。uid 为 None 时保存全部。"""
     with _LOCK:
         if uid is not None:
-            st = _STATES.get(uid)
+            st = STATES.get(uid)
             return st.save() if st is not None else False
         ok = True
-        for st in _STATES.values():
+        for st in STATES.values():
             ok = st.save() and ok
         return ok
 
@@ -342,4 +342,4 @@ def save_state(uid=None):
 def list_states():
     """当前缓存里有哪些账号。"""
     with _LOCK:
-        return sorted(_STATES.keys())
+        return sorted(STATES.keys())

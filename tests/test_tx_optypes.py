@@ -46,7 +46,7 @@ def check(name, cond, detail=None):
 
 
 def state(uid):
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     return pstate.get_state(uid=uid)
 
 
@@ -229,7 +229,7 @@ def run():
     first = bag.get("1") or bag.get(1)
     check("初始第 1 格存在", isinstance(first, dict), first)
     first_item = first.get("itemId")
-    pre = msmod._live_init_dict("txopt_e")
+    pre = msmod.live_init_dict("txopt_e")
     got = story.add_item(st6.props, 12345, 3)
     check("add_item 返回新格子", bool(got), got)
     _num, gkey, is_new = got

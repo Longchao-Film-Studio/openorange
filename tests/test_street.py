@@ -46,14 +46,14 @@ def run():
     print("\n[1] 索引表里有街区三条")
     for n in ("RequestSwitchStreet_CS", "RpcEnterStreet", "RequestLeaveStreet_CS"):
         check(n + " 在 RPC_INDEX", n in erpc.RPC_INDEX)
-        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc._HANDLERS)
+        check(n + " 有处理器", erpc.RPC_INDEX.get(n) in erpc.HANDLERS)
 
     print("\n[2] 切换到火锅店 1011")
     config.configure_scaffold(unlock_all=True)
-    msmod._live_init_dict("street_test")
+    msmod.live_init_dict("street_test")
     st = pstate.get_state(uid="street_test")
     check("初始 street_id = 101", st.props.get("street_id") == 101, st.props.get("street_id"))
-    _pre = msmod._live_init_dict("street_test")   # RPC 前快照（审计 P0-3）
+    _pre = msmod.live_init_dict("street_test")   # RPC 前快照（审计 P0-3）
     frames = guarded_handle(erpc.RPC_INDEX["RequestSwitchStreet_CS"],
                          msmod.mp_arr([1011, None]), 1, uid="street_test")
     check("street_id -> 1011", st.props.get("street_id") == 1011, st.props.get("street_id"))

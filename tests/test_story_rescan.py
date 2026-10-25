@@ -58,7 +58,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -89,7 +89,7 @@ def run():
     dangling = seed_mod._dangling_task_data_ids()
     check("★ 悬空 TaskData id 共 67 个", len(dangling) == 67, len(dangling))
     # 跨表前置不算断链
-    cross = [t for t in (seed_mod._INDEX or {})
+    cross = [t for t in (seed_mod.INDEX or {})
              if (seed_mod.cfg_of(t) or {}).get("PreTaskType") == 1]
     check("跨表前置 6 条不被误判成断链",
           all(t not in [b[0] for b in broken] for t in cross), cross)
@@ -109,7 +109,7 @@ def run():
     print("\n[3] 跨表前置：TaskData 完成后 rescan 能推进")
     # 找一条跨表前置任务（PreTaskType=1），把它的 TaskData 上游标完成
     cross_id = None
-    for t in sorted(seed_mod._INDEX or {}):
+    for t in sorted(seed_mod.INDEX or {}):
         cfg = seed_mod.cfg_of(t) or {}
         if cfg.get("PreTaskType") == 1 and cfg.get("PreTask") is not None:
             cross_id = t

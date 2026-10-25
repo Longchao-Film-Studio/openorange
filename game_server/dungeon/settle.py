@@ -22,7 +22,7 @@ from .. import ms as msmod
 from .. import story as story_mod
 from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 from ..story import events as _events
-from ..story.rpc import _finish_story_tasks
+from ..story.rpc import finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
@@ -179,7 +179,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
     if first_pass:
         ev["first_pass"] = 1
     # ★ P0-D：走事件总线（检测入口），不再直接调 story.evaluate_event；
-    #   落状态仍统一走 _finish_story_tasks。
+    #   落状态仍统一走 finish_story_tasks。
     result = _events.apply_event(
         st, _events.GameEvent(_events.EV_FINISH_DUNGEON, ev,
                               source="rpc:Cmd_Avatar_FinishGame_CS"))
@@ -187,7 +187,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
     out = []
     out.extend(drain_event_task_sync(st, result))
     if hits:
-        out.extend(_finish_story_tasks(st, hits, source="event"))
+        out.extend(finish_story_tasks(st, hits, source="event"))
     # ★ P1 阶段 G：副本打通过 -> 对应 StoryLineData.id 记到 story_finished。
     #   以前这里写死 story_finished[1]=True（只对序章），其它 16 条线永远是 false。
     #   客户端 clientavatar.lua:180 / streetstage.lua:169 / loginmanager.lua:130
@@ -209,7 +209,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
     #   因为刚完成的任务可能让链式任务的前置条件满足了。
     tick_res = _events.tick(st)
     if tick_res.chain_hits:
-        out.extend(_finish_story_tasks(st, tick_res.chain_hits, source="chain"))
+        out.extend(finish_story_tasks(st, tick_res.chain_hits, source="chain"))
     # 首通记录（下次同关卡就不是 first_pass 了）
     if lv and win:
         cleared[lv_key] = 1

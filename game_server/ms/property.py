@@ -10,7 +10,7 @@ propertySync2Client 的帧类型是 13，载荷是 protobuf：
   新键必须用 OP_ADD，否则客户端 _changeSubProperty 里 oldVal 为 nil 会崩。
 """
 from .frames import frame
-from .protocol import _conv_int_keys, mp_any, pb_bytes_field, pb_varint_field
+from .protocol import conv_int_keys, mp_any, pb_bytes_field, pb_varint_field
 
 # 描述符（扫客户端进程内存拿到的 PropertySyncClientMessage）：
 #   ownerid    = 1  bytes
@@ -59,7 +59,7 @@ def build_property_sync(ownerid, property_id, op_type, name, value, session_id="
     if value is not None:
         # "#N" 形式的键要转成整数键（自定义类型里用得多），
         # 否则客户端 __IntTypeKey__ 的容器会收到字符串键。
-        body += pb_bytes_field(5, mp_any(_conv_int_keys(value)))
+        body += pb_bytes_field(5, mp_any(conv_int_keys(value)))
     if ownerid:
         body = pb_bytes_field(1, ownerid.encode("utf-8")
                               if isinstance(ownerid, str) else ownerid) + body

@@ -59,11 +59,15 @@ from . import rpc_catalog as _catalog
 from . import unknown_log as _ulog
 
 # 跨业务域共用的基础设施（P0-E2）：状态 / 帧构造 / 节流存档 / 参数解码
-from .rpc_common import (  # noqa: F401  (re-export)
-    _LAST_SAVE,
+# ★ 本块同时承担 **re-export** 职责（entity_rpc / transport 从这里取）。
+#   公共名（state / sync_frame）给外部用，下划线别名保留兼容既有调用点。
+from .rpc_common import (  # noqa: F401  (re-export)  # noqa: F401  (re-export -> entity_rpc)
     _SAVE_INTERVAL,
     EVENT_MAX_DEPTH,
+    LAST_SAVE,
     decode_params,
+    state,
+    sync_frame,
 )
 from .rpc_common import (
     respond_after_sync as _respond_after_sync,
@@ -77,9 +81,6 @@ from .rpc_common import (  # noqa: F401  (re-export -> entity_rpc)
 from .rpc_common import (  # noqa: F401  (re-export -> entity_rpc)
     throttled_save as _throttled_save,
 )
-
-# 名字 -> genRpcIndex 的索引表已拆到 rpc_index.py（P0-E1）；
-# 这里 re-export，保持 erpc.RPC_INDEX / erpc.describe 等既有调用点不变。
 from .rpc_index import (  # noqa: F401  (re-export)
     ACK_OK,
     ONE_WAY,
@@ -173,10 +174,10 @@ from .story.rpc import (  # noqa: F401  (re-export)
     _emit_get_item,
     _find_story_tasks_by_param,
     _finish_space_task,
-    _finish_story_tasks,
     _recalc_story_unlocks,
     _story_sync_frames,
     _street_actor,
+    finish_story_tasks,
 )
 from .story.tasks import (  # noqa: F401  (re-export)
     _done_title_task,
@@ -236,7 +237,7 @@ from .street.treasure import (  # noqa: F401  (re-export)
 
 _log = get_logger(__name__)
 
-_HANDLERS = {
+HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
     msmod.RPC_INDEX_UPGRADE_CHARACTER_CS: _upgrade_character,
@@ -248,10 +249,10 @@ _HANDLERS = {
 # 把 1-3 的 Set* 系列挂上（真正改数据 + 推同步，不再是假 ACK）
 for _name, _spec in _SIMPLE_SETTERS.items():
     if _name in RPC_INDEX:
-        _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, False)
+        HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, False)
 for _name, _spec in _CONST_SETTERS.items():
     if _name in RPC_INDEX:
-        _HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
+        HANDLERS[RPC_INDEX[_name]] = _make_setter(_spec, True)
 
 # 编队内容（改的是 character_list 的子属性，不是根属性，单独处理）
 for _name, _fn in (("SubmitItem_CS", _submit_item),
@@ -310,14 +311,14 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("BattleTeach_Activate_CS", _battle_teach_activate),
                    ("RecordItemObtain_CS", _record_item_obtain)):
     if _name in RPC_INDEX:
-        _HANDLERS[RPC_INDEX[_name]] = _fn
+        HANDLERS[RPC_INDEX[_name]] = _fn
 
 # ---------------------------------------------------------------------------
 # 单向消息处理器（serverMsg / CallServer，rid = 0）
 # ---------------------------------------------------------------------------
 # 这些不回应答，只改服务端数据。
 
-_ONE_WAY_HANDLERS = {
+ONE_WAY_HANDLERS = {
     294469585: _update_street_pos,   # RequestUpdateStreetPos_CS
     1277075552: _enter_space,        # RpcEnterSpace
     996547331: _scene_loaded,        # RpcOnSceneLoaded
@@ -352,12 +353,12 @@ _ONE_WAY_HANDLERS = {
 def _drain_pending_chain(uid=None):
     """把登录时事件总线攒下的「待完成链式任务」补完，返回同步帧。
 
-    为什么要攒：ms._live_init_dict 里跑 events.tick() 时还不知道要怎么发奖、
+    为什么要攒：ms.live_init_dict 里跑 events.tick() 时还不知道要怎么发奖、
     怎么推同步（那是 entity_rpc 的事）。所以只把命中的任务 id 记在
     _oo_pending_chain 里，等第一条 RPC 进来时在这里补完。
 
     ★ 2026-10-23 优化：不再**每条 RPC 都跑**。用 player_state 的 per-uid
-      标记「本登录已补完」，登录（_live_init_dict）时 reset，首条 RPC 后 mark，
+      标记「本登录已补完」，登录（live_init_dict）时 reset，首条 RPC 后 mark，
       之后直接跳过 _state()+pop。
     """
     try:
@@ -393,9 +394,9 @@ def _drain_pending_chain(uid=None):
                 _ev.append(_t)
         _out = []
         if _ev:
-            _out.extend(_finish_story_tasks(st, _ev, source="event"))
+            _out.extend(finish_story_tasks(st, _ev, source="event"))
         if _ch:
-            _out.extend(_finish_story_tasks(st, _ch, source="chain"))
+            _out.extend(finish_story_tasks(st, _ch, source="chain"))
         return _out
     except Exception as e:
         _log.warning(f"[story] 补完成链式任务失败: {e}")
@@ -464,14 +465,14 @@ def _handle_locked(index, params, rid, uid=None):
     # ★ 单向消息（serverMsg / CallServer，rid = 0）以前在这里直接 return []，
     #   处理器根本没被调用 —— 但服务端**必须**处理它们（位置上报、红点、
     #   清理等全是单向的），只是不能回应答帧。
-    #   所以单向消息走 _ONE_WAY_HANDLERS，只改数据、不回包。
+    #   所以单向消息走 ONE_WAY_HANDLERS，只改数据、不回包。
     # ★ P0-D：把登录时事件总线攒下的「待完成剧情任务」补上。
     #   这是「服务端主动推进」的落地点：不依赖任何具体 RPC，
     #   登录后第一条消息（**包括单向消息**）就顺带把漏掉的剧情推进完。
     #   审计 P1-7：之前放在 rid<=0 之后，单向消息不会 drain，会一直滞留。
     _pending_frames = _drain_pending_chain(uid)
     if rid <= 0:
-        fn1 = _ONE_WAY_HANDLERS.get(index)
+        fn1 = ONE_WAY_HANDLERS.get(index)
         if fn1 is not None:
             try:
                 out = fn1(params, uid)
@@ -482,7 +483,7 @@ def _handle_locked(index, params, rid, uid=None):
             if isinstance(out, list):
                 return _pending_frames + out
         return _pending_frames
-    fn = _HANDLERS.get(index)
+    fn = HANDLERS.get(index)
     if fn is not None:
         out = fn(rid, params, uid)
         if out is None:

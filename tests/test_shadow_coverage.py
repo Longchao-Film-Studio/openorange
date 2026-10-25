@@ -125,7 +125,7 @@ def run():
     check("所有会调 handle 的套件都接了守卫", not missing, missing)
 
     print("\n[3] 有效性：守卫本身真的会校验（不是只返回帧）")
-    msmod._live_init_dict("cov_uid")
+    msmod.live_init_dict("cov_uid")
     st = pstate.get_state(uid="cov_uid")
     pre = pre_snapshot("cov_uid")
     check("能取到 RPC 前快照", isinstance(pre, dict)
@@ -197,7 +197,7 @@ def run():
     # 快照在 RPC 之前 -> 缓存里没有这个键 -> OP_CHANGE 报错 -> 守卫抛（正确）
     # 快照在 RPC 之后 -> 缓存里已经有这个键 -> 不报错 -> 守卫不抛（本用例变红）
     probe_key = "zz_order_probe"
-    msmod._live_init_dict("cov_order")
+    msmod.live_init_dict("cov_order")
     pstate.get_state(uid="cov_order")
 
     def fake_handle(_index, _params, _rid, uid=None):  # noqa: ARG001
@@ -226,7 +226,7 @@ def run():
     print("\n[6] guarded_handle 真的改了状态（不是只返回帧）")
     from game_server import entity_rpc as erpc
     idx = erpc.RPC_INDEX["SetSignature_CS"]
-    msmod._live_init_dict("cov_sig")
+    msmod.live_init_dict("cov_sig")
     before = pstate.get_state(uid="cov_sig").props.get("signature")
     frames = fg.guarded_handle(idx, msmod.mp_arr(["cov_sig_value"]), 7,
                             uid="cov_sig")

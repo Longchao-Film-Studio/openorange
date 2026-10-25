@@ -23,7 +23,7 @@ from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import story  # noqa: E402
 from game_server.story import npc_sms  # noqa: E402
-from game_server.story.rpc import _finish_story_tasks  # noqa: E402
+from game_server.story.rpc import finish_story_tasks  # noqa: E402
 
 passed, failed = [], []
 NOW = 1700000000
@@ -41,7 +41,7 @@ def check(name, cond, detail=None):
 
 def fresh(name):
     u = f"{name}_{_TAG}"
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return u, pstate.get_state(uid=u)
 
 
@@ -56,7 +56,7 @@ def run():
     _u1, st1 = fresh("h1")
     # 把 1043 摆成进行中（生产里它是 1048 完成后推进的）
     story.start_story_task(st1, 1043, NOW)
-    frames = _finish_story_tasks(st1, [1043], param=101056)
+    frames = finish_story_tasks(st1, [1043], param=101056)
     check("1044 进入进行中", story.story_state(st1.props, 1044) == 3,
           story.story_state(st1.props, 1044))
     check("解锁帧在应答帧流里（len>0）", len(frames) > 0, len(frames))
@@ -70,7 +70,7 @@ def run():
     _u2, st2 = fresh("h2")
     story.start_story_task(st2, 1042, NOW)
     before = str(st2.props.get("npc_chat_prop"))
-    _finish_story_tasks(st2, [1042], param=None)
+    finish_story_tasks(st2, [1042], param=None)
     check("1042 完成、1048 推进", story.story_state(st2.props, 1048) == 3,
           story.story_state(st2.props, 1048))
     check("无映射 -> 短信属性完全没动", str(st2.props.get("npc_chat_prop")) == before)

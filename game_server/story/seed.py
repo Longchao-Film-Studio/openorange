@@ -44,18 +44,18 @@ _log = get_logger(__name__)
 # 一次播种的硬上限：任务图理论上无环，但数据不一定可靠。
 SEED_LIMIT = 200
 
-_INDEX = None          # {taskId: cfg}
+INDEX = None          # {taskId: cfg}
 _ROOTS = None          # [taskId, ...]
 _CHILDREN = None       # {preTaskId: [taskId, ...]}  反向边
 
 
 def _build_index(force=False):
     """建一次全表索引（进程内缓存）。"""
-    global _INDEX, _ROOTS, _CHILDREN
-    # ★ 三个缓存要一起判断：只判 _INDEX 的话，外部把 _ROOTS 清成 None 后
-    #   会因为 _INDEX 还在而直接返回，留下 _ROOTS=None 的坏状态。
-    if _INDEX is not None and _ROOTS is not None and not force:
-        return _INDEX
+    global INDEX, _ROOTS, _CHILDREN
+    # ★ 三个缓存要一起判断：只判 INDEX 的话，外部把 _ROOTS 清成 None 后
+    #   会因为 INDEX 还在而直接返回，留下 _ROOTS=None 的坏状态。
+    if INDEX is not None and _ROOTS is not None and not force:
+        return INDEX
     table = gamedata.table("StoryTaskData") or {}
     idx = {}
     items = table.items() if isinstance(table, dict) else enumerate(table)
@@ -69,7 +69,7 @@ def _build_index(force=False):
             except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
         idx[int(tid)] = v
-    _INDEX = idx
+    INDEX = idx
     _ROOTS = sorted(t for t, v in idx.items() if not v.get("PreTask"))
     _CHILDREN = {}
     for t, v in idx.items():
@@ -80,7 +80,7 @@ def _build_index(force=False):
             _CHILDREN.setdefault(int(pre), []).append(t)
         except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
-    return _INDEX
+    return INDEX
 
 
 def roots():
@@ -97,7 +97,7 @@ def children_of(task_id):
 
 def cfg_of(task_id):
     _build_index()
-    return (_INDEX or {}).get(int(task_id))
+    return (INDEX or {}).get(int(task_id))
 
 
 def pre_satisfied(st, task_id):
@@ -186,7 +186,7 @@ def _broken_pre_tasks():
     T = {int(v["uiD"]) for v in T.values()
          if isinstance(v, dict) and v.get("uiD") is not None}
     out = []
-    for t, v in (_INDEX or {}).items():
+    for t, v in (INDEX or {}).items():
         pre = v.get("PreTask")
         if pre is None:
             continue
@@ -194,7 +194,7 @@ def _broken_pre_tasks():
             pre = int(pre)
         except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
-        if pre not in (_INDEX or {}) and pre not in T:
+        if pre not in (INDEX or {}) and pre not in T:
             out.append((t, pre))
     return sorted(out)
 
@@ -207,7 +207,7 @@ def _dangling_task_data_ids():
     T = {int(v["uiD"]): v for v in T.values()
          if isinstance(v, dict) and v.get("uiD") is not None}
     out = []
-    for t, v in (_INDEX or {}).items():
+    for t, v in (INDEX or {}).items():
         if v.get("TaskType") not in (3, 7):
             continue
         for pid in (v.get("Parameter1") or []):
@@ -276,8 +276,8 @@ def rescan(st, now=None, _limit=SEED_LIMIT):
         tick_res = _events.tick(st, now)
         hits = list(tick_res.chain_hits)
         if hits:
-            from .rpc import _finish_story_tasks
-            out.extend(_finish_story_tasks(st, hits, source="chain"))
+            from .rpc import finish_story_tasks
+            out.extend(finish_story_tasks(st, hits, source="chain"))
     except Exception as e:
         _log.warning(f"[story] rescan 链式检查失败: {e}")
 
@@ -293,7 +293,7 @@ def seed_cross_table(st, now=None):
     """
     _build_index()
     out = []
-    for tid, cfg in (_INDEX or {}).items():
+    for tid, cfg in (INDEX or {}).items():
         if cfg.get("PreTaskType") != 1:
             continue
         pre = cfg.get("PreTask")

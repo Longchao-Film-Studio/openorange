@@ -47,7 +47,7 @@ def ctx(perm=cmds.PERM_ADMIN, actor="cmd_a"):
     return cmds.Context(actor, perm)
 
 def start_levels(uid):
-    msmod._live_init_dict(uid)
+    msmod.live_init_dict(uid)
     fs = guarded_handle(erpc.RPC_INDEX["Cmd_Avatar_StartGame_CS"],
                      msmod.mp_arr([{"match_type": 3, "system_type": 1004,
                                     "modeId": 1, "storyID": 1}]),
@@ -61,7 +61,7 @@ def start_levels(uid):
             continue
         try:
             decoded, _u = msmod.mp_decode(params)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if not (isinstance(decoded, list) and len(decoded) == 2):
             continue
@@ -179,7 +179,7 @@ def run():
         from game_server import player_state as _ps
         check("查询后依然没有存档文件", _ps.peek("cmd_q") is None)
         # 真登录一次才会有任务 1000
-        msmod._live_init_dict("cmd_q")
+        msmod.live_init_dict("cmd_q")
         st_q = _ps.peek("cmd_q")
         bag_q = (st_q.props.get("story_task_bag") or {})
         check("登录后才有任务 1000", isinstance(bag_q.get(1000), dict),

@@ -64,7 +64,7 @@ def run():
         rel = os.path.relpath(p, SERVER)
         try:
             src = open(p, encoding="utf-8", errors="replace").read()
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         n = len(re.findall(r"apply_event\(", src))
         if n:

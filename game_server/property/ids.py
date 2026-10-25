@@ -20,7 +20,7 @@ story._next_id_for_props()       -> 每次扫 props 求 max
 
 - **只依赖 props**，不需要 PlayerState（`story.add_item` 只拿得到 props）
 - **跟着存档落盘**，重启不丢
-- `_oo_` 前缀，`ms._live_init_dict` 会过滤掉（`ms.py:501-502`），客户端看不到
+- `_oo_` 前缀，`ms.live_init_dict` 会过滤掉（`ms.py:501-502`），客户端看不到
 - 首次分配时取 `max_id(props)`（兼容 avatar_init.json 里 1000+ 的预置 id）
 
 ## 规则
@@ -32,7 +32,7 @@ story._next_id_for_props()       -> 每次扫 props 求 max
 import threading
 
 # 「下一个可用 id」在 props 里的键名。
-# 带 _oo_ 前缀，ms._live_init_dict 会过滤，不会下发给客户端。
+# 带 _oo_ 前缀，ms.live_init_dict 会过滤，不会下发给客户端。
 _OO_NEXT_ID = "_oo_next_id"
 
 _LOCK = threading.RLock()

@@ -18,7 +18,7 @@ from ..property import ids as _ids
 from ..property import tx as _tx
 from ..rpc_common import decode_params, respond_after_sync, state
 from ..story import events as _events
-from ..story.rpc import _find_story_tasks_by_param, _finish_story_tasks
+from ..story.rpc import _find_story_tasks_by_param, finish_story_tasks
 from ..story.tasks import drain_event_task_sync
 from .info import _street_info_of, _street_tx_begin
 
@@ -63,20 +63,20 @@ def _actor_interact(rid, params, uid=None):
     syncs.extend(drain_event_task_sync(st, res))
     # 命中剧情任务就顺手完成
     if task_id:
-        syncs.extend(_finish_story_tasks(st, [task_id], param=interact_id,
+        syncs.extend(finish_story_tasks(st, [task_id], param=interact_id,
                                           source="street_interact"))
     else:
         hits = _find_story_tasks_by_param(st, interact_id, 2)
         if hits:
-            syncs.extend(_finish_story_tasks(st, hits, param=interact_id,
+            syncs.extend(finish_story_tasks(st, hits, param=interact_id,
                                           source="street_interact"))
     # ★ P1 阶段 N：`res.hits` 是**事件型**命中（type3/7 + type4 街区任务），
     #   `res.chain_hits` 是**链式**命中（type6）。两者来源不同，必须分开传，
     #   否则白名单会把 type4 挡掉（实机回归实测：1045 完不成）。
     if res.hits:
-        syncs.extend(_finish_story_tasks(st, list(res.hits), source="event"))
+        syncs.extend(finish_story_tasks(st, list(res.hits), source="event"))
     if res.chain_hits:
-        syncs.extend(_finish_story_tasks(st, list(res.chain_hits), source="chain"))
+        syncs.extend(finish_story_tasks(st, list(res.chain_hits), source="chain"))
     st.save()
     return respond_after_sync(rid, syncs)
 

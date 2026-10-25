@@ -46,7 +46,7 @@ def uid_of(name):
 
 def fresh(name):
     u = uid_of(name)
-    msmod._live_init_dict(u)
+    msmod.live_init_dict(u)
     return pstate.get_state(uid=u)
 
 
@@ -84,7 +84,7 @@ def run():
           _slot_tasks(st2, 3) == [] and _slot_tasks(st2, 9) == [],
           (_slot_tasks(st2, 3), _slot_tasks(st2, 9)))
     # 把「今天」往回拨一天，触发跨天
-    st2.props[tasks.DAILY_RESET_KEY] = tasks._day_of(1700000000) - 1
+    st2.props[tasks.DAILY_RESET_KEY] = tasks.day_of(1700000000) - 1
     rt3, _ch3 = tasks.daily_reset(st2, 1700000000)
     check("★ 跨天触发了重置", rt3 == [3, 9], rt3)
     check("★ 每日任务重新进包",
@@ -100,7 +100,7 @@ def run():
     tasks.mark_daily_refreshed(st4)
     check("★ 记一次后不可刷新", tasks.can_refresh_daily(st4) is False)
     # 跨天后恢复
-    st4.props[tasks.DAILY_REFRESH_KEY]["day"] = tasks._day_of(0)
+    st4.props[tasks.DAILY_REFRESH_KEY]["day"] = tasks.day_of(0)
     check("★ 跨天后恢复可刷新", tasks.can_refresh_daily(st4) is True)
 
     print("\n[4] 走真实 RPC：第二次刷新被拒")
@@ -119,7 +119,7 @@ def run():
     print("\n[5] 重置不影响非每日类型")
     st6 = fresh("keep")
     n1_before = len(_slot_tasks(st6, 1))
-    st6.props[tasks.DAILY_RESET_KEY] = tasks._day_of(0)
+    st6.props[tasks.DAILY_RESET_KEY] = tasks.day_of(0)
     tasks.daily_reset(st6, 1700000000)
     check("★ Beginner(1) 的任务数量不受重置影响",
           len(_slot_tasks(st6, 1)) == n1_before,

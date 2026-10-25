@@ -6,7 +6,7 @@
 
 原理：
   * patch 掉 game_server.entity_rpc.handle，在真调之前取一份**无副作用**的状态快照
-    （只读 pstate.peek + 剥私有键，不跑 _live_init_dict，避免改变测试行为）
+    （只读 pstate.peek + 剥私有键，不跑 live_init_dict，避免改变测试行为）
   * 真调之后把返回的帧全部喂进 shadow_cache.frames_safe
   * 有不安全帧就记一条（哪个测试、哪个 RPC、客户端会崩在哪）
 """
@@ -38,7 +38,7 @@ def _pre_snapshot(uid):
     for k, v in st.props.items():
         if isinstance(k, str) and k.startswith("_oo_"):
             continue
-        out[k] = _sync._strip_private(v, is_root=True)
+        out[k] = _sync.strip_private(v, is_root=True)
     return {"__Properties__": out}
 
 

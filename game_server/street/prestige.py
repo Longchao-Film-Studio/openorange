@@ -59,7 +59,7 @@ def _prestige_push(st, si, street_id, entry, is_new=False):
     tx = _tx.Tx(st.props)
     if is_new:
         # 新条目：显式 OP_ADD，值剥掉嵌套 __tp__（审计 P0-1）
-        value = _sync._strip_private(entry, is_root=False)
+        value = _sync.strip_private(entry, is_root=False)
         return [sync_frame(
             SYNC_SELF, (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), value)]
     tx.set(("street_info", street_id), entry)

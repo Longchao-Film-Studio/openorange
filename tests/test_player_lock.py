@@ -128,13 +128,13 @@ def run():
         pstate.lock_for = old
     check("心跳调用了 lock_for(uid)", "lock_heartbeat" in spy2.calls, spy2.calls)
 
-    print("\n[6] 登录初始化（_live_init_dict）走同一把锁")
+    print("\n[6] 登录初始化（live_init_dict）走同一把锁")
     from game_server.ms import initdict
     spy3 = _Spy(pstate.lock_for)
     old = pstate.lock_for
     pstate.lock_for = spy3
     try:
-        initdict._live_init_dict("lock_login")
+        initdict.live_init_dict("lock_login")
     finally:
         pstate.lock_for = old
     check("initDict 调用了 lock_for(uid)", "lock_login" in spy3.calls, spy3.calls)
