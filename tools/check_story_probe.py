@@ -41,7 +41,7 @@ def main():
 
     # 1) storycb 钩子
     cb_lines = [l for l in lines if "storycb|" in l]
-    print("")
+    print()
     print("[1] 客户端回调钩子（onStoryTaskItemChanged）")
     if not cb_lines:
         print("    [X] 日志里没有任何 storycb| 行")
@@ -60,14 +60,14 @@ def main():
         for l in reports[:10]:
             print("      " + l.split("storycb|", 1)[1].strip()[:100])
         if hits:
-            print("")
+            print()
             print("    * 结论：客户端回调**真的被触发了** —— 这是 A6/B6 一直未证的那一项")
         elif installed:
-            print("")
+            print()
             print("    [?] 钩子装上了但一次都没触发（可能是这轮没有任何任务状态变化）")
 
     # 2) 服务端剧情推进痕迹
-    print("")
+    print()
     print("[2] 服务端剧情推进痕迹")
     pats = [
         ("任务完成", "完成剧情任务"),
@@ -87,7 +87,7 @@ def main():
         print("    日志里没有服务端剧情日志（注入日志只记客户端，服务端日志在控制台）")
 
     # 3) 结论
-    print("")
+    print()
     print("=" * 60)
     if cb_lines and any("次触发" in l for l in cb_lines):
         print("结论：通过 —— 客户端回调链路已验证")

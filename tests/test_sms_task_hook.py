@@ -51,7 +51,7 @@ def run():
     del passed[:]
     del failed[:]
 
-    print("")
+    print()
     print("[1] INV-SMS-9：完成 1043 的同一批应答帧里，1014 已解锁")
     u1, st1 = fresh("h1")
     # 把 1043 摆成进行中（生产里它是 1048 完成后推进的）
@@ -65,7 +65,7 @@ def run():
     vals = [int(v) for v in unread.values()] if isinstance(unread, dict) else [int(v) for v in unread]
     check("未读队列含 1014", 1014 in vals, vals)
 
-    print("")
+    print()
     print("[2] INV-SMS-11：无映射任务的推进不受影响")
     u2, st2 = fresh("h2")
     story.start_story_task(st2, 1042, NOW)
@@ -75,12 +75,12 @@ def run():
           story.story_state(st2.props, 1048))
     check("无映射 -> 短信属性完全没动", str(st2.props.get("npc_chat_prop")) == before)
 
-    print("")
+    print()
     print("[3] 幂等：重复完成不重复解锁（归档只走一次，这里验重复钩子）")
     f3 = npc_sms.unlock_for_task(st1, 1044, source="repeat")
     check("再次调用 unlock_for_task 为空帧", f3 == [])
 
-    print("")
+    print()
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

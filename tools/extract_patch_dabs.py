@@ -94,19 +94,19 @@ def main():
                   % (name, info.file_size, info.filename))
 
         if not found:
-            print("")
+            print()
             print("zip 里没有目标文件。可能这个包不含 Patch 资源，"
                   "或者路径/命名不同。")
             return 1
 
         if args.dry_run:
-            print("")
+            print()
             print("--dry-run：只检查，未解压。")
             return 0
 
         out_dir = args.out or os.path.join(HERE, "work", "patch_dabs")
         os.makedirs(out_dir, exist_ok=True)
-        print("")
+        print()
         print("解压到 %s" % out_dir)
         ok_files = []
         for name, info in found:
@@ -119,20 +119,20 @@ def main():
                 ok_files.append(name)
 
         if not args.install:
-            print("")
+            print()
             print("完成。要装进游戏加 --install，或手动拷到:")
             print("  %s" % GAME_PATCH_DIR)
             return 0
 
         if not ok_files:
-            print("")
+            print()
             print("没有校验通过的文件，不安装。")
             return 1
 
         os.makedirs(GAME_PATCH_DIR, exist_ok=True)
         bak_dir = os.path.join(GAME_PATCH_DIR, "_corrupt_backup")
         os.makedirs(bak_dir, exist_ok=True)
-        print("")
+        print()
         print("安装到 %s" % GAME_PATCH_DIR)
         for name in ok_files:
             dst = os.path.join(GAME_PATCH_DIR, name)
@@ -144,7 +144,7 @@ def main():
             shutil.copy2(os.path.join(out_dir, name), dst)
             good, why = check_dab(dst)
             print("  装好 %s -> %s" % (name, why))
-        print("")
+        print()
         print("完成。重启游戏验证 HUD。")
         return 0
 

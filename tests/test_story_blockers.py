@@ -88,7 +88,7 @@ def run():
     nav = [t for t, v in S.items() if v.get("TaskType") in (3, 7)
            and (v.get("Parameter1") or [])
            and not any(int(x) in T for x in (v.get("Parameter1") or []))]
-    print("")
+    print()
     print("[1] 67 条 Parameter1 指向玩法表的六项独立检查")
     check("共 67 条", len(nav) == 67, len(nav))
     check("(1) 没有一条被 SpaceTask.avatarTask 指向（阶段 J 的解法不覆盖它们）",
@@ -112,7 +112,7 @@ def run():
     check("67 条的 Parameter1 一条都不在 TaskData 里",
           not any(int(x) in T for t in nav for x in (S[t].get("Parameter1") or [])))
 
-    print("")
+    print()
     print("[2] 10 条需要未实现玩法事件的检查")
     unimpl = []
     for t, v in S.items():
@@ -137,14 +137,14 @@ def run():
     check("涉及 10 种各不相同的玩法事件类型", len(kinds) == 10, sorted(kinds))
     print("      这 10 种：" + "、".join(sorted(kinds)))
 
-    print("")
+    print()
     print("[3] 总数核对")
     check("67 + 10 = 77（= 1032 可达 - 955 可完成）", 67 + 10 == 77)
 
-    print("")
+    print()
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
-    print("")
+    print()
     print("★ 用途：数据变了（比如官方补了 SpaceTask 链接）就红，")
     print("  提示重新调查，而不是静默地继续按 92.5% 算。")
     return 0 if not failed else 1

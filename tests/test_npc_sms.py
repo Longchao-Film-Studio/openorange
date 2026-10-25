@@ -54,7 +54,7 @@ def run():
     del passed[:]
     del failed[:]
 
-    print("")
+    print()
     print("[0] 数据前置：1014 话题/对话/角色都在，映射表含 1044->1014")
     cfg = gamedata.npc_message(1014)
     check("1014 话题存在且 chatType=1", isinstance(cfg, dict) and int(cfg.get("chatType")) == 1,
@@ -67,7 +67,7 @@ def run():
           (gamedata.npc_actor(100103) or {}).get("actorName"))
     check("映射表 1044->1014", npc_sms.topics_for_task(1044) == [1014])
 
-    print("")
+    print()
     print("[1] INV-SMS-5：任务路径不能解锁映射表外话题")
     u1, st1 = fresh("sms1")
     f1 = npc_sms.unlock_topic(st1, 99999, 50019, source="test")
@@ -76,14 +76,14 @@ def run():
     f2 = npc_sms.unlock_topic(st1, 100133, 50019, source="test", allow_unmapped=True)
     check("GM 路径显式越权可解锁", len(f2) > 0 and npc_sms.is_unlocked(st1, 100133, 50019))
 
-    print("")
+    print()
     print("[2] INV-SMS-3：幂等 —— 重复解锁返回空帧")
     u3, st3 = fresh("sms3")
     a3 = npc_sms.unlock_topic(st3, 100103, 1014, source="test", allow_unmapped=True)
     b3 = npc_sms.unlock_topic(st3, 100103, 1014, source="test", allow_unmapped=True)
     check("首次解锁有帧、再次为空", len(a3) > 0 and b3 == [], (len(a3), len(b3)))
 
-    print("")
+    print()
     print("[3] INV-SMS-4/8：条目形状 —— 四字段齐全 + update_time 非 0")
     entry = ((st3.props.get("npc_chat_prop") or {}).get("address_list") or {}).get(100103, {}).get(1014)
     check("条目存在", isinstance(entry, dict), entry)
@@ -97,7 +97,7 @@ def run():
           if isinstance((st3.props.get("npc_chat_prop") or {}).get("resident_topic_ids"), dict)
           else 1014 in [int(v) for v in (st3.props.get("npc_chat_prop") or {}).get("resident_topic_ids", [])])
 
-    print("")
+    print()
     print("[4] INV-SMS-6/7：进度上报 —— 未解锁忽略；is_over=1 出未读队列")
     u4, st4 = fresh("sms4")
     before = str(st4.props.get("npc_chat_prop"))
@@ -114,7 +114,7 @@ def run():
     vals = [int(v) for v in unread.values()] if isinstance(unread, dict) else [int(v) for v in unread]
     check("is_over=1 后出未读队列", 1014 not in vals, vals)
 
-    print("")
+    print()
     print("[5] RPC 三个索引已注册且 handler 已挂")
     from game_server import dispatch as dd
     for nm in ("Check_TopicID_CanOpen_CS", "Update_NpcChat_Info_CS", "GmRpcOpenNpcChatTopic"):
@@ -122,7 +122,7 @@ def run():
         check("  %s 有索引" % nm, idx is not None)
         check("  %s 有 handler" % nm, idx in dd._HANDLERS)
 
-    print("")
+    print()
     print("[6] unlock_for_task：1044 解锁 1014；未映射任务只告警不动状态")
     u6, st6 = fresh("sms6")
     f6 = npc_sms.unlock_for_task(st6, 1044, source="test")
@@ -132,7 +132,7 @@ def run():
     check("1045 无映射 -> 不解锁、状态不变", f7 == [] and
           str(st6.props.get("npc_chat_prop")) == before6)
 
-    print("")
+    print()
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

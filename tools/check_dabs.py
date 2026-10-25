@@ -76,17 +76,17 @@ def main():
         grand_good += good
         all_bad.extend(bad)
 
-    print("")
+    print()
     print("=" * 60)
     print("合计: %d 个 .dab，正常 %d，异常 %d"
           % (grand_total, grand_good, len(all_bad)))
     if all_bad:
-        print("")
+        print()
         print("异常文件清单:")
         for p, why in all_bad:
             print("  %s" % p)
             print("     %s" % why)
-        print("")
+        print()
         print("修复：用整合包里的同名文件替换，或")
         print("      python tools/extract_patch_dabs.py <zip> --install")
     return 0 if not all_bad else 1

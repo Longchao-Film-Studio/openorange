@@ -67,7 +67,7 @@ def run():
     del passed[:]
     del failed[:]
 
-    print("")
+    print()
     print("[1] Bug C：取消追踪哨兵 -1000 要归一化成 0")
     u1, st1 = fresh("tc")
     guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
@@ -80,7 +80,7 @@ def run():
     check("正常正数照常存", st1.props.get("street_trace_taskid") == 1045,
           st1.props.get("street_trace_taskid"))
 
-    print("")
+    print()
     print("[2] Bug D：追踪的任务完成后自动切到下一环")
     u2, st2 = fresh("td")
     guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
@@ -101,7 +101,7 @@ def run():
           st2.props.get("street_trace_taskid") == 1003,
           st2.props.get("street_trace_taskid"))
 
-    print("")
+    print()
     print("[3] Bug D 反向：完成的不是被追踪的任务时不许乱动")
     u3, st3 = fresh("te")
     guarded_handle(rpc_index.RPC_INDEX["updateStreetTraceTask_CS"],
@@ -111,7 +111,7 @@ def run():
           st3.props.get("street_trace_taskid") == 1045,
           st3.props.get("street_trace_taskid"))
 
-    print("")
+    print()
     print("[4] 伪造 A：Street_Actor_InteractID_Update_CS 不能完成 type0")
     u4, st4 = fresh("tf")
     t0 = [t for t in (st4.props.get("story_task_bag") or {})
@@ -126,7 +126,7 @@ def run():
           story.story_state(st4.props, tgt) == before,
           (before, story.story_state(st4.props, tgt)))
 
-    print("")
+    print()
     print("[5] 伪造 B：SingleStartMatch_CS 不能设任意 copyId / levelId")
     u5, st5 = fresh("tg")
     guarded_handle(rpc_index.RPC_INDEX["SingleStartMatch_CS"],
@@ -142,7 +142,7 @@ def run():
           st5.props.get("_oo_cur_level") == 52021,
           st5.props.get("_oo_cur_level"))
 
-    print("")
+    print()
     print("[6] 伪造 C：不在副本里结算不推进剧情")
     u6, st6 = fresh("th")
     before6 = story.story_state(st6.props, 1000)
@@ -153,7 +153,7 @@ def run():
           story.story_state(st6.props, 1000) == before6,
           (before6, story.story_state(st6.props, 1000)))
 
-    print("")
+    print()
     print("[7] 老号登录也必须播种（阶段 C 的调用条件 bug）")
     # 实机证据：ootest001 是已有存档，以前 init_new_player 只在 is_new 时调用，
     # 所以老号永远只有 1 个任务。现在改成每次登录都播种（seed 本身幂等）。
@@ -183,7 +183,7 @@ def run():
     check("★ 老号登录时补播到 83（以前只在 is_new 时播种）",
           n7b == 83, n7b)
 
-    print("")
+    print()
     print("[8] 切街区后追踪标点要刷新 / 换到当前街区能做的任务")
     u8, st8 = fresh("tj")
     guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"],
@@ -222,7 +222,7 @@ def run():
     check("★ 切街区推了 street_trace_taskid 同步帧（客户端靠它刷新）",
           pushed)
 
-    print("")
+    print()
     print("[9] 追踪一个「不在当前街区」的任务 -> 不写进 street_trace_taskid")
     # 客户端 getStreetActorByUniqName 只在当前场景找 NPC（streettasktrackcomp.lua:99），
     # 找不到就 setTrackingInfo(nil) -> 标点停在原地。所以跨街区任务不能写进去。
@@ -256,7 +256,7 @@ def run():
           st9b.props.get("street_trace_taskid") == 1045,
           st9b.props.get("street_trace_taskid"))
 
-    print("")
+    print()
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1

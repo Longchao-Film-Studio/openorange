@@ -101,14 +101,14 @@ def run():
     del passed[:]
     del failed[:]
 
-    print("")
+    print()
     print("[1] INV-1：切街区后追踪目标必须「正在做 + 本街区」")
     u1, st1 = fresh("inv1")
     guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"], msmod.mp_arr([101]), 1, uid=u1)
     guarded_handle(rpc_index.RPC_INDEX["RequestSwitchStreet_CS"], msmod.mp_arr([100]), 2, uid=u1)
     assert_inv1("切到 100", st1, street_id=100)
 
-    print("")
+    print()
     print("[2] ★ 回归 1044 事故：已完成任务绝不能被当成追踪目标")
     u2, st2 = fresh("inv2")
     # 造一个「已完成」的 1044（GuideSceneId=101，与中浦区一致 —— 旧代码就是被它坑的）
@@ -128,7 +128,7 @@ def run():
           st2.props.get(TR.WANTED_KEY))
     check("★ 即使值没变也要推 OP_CHANGE 帧", len(frames) == 1, len(frames))
 
-    print("")
+    print()
     print("[3] INV-2：手动追踪只认玩家点名的那个任务")
     u3, st3 = fresh("inv3")
     guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"], msmod.mp_arr([101]), 1, uid=u3)
@@ -146,14 +146,14 @@ def run():
     check("★ 但玩家意图保留（走到 101 会自动恢复）",
           st4.props.get(TR.WANTED_KEY) == 1045, st4.props.get(TR.WANTED_KEY))
 
-    print("")
+    print()
     print("[4] INV-2 续：切到目标街区后自动恢复玩家点名的任务")
     guarded_handle(rpc_index.RPC_INDEX["RequestSwitchStreet_CS"],
                    msmod.mp_arr([101]), 3, uid=u4)
     check("★ 到街区 101 后恢复追踪 1045",
           st4.props.get(TR.TRACE_KEY) == 1045, st4.props.get(TR.TRACE_KEY))
 
-    print("")
+    print()
     print("[5] 取消追踪（客户端发 -1000 哨兵）-> 0")
     u5, st5 = fresh("inv5")
     guarded_handle(rpc_index.RPC_INDEX["RpcEnterStreet"], msmod.mp_arr([101]), 1, uid=u5)
@@ -166,7 +166,7 @@ def run():
     check("★ 取消后意图也清 0",
           (st5.props.get(TR.WANTED_KEY) or 0) == 0, st5.props.get(TR.WANTED_KEY))
 
-    print("")
+    print()
     print("[6] resolve() 在各种空状态下都返回 0（不抛异常）")
     u6, st6 = fresh("inv6")
     st6.props["story_task_bag"] = {}
@@ -174,7 +174,7 @@ def run():
     st6.props.pop("story_task_bag", None)
     check("没有任务包 -> 0", TR.resolve(st6) == 0, TR.resolve(st6))
 
-    print("")
+    print()
     print("=" * 56)
     print("通过 %d 项，失败 %d 项" % (len(passed), len(failed)))
     return 0 if not failed else 1
