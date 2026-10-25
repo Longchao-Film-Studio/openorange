@@ -208,7 +208,7 @@ def run():
     from tools import give_item as _give_item
     st7 = fresh("ids_g")
     before7 = ids_mod.peek_next_id(st7.props)
-    gkey7, _n7, how7 = _give_item.give(st7.props, 90001, 1)
+    _gkey7, _n7, how7 = _give_item.give(st7.props, 90001, 1)
     after7 = ids_mod.peek_next_id(st7.props)
     check("give_item 确实新建了格子", how7 == "新格子", how7)
     check("give_item 推进了统一计数器", after7 > before7, (before7, after7))

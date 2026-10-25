@@ -331,7 +331,7 @@ def run():
     E = {int(k): v for k, v in (gamedata.table("TaskEventData") or {}).items()
          if isinstance(v, dict) and v.get("uiD") is not None}
     spmap = {}
-    for sid, row in SP.items():
+    for row in SP.values():
         a = row.get("avatarTask")
         if a is not None:
             spmap.setdefault(int(a), row)

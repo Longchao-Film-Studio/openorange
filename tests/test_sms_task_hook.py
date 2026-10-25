@@ -53,7 +53,7 @@ def run():
 
     print()
     print("[1] INV-SMS-9：完成 1043 的同一批应答帧里，1014 已解锁")
-    u1, st1 = fresh("h1")
+    _u1, st1 = fresh("h1")
     # 把 1043 摆成进行中（生产里它是 1048 完成后推进的）
     story.start_story_task(st1, 1043, NOW)
     frames = _finish_story_tasks(st1, [1043], param=101056)
@@ -67,7 +67,7 @@ def run():
 
     print()
     print("[2] INV-SMS-11：无映射任务的推进不受影响")
-    u2, st2 = fresh("h2")
+    _u2, st2 = fresh("h2")
     story.start_story_task(st2, 1042, NOW)
     before = str(st2.props.get("npc_chat_prop"))
     _finish_story_tasks(st2, [1042], param=None)

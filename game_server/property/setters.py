@@ -170,7 +170,7 @@ def _generic_setter(rid, params, spec, uid=None):
     return respond_after_sync(rid, syncs)
 
 
-def _const_setter(rid, params, spec, uid=None):
+def _const_setter(rid, _params, spec, uid=None):
     """无参数 setter：把属性置成常量 + 推同步。"""
     prop_name, const_value = spec
     syncs = []

@@ -71,7 +71,7 @@ def run():
 
     print()
     print("[1] INV-SMS-5：任务路径不能解锁映射表外话题")
-    u1, st1 = fresh("sms1")
+    _u1, st1 = fresh("sms1")
     f1 = npc_sms.unlock_topic(st1, 99999, 50019, source="test")
     check("表外话题（50019，任务路径）不解锁", f1 == [] and
           not npc_sms.is_unlocked(st1, 99999, 50019))
@@ -80,7 +80,7 @@ def run():
 
     print()
     print("[2] INV-SMS-3：幂等 —— 重复解锁返回空帧")
-    u3, st3 = fresh("sms3")
+    _u3, st3 = fresh("sms3")
     a3 = npc_sms.unlock_topic(st3, 100103, 1014, source="test", allow_unmapped=True)
     b3 = npc_sms.unlock_topic(st3, 100103, 1014, source="test", allow_unmapped=True)
     check("首次解锁有帧、再次为空", len(a3) > 0 and b3 == [], (len(a3), len(b3)))
@@ -101,7 +101,7 @@ def run():
 
     print()
     print("[4] INV-SMS-6/7：进度上报 —— 未解锁忽略；is_over=1 出未读队列")
-    u4, st4 = fresh("sms4")
+    _u4, st4 = fresh("sms4")
     before = str(st4.props.get("npc_chat_prop"))
     f4 = npc_sms.mark_topic_progress(st4, 100103, 1014, 10491, 1, 1)
     check("未解锁收到进度 -> 忽略（无帧、状态不变）", f4 == [] and
@@ -126,7 +126,7 @@ def run():
 
     print()
     print("[6] unlock_for_task：1044 解锁 1014；未映射任务只告警不动状态")
-    u6, st6 = fresh("sms6")
+    _u6, st6 = fresh("sms6")
     f6 = npc_sms.unlock_for_task(st6, 1044, source="test")
     check("1044 -> 自动解锁 1014", len(f6) > 0 and npc_sms.is_unlocked(st6, 100103, 1014))
     before6 = str(st6.props.get("npc_chat_prop"))

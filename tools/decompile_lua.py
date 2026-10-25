@@ -73,7 +73,7 @@ def main():
                 for s, d in tasks}
         done = 0
         for fu in as_completed(futs):
-            s, d = futs[fu]
+            s, _d = futs[fu]
             good, err = fu.result()
             done += 1
             if good:

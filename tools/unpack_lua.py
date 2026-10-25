@@ -60,7 +60,7 @@ def parse_pack(path):
     if vlen < 0 or vlen > 64 or p + vlen > len(data):
         return None
     version = data[p:p + vlen].decode("utf-8", "replace"); p += vlen
-    file_count, body_size = struct.unpack_from("<ii", data, p); p += 8
+    file_count, _body_size = struct.unpack_from("<ii", data, p); p += 8
     zip_flag = struct.unpack_from("<H", data, p)[0]; p += 2
     info_len = struct.unpack_from("<i", data, p)[0]; p += 4
     if info_len < 0 or p + info_len > len(data):
@@ -156,7 +156,7 @@ def main():
     print("唯一文件数:", len(seen))
     print("开始写盘...")
     written = 0
-    for key, (pack_name, off, ln, data) in seen.items():
+    for key, (_pack_name, off, ln, data) in seen.items():
         body = xor_body(data[off:off + ln])
         rel = key.replace("\\", "/")
         dst = os.path.join(out_dir, rel + ".luac")

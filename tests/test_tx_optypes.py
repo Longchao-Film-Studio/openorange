@@ -232,7 +232,7 @@ def run():
     pre = msmod._live_init_dict("txopt_e")
     got = story.add_item(st6.props, 12345, 3)
     check("add_item 返回新格子", bool(got), got)
-    num, gkey, is_new = got
+    _num, gkey, is_new = got
     check("新格子是新建的", is_new is True, is_new)
     check("新格子的键不是 1（不能覆盖第 1 格）", str(gkey) != "1", gkey)
     grid = st6.props["item_bag"][gkey]

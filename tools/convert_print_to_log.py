@@ -219,7 +219,7 @@ def main():
     targets = []
     for sub in ("game_server", "shared", "web"):
         d = os.path.join(ROOT, sub)
-        for dirpath, dirnames, filenames in os.walk(d):
+        for dirpath, _dirnames, filenames in os.walk(d):
             if "__pycache__" in dirpath:
                 continue
             for fn in filenames:

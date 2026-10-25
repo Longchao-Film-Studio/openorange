@@ -149,7 +149,7 @@ def item_tier(item_type, use_type):
 def extract_items(lua_dir):
     path = os.path.join(lua_dir, "tabledata", "commondata", "itemdata.lua")
     rows = []
-    for key, body in parse_entries(path):
+    for _key, body in parse_entries(path):
         item_id = get_int(body, "itemId")
         name = get_str(body, "name")
         if item_id is None or not name:
@@ -176,7 +176,7 @@ def extract_items(lua_dir):
 def extract_chars(lua_dir):
     path = os.path.join(lua_dir, "tabledata", "commondata", "chardata.lua")
     rows = []
-    for key, body in parse_entries(path):
+    for _key, body in parse_entries(path):
         char_id = get_int(body, "charId")
         name = get_str(body, "charName")
         if char_id is None or not name:

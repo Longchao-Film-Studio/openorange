@@ -288,7 +288,7 @@ def remove_account(username, password):
 # 游戏端: 登录(只对已注册账号)
 # --------------------------------------------------------------------------
 
-def login(username, channel_uid=None):
+def login(username, _channel_uid=None):
     """游戏端登录: 账号必须已注册 -> 刷新登录态 + 签发票据。
 
     返回 (ret_dict, err_msg)。err_msg 非空表示失败。

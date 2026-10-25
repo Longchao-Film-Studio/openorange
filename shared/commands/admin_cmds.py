@@ -18,7 +18,7 @@ _GUIDE01_LEVELS = [
 @register("dungeon", aliases=("副本",), args="<target> [<关卡ID> | off]",
           desc="副本关卡覆盖：只打指定关卡（例 /dungeon @ 50003 直达Boss）",
           perm=PERM_GM, needs_target=True, group="GM")
-def cmd_dungeon(ctx, target, *args):
+def cmd_dungeon(_ctx, target, *args):
     """副本关卡覆盖 —— 按账号，语法与其它命令一致：/dungeon <target> <参数>。
 
     target：@ = 自己；其它为账号名（跨账号需管理员，由 execute 统一校验）
@@ -123,7 +123,7 @@ def cmd_dungeon(ctx, target, *args):
 @register("sms", aliases=("短信",), args="<target> <话题ID>",
           desc="解锁一条 NPC 短信话题（例 /sms @ 1014 弹杜老爷短信）。GM 验证用",
           perm=PERM_GM, needs_target=True, group="GM")
-def cmd_sms(ctx, target, *args):
+def cmd_sms(_ctx, target, *args):
     """解锁 NPC 短信话题 —— 短信链路的实机验证入口。
 
       /sms @ 1014     给自己解锁 1014「杜老爷短信」（1044 的剧情）
@@ -159,7 +159,7 @@ def cmd_sms(ctx, target, *args):
 @register("prologue", aliases=("序章",), args="<target> [skip]",
           desc="序章：查看状态 / 跳过（跳过 = 直接进街区，不再打副本）",
           perm=PERM_GM, needs_target=True, group="GM")
-def cmd_prologue(ctx, target, *args):
+def cmd_prologue(_ctx, target, *args):
     """查看或跳过序章 —— 语法与其它命令一致：/prologue <target> [skip]。
 
       /prologue @              看自己的序章状态

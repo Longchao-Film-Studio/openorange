@@ -27,7 +27,7 @@ def _set_surface_time(st, value):
     return [sync_frame(
         SYNC_SELF, si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
 
-def _enter_surface(rid, params, uid=None):
+def _enter_surface(rid, _params, uid=None):
     """RequestEnterStreetSurface_CS {worldId} —— 进阴界 / 切昼夜。
 
     ★★ 不变量（R1，不许改顺序）：属性同步帧必须在应答帧【之前】。
@@ -54,7 +54,7 @@ def _enter_surface(rid, params, uid=None):
     _log.info("[street] 进入阴界")
     return respond_after_sync(rid, syncs)
 
-def _leave_surface(params, uid=None):
+def _leave_surface(_params, uid=None):
     """RequestLeaveStreetSurface_CS {} —— 回阳界（单向）。"""
     st = state(uid)
     out = _set_surface_time(st, 0)

@@ -230,7 +230,7 @@ def _warn_once(key, msg):
     _log.info("[story] " + msg)
 
 
-def rescan(st, now=None, limit=SEED_LIMIT):
+def rescan(st, now=None, _limit=SEED_LIMIT):
     """阶段 D：把「没人触发」的任务重新检查一遍，返回同步描述列表。
 
     ★ 为什么需要它（阶段 C 实测后发现）

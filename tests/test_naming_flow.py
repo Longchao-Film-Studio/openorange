@@ -211,7 +211,7 @@ def run():
     # ★ 修复「结算后无缝切街区」崩溃（2026-10-23 实机日志实锤）
     #   客户端进街区 getStreetBgm（StreetSystemMgrBase.lua:111-114）读
     #   getStreetInfoByID(street_id) -> street_info[street_id]，nil 会崩
-    st10, u10 = fresh("streetinfo")
+    st10, _u10 = fresh("streetinfo")
     si10 = st10.props.get("street_info") or {}
     sid10 = st10.props.get("street_id")
     check("★ 登录后 street_info[street_id] 存在（结算切街区不崩）",
@@ -271,7 +271,7 @@ def run():
             out.append(nm)
         return out
 
-    st12, u12 = fresh("namesync")
+    _st12, u12 = fresh("namesync")
     _fr12 = guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
                            msmod.mp_arr(["\u5973\u5bfc\u6f14\u6d4b\u8bd5", 2]), 13, uid=u12)
     _names = _sync_names(_fr12)

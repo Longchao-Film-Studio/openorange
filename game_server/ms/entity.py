@@ -172,7 +172,7 @@ def build_team_info_sc(rid):
     return build_entity_response(rid, ret={"status": False, "errmsg": ""})
 
 def build_entity_message(entity_id="", method_name=None, index=0,
-                         params=b"\x80", session_id=None, rid=0):
+                         params=b"\x80", _session_id=None, rid=0):
     """构造 server -> client 的 entityMessage。
 
     对应 GateClientRpcHandler:entityMessage(entityId, methodName, index, parameters)，

@@ -392,7 +392,7 @@ def run():
         ('BAG[1]["state"] = 6', "下标赋值"),
     ]
     neg_miss = []
-    for src, want in NEGATIVE:
+    for src, _want in NEGATIVE:
         try:
             hits = _scan_state_writes(src)
         except SyntaxError as e:
@@ -456,7 +456,7 @@ def run():
     story.start_story_task(st10, AWARD_TASK, NOW)
     orig_award = story.story_award
 
-    def boom(*a, **k):
+    def boom(*_a, **_k):
         raise RuntimeError("award exploded")
 
     _base = {}

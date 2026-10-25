@@ -90,7 +90,7 @@ def _open_lua(dll_path):
     return lib, state
 
 
-def cmd_build(argv):
+def cmd_build(_argv):
     lua_src = os.environ.get("OO_LUA_SRC") or DEFAULT_LUA_SRC
     dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
     if not os.path.isdir(lua_src):
@@ -144,7 +144,7 @@ def cmd_lookup(argv):
         print('{:<12} -> {}'.format(idx, ", ".join(names) if names else "（表里没有）"))
 
 
-def cmd_verify(argv):
+def cmd_verify(_argv):
     """用真身 genRpcIndex 重新核对 game_server/entity_rpc.py 里的索引表。
 
     这一步是「不靠猜」的闭环：代码里每个硬编码的索引都能被机器复算一遍。

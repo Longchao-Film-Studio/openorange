@@ -17,7 +17,7 @@ CMD_PROPERTY_RELIABLE_SYNC_SC = 66862165
 
 SYNC_FRAME_FROM_SERVER = 1791975984
 
-def _soul_heartbeat(params, uid=None):
+def _soul_heartbeat(params, _uid=None):
     """soulHeartbeat_CS {{reqMs}, pingInfo} -> soulHeartbeat_SC {reqMs}。
 
     客户端 soulnet.lua:82-90 用 `now - info.reqMs` 算 ping，
@@ -34,7 +34,7 @@ def _soul_heartbeat(params, uid=None):
     return [_s2c_entity("soulHeartbeat_SC", SOUL_HEARTBEAT_SC,
                         [{"reqMs": req}])]
 
-def _reliable_property_sync(params, uid=None):
+def _reliable_property_sync(params, _uid=None):
     """Cmd_Property_ReliableSync_CS {msgId, data} -> Cmd_Property_ReliableSync_SC(msgId)。"""
     vals = decode_params(params)
     msg_id = 0
@@ -46,7 +46,7 @@ def _reliable_property_sync(params, uid=None):
     return [_s2c_entity("Cmd_Property_ReliableSync_SC",
                         CMD_PROPERTY_RELIABLE_SYNC_SC, [msg_id])]
 
-def _space_frame_message(params, uid=None):
+def _space_frame_message(params, _uid=None):
     """spaceFrameMessage {view2LogicDataCache} -> syncFrameFromServerToClient(帧)。
 
     单机私服没有别的玩家，把客户端上行的帧原样回传，

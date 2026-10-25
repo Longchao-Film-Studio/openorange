@@ -83,7 +83,7 @@ def make_active_task(st, task_id, task_type, state, now):
     return item
 
 
-def _as_map(props, name, tp=None):
+def _as_map(props, name, _tp=None):
     """取一个 dict 属性；不存在就建一个（带 __tp__/__id__ 需要调用方补）。"""
     v = props.get(name)
     if isinstance(v, dict):
@@ -183,7 +183,7 @@ def mark_finish_parameter(st, task_id, param):
         print(f"[story] 警告：任务 {task_id} 没有 finish_parameter，跳过进度记录",
               flush=True)
         return []
-    for k, v in _fp_items(fp):
+    for _k, v in _fp_items(fp):
         if int(v) == int(param):
             return []
     used = [int(k) for k, _v in _fp_items(fp)]
@@ -446,7 +446,7 @@ def finish_story_task(st, task_id, now):
     return out
 
 
-def story_award(st, task_id, now=None):
+def story_award(st, task_id, _now=None):
     """发 StoryTaskData[task_id].AwardItemList 的奖励，返回 (item_id, 新数量, 格子键, 是否新建)。
 
     ★ 幂等（审计 P0-2）：每发一项就把 "taskId:itemId" 记进 `_oo_story_award_log`，

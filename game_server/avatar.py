@@ -148,7 +148,7 @@ def _emit_sign(st, syncs):
         syncs.extend(_finish_story_tasks(st, hits, source="event") or [])
 
 
-def _name_rpc_common(rid, params, uid, want_gender):
+def _name_rpc_common(rid, params, uid, _want_gender):
     """三个取名 RPC 的公共骨架。返回 (syncs, st, name, ok, code)。"""
     syncs = []
     vals = decode_params(params)
@@ -167,7 +167,7 @@ def _name_rpc_common(rid, params, uid, want_gender):
 
 def _check_nickname(rid, params, uid=None):
     """RpcCheckNickName {name} —— 取名前的合法性检查（不落库）。"""
-    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    syncs, _st, name, ok, code = _name_rpc_common(rid, params, uid, False)
     if ok:
         _log.info(f"[avatar] 名字检查通过: {name}")
     else:
@@ -180,7 +180,7 @@ def _change_nickname(rid, params, uid=None):
 
     ★ 改名**不发 Sign 事件**：Sign 语义是「完成取名」，只在首次取名时发。
     """
-    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, False)
+    syncs, st, name, ok, _code = _name_rpc_common(rid, params, uid, False)
     if not ok:
         return syncs
     old = st.props.get("player_name")
@@ -353,7 +353,7 @@ def _commit_name_gender(rid, params, uid=None):
 
     这是 TaskData[10]「完成取名」的触发点（见 _emit_sign 的说明）。
     """
-    syncs, st, name, ok, code = _name_rpc_common(rid, params, uid, True)
+    syncs, st, name, ok, _code = _name_rpc_common(rid, params, uid, True)
     if not ok:
         return syncs
     vals = decode_params(params)

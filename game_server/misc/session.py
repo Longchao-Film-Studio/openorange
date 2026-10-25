@@ -9,7 +9,7 @@
 from .. import ms as msmod
 
 
-def _sunact_level(rid, params, uid=None):
+def _sunact_level(rid, _params, _uid=None):
     """RpcGetSunActLevel_CS -> RpcGetSunActLevel_SC。
 
     avatarsunactcomp.lua:315-321：
@@ -19,7 +19,7 @@ def _sunact_level(rid, params, uid=None):
     """
     return msmod.build_sunact_level_sc(rid)
 
-def _match_duration(rid, params, uid=None):
+def _match_duration(rid, _params, _uid=None):
     """RpcGetMatchDuration -> 应答。
 
     avatarmatch.lua:73-79：
@@ -29,7 +29,7 @@ def _match_duration(rid, params, uid=None):
     """
     return msmod.build_match_duration_sc(rid)
 
-def _team_info(rid, params, uid=None):
+def _team_info(rid, _params, _uid=None):
     """QueryMyTeamInfo_CS -> 应答（该玩家不在任何队伍里）。
 
     avatarteamcomp.lua:688-707：

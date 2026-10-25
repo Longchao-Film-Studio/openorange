@@ -8,7 +8,7 @@ from .core import COMMANDS, PERM_ADMIN, PERM_NAMES, PERM_PLAYER, _pad, err, look
 
 # ---------------------------------------------------------------- 命令实现
 @register("help", aliases=("?", "帮助"), args="[命令]", desc="查看命令列表或某条命令的详情", group="基础")
-def cmd_help(ctx, target, *args):
+def cmd_help(_ctx, _target, *args):
     if args:
         cmd = lookup(args[0])
         if cmd is None:
@@ -47,7 +47,7 @@ def cmd_help(ctx, target, *args):
 
 
 @register("who", aliases=("在线",), desc="列出在线玩家", group="基础")
-def cmd_who(ctx, target, *args):
+def cmd_who(_ctx, _target, *_args):
     # 只统计**真正进了游戏**的连接（game_online 表，由 game_server 维护）。
     # 以前读的是 sessions（网页会话），启动器每登录一次留一条，
     # 过期时间又长，结果 /who 把历史登录全列出来（同一个账号 8 条）。
@@ -71,7 +71,7 @@ PAGE_SIZE = 5
 
 @register("search", aliases=("searchid", "find", "查"), args="<关键词> [页码]",
           desc="搜索物品或角色（支持 ID / 中文名 / 英文名）", group="查询")
-def cmd_search(ctx, target, *args):
+def cmd_search(_ctx, _target, *args):
     if not args:
         return err("用法：/search <关键词> [页码]", chat="✗ 用法: /search 关键词")
     keyword = args[0]
@@ -158,7 +158,7 @@ def cmd_account(ctx, target, *args):
 
 
 @register("server", aliases=("服",), args="[info]", desc="服务器状态", group="基础")
-def cmd_server(ctx, target, *args):
+def cmd_server(ctx, _target, *_args):
     st = db.stats()
     gs = gamedata.stats()
     online = len(db.online_accounts())
@@ -175,7 +175,7 @@ def cmd_server(ctx, target, *args):
 
 
 @register("clear", aliases=("清屏",), desc="清空网页控制台输出", group="基础")
-def cmd_clear(ctx, target, *args):
+def cmd_clear(_ctx, _target, *_args):
     return ok([], chat="", data={"clear": True})
 
 

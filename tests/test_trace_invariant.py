@@ -112,7 +112,7 @@ def run():
 
     print()
     print("[2] ★ 回归 1044 事故：已完成任务绝不能被当成追踪目标")
-    u2, st2 = fresh("inv2")
+    _u2, st2 = fresh("inv2")
     # 造一个「已完成」的 1044（GuideSceneId=101，与中浦区一致 —— 旧代码就是被它坑的）
     bag = st2.props.setdefault("story_task_bag", {})
     bag[1044] = {"__id__": 991001, "id": 1044, "state": 6}
@@ -170,7 +170,7 @@ def run():
 
     print()
     print("[6] resolve() 在各种空状态下都返回 0（不抛异常）")
-    u6, st6 = fresh("inv6")
+    _u6, st6 = fresh("inv6")
     st6.props["story_task_bag"] = {}
     check("空任务包 -> 0", TR.resolve(st6) == 0, TR.resolve(st6))
     st6.props.pop("story_task_bag", None)

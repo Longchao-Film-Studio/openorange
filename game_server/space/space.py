@@ -37,7 +37,7 @@ def _space_prop(st):
         return None
     return sp
 
-def _space_sync_frames(st, sp):
+def _space_sync_frames(_st, sp):
     """把 space_p 的 spaceno/seqno/spaceid 推给客户端。"""
     frames = []
     sp_id = sp.get("__id__") or 0
@@ -111,7 +111,7 @@ def _scene_loaded(params, uid=None):
     _log.info(f"[space] 场景加载完成 {spaceno}")
     return _space_sync_frames(st, sp)
 
-def _leave_space_rpc(rid, params, uid=None):
+def _leave_space_rpc(rid, _params, uid=None):
     """RpcLeaveSpace —— 离开空间（带回调，需要回应答）。"""
     syncs = []
     st = state(uid)

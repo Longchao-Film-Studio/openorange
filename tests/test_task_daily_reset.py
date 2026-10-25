@@ -85,7 +85,7 @@ def run():
           (_slot_tasks(st2, 3), _slot_tasks(st2, 9)))
     # 把「今天」往回拨一天，触发跨天
     st2.props[tasks.DAILY_RESET_KEY] = tasks._day_of(1700000000) - 1
-    rt3, ch3 = tasks.daily_reset(st2, 1700000000)
+    rt3, _ch3 = tasks.daily_reset(st2, 1700000000)
     check("★ 跨天触发了重置", rt3 == [3, 9], rt3)
     check("★ 每日任务重新进包",
           len(_slot_tasks(st2, 3)) + len(_slot_tasks(st2, 9)) > 0,

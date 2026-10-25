@@ -27,7 +27,7 @@ def _enter_eden(params, uid=None):
         info["toPosId"] = pos_id
     return _enter_space([SPACE_EDEN, "", info], uid)
 
-def _eden_chat_history(rid, params, uid=None):
+def _eden_chat_history(rid, _params, _uid=None):
     """RpcGetEdenChatHistory {spaceNo} —— 回一条空聊天记录。
 
     客户端 avatarspacecomp.lua:152-158 的 RpcOnEdenChatHistory(chatInfo)

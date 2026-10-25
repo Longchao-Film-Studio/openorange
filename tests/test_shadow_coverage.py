@@ -153,14 +153,14 @@ def run():
 
     real_handle = fg._erpc.handle
     try:
-        fg._erpc.handle = lambda index, params, rid, uid=None: [bad]
+        fg._erpc.handle = lambda index, params, rid, uid=None: [bad]  # noqa: ARG005
         caught = False
         try:
             fg.guarded_handle(1, b"\x90", 1, uid="cov_uid")
         except AssertionError:
             caught = True
         check("guarded_handle 会校验并抛出坏帧（守卫不是空壳）", caught)
-        fg._erpc.handle = lambda index, params, rid, uid=None: [good]
+        fg._erpc.handle = lambda index, params, rid, uid=None: [good]  # noqa: ARG005
         ok_frame = True
         try:
             fg.guarded_handle(1, b"\x90", 1, uid="cov_uid")
@@ -179,7 +179,7 @@ def run():
     ghost = f'ghost_uid_{os.getpid()}'
     real_handle = fg._erpc.handle
     try:
-        fg._erpc.handle = lambda index, params, rid, uid=None: [root_scalar]
+        fg._erpc.handle = lambda index, params, rid, uid=None: [root_scalar]  # noqa: ARG005
         caught = None
         try:
             fg.guarded_handle(1, b"\x90", 1, uid=ghost)
@@ -200,7 +200,7 @@ def run():
     msmod._live_init_dict("cov_order")
     pstate.get_state(uid="cov_order")
 
-    def fake_handle(index, params, rid, uid=None):
+    def fake_handle(_index, _params, _rid, uid=None):  # noqa: ARG001
         st3 = pstate.get_state(uid="cov_order")
         st3.props["item_bag"][probe_key] = {
             "__id__": 777777, "id": probe_key, "itemId": 1, "num": 1,

@@ -55,7 +55,7 @@ def call_name(c):
 
 def scan():
     rows = []
-    for dirpath, dirnames, filenames in os.walk(ROOT):
+    for dirpath, _dirnames, filenames in os.walk(ROOT):
         for fn in filenames:
             if not fn.endswith(".py"):
                 continue

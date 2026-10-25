@@ -127,7 +127,7 @@ def connect_frame(req_type, device=b"dev", auth=None, version=b"v1"):
     return msmod.frame(3, body)
 
 
-def entity_frame(index, params, rid=0, entity_id=1):
+def entity_frame(index, params, rid=0, _entity_id=1):
     """构造一条实体 RPC 帧（type=4）。"""
     body = msmod.pb_varint_field(3, index)
     body += msmod.pb_bytes_field(4, params)

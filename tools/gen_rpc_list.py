@@ -80,7 +80,7 @@ def scan_client_calls():
     # 另外兜一下直接调 stub:dispatchRpc("sendXxx") 的底层入口。
     pat = re.compile(
         r"(?:serverRpc|serverMsg|CallServer|serverOtherMsg)\(\s*\"([A-Za-z0-9_]+)\"")
-    for dp, dn, fn in os.walk(LUA_SRC):
+    for dp, _dn, fn in os.walk(LUA_SRC):
         for f in fn:
             if not f.endswith(".lua"):
                 continue

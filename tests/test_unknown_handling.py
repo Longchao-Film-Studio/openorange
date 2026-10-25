@@ -53,7 +53,7 @@ def body_of(pkt):
 
 def ret_of(pkt):
     """从应答帧里取 retStatus。"""
-    _, _, rid, params = msmod.parse_entity_response(pkt)
+    _, _, _rid, params = msmod.parse_entity_response(pkt)
     return (params or [None])[0]
 
 

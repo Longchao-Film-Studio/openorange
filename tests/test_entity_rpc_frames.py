@@ -78,7 +78,7 @@ def run():
     idx, params, rid = msmod.parse_entity_frame(F_SYNC_TIME[6:])
     check("RpcSyncServerTime index=15228564", idx == 15228564, idx)
     check("RpcSyncServerTime rid=0", rid == 0, rid)
-    val, used = msmod.mp_decode(params)
+    val, _used = msmod.mp_decode(params)
     check("参数是 [客户端时间]", isinstance(val, list) and len(val) == 1, val)
     check("客户端时间是整数", isinstance(val[0], int) and val[0] > 0, val)
 

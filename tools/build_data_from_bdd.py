@@ -71,7 +71,7 @@ def rows_of(obj):
 
 def build_items(bdd_dir):
     rows = []
-    for key, v in rows_of(load(bdd_dir, "ItemData") or {}):
+    for _key, v in rows_of(load(bdd_dir, "ItemData") or {}):
         iid, name = v.get("itemId"), v.get("name")
         if iid is None or not name:
             continue
@@ -87,7 +87,7 @@ def build_items(bdd_dir):
 
 def build_chars(bdd_dir):
     rows = []
-    for key, v in rows_of(load(bdd_dir, "CharData") or {}):
+    for _key, v in rows_of(load(bdd_dir, "CharData") or {}):
         cid, name = v.get("charId"), v.get("charName")
         if cid is None or not name:
             continue
@@ -177,7 +177,7 @@ def build_maps(bdd_dir):
 
 def build_stories(bdd_dir):
     rows = []
-    for key, v in rows_of(load(bdd_dir, "StoryData") or {}):
+    for _key, v in rows_of(load(bdd_dir, "StoryData") or {}):
         name = v.get("dialogueName")
         if not name:
             continue

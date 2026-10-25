@@ -63,7 +63,7 @@ def reid(obj, props):
     if isinstance(obj, dict):
         if "__id__" in obj:
             obj["__id__"] = _ids.alloc_id(props)
-        for k, v in list(obj.items()):
+        for _k, v in list(obj.items()):
             reid(v, props)
     elif isinstance(obj, list):
         for v in obj:
@@ -133,7 +133,7 @@ def main():
     props, src = load_props(args.uid)
     print(f'来源: {src}（属性 {len(props)} 条）')
 
-    added, msg = give_char(props, args.char, args.slot)
+    _added, msg = give_char(props, args.char, args.slot)
     print(f"角色 {args.char}：{msg}")
     if args.slot:
         print(f'已放入编队第 {args.slot} 格')

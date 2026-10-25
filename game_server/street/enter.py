@@ -34,7 +34,7 @@ def _switch_street(rid, params, uid=None):
     syncs = _apply_street_change(new_id, uid) or []
     return respond_after_sync(rid, syncs)
 
-def _leave_street(rid, params, uid=None):
+def _leave_street(rid, _params, uid=None):
     """RequestLeaveStreet_CS {id} —— 离开街区，street_id 归 0。"""
     syncs = _apply_street_change(0, uid) or []
     return respond_after_sync(rid, syncs)

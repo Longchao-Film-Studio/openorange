@@ -266,7 +266,7 @@ def resolve_activity(token, allow_unavailables=False):
     return _by_id_or_name(token, _activity_by_id, _activity_by_name, allow_unavailables)
 
 
-def resolve_task(token, allow_unavailables=False):
+def resolve_task(token, _allow_unavailables=False):
     """解析任务（按 uiD）。"""
     _ensure_loaded()
     token = str(token or "").strip()

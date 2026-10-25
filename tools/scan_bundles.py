@@ -67,7 +67,7 @@ def main():
     t0 = time.time()
     allc = {}
     hits = 0
-    for i, (sz, fp) in enumerate(files):
+    for i, (_sz, fp) in enumerate(files):
         try:
             conts = bundle_containers(fp)
         except Exception:

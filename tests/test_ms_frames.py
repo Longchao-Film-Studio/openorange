@@ -94,11 +94,11 @@ def run():
     resp = call("build_entity_response", msmod.build_entity_response, 42,
                 ret={"status": True}, resp={})
     if resp:
-        mtype, method, rid, val = msmod.parse_entity_response(resp)
+        _mtype, method, rid, val = msmod.parse_entity_response(resp)
         check("应答 methodName=__rpc_response__", method == "__rpc_response__", method)
         check("应答 rid 原样带回", rid == 42, rid)
         check("应答 retStatus.status=True", val[0].get("status") is True, val)
-    idx, params, rid = msmod.parse_entity_frame(em[6:] if em else b"")
+    idx, _params, rid = msmod.parse_entity_frame(em[6:] if em else b"")
     check("parse_entity_frame 取回 index", idx == 1879036833, idx)
     check("parse_entity_frame 取回 rid=0", rid == 0, rid)
     call("build_time_sync", msmod.build_time_sync, 111, 222)

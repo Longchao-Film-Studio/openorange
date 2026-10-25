@@ -70,11 +70,11 @@ def run():
 
     print("\n[4] 加体力（道具）")
     p3 = {S.PROP_KEYS: 100, S.PROP_NEXT: 0, S.PROP_TOTAL: 0}
-    added, trunc = S.add(p3, 60, 10, now=now)
+    _added, trunc = S.add(p3, 60, 10, now=now)
     check("100 + 60 = 160", p3[S.PROP_KEYS] == 160, p3[S.PROP_KEYS])
     check("没截断", trunc is False)
     check("next 被设上（未满）", p3[S.PROP_NEXT] == now + 360, p3[S.PROP_NEXT])
-    added, trunc = S.add(p3, 1000, 10, now=now)
+    _added, trunc = S.add(p3, 1000, 10, now=now)
     check("超上限被截断到 220", p3[S.PROP_KEYS] == 220, p3[S.PROP_KEYS])
     check("报告截断", trunc is True)
     check("满了 next 归零", p3[S.PROP_NEXT] == 0, p3[S.PROP_NEXT])

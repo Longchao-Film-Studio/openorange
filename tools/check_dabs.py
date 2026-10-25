@@ -28,7 +28,7 @@ DEFAULT_DIRS = [
 ]
 
 
-def scan_dir(d, quiet=False):
+def scan_dir(d, _quiet=False):
     total = 0
     good = 0
     bad = []

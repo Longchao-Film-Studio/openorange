@@ -152,7 +152,7 @@ def validate(ops):
     return errs
 
 
-def _parent_type_of(ops, path):
+def _parent_type_of(_ops, path):
     """尽量推断某条 op 的父对象类型（用于结构体字段判定）。
 
     简化实现：只看路径长度 2 的情况（根容器 -> 键），用根属性声明的 value_type。

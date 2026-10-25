@@ -10,11 +10,11 @@
 from ..rpc_common import respond_after_sync
 
 
-def _ack_only(rid, params, uid=None):
+def _ack_only(rid, _params, _uid=None):
     """只回 status=true 的 RPC。"""
     return respond_after_sync(rid, [])
 
 
-def _noop_one_way(params, uid=None):
+def _noop_one_way(_params, _uid=None):
     """单向无操作（RpcEnterTargetSeq / 战斗失败统计 / 加载进度）。"""
     return []

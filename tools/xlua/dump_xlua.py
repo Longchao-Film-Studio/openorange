@@ -38,7 +38,7 @@ def main():
     nsec, = struct.unpack_from('<H', hdr, coff + 2)
     opt_size, = struct.unpack_from('<H', hdr, coff + 16)
     opt = coff + 20
-    magic, = struct.unpack_from('<H', hdr, opt)
+    _magic, = struct.unpack_from('<H', hdr, opt)
     size_of_image, = struct.unpack_from('<I', hdr, opt + 56)
     print(f'sections={nsec:d}  SizeOfImage={size_of_image:#x} ({size_of_image // 1048576:d} MB)')
 

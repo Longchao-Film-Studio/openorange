@@ -83,7 +83,7 @@ def cmd_char(ctx, target, *args):
 
 @register("lv", aliases=("等级",), args="<target> <level>",
           desc="设置玩家等级", perm=PERM_GM, needs_target=True, group="GM")
-def cmd_lv(ctx, target, *args):
+def cmd_lv(_ctx, target, *args):
     if not args:
         return err("用法：/lv <目标> <等级>", chat="✗ 用法: /lv <目标> <等级>")
     lv, e = _need_num(args[0], None, 1, 999, "等级")
@@ -105,14 +105,14 @@ def cmd_lv(ctx, target, *args):
 
 @register("money", aliases=("货币",), args="<target> <currency> <num>",
           desc="增加货币", perm=PERM_GM, needs_target=True, group="GM")
-def cmd_money(ctx, target, *args):
+def cmd_money(_ctx, target, *args):
     if len(args) < 2:
         return err("用法：/money <目标> <货币> <数量>\n可用货币：{}".format("、".join(c["id"] for c in gamedata._currencies)),
                    chat="✗ 用法: /money <目标> <货币> <数量>")
     num, e = _need_num(args[1], None, 1, 99999999)
     if e:
         return e
-    entry, cands = gamedata.resolve_currency(args[0])
+    entry, _cands = gamedata.resolve_currency(args[0])
     if entry is None:
         return err("找不到货币「{}」，可用：{}".format(args[0], "、".join(c["id"] for c in gamedata._currencies)),
                    chat="✗ 找不到货币")
@@ -162,7 +162,7 @@ def cmd_tp(ctx, target, *args):
 @register("quest", aliases=("任务",), args="<target> <taskId>",
           desc="完成任务", perm=PERM_GM, needs_target=True, group="GM",
           implemented=False)
-def cmd_quest(ctx, target, *args):
+def cmd_quest(_ctx, target, *args):
     if not args:
         return err("用法：/quest <目标> <任务ID或描述关键词>",
                    chat="✗ 用法: /quest <目标> <任务>")
@@ -186,7 +186,7 @@ def cmd_quest(ctx, target, *args):
 @register("story", aliases=("剧情",), args="<target> <story>",
           desc="播放剧情", perm=PERM_GM, needs_target=True, group="GM",
           implemented=False)
-def cmd_story(ctx, target, *args):
+def cmd_story(_ctx, target, *args):
     if not args:
         return err("用法：/story <目标> <剧情名，如 Test_01>",
                    chat="✗ 用法: /story <目标> <剧情名>")
@@ -209,7 +209,7 @@ def cmd_story(ctx, target, *args):
 @register("act", aliases=("活动",), args="<id|name> [open|close]",
           desc="查看活动（开关未实现）", perm=PERM_GM, group="GM",
           implemented=False)
-def cmd_act(ctx, target, *args):
+def cmd_act(ctx, _target, *args):
     if not args:
         rows = gamedata._activities
         shown = rows[:15]

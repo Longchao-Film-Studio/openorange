@@ -230,7 +230,7 @@ class Tx:
           - 越界（index > n+1）会让客户端 table.insert 崩
           - 插入后 index 之后的元素整体后移
         """
-        path, container, pid, ctype = self._list_container(path, index)
+        path, container, pid, _ctype = self._list_container(path, index)
         keys = _normalize_list_keys(container)
         n = len(keys)
         idx = _as_index(index, "insert")
@@ -265,7 +265,7 @@ class Tx:
           list 的键就是位置，所以两者对 list 等价；但 remove_at 做越界检查
           并按位置语义前移，调用方意图更明确。
         """
-        path, container, pid, ctype = self._list_container(path, index)
+        path, container, pid, _ctype = self._list_container(path, index)
         keys = _normalize_list_keys(container)
         n = len(keys)
         idx = _as_index(index, "remove_at")

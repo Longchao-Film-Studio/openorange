@@ -375,7 +375,7 @@ def needs_claim(cfg):
     return cfg.get("TaskType") in (9, 10)
 
 
-def move_to_wait_done(st, task_id, now=None):
+def move_to_wait_done(st, task_id, _now=None):
     """Doing(3) -> WaitDone(4)：目标达成，等玩家领奖。返回同步描述。"""
     task_id = int(task_id)
     bag = st.props.get("task_bag")
