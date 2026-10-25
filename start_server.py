@@ -36,13 +36,13 @@ SERVICES = {
 
 def start(svc, new_window=True):
     cfg = SERVICES[svc]
-    print("[%s] %s" % (svc, " ".join(cfg["args"])))
+    print("[{}] {}".format(svc, " ".join(cfg["args"])))
     cmd = [sys.executable] + cfg["args"]
     kwargs = {"cwd": ROOT}
     if new_window:
         # 新窗口：标题 + 不自动关闭
         kwargs["creationflags"] = subprocess.CREATE_NEW_CONSOLE
-        full = "title %s && %s" % (
+        full = "title {} && {}".format(
             cfg["title"],
             subprocess.list2cmdline(cmd),
         )
@@ -84,8 +84,8 @@ def main():
     if not only_backend and not only_game:
         only_backend = only_game = True
 
-    print("root: %s" % ROOT)
-    print("python: %s" % sys.executable)
+    print("root: {}".format(ROOT))
+    print("python: {}".format(sys.executable))
     print()
 
     if only_backend:
@@ -111,7 +111,7 @@ def main():
 
     print()
     print("接下来启动游戏（再开一个窗口）:")
-    print("    cd %s\\launcher\\dist" % ROOT.replace("/", "\\"))
+    print("    cd {}\\launcher\\dist".format(ROOT.replace("/", "\\")))
     print("    .\\OO_Launcher.exe --cli <账号> <密码>")
     print()
     print("注意: 启动器那个窗口不要关，关掉会连带关掉游戏。")

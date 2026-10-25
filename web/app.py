@@ -235,7 +235,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "msg": "两次输入的密码不一致"})
                 return
             ok, msg, acc = models.register(username, pw)
-            _log.info("[web] register %s username=%s -> %s" % (msg, username, ok))
+            _log.info("[web] register {} username={} -> {}".format(msg, username, ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -249,7 +249,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 _note_login_ok(username)
             else:
                 _note_login_fail(username)
-            _log.info("[web] login %s username=%s -> %s" % (msg, username, ok))
+            _log.info("[web] login {} username={} -> {}".format(msg, username, ok))
             self._json({"ok": ok, "msg": msg, "token": token or "", "username": username})
             return
 
@@ -275,7 +275,7 @@ class WebHandler(BaseHTTPRequestHandler):
             username = t["username"]
             # ★ 雷6：按账号限流（票据在会话内复用，不能做成一次性）
             if not _rate_allow("chat:" + username):
-                print("[chatcmd] rate limited username=%s" % username,
+                print("[chatcmd] rate limited username={}".format(username),
                       flush=True)
                 self._json({"ok": False, "chat": "✗ 指令太频繁，请稍候",
                             "lines": ["指令太频繁，请稍候再用"]})
@@ -321,7 +321,7 @@ class WebHandler(BaseHTTPRequestHandler):
             username = str(req.get("username") or "").strip()
             password = str(req.get("password") or "")
             if _login_blocked(username):
-                _log.info("[launcher] login BLOCKED username=%s" % username)
+                _log.info("[launcher] login BLOCKED username={}".format(username))
                 self._json({"code": 0, "msg": "失败次数过多，请稍后再试", "data": {}})
                 return
 
@@ -330,14 +330,14 @@ class WebHandler(BaseHTTPRequestHandler):
             ok, msg, acc = models.verify_credentials(username, password)
             if not ok:
                 _note_login_fail(username)
-                _log.info("[launcher] login REJECTED username=%s: %s" % (username, msg))
+                _log.info("[launcher] login REJECTED username={}: {}".format(username, msg))
                 self._json({"code": 0, "msg": msg, "data": {}})
                 return
 
             ret, err = models.login(username)
             if err:
                 _note_login_fail(username)
-                _log.warning("[launcher] login FAILED username=%s: %s" % (username, err))
+                _log.warning("[launcher] login FAILED username={}: {}".format(username, err))
                 self._json({"code": 0, "msg": err, "data": {}})
                 return
 
@@ -346,8 +346,7 @@ class WebHandler(BaseHTTPRequestHandler):
             host = self.headers.get("Host") or ""
             if host:
                 ret["web_base"] = "http://" + host
-            print("[launcher] login OK username=%s account_id=%s fp_uid=%s"
-                  % (username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
+            print("[launcher] login OK username={} account_id={} fp_uid={}".format(username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
             self._json({"code": 1, "msg": "Success", "data": ret})
             return
 
@@ -368,7 +367,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 req.get("password2"),
                 keep_token=req.get("token") or "",
             )
-            _log.info("[web] change_password username=%s -> %s" % (acc["username"], ok))
+            _log.info("[web] change_password username={} -> {}".format(acc["username"], ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -378,7 +377,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "msg": "未登录"}, 401)
                 return
             ok, msg = models.remove_account(acc["username"], req.get("password"))
-            _log.info("[web] delete_account username=%s -> %s" % (acc["username"], ok))
+            _log.info("[web] delete_account username={} -> {}".format(acc["username"], ok))
             self._json({"ok": ok, "msg": msg})
             return
 
@@ -390,7 +389,7 @@ def serve(host=None, port=None):
     port = port or PORT
     httpd = ThreadingHTTPServer((host, port), WebHandler)
     _log.info("[web] http://%s:%d" % (host, port))
-    _log.info("[web] server_name = %s" % _server_name())
+    _log.info("[web] server_name = {}".format(_server_name()))
     return httpd
 
 def main():
@@ -409,7 +408,7 @@ def main():
             "work", "logs")
         _log_install("web", _log_dir)
     except Exception as _e:
-        _log.warning("[log] 统一日志安装失败，退回控制台模式: %s" % _e)
+        _log.warning("[log] 统一日志安装失败，退回控制台模式: {}".format(_e))
 
     argv = sys.argv[1:]
     host = None
