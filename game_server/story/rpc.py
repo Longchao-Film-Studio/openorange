@@ -199,8 +199,7 @@ def recalc_system_unlocks(st):
             _log.info(f"[story] 解锁系统 {added}")
         if removed:
             # 客户端没有 entryDeleted 回调，只能下次登录生效
-            print(f"[story] ★ 摘除系统解锁 {removed}（客户端需重登才可见）",
-                  flush=True)
+            _log.info(f"[story] ★ 摘除系统解锁 {removed}（客户端需重登才可见）")
     return frames
 
 
@@ -301,7 +300,7 @@ def finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
             if _tt in allowed:
                 keep.append(_tid)
             else:
-                print(f"[story] 拒绝完成：任务 {_tid} 的 TaskType={_tt} 不允许由「{source}」完成", flush=True)
+                _log.warning(f"[story] 拒绝完成：任务 {_tid} 的 TaskType={_tt} 不允许由「{source}」完成")
         task_ids = keep
         if not task_ids:
             return []
@@ -348,9 +347,8 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
         if (story.story_state(st.props, tid) == story.TASK_STATE_FINISHED
                 and story.has_award_items(tid)
                 and not story.already_awarded(st, tid)):
-            print(f"[story] 注意：任务 {tid} 是 bag-state-6 且无发奖账本，"
-                  "按「发奖失败重试」处理（若是升级遗留存档会多领一次）",
-                  flush=True)
+            _log.warning(f"[story] 注意：任务 {tid} 是 bag-state-6 且无发奖账本，"
+                  "按「发奖失败重试」处理（若是升级遗留存档会多领一次）")
         frames.extend(_story_sync_frames(
             st, story.mark_story_task_finished(st, tid, now)))
         # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
@@ -405,7 +403,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
             except Exception as e:
                 _log.warning(f"[story] FinishTask 事件失败 {tid}: {e}")
     elif finished_now:
-        print(f'[story] 事件链超过 {EVENT_MAX_DEPTH} 层，停止递归（任务 {finished_now[:5]}）', flush=True)
+        _log.info(f'[story] 事件链超过 {EVENT_MAX_DEPTH} 层，停止递归（任务 {finished_now[:5]}）')
     frames.extend(_recalc_story_unlocks(st))
     # ★ 阶段 C：增量播种。只扫「PreTask 指向刚完成的任务」的那些，不是全表重扫
     #   （全表重扫是阶段 D 的事）。depth==0 才做，避免递归里反复播。
@@ -481,7 +479,7 @@ def _done_story_task(rid, params, uid=None):
         return respond_after_sync(rid, [])
     ttype = (gamedata.story_task(tid) or {}).get("TaskType")
     if ttype not in story.TASK_TYPE_CLIENT:
-        print(f"[story] 忽略完成请求：任务 {tid} 的 TaskType={ttype} 不是客户端可上报类型", flush=True)
+        _log.warning(f"[story] 忽略完成请求：任务 {tid} 的 TaskType={ttype} 不是客户端可上报类型")
         return respond_after_sync(rid, [])
     param = None
     if len(vals) > 1:
@@ -530,7 +528,7 @@ def _finish_space_task(rid, params, uid=None):
     st = state(uid)
     bag = st.props.get("story_task_bag")
     if not isinstance(bag, dict) or not isinstance(bag.get(tid), dict):
-        print(f"[story] 忽略 SpaceTask {sid} 的完成请求：剧情任务 {tid} 不在包里", flush=True)
+        _log.warning(f"[story] 忽略 SpaceTask {sid} 的完成请求：剧情任务 {tid} 不在包里")
         return respond_after_sync(rid, [])
     # ★ 防伪造：必须真的在那个副本的那个关卡里。
     #   SpaceTaskData 每行都有 dungeonId + levelId，而 StartGame 会把当前
@@ -546,10 +544,10 @@ def _finish_space_task(rid, params, uid=None):
     #   cur_copy 为 None（玩家不在任何副本里）时也要拒 ——
     #   否则「不在副本」反而绕过校验，这正是伪造包会利用的状态。
     if want_copy and str(cur_copy) != str(want_copy):
-        print(f"[story] 拒绝 SpaceTask {sid}：当前副本 {cur_copy}，要求 {want_copy}", flush=True)
+        _log.warning(f"[story] 拒绝 SpaceTask {sid}：当前副本 {cur_copy}，要求 {want_copy}")
         return respond_after_sync(rid, [])
     if want_level and str(cur_level) != str(want_level):
-        print(f"[story] 拒绝 SpaceTask {sid}：当前关卡 {cur_level}，要求 {want_level}", flush=True)
+        _log.warning(f"[story] 拒绝 SpaceTask {sid}：当前关卡 {cur_level}，要求 {want_level}")
         return respond_after_sync(rid, [])
     _log.info(f"[story] SpaceTask {sid} 完成 -> 剧情任务 {tid}")
     syncs = finish_story_tasks(st, [tid], source="space_task") or []

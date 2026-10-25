@@ -180,8 +180,7 @@ def mark_finish_parameter(st, task_id, param):
         # ★ 不能在这里凭空建 finish_parameter：客户端 _changeSubProperty 对
         #   oldVal=nil 会在 puppetpropertycomponent.lua:209-210 崩。
         #   正常存档（avatar_init.json / 新建 item）都带这个字段，缺了说明数据异常。
-        print(f"[story] 警告：任务 {task_id} 没有 finish_parameter，跳过进度记录",
-              flush=True)
+        _log.warning(f"[story] 警告：任务 {task_id} 没有 finish_parameter，跳过进度记录")
         return []
     for _k, v in _fp_items(fp):
         if int(v) == int(param):
@@ -694,8 +693,7 @@ def evaluate_event(st, event_type, params, now=None):
     #   踩过的坑：这里如果直接 finish_story_task，外层再调 finish_story_tasks 时
     #   会因为已经是 Finished 而跳过，导致**不发奖、不推同步帧**。
     if hits:
-        print(f"[story] 事件 {event_type}{params} 命中剧情任务 {hits}",
-              flush=True)
+        _log.info(f"[story] 事件 {event_type}{params} 命中剧情任务 {hits}")
     return hits, []
 
 

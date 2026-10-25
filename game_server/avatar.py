@@ -238,7 +238,7 @@ def _ensure_hero_by_gender(st, gender, syncs):
         from .property import factory as _factory
         cb[want] = _factory.make_character(st.props, want)
         changed = True
-        print("[avatar] 按 CharacterInfo 声明建角色 {}（useSkinId={}）".format(want, cb[want].get("useSkinId")), flush=True)
+        _log.info("[avatar] 按 CharacterInfo 声明建角色 {}（useSkinId={}）".format(want, cb[want].get("useSkinId")))
     cur = st.props.get("character_choosen_char")
     if int(cur or 0) != want:
         st.props["character_choosen_char"] = want
@@ -248,7 +248,7 @@ def _ensure_hero_by_gender(st, gender, syncs):
                                     "character_choosen_char", want))
         except Exception as e:
             _log.warning(f"[avatar] 主角同步失败: {e}")
-        print(f"[avatar] 主角切换 gender={g} -> character_choosen_char={want}", flush=True)
+        _log.info(f"[avatar] 主角切换 gender={g} -> character_choosen_char={want}")
     if changed:
         st.set("characterBag", cb)
     # ★ 2026-10-23 实机反馈：街区右下角队伍切换头像还是男主。
@@ -305,8 +305,7 @@ def _set_formation_hero(st, want, syncs):
                                          msmod.OP_CHANGE, str(idx), team))
         except Exception as e:
             _log.warning(f"[avatar] 编队同步失败: {e}")
-    print(f'[avatar] 编队主角切换 -> {want}（{len(changed_teams)} 队）',
-          flush=True)
+    _log.info(f'[avatar] 编队主角切换 -> {want}（{len(changed_teams)} 队）')
 
 
 def _set_default_card(st, gender, syncs):
@@ -345,7 +344,7 @@ def _set_default_card(st, gender, syncs):
                                 "player_card_id", card_id))
     except Exception as e:
         _log.warning(f"[avatar] 名片同步失败: {e}")
-    print(f"[avatar] 按性别设默认名片 gender={g} -> player_card_id={card_id}", flush=True)
+    _log.info(f"[avatar] 按性别设默认名片 gender={g} -> player_card_id={card_id}")
 
 
 def _commit_name_gender(rid, params, uid=None):

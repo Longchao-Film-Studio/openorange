@@ -31,6 +31,10 @@ story._next_id_for_props()       -> 每次扫 props 求 max
 """
 import threading
 
+from shared.log_tee import get_logger
+
+_log = get_logger(__name__)
+
 # 「下一个可用 id」在 props 里的键名。
 # 带 _oo_ 前缀，ms.live_init_dict 会过滤，不会下发给客户端。
 _OO_NEXT_ID = "_oo_next_id"
@@ -112,10 +116,9 @@ def reconcile(props, warn=True):
         fixed = True
     ok, dup = verify_unique(props)
     if warn and not ok:
-        print("[ids] ⚠ 存档里有重复 __id__：{}".format(", ".join(f"{k}:{v}" for k, v in list(dup.items())[:5])),
-              flush=True)
-        print("[ids]   客户端会打印 id repeated! 并覆盖缓存项 —— 建议用"
-              " tools/fix_dup_ids.py 修一次", flush=True)
+        _log.info("[ids] ⚠ 存档里有重复 __id__：{}".format(", ".join(f"{k}:{v}" for k, v in list(dup.items())[:5])))
+        _log.info("[ids]   客户端会打印 id repeated! 并覆盖缓存项 —— 建议用"
+              " tools/fix_dup_ids.py 修一次")
     return fixed, dup
 
 

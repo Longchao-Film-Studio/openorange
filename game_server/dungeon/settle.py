@@ -134,8 +134,7 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
         except Exception:
             level = 0
     if not type_id:
-        print("[dungeon] 结算没有服务端副本上下文（未 StartGame），不推进剧情",
-              flush=True)
+        _log.info("[dungeon] 结算没有服务端副本上下文（未 StartGame），不推进剧情")
         return []
     # 回退：match_info 没给的字段用 finishInfo 补（不覆盖服务端已有的值）
     if isinstance(info, dict):
@@ -203,8 +202,8 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
         _sl = story_mod.mark_story_line_finished(st, _copy)
         if _sl:
             out.extend(_sl)
-            print("[dungeon] 章节线 {} 完成（copyId={}）".format((story_mod.story_line_of_copy(_copy) or {}).get("id"),
-                     _copy), flush=True)
+            _log.info("[dungeon] 章节线 {} 完成（copyId={}）".format((story_mod.story_line_of_copy(_copy) or {}).get("id"),
+                     _copy))
     # ★ P0-D：链式任务也走事件总线。这里用 tick() 而不是 apply_event()，
     #   因为刚完成的任务可能让链式任务的前置条件满足了。
     tick_res = _events.tick(st)
@@ -215,8 +214,7 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
         cleared[lv_key] = 1
         st.set("_oo_cleared_levels", cleared)
     if hits:
-        print(f"[dungeon] 结算推进剧情 {hits}（事件参数 {ev}）",
-              flush=True)
+        _log.info(f"[dungeon] 结算推进剧情 {hits}（事件参数 {ev}）")
     return out
 
 def _dungeon_finish(rid, params, uid=None):
@@ -259,7 +257,7 @@ def _dungeon_finish(rid, params, uid=None):
     st.props.pop("_oo_cur_area", None)
     st.props.pop("_oo_cur_teach", None)
     st.save()
-    print('[dungeon] 结算完成：奖励 {} 项，回街区 {} 位置 {}'.format(len(reward_list), settle.get("toStreetId"), settle.get("toStreetPosId")), flush=True)
+    _log.info('[dungeon] 结算完成：奖励 {} 项，回街区 {} 位置 {}'.format(len(reward_list), settle.get("toStreetId"), settle.get("toStreetPosId")))
     return respond_after_sync(rid, syncs, tail=pushes)
 
 def _storyline_finish_game(rid, params, uid=None):

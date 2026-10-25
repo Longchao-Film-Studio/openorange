@@ -47,12 +47,11 @@ def _avatar_enter_next(rid, params, uid=None):
     if 1 <= copy_index <= len(roots):
         _remember_dungeon(st, copy_id, roots[copy_index - 1])
         st.save()
-        print("[dungeon] 进入下一关 copyIndex={} 关卡={}".format(copy_index, st.props.get("_oo_cur_level")), flush=True)
+        _log.info("[dungeon] 进入下一关 copyIndex={} 关卡={}".format(copy_index, st.props.get("_oo_cur_level")))
     else:
         # 越界不算错（客户端可能重发/乱序），但**不能改上下文**，也不能假装进了关。
         # 以前这行日志写在 if 外面，越界时也会打「进入下一关 关卡=旧值」，误导排障。
-        print("[dungeon] 忽略越界的 copyIndex={}（本副本 {} 关，当前关卡保持 {}）".format(copy_index, len(roots), st.props.get("_oo_cur_level")),
-              flush=True)
+        _log.warning("[dungeon] 忽略越界的 copyIndex={}（本副本 {} 关，当前关卡保持 {}）".format(copy_index, len(roots), st.props.get("_oo_cur_level")))
     return [msmod.build_entity_response(
         rid, ret=dict(ACK_OK),
         resp={"levelInfo": level_info})]
@@ -86,7 +85,7 @@ def _battle_teach_activate(rid, params, uid=None):
     #   -> 弹「神秘力量」。表里没有的教学直接拒绝（回 ACK + 日志），
     #   客户端不会收到这条同步，就不会崩。
     if gamedata.table("InstructionData").get(str(iid)) is None:
-        print(f"[dungeon] 教学 {iid} 不在 InstructionData 表，拒绝激活（防客户端崩）", flush=True)
+        _log.warning(f"[dungeon] 教学 {iid} 不在 InstructionData 表，拒绝激活（防客户端崩）")
         return respond_after_sync(rid, syncs)
 
     bts = st.props.get("battle_teach_state")

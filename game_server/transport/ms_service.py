@@ -53,6 +53,13 @@ def unknown_ms_params(service, method, uid=None, params=None):
     return msmod.mp_map({"Ret": [False, "not implemented"]})
 
 
+def _log_dump(payload, limit=256):
+    """hexdump 只在 DEBUG 且 PACKET_LOG 开启时产出 —— 单独成函数，别抬高调用方复杂度。"""
+    _dump = maybe_hexdump(payload, limit=limit)
+    if _dump:
+        _log.debug("%s", _dump)
+
+
 def handle_ms(conn, addr, cid):
     """微服务连接：解析请求帧并回 MsResponse。"""
     t0 = time.time()
@@ -89,7 +96,7 @@ def handle_ms(conn, addr, cid):
                 fields = msmod.pb_parse(body)
             except Exception as e:
                 _log.warning(f'[ms] #{cid:03d} protobuf parse failed: {e}')
-                _log.info(maybe_hexdump(payload, limit=256))
+                _log_dump(payload)
                 continue
 
             seq = fields.get(1, [0])[0]
@@ -99,8 +106,9 @@ def handle_ms(conn, addr, cid):
                 service = service.decode("utf-8", "replace")
                 method = method.decode("utf-8", "replace")
 
-            print(f'[ms] #{cid:03d} RX type={mtype:d} seq={seq} service={service} method={method}  ({len(payload):d} B)', flush=True)
-            _log.info(maybe_hexdump(payload, limit=256))
+            _log.debug("[ms] #%03d RX type=%d seq=%s service=%s method=%s  (%d B)",
+                       cid, mtype, seq, service, method, len(payload))
+            _log_dump(payload)
 
             # 按方法名区分负载：
             #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，
@@ -113,8 +121,7 @@ def handle_ms(conn, addr, cid):
                         _q = msmod.mp_decode(fields[4][0])[0]
                         if isinstance(_q, dict) and _q.get("Username"):
                             accounts.remember_username(_q["Username"])
-                            print('[ms] #{:03d} 账号 {}'.format(cid, _q["Username"]),
-                                  flush=True)
+                            _log.info('[ms] #{:03d} 账号 {}'.format(cid, _q["Username"]))
                     except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                         pass
                 params = msmod.build_load_service_params(ooconf.GATE_PORT)
@@ -125,11 +132,10 @@ def handle_ms(conn, addr, cid):
                     try:
                         _req = msmod.mp_decode(fields[4][0])[0]
                     except Exception as _e:
-                        print(f'[ms] #{cid:03d} batchGetAttribute 参数解析失败: {_e}', flush=True)
+                        _log.warning(f'[ms] #{cid:03d} batchGetAttribute 参数解析失败: {_e}')
                         _req = []
                 params = msmod.build_userdata_batch_params(_req)
-                print('[ms] #{:03d}    -> 回 {:d} 条 Results'.format(cid, len(msmod.mp_decode(params)[0].get("Results", []))),
-                      flush=True)
+                _log.info('[ms] #{:03d}    -> 回 {:d} 条 Results'.format(cid, len(msmod.mp_decode(params)[0].get("Results", []))))
             elif method == "fetchFriends":
                 # ★ P1-7（2026-10-23）：FriendService 最小实现。
                 #   客户端结算时必调 fetchFriends
@@ -159,7 +165,7 @@ def handle_ms(conn, addr, cid):
             pkt = msmod.frame_ms_response(seq, params, service)
             try:
                 conn.sendall(pkt)
-                print(f'[ms] #{cid:03d} TX MsResponse type=3 rid={seq} service={service} method={method} ({len(pkt):d} B)', flush=True)
+                _log.info(f'[ms] #{cid:03d} TX MsResponse type=3 rid={seq} service={service} method={method} ({len(pkt):d} B)')
             except Exception as e:
                 _log.warning(f'[ms] #{cid:03d} send failed: {e}')
 
@@ -171,5 +177,4 @@ def handle_ms(conn, addr, cid):
         if f is not None:
             with contextlib.suppress(Exception):
                 f.close()
-        print(f'[ms] #{cid:03d} CLOSE after {int((time.time() - t0) * 1000):d}ms',
-              flush=True)
+        _log.info(f'[ms] #{cid:03d} CLOSE after {int((time.time() - t0) * 1000):d}ms')

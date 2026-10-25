@@ -27,8 +27,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # ★ 测试必须设成临时目录，否则会覆盖真实玩家存档
 #   （test_property_sync.py 用默认 uid 跑 reset_state + save，踩过一次）。
 # 存档目录统一由 config 管：默认 work/player_state，设 OO_STATE_DIR 可换。
+from shared.log_tee import get_logger
+
 from . import config as _cfg  # noqa: E402
 from .property import ids as _ids  # noqa: E402
+
+_log = get_logger(__name__)
 
 _STATE_DIR = _cfg.STATE_DIR
 
@@ -227,8 +231,7 @@ def _migrate_item_bag_keys(props):
             grid["id"] = sk
         n += 1
     if n:
-        print(f'[state] item_bag 迁移了 {n} 个整数键 -> 字符串键',
-              flush=True)
+        _log.info(f'[state] item_bag 迁移了 {n} 个整数键 -> 字符串键')
     return n
 
 

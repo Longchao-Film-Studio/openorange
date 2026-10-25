@@ -32,9 +32,13 @@
   「指向已完成任务」「换街区时挑无关任务」这两类错误。测试见 tests/test_trace_invariant.py。
 """
 
+from shared.log_tee import get_logger
+
 from .. import gamedata
 from .. import ms as msmod
 from ..rpc_common import SYNC_SELF, sync_frame
+
+_log = get_logger(__name__)
 
 # story.state_machine.TASK_STATE_DOING（本地定义避免包初始化期循环导入）
 TASK_STATE_DOING = 3
@@ -205,8 +209,7 @@ def apply(st, syncs=None, reason="", street_id=None, force_zero=False,
         syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE, TRACE_KEY, tid))
 
     if old != tid or reason:
-        print("[trace] {}：{} -> {}（街区 {}，{}）".format(reason or "刷新", old, tid, _street_of(st, street_id), mode),
-              flush=True)
+        _log.info("[trace] {}：{} -> {}（街区 {}，{}）".format(reason or "刷新", old, tid, _street_of(st, street_id), mode))
     return tid
 
 

@@ -178,7 +178,7 @@ def ops_to_frames(ops, strict=False):
         if strict:
             raise ValueError("变更集校验失败：{}".format("; ".join(errs)))
         for e in errs:
-            _log.debug(f"[tx] ⚠ 变更集校验: {e}")
+            _log.debug("[tx] ⚠ 变更集校验: %s", e)
 
     from .. import ms as _ms
 

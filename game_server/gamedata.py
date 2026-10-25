@@ -58,7 +58,7 @@ def table(name):
         else:
             if "dir" not in _WARNED:
                 _WARNED.add("dir")
-                print(f"[data] 警告：找不到 BDD 目录 {config.BDD_DIR} —— 道具效果/体力恢复等规则不可用。", flush=True)
+                _log.warning(f"[data] 警告：找不到 BDD 目录 {config.BDD_DIR} —— 道具效果/体力恢复等规则不可用。")
         _CACHE[name] = data
         return data
 

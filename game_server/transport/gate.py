@@ -75,8 +75,11 @@ def handle_gate(conn, addr, cid):
             if not data:
                 _log.info(f'[GATE] #{cid:03d} peer closed')
                 break
-            _log.debug(f'[GATE] #{cid:03d} RX {len(data):d} B:')
-            _log.info(maybe_hexdump(data, limit=512))
+            # ★ 逐帧诊断：级别 DEBUG（默认 INFO 时连字符串都不构建），hexdump 同级别
+            _log.debug("[GATE] #%03d RX %d B:", cid, len(data))
+            _dump = maybe_hexdump(data, limit=512)
+            if _dump:
+                _log.debug("%s", _dump)
 
             frame_type = None
             proto_req = None
@@ -90,10 +93,9 @@ def handle_gate(conn, addr, cid):
                         proto_req = fields[1][0]
                     dev = fields.get(2, [b""])[0]
                     ver = fields.get(6, [b""])[0]
-                    print('[GATE] #{:03d} 帧类型={:d}  proto.reqType={}  deviceId={}  version={}'.format(cid, frame_type, proto_req, dev.decode("utf-8", "replace") if isinstance(dev, bytes) else dev, ver.decode("utf-8", "replace")[:20] if isinstance(ver, bytes) else ver),
-                          flush=True)
+                    _log.info('[GATE] #{:03d} 帧类型={:d}  proto.reqType={}  deviceId={}  version={}'.format(cid, frame_type, proto_req, dev.decode("utf-8", "replace") if isinstance(dev, bytes) else dev, ver.decode("utf-8", "replace")[:20] if isinstance(ver, bytes) else ver))
                 except Exception as e:
-                    print(f'[GATE] #{cid:03d} 帧类型={frame_type:d}  protobuf 解析失败: {e}', flush=True)
+                    _log.warning(f'[GATE] #{cid:03d} 帧类型={frame_type:d}  protobuf 解析失败: {e}')
 
             _bind_account(cid, proto_req, fields)
             _dispatch_frame(conn, cid, data, frame_type, proto_req)
@@ -107,7 +109,7 @@ def handle_gate(conn, addr, cid):
         if shared_db is not None:
             with contextlib.suppress(Exception):
                 shared_db.clear_game_online(f'gate-{cid:03d}')
-        print('[GATE] #{:03d} CLOSE after {:d} ms  {}'.format(cid, dur, "★★ 活过 4 秒！" if dur > 5000 else ""), flush=True)
+        _log.info('[GATE] #{:03d} CLOSE after {:d} ms  {}'.format(cid, dur, "★★ 活过 4 秒！" if dur > 5000 else ""))
         with contextlib.suppress(Exception):
             conn.close()
 
@@ -126,12 +128,11 @@ def _bind_account(cid, proto_req, fields):
         uid = accounts.uid_from_auth_display(fields)
         if uid and not accounts.is_bound(cid):
             accounts.bind(cid, uid)
-            print(f'[GATE] #{cid:03d} 从 auth 绑定账号 {uid}（reqType=0）', flush=True)
+            _log.info(f'[GATE] #{cid:03d} 从 auth 绑定账号 {uid}（reqType=0）')
             return
         # 兜底：老客户端 / auth 没带上时，退回「ms query 时序 + 30 秒窗口」猜队列
         claimed = accounts.claim_and_bind(cid)
-        print('[GATE] #{:03d} 关联账号 {}（队列兜底）'.format(cid, claimed or f"(队列为空，回退 {accounts.DEFAULT_UID})"),
-              flush=True)
+        _log.info('[GATE] #{:03d} 关联账号 {}（队列兜底）'.format(cid, claimed or f"(队列为空，回退 {accounts.DEFAULT_UID})"))
     elif proto_req in (2, 3, 4) and not accounts.is_bound(cid):
         uid = accounts.uid_from_auth_display(fields)
         if uid:
@@ -187,7 +188,7 @@ def _on_heartbeat(conn, cid):
             for pkt in frames:
                 conn.sendall(pkt)
             if gained:
-                print(f'[GATE] #{cid:03d} 体力恢复 +{gained:d} -> {keys_now}', flush=True)
+                _log.info(f'[GATE] #{cid:03d} 体力恢复 +{gained:d} -> {keys_now}')
         except Exception as _e:
             _log.warning(f'[GATE] #{cid:03d} 体力恢复失败: {_e}')
     _log.info(f'[GATE] #{cid:03d} 心跳 type=6，不回')
@@ -201,14 +202,17 @@ def _on_connect(conn, cid):
     sid = accounts.uid_of(cid)
     pkt = msmod.frame_connect_resp(1, sid)
     conn.sendall(pkt)
-    print(f'[GATE] #{cid:03d} TX ConnectServerResp {{1:Connected, 2:{sid}, 5:MSGPACK}} ({len(pkt):d} B)', flush=True)
-    _log.info(maybe_hexdump(pkt, limit=256))
+    _log.info(f'[GATE] #{cid:03d} TX ConnectServerResp {{1:Connected, 2:{sid}, 5:MSGPACK}} ({len(pkt):d} B)')
+    _dump = maybe_hexdump(pkt, limit=256)
+    if _dump:
+        _log.debug("%s", _dump)
 
 
 def _on_entity_rpc(conn, cid, data, frame_type):
     """帧类型 4：实体 RPC。时间同步和心跳应答在这里特判，其余交给实体层。"""
     idx, params, rid = msmod.parse_entity_frame(data[6:])
-    print(f'[GATE] #{cid:03d} 实体消息 type={frame_type:d} index={idx} rid={rid} params={params.hex() if isinstance(params, bytes) else params}', flush=True)
+    _log.debug("[GATE] #%03d 实体消息 type=%d index=%s rid=%s params=%s", cid, frame_type, idx,
+               rid, params.hex() if isinstance(params, bytes) else params)
     if idx is None:
         return
 
@@ -263,10 +267,12 @@ def _on_entity_rpc(conn, cid, data, frame_type):
         pkts = []
     for pkt in pkts:
         conn.sendall(pkt)
-        _log.debug(f'[GATE] #{cid:03d} TX {label} ({len(pkt):d} B)')
-        _log.info(maybe_hexdump(pkt, limit=256))
+        _log.debug("[GATE] #%03d TX %s (%d B)", cid, label, len(pkt))
+        _dump = maybe_hexdump(pkt, limit=256)
+        if _dump:
+            _log.debug("%s", _dump)
     if len(pkts) > 1:
-        print(f'[GATE] #{cid:03d} TX {label} + {len(pkts) - 1:d} 条属性同步', flush=True)
+        _log.debug("[GATE] #%03d TX %s + %d 条属性同步", cid, label, len(pkts) - 1)
     elif not pkts:
         _log.info(f'[GATE] #{cid:03d} {erpc.describe(idx)} 无需应答')
 
@@ -307,8 +313,10 @@ def _push_bind_message(conn, addr, cid, proto_req):
     if bpkt is None:
         return
     conn.sendall(bpkt)
-    print(f'[GATE] #{cid:03d} TX {label}  (reqType={proto_req:d}) ({len(bpkt):d} B)', flush=True)
-    _log.info(maybe_hexdump(bpkt, limit=256))
+    _log.info(f'[GATE] #{cid:03d} TX {label}  (reqType={proto_req:d}) ({len(bpkt):d} B)')
+    _dump = maybe_hexdump(bpkt, limit=256)
+    if _dump:
+        _log.debug("%s", _dump)
     # ★ 上报游戏内在线：createChannelEntity 一发出去，
     #   客户端就已经在实体层了（onBecomePlayer 随后触发）。
     if label == "createChannelEntity" and shared_db is not None:

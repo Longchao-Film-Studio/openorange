@@ -236,7 +236,7 @@ def _stage_scaffold(st, uid=None):
             try:
                 changed = scaffold_mod.apply(st.props)
                 if changed:
-                    print("[init] 脚手架已应用(uid={}): {}".format(uid, "、".join(changed)), flush=True)
+                    _log.info("[init] 脚手架已应用(uid={}): {}".format(uid, "、".join(changed)))
             except Exception as e:
                 _log.warning(f"[init] 脚手架应用失败: {e}")
         st.scaffold_applied = True
@@ -309,7 +309,7 @@ def _stage_street_info(st):
         if _sid:
             _si, _entry = _sio(st, _sid)
             if _si is not None:
-                print("[init] 确保 street_info[{}] 条目存在{}".format(_sid, "（新建）" if _entry else ""), flush=True)
+                _log.info("[init] 确保 street_info[{}] 条目存在{}".format(_sid, "（新建）" if _entry else ""))
     except Exception as e:
         _log.warning(f"[init] street_info 条目补齐失败: {e}")
 
@@ -329,7 +329,7 @@ def _stage_hero_by_gender(st):
             _eh(st, st.props.get("gender"), None)
             _want = 9002 if int(st.props.get("gender")) == 2 else 9001
             _sfh(st, _want, None)
-            print("[init] 按 gender={} 校正主角/编队（want={}）".format(st.props.get("gender"), _want), flush=True)
+            _log.info("[init] 按 gender={} 校正主角/编队（want={}）".format(st.props.get("gender"), _want))
         except Exception as e:
             _log.warning(f"[init] 主角/编队校正失败: {e}")
 
@@ -343,7 +343,7 @@ def _stage_daily_reset(st):
         from .. import tasks as _tasks_d
         _rt, _rch = _tasks_d.daily_reset(st)
         if _rt:
-            print(f'[init] 跨天重置 {list(_rt)}（{len(_rch)} 条同步描述，已进初始快照）', flush=True)
+            _log.info(f'[init] 跨天重置 {list(_rt)}（{len(_rch)} 条同步描述，已进初始快照）')
     except Exception as e:
         _log.warning(f"[init] 跨天重置失败: {e}")
 
@@ -364,8 +364,7 @@ def _stage_task_seed(st):
         from .. import tasks as _tasks_mod
         _gt = _tasks_mod.seed_tasks(st)
         if _gt:
-            print(f'[init] 通用任务播种：{len(_gt)} 条同步描述（已进初始快照）',
-                  flush=True)
+            _log.info(f'[init] 通用任务播种：{len(_gt)} 条同步描述（已进初始快照）')
     except Exception as e:
         _log.warning(f"[init] 通用任务播种失败: {e}")
 
@@ -404,12 +403,12 @@ def _stage_stamina(st, uid=None):
             if getattr(st, "is_new", False) and not getattr(st, "stamina_inited", False):
                 stamina_mod.init_new(st.props, _lv)
                 st.stamina_inited = True
-                print("[init] 体力初始化(uid={}): {}/{}".format(uid, st.props.get("tower_reward_keys"),
-                         stamina_mod.max_stamina(_lv)), flush=True)
+                _log.info("[init] 体力初始化(uid={}): {}/{}".format(uid, st.props.get("tower_reward_keys"),
+                         stamina_mod.max_stamina(_lv)))
             else:
                 _gained, _ = stamina_mod.apply_recovery(st.props, _lv)
                 if _gained:
-                    print("[init] 离线恢复体力(uid={}): +{} -> {}".format(uid, _gained, st.props.get("tower_reward_keys")), flush=True)
+                    _log.info("[init] 离线恢复体力(uid={}): +{} -> {}".format(uid, _gained, st.props.get("tower_reward_keys")))
         except Exception as e:
             _log.warning(f"[init] 体力处理失败: {e}")
 
@@ -431,8 +430,7 @@ def _stage_recalc_unlocks(st):
         from ..story.rpc import recalc_system_unlocks as _recalc_u
         _uf = _recalc_u(st)
         if _uf:
-            print(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）',
-                  flush=True)
+            _log.info(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）')
     except Exception as e:
         _log.warning(f"[init] 系统解锁重算失败: {e}")
 

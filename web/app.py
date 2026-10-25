@@ -297,8 +297,7 @@ class WebHandler(BaseHTTPRequestHandler):
         username = t["username"]
         # ★ 雷6：按账号限流（票据在会话内复用，不能做成一次性）
         if not _rate_allow("chat:" + username):
-            print(f"[chatcmd] rate limited username={username}",
-                  flush=True)
+            _log.info(f"[chatcmd] rate limited username={username}")
             self._json({"ok": False, "chat": "✗ 指令太频繁，请稍候",
                         "lines": ["指令太频繁，请稍候再用"]})
             return
@@ -368,7 +367,7 @@ class WebHandler(BaseHTTPRequestHandler):
         host = self.headers.get("Host") or ""
         if host:
             ret["web_base"] = "http://" + host
-        print("[launcher] login OK username={} account_id={} fp_uid={}".format(username, ret.get("account_id"), ret.get("fp_uid")), flush=True)
+        _log.info("[launcher] login OK username={} account_id={} fp_uid={}".format(username, ret.get("account_id"), ret.get("fp_uid")))
         self._json({"code": 1, "msg": "Success", "data": ret})
         return
 

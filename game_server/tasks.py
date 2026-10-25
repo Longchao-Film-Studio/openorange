@@ -32,6 +32,8 @@ avatartaskcomp.lua:256-284：
 """
 import time
 
+from shared.log_tee import get_logger
+
 from . import gamedata
 from .story.state_machine import (
     TASK_STATE_DOING,
@@ -40,6 +42,8 @@ from .story.state_machine import (
     TASK_STATE_WAIT_DONE,
     can_transition,
 )
+
+_log = get_logger(__name__)
 
 # 同步描述里的 optype（和客户端 puppetpropertycomponent.lua 一致）
 # 由本模块自己决定，不让上层猜 —— 审计发现上层一律用 OP_CHANGE，
@@ -282,15 +286,14 @@ def seed_tasks(st, now=None, limit=400):
         cands.append(tid)
     for tid in cands:
         if seeded >= limit:
-            print(f'[task] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播', flush=True)
+            _log.info(f'[task] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播')
             break
         ch = start_task(st, tid, now)
         if ch:
             out.extend(ch)
             seeded += 1
     if seeded:
-        print(f'[task] 通用任务播种：{seeded} 个进包（候选 {len(cands)} 个）',
-              flush=True)
+        _log.info(f'[task] 通用任务播种：{seeded} 个进包（候选 {len(cands)} 个）')
     return out
 
 
@@ -467,7 +470,7 @@ def daily_reset(st, now=None):
         reset_types.append(tt)
     ch = seed_tasks(st, now)
     if reset_types:
-        print(f'[task] 跨天重置 {list(reset_types)}，重播 {len(ch)} 条同步描述', flush=True)
+        _log.info(f'[task] 跨天重置 {list(reset_types)}，重播 {len(ch)} 条同步描述')
     return reset_types, ch
 
 

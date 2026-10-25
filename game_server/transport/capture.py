@@ -44,8 +44,7 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
 
         if upstream is not None:
             up_host, up_port = upstream
-            print(f'[game] #{cid:03d} upstream -> {up_host}:{up_port:d}',
-                  flush=True)
+            _log.info(f'[game] #{cid:03d} upstream -> {up_host}:{up_port:d}')
             up = socket.create_connection((up_host, up_port), timeout=10)
             up.settimeout(120)
             e1, e2 = threading.Event(), threading.Event()
@@ -67,8 +66,7 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
             try:
                 data = conn.recv(8192)
             except TimeoutError:
-                print(f'[game] #{cid:03d} recv timeout (idle 120s), closing',
-                      flush=True)
+                _log.info(f'[game] #{cid:03d} recv timeout (idle 120s), closing')
                 break
             except ConnectionResetError:
                 _log.info(f'[game] #{cid:03d} reset by peer')
@@ -91,4 +89,4 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
             with contextlib.suppress(Exception):
                 f.close()
         dur = int((time.time() - t0) * 1000)
-        print(f'[game] #{cid:03d} CLOSE after {dur:d}ms -> {os.path.basename(cap_path)}', flush=True)
+        _log.info(f'[game] #{cid:03d} CLOSE after {dur:d}ms -> {os.path.basename(cap_path)}')

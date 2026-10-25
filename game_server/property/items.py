@@ -93,7 +93,7 @@ def _use_item(rid, params, uid=None):
         except (TypeError, ValueError):
             is_unlocked = True
         if not is_unlocked:
-            print(f"[bag] 道具 {item_id} 需要 system {need_sys}（未解锁，放行留痕）", flush=True)
+            _log.info(f"[bag] 道具 {item_id} 需要 system {need_sys}（未解锁，放行留痕）")
 
     # ---- 1) 扣数量 ----
     grid["num"] = old_num - count
@@ -234,7 +234,7 @@ def _submit_item(rid, params, uid=None):
     nxt = list(res.hits) + list(res.chain_hits)
     if nxt:
         syncs.extend(finish_story_tasks(st, nxt, source="event") or [])
-    print(f"[story] 提交道具 submit_id={submit_id} item={item_id} x{count} 需求={item_ids}", flush=True)
+    _log.info(f"[story] 提交道具 submit_id={submit_id} item={item_id} x{count} 需求={item_ids}")
     st.save()
     return respond_after_sync(rid, syncs)
 

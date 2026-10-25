@@ -158,7 +158,7 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
     seeded = 0
     for tid in cands:
         if seeded >= limit:
-            print(f'[story] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播（疑似任务图有环？）', flush=True)
+            _log.info(f'[story] 播种达到上限 {limit}，还剩 {len(cands) - seeded} 个候选未播（疑似任务图有环？）')
             break
         ch = story_mod.start_story_task(st, tid, now)
         if ch:
@@ -167,10 +167,9 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
             cfg = cfg_of(tid) or {}
             if cfg.get("activityOn"):
                 # 活动系统未实现，无法判定 isActivityValid；按文档策略放行并留痕
-                print("[story] 播种任务 {} 带 activityOn={}（活动系统未实现，按开启处理）".format(tid, cfg.get("activityOn")), flush=True)
+                _log.info("[story] 播种任务 {} 带 activityOn={}（活动系统未实现，按开启处理）".format(tid, cfg.get("activityOn")))
     if seeded:
-        print(f'[story] 播种 {seeded} 个任务（候选 {len(cands)} 个）',
-              flush=True)
+        _log.info(f'[story] 播种 {seeded} 个任务（候选 {len(cands)} 个）')
     return out
 
 
@@ -315,5 +314,5 @@ def seed_cross_table(st, now=None):
         ch = story_mod.start_story_task(st, tid, int(now or time.time()))
         if ch:
             out.extend(ch)
-            print(f"[story] 跨表前置满足，播种任务 {tid}（PreTask=TaskData[{pre}]）", flush=True)
+            _log.info(f"[story] 跨表前置满足，播种任务 {tid}（PreTask=TaskData[{pre}]）")
     return out

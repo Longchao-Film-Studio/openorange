@@ -51,8 +51,7 @@ def _resolve_copy_id(match_info):
         if isinstance(v, str) and v and not v.isdigit():
             if gamedata.level_copy(v):
                 return v
-            print(f"[dungeon] 拒绝：copyId={v} 不在 Level_CopyData 里",
-                  flush=True)
+            _log.warning(f"[dungeon] 拒绝：copyId={v} 不在 Level_CopyData 里")
             return None
     return None
 
@@ -97,15 +96,13 @@ def _avatar_start_game(rid, params, uid=None):
         if force:
             if force in ids:
                 ids = [force]
-                print(f"[dungeon] 强制关卡 {force}（{uid} 的账号设置）",
-                      flush=True)
+                _log.info(f"[dungeon] 强制关卡 {force}（{uid} 的账号设置）")
             else:
-                print(f"[dungeon] ⚠ 强制关卡 {force} 不属于本副本（{ids}），忽略", flush=True)
+                _log.warning(f"[dungeon] ⚠ 强制关卡 {force} 不属于本副本（{ids}），忽略")
         elif ooconf.DUNGEON_LAST_ONLY and len(ids) > 1:
             # 命令行 --dungeon-last-only：只下发最后一关
             ids = ids[-1:]
-            print(f"[dungeon] --dungeon-last-only：只下发最后一关 {ids}",
-                  flush=True)
+            _log.info(f"[dungeon] --dungeon-last-only：只下发最后一关 {ids}")
         inner["levelIds"] = ids
     space_info = {"spaceInfo": inner, "battleInfo": {}}
     st.props["_oo_cur_copy"] = copy_id
@@ -145,7 +142,7 @@ def _single_start_match(rid, params, uid=None):
         match_info = {}
     copy_id = _resolve_copy_id(match_info)
     if not copy_id:
-        print(f"[dungeon] SingleStartMatch 解析不出 copyId，match_info={match_info}", flush=True)
+        _log.info(f"[dungeon] SingleStartMatch 解析不出 copyId，match_info={match_info}")
         return [msmod.build_entity_response(
             rid, ret={"status": False, "errorcode": 1})]
     cfg = gamedata.level_copy(copy_id) or {}
@@ -161,12 +158,12 @@ def _single_start_match(rid, params, uid=None):
     if not isinstance(want_level, int):
         want_level = root_ints[0] if root_ints else None
     elif root_ints and int(want_level) not in root_ints:
-        print(f"[dungeon] 拒绝：levelId={want_level} 不在 {copy_id} 的 rootLevel {root_ints[:4]} 里，改用首关", flush=True)
+        _log.warning(f"[dungeon] 拒绝：levelId={want_level} 不在 {copy_id} 的 rootLevel {root_ints[:4]} 里，改用首关")
         want_level = root_ints[0]
     _remember_dungeon(st, copy_id, want_level)
     st.props.pop("_oo_cur_teach", None)
     st.save()
-    print("[dungeon] SingleStartMatch copyId={} level={} area={}".format(copy_id, st.props.get("_oo_cur_level"),
-             st.props.get("_oo_cur_area")), flush=True)
+    _log.info("[dungeon] SingleStartMatch copyId={} level={} area={}".format(copy_id, st.props.get("_oo_cur_level"),
+             st.props.get("_oo_cur_area")))
     # 客户端只读 status，不需要 spaceInfo
     return respond_after_sync(rid, [], resp={"status": True})

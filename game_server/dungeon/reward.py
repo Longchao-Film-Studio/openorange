@@ -6,10 +6,14 @@ LevelData 里**没有任何奖励字段**，奖励完全来自客户端算好的
 发完还要发 GetItem 事件：客户端只对 6 个 firstObtainNotice 道具发
 RecordItemObtain_CS，剧情任务要的 701/118 永远等不到 RPC。
 """
+from shared.log_tee import get_logger
+
 from .. import ms as msmod
 from .. import story
 from ..rpc_common import SYNC_SELF, sync_frame
 from ..story.rpc import _emit_get_item, finish_story_tasks
+
+_log = get_logger(__name__)
 
 
 def _grant_battle_items(st, battle_items):
@@ -44,8 +48,7 @@ def _grant_battle_items(st, battle_items):
                 str(gkey), grid))
         reward_list.append({"item_id": iid, "item_num": cnt})
         granted.append((iid, cnt))
-        print(f"[dungeon] 结算发道具 {iid} x{cnt} -> 现在 {num}",
-              flush=True)
+        _log.info(f"[dungeon] 结算发道具 {iid} x{cnt} -> 现在 {num}")
     # ★ P0-D：战斗里捡到的道具也发 GetItem 事件
     #   （审计 P0-2：客户端只对 6 个 firstObtainNotice 道具发 RPC，
     #    剧情任务要的道具服务端必须自己发事件）

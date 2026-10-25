@@ -166,7 +166,7 @@ def _start_admin():
     try:
         from . import admin_api as _admin_api
         _admin_api.start()
-        print(f'[admin] 管理接口 http://127.0.0.1:{_admin_api.port()}（命令系统用）', flush=True)
+        _log.info(f'[admin] 管理接口 http://127.0.0.1:{_admin_api.port()}（命令系统用）')
     except Exception as _e:
         _log.warning(f"[admin] 管理接口启动失败: {_e}")
 
@@ -201,11 +201,9 @@ def main():
     # ★ 雷2：未实现请求的处理模式（严格 = 回失败；兼容 = 回成功）
     if "--unknown-ok" in argv:
         ooconf.configure_unknown_fake_ok(True)
-        print("[cfg] 未实现请求: 兼容模式（回成功；仍记入 unknown_requests.tsv）",
-              flush=True)
+        _log.info("[cfg] 未实现请求: 兼容模式（回成功；仍记入 unknown_requests.tsv）")
     else:
-        print("[cfg] 未实现请求: 严格模式（回失败；记入 unknown_requests.tsv）",
-              flush=True)
+        _log.warning("[cfg] 未实现请求: 严格模式（回失败；记入 unknown_requests.tsv）")
 
     _configure_scaffold(argv)
     _configure_dungeon(argv)

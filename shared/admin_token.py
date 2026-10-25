@@ -16,8 +16,11 @@ admin_api 只监听 127.0.0.1，但原来 DEFAULT_TOKEN = "local-dev" 写死在�
 """
 import os
 import secrets
-import sys
 import threading
+
+from shared.log_tee import get_logger
+
+_log = get_logger(__name__)
 
 _LOCK = threading.RLock()
 _CACHED = None
@@ -37,7 +40,7 @@ def _warn():
         return
     _WARNED = True
     try:
-        print(f"[admin] 警告：未设置 OO_ADMIN_TOKEN，使用自动生成口令（{token_file()}）。", file=sys.stderr, flush=True)
+        _log.warning(f"[admin] 警告：未设置 OO_ADMIN_TOKEN，使用自动生成口令（{token_file()}）。")
     except (ValueError, TypeError, KeyError, IndexError, AttributeError):
         pass
 

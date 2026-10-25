@@ -47,10 +47,9 @@ def resolve_display_uid(raw):
                 name = (acc.get("username") or "").strip()
                 if name:
                     return name
-                print(f"[GATE] 警告：account_id={raw} 的账号没有登录名，只能退回原始串", flush=True)
+                _log.warning(f"[GATE] 警告：account_id={raw} 的账号没有登录名，只能退回原始串")
             else:
-                print(f"[GATE] 警告：account_id={raw} 在库里查不到，只能退回原始串",
-                      flush=True)
+                _log.warning(f"[GATE] 警告：account_id={raw} 在库里查不到，只能退回原始串")
         except Exception as _e:
             _log.warning(f"[GATE] 警告：还原登录名失败 {_e}")
     # ★ 不用数字兜底：uid 必须是登录名。查不到才退回原始串（正常不会走到）。

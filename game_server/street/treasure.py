@@ -10,12 +10,16 @@
   玩家点开箱子只看到开箱动画，没道具也没声望，就是这个原因。
   StreetTreasureTaskData 44 条：AwardItemList（38 条）+ AwardAttr.prestige_exp（30 条）。
 """
+from shared.log_tee import get_logger
+
 from .. import gamedata, story
 from .. import ms as msmod
 from ..property import ids as _ids
 from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
+
+_log = get_logger(__name__)
 
 
 def _grant_treasure_reward(st, tid):
@@ -56,7 +60,7 @@ def _grant_treasure_reward(st, tid):
                     SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(gkey), grid))
-            print(f"[street] 宝箱 {tid} 发道具 {iid} x{cnt} -> 现在 {num}", flush=True)
+            _log.info(f"[street] 宝箱 {tid} 发道具 {iid} x{cnt} -> 现在 {num}")
     # 2) 声望经验（AwardAttr.prestige_exp）
     aa = cfg.get("AwardAttr") or {}
     exp = 0
@@ -101,7 +105,7 @@ def _touch_treasure(params, uid=None):
     already = tb.get(tid) == 1
     tb[tid] = 1
     st.set("street_info", si)
-    print("[street] 开宝箱 {}（街区 {}）{}".format(tid, street_id, "重复开启，不再发奖" if already else ""), flush=True)
+    _log.info("[street] 开宝箱 {}（街区 {}）{}".format(tid, street_id, "重复开启，不再发奖" if already else ""))
     if not is_new:
         tx.set(("street_info", street_id, "treasure_box_info"), tb)
     frames = list(tx.frames())

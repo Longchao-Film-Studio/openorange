@@ -188,7 +188,7 @@ def _done_title_task(rid, params, uid=None):
             _log.warning(f"[task] 拒绝领奖 {tid}：不是头衔挑战任务")
             continue
         if tasks.task_state(st.props, tid) != tasks.TASK_STATE_WAIT_DONE:
-            print(f"[task] 拒绝领奖 {tid}：状态不是 WaitDone（当前 {tasks.task_state(st.props, tid)}）", flush=True)
+            _log.warning(f"[task] 拒绝领奖 {tid}：状态不是 WaitDone（当前 {tasks.task_state(st.props, tid)}）")
             continue
         _af, _rl = _grant_awards(st, cfg)
         ch.extend(_af)
@@ -257,6 +257,5 @@ def _refresh_title_daily_task(rid, params, uid=None):
     if ch:
         syncs.extend(_task_sync_frames(st, ch))
     st.save()
-    print(f"[task] 刷新头衔日常 DailyType={daily_type} -> 重置 {reset}",
-          flush=True)
+    _log.info(f"[task] 刷新头衔日常 DailyType={daily_type} -> 重置 {reset}")
     return respond_after_sync(rid, syncs)
