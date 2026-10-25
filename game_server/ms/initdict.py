@@ -95,12 +95,11 @@ def _load_avatar_init():
         with open(_AVATAR_INIT_PATH, "r", encoding="utf-8") as f:
             d = json.load(f)
     except Exception as e:
-        raise RuntimeError("avatar_init.json 读取失败: %s" % e)
+        raise RuntimeError("avatar_init.json 读取失败: {}".format(e))
     props = d.get("__Properties__")
     if not isinstance(props, dict) or len(props) < 10:
         raise RuntimeError(
-            "avatar_init.json 内容异常：__Properties__ 只有 %s 项（文件 %s）"
-            % (len(props) if isinstance(props, dict) else props, _AVATAR_INIT_PATH))
+            "avatar_init.json 内容异常：__Properties__ 只有 {} 项（文件 {}）".format(len(props) if isinstance(props, dict) else props, _AVATAR_INIT_PATH))
     return d
 
 AVATAR_INIT_DICT = _load_avatar_init()
@@ -152,9 +151,9 @@ def _login_tick(st):
         hits = [int(x) for x in dict.fromkeys(hits)]
         if hits:
             st.props["_oo_pending_chain"] = hits
-            _log.info("[init] 登录事件命中待完成剧情任务 %s" % hits)
+            _log.info("[init] 登录事件命中待完成剧情任务 {}".format(hits))
     except Exception as e:
-        _log.warning("[init] 登录事件 tick 失败: %s" % e)
+        _log.warning("[init] 登录事件 tick 失败: {}".format(e))
 
 def _live_init_dict(uid=None):
     """登录时的 initDict（雷5：整段在 per-uid 锁内执行）。
@@ -212,10 +211,9 @@ def _live_init_dict_impl(uid=None):
             try:
                 changed = scaffold_mod.apply(st.props)
                 if changed:
-                    print("[init] 脚手架已应用(uid=%s): %s"
-                          % (uid, "、".join(changed)), flush=True)
+                    print("[init] 脚手架已应用(uid={}): {}".format(uid, "、".join(changed)), flush=True)
             except Exception as e:
-                _log.warning("[init] 脚手架应用失败: %s" % e)
+                _log.warning("[init] 脚手架应用失败: {}".format(e))
         st._scaffold_applied = True
 
     # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
@@ -263,7 +261,7 @@ def _live_init_dict_impl(uid=None):
             if not ooconf.SCAFFOLD.all_tasks_done:
                 story_mod.init_new_player(st)
         except Exception as e:
-            _log.warning("[init] 剧情播种失败: %s" % e)
+            _log.warning("[init] 剧情播种失败: {}".format(e))
 
     # ★ 修复「结算后无缝切街区」崩溃（2026-10-23 实机日志实锤）：
     #   客户端进街区 StreetSystemMgrBase.lua:111-114 getStreetBgm() 读
@@ -279,10 +277,9 @@ def _live_init_dict_impl(uid=None):
         if _sid:
             _si, _entry = _sio(st, _sid)
             if _si is not None:
-                print("[init] 确保 street_info[%s] 条目存在%s"
-                      % (_sid, "（新建）" if _entry else ""), flush=True)
+                print("[init] 确保 street_info[{}] 条目存在{}".format(_sid, "（新建）" if _entry else ""), flush=True)
     except Exception as e:
-        _log.warning("[init] street_info 条目补齐失败: %s" % e)
+        _log.warning("[init] street_info 条目补齐失败: {}".format(e))
 
     # ★ 2026-10-23 实机反馈：街区「队伍切换」头像显示男主。
     #   客户端 StreetV2Panel:initFormation 用 character_list[choosen_index].value[i]
@@ -297,10 +294,9 @@ def _live_init_dict_impl(uid=None):
             _eh(st, st.props.get("gender"), None)
             _want = 9002 if int(st.props.get("gender")) == 2 else 9001
             _sfh(st, _want, None)
-            print("[init] 按 gender=%s 校正主角/编队（want=%s）"
-                  % (st.props.get("gender"), _want), flush=True)
+            print("[init] 按 gender={} 校正主角/编队（want={}）".format(st.props.get("gender"), _want), flush=True)
         except Exception as e:
-            _log.warning("[init] 主角/编队校正失败: %s" % e)
+            _log.warning("[init] 主角/编队校正失败: {}".format(e))
 
 
     # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
@@ -313,7 +309,7 @@ def _live_init_dict_impl(uid=None):
             print("[init] 跨天重置 %s（%d 条同步描述，已进初始快照）"
                   % (list(_rt), len(_rch)), flush=True)
     except Exception as e:
-        _log.warning("[init] 跨天重置失败: %s" % e)
+        _log.warning("[init] 跨天重置失败: {}".format(e))
 
 
     # ★ P1 阶段 N-a2：通用任务播种（TaskData 那套 -> task_bag）。
@@ -333,7 +329,7 @@ def _live_init_dict_impl(uid=None):
             print("[init] 通用任务播种：%d 条同步描述（已进初始快照）" % len(_gt),
                   flush=True)
     except Exception as e:
-        _log.warning("[init] 通用任务播种失败: %s" % e)
+        _log.warning("[init] 通用任务播种失败: {}".format(e))
 
     # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
     #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
@@ -346,7 +342,7 @@ def _live_init_dict_impl(uid=None):
             if _sl:
                 _log.info("[init] 章节属性补全 %d 项" % len(_sl))
         except Exception as e:
-            _log.warning("[init] 章节属性补全失败: %s" % e)
+            _log.warning("[init] 章节属性补全失败: {}".format(e))
     except Exception:
         pass
 
@@ -366,16 +362,14 @@ def _live_init_dict_impl(uid=None):
             if getattr(st, "is_new", False) and not getattr(st, "_stamina_inited", False):
                 stamina_mod.init_new(st.props, _lv)
                 st._stamina_inited = True
-                print("[init] 体力初始化(uid=%s): %s/%s"
-                      % (uid, st.props.get("tower_reward_keys"),
+                print("[init] 体力初始化(uid={}): {}/{}".format(uid, st.props.get("tower_reward_keys"),
                          stamina_mod.max_stamina(_lv)), flush=True)
             else:
                 _gained, _ = stamina_mod.apply_recovery(st.props, _lv)
                 if _gained:
-                    print("[init] 离线恢复体力(uid=%s): +%s -> %s"
-                          % (uid, _gained, st.props.get("tower_reward_keys")), flush=True)
+                    print("[init] 离线恢复体力(uid={}): +{} -> {}".format(uid, _gained, st.props.get("tower_reward_keys")), flush=True)
         except Exception as e:
-            _log.warning("[init] 体力处理失败: %s" % e)
+            _log.warning("[init] 体力处理失败: {}".format(e))
     # ★ 服务端私有字段（以 _oo_ 开头，比如 _oo_street_pos / _oo_micro_state）
     #   **绝不能进 initDict** —— 客户端 initProperty 对每个表值都要求带 __tp__
     #   （core/propertysync/puppetpropertycomponent.lua:51-54 的 assert），
@@ -408,7 +402,7 @@ def _live_init_dict_impl(uid=None):
             print("[init] 系统解锁重算：%d 条（已进初始快照）" % len(_uf),
                   flush=True)
     except Exception as e:
-        _log.warning("[init] 系统解锁重算失败: %s" % e)
+        _log.warning("[init] 系统解锁重算失败: {}".format(e))
 
     from ..property import sync as _syncmod
     _public = {}

@@ -140,7 +140,7 @@ def _bind_account(cid, proto_req, fields):
         # 兜底：老客户端 / auth 没带上时，退回「ms query 时序 + 30 秒窗口」猜队列
         claimed = accounts.claim_and_bind(cid)
         print("[GATE] #%03d 关联账号 %s（队列兜底）"
-              % (cid, claimed or "(队列为空，回退 %s)" % accounts.DEFAULT_UID),
+              % (cid, claimed or "(队列为空，回退 {})".format(accounts.DEFAULT_UID)),
               flush=True)
     elif proto_req in (2, 3, 4) and not accounts.is_bound(cid):
         uid = accounts.uid_from_auth_display(fields)
@@ -307,17 +307,17 @@ def _push_bind_message(conn, addr, cid, proto_req):
         bpkt = msmod.frame_bind_account(
             session_id=sid,
             act_mailbox=msmod.build_entity_mailbox(
-                entity_id="account_%s" % sid))
+                entity_id="account_{}".format(sid)))
         label = "bindAccount"
     elif proto_req == 4:
         bpkt = msmod.frame_bind_avatar(
             session_id=sid,
             avt_mailbox=msmod.build_entity_mailbox(
-                entity_id="avatar_%s" % sid))
+                entity_id="avatar_{}".format(sid)))
         label = "bindAvatar"
     elif proto_req == 3:
         bpkt = msmod.build_channel_entity(
-            entity_id="avatar_%s" % sid,
+            entity_id="avatar_{}".format(sid),
             session_id=sid,
             uid=sid)
         label = "createChannelEntity"

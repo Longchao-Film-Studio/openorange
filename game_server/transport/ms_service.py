@@ -43,7 +43,7 @@ _NEVER_FAKE_OK_MS = frozenset((
 
 def unknown_ms_params(service, method, uid=None, params=None):
     """未实现微服务方法的应答参数（msgpack bytes）：记日志 + 按模式决定成败。"""
-    key = "%s.%s" % (service, method)
+    key = "{}.{}".format(service, method)
     fake = ooconf.unknown_fake_ok() and (key not in _NEVER_FAKE_OK_MS)
     _ulog.record("ms", key, uid=uid, params=params, fake_ok=fake,
                  reply="ack" if fake else "fail")

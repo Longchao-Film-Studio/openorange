@@ -138,7 +138,7 @@ def mp_any(v):
         return mp_arr(v)
     if isinstance(v, dict):
         return mp_map(v)
-    raise TypeError("unsupported msgpack value: %r" % (v,))
+    raise TypeError("unsupported msgpack value: {!r}".format(v))
 
 def mp_map(d):
     """msgpack map。

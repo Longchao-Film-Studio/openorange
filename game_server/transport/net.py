@@ -35,7 +35,7 @@ def hexdump(data, width=16, limit=None):
     out = []
     for off in range(0, n, width):
         chunk = data[off:off + width]
-        hx = " ".join("%02X" % b for b in chunk)
+        hx = " ".join("{:02X}".format(b) for b in chunk)
         asc = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         out.append("      %04X  %-*s  |%s|" % (off, width * 3, hx, asc))
     if limit is not None and len(data) > limit:
