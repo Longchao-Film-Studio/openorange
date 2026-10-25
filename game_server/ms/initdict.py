@@ -10,6 +10,7 @@
   3. 新号的剧情起点（StoryTask 1000 设为 Doing）也在这里落，不在脚手架里 ——
      街景 NPC 的 preTask 命中 Doing(3) 才会出现。
 """
+import contextlib
 import json
 import os
 
@@ -230,14 +231,12 @@ def _live_init_dict_impl(uid=None):
     if isinstance(_sp, dict):
         _spi = st.props.get("street_pos_info")
         if isinstance(_spi, dict):
-            try:
+            with contextlib.suppress(Exception):
                 _spi["x"] = float(_sp.get("x") or 0)
                 _spi["y"] = float(_sp.get("y") or 0)
                 _spi["z"] = float(_sp.get("z") or 0)
                 _spi["dir"] = float(_sp.get("dir") or 0)
                 st.props["street_pos_info"] = _spi
-            except Exception:
-                pass
 
     # ★ 剧情任务播种（每次登录都跑，幂等）。
     #
@@ -333,7 +332,7 @@ def _live_init_dict_impl(uid=None):
     # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
     #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
     #   以前服务端从来不写 -> 章节 UI 的收集进度/奖励状态恒为空。
-    try:
+    with contextlib.suppress(Exception):
         from .. import story as _story_mod
         try:
             _sl = _story_mod.sync_story_max_collect_num(st)
@@ -342,8 +341,6 @@ def _live_init_dict_impl(uid=None):
                 _log.info(f'[init] 章节属性补全 {len(_sl)} 项')
         except Exception as e:
             _log.warning(f"[init] 章节属性补全失败: {e}")
-    except Exception:
-        pass
 
     # ★ 体力：新号拉满；每次登录按离线时间补。
     #   以前 tower_reward_keys 默认 0、两个时间戳也 0，

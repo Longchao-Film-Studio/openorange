@@ -147,7 +147,7 @@ def _apply_item_effect(st, item_id, count):
             continue
         try:
             amount = int(pv) * int(count)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if amount <= 0:
             continue
@@ -200,7 +200,7 @@ def _submit_item(rid, params, uid=None):
             for k, v in idict.items():
                 try:
                     iid = int(k)
-                except Exception:
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                     continue
                 item_ids.append(iid)
                 if not item_id:
@@ -220,7 +220,7 @@ def _submit_item(rid, params, uid=None):
                         continue
                     try:
                         iid = int(k)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                         continue
                     if iid not in item_ids:
                         item_ids.append(iid)
@@ -259,7 +259,7 @@ def _record_item_obtain(rid, params, uid=None):
             try:
                 item_id = int(first.get("itemId") or 0)
                 count = int(first.get("count") or first.get("num") or 1)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 pass
             for name, box in (("itemType", "item_type"), ("level", "level"),
                               ("grade", "grade")):

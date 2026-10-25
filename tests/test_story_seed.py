@@ -189,7 +189,7 @@ def run():
             continue
         try:
             pre = int(pre)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         idx_all = seed_mod._INDEX or {}
         if pre not in idx_all:

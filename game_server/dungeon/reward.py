@@ -28,7 +28,7 @@ def _grant_battle_items(st, battle_items):
         try:
             iid = int(k)
             cnt = int(v)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if cnt <= 0:
             continue

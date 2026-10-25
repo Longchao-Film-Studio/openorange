@@ -70,7 +70,7 @@ def main():
             continue
         try:
             tid = int(k)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         text = _topic_first_text(tid)
         if not text.strip():

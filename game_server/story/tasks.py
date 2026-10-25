@@ -181,7 +181,7 @@ def _done_title_task(rid, params, uid=None):
     for raw in raw_ids:
         try:
             tid = int(raw)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         cfg = gamedata.task(tid) or {}
         if cfg.get("TaskType") != 10:
@@ -238,7 +238,7 @@ def _refresh_title_daily_task(rid, params, uid=None):
         try:
             if int(cfg.get("DailyType") or -1) != daily_type:
                 continue
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         cur = tasks.task_state(st.props, tid)
         if cur in (tasks.TASK_STATE_DOING, tasks.TASK_STATE_WAIT_DONE):

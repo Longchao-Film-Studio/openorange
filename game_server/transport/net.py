@@ -4,6 +4,7 @@
   [game]/[ms]/[GATE] #<cid> <方向> +<毫秒> <字节数>
   随后是十六进制 + ASCII 转储，原始字节另存 work/captures/*.bin。
 """
+import contextlib
 import socket
 import threading
 import time
@@ -62,12 +63,10 @@ def log_packet(cid, direction, data, t0, f):
     if ooconf.packet_log_enabled():
         _log.info(hexdump(data, limit=512))
     if f is not None:
-        try:
+        with contextlib.suppress(Exception):
             f.write((f'{direction} {dt} {len(data)}\n').encode())
             f.write(data)
             f.flush()
-        except Exception:
-            pass
 
 
 def pump(src, dst, direction, cid, t0, f, done_evt):
@@ -89,10 +88,8 @@ def pump(src, dst, direction, cid, t0, f, done_evt):
                 _log.warning(f'[game] #{cid:03d} {direction} forward failed: {e}')
                 break
     finally:
-        try:
+        with contextlib.suppress(Exception):
             dst.shutdown(socket.SHUT_WR)
-        except Exception:
-            pass
         done_evt.set()
 
 

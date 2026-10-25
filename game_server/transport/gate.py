@@ -11,6 +11,7 @@
   message ConnectServerResp { RespType type = 1; string sessionId = 2; }
   enum RespType { Busy=0; Connected=1; ConnectRefused=2; Reconnected=3; ... }
 """
+import contextlib
 import struct
 import time
 
@@ -104,15 +105,11 @@ def handle_gate(conn, addr, cid):
         # 连接断开就从在线表里摘掉，并释放账号关联
         accounts.release(cid)
         if shared_db is not None:
-            try:
+            with contextlib.suppress(Exception):
                 shared_db.clear_game_online(f'gate-{cid:03d}')
-            except Exception:
-                pass
         print('[GATE] #{:03d} CLOSE after {:d} ms  {}'.format(cid, dur, "★★ 活过 4 秒！" if dur > 5000 else ""), flush=True)
-        try:
+        with contextlib.suppress(Exception):
             conn.close()
-        except Exception:
-            pass
 
 
 def _bind_account(cid, proto_req, fields):
@@ -157,10 +154,8 @@ def _dispatch_frame(conn, cid, data, frame_type, proto_req):
 def _on_heartbeat(conn, cid):
     """type=6：sendHeartbeat 是单向的，不回；顺带刷在线表和体力恢复。"""
     if shared_db is not None:
-        try:
+        with contextlib.suppress(Exception):
             shared_db.touch_game_online(f'gate-{cid:03d}')
-        except Exception:
-            pass
 
     # ★ 体力随时间恢复：借用心跳（每秒一次）做驱动。
     #   放在这里而不是后台线程，是因为**必须在本连接的线程里写 socket**，

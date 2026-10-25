@@ -15,6 +15,7 @@
 - 多线程安全：logging 自带每条记录的锁，thread-per-connection 不会撕行。
 - tests/tools 不装拦截器（各自进程，不经 main()），行为不变。
 """
+import contextlib
 import logging
 import os
 import re
@@ -85,10 +86,8 @@ class _PrintInterceptor:
                     line, self._buf = self._buf, ""
                     self._emit(line)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 self._original.flush()
-            except Exception:
-                pass
 
     # ---- 让 print/库把它当流用 ----
     def isatty(self):
@@ -204,10 +203,8 @@ def reset_for_tests():
             logger.propagate = False
         parent = logging.getLogger("oo")
         for h in list(parent.handlers):
-            try:
+            with contextlib.suppress(Exception):
                 h.close()
-            except Exception:
-                pass
             parent.removeHandler(h)
         _channel_handlers.clear()
         _intercepted = False

@@ -156,7 +156,7 @@ def run():
                 if int(tt[0]) > 1 and cfg.get("TriggerEventList"):
                     multi = (t, int(tt[0]))
                     break
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
         if multi:
             break

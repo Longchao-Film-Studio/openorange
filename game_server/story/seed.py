@@ -66,7 +66,7 @@ def _build_index(force=False):
         if tid is None:
             try:
                 tid = int(k)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
         idx[int(tid)] = v
     _INDEX = idx
@@ -78,7 +78,7 @@ def _build_index(force=False):
             continue
         try:
             _CHILDREN.setdefault(int(pre), []).append(t)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
     return _INDEX
 
@@ -192,7 +192,7 @@ def _broken_pre_tasks():
             continue
         try:
             pre = int(pre)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if pre not in (_INDEX or {}) and pre not in T:
             out.append((t, pre))
@@ -213,7 +213,7 @@ def _dangling_task_data_ids():
         for pid in (v.get("Parameter1") or []):
             try:
                 pid = int(pid)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             if pid not in T:
                 out.append((t, pid))
@@ -301,7 +301,7 @@ def seed_cross_table(st, now=None):
             continue
         try:
             pre = int(pre)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         bag = st.props.get("story_task_bag")
         if isinstance(bag, dict) and tid in bag:

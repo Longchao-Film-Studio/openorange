@@ -19,6 +19,7 @@ handle_gate / handle_ms / handle_capture。审计用 socketpair 做过差分，
 
 用法: python tests/test_transport.py
 """
+import contextlib
 import os
 import socket
 import sys
@@ -79,18 +80,14 @@ def run_handler(fn, payloads, wait=0.35, cid=1):
     time.sleep(wait)
     b.settimeout(0.4)
     data = b""
-    try:
+    with contextlib.suppress(Exception):
         while True:
             chunk = b.recv(65536)
             if not chunk:
                 break
             data += chunk
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         b.close()
-    except Exception:
-        pass
     t.join(timeout=2)
     return data, err
 

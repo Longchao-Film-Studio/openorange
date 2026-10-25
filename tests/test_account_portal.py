@@ -7,6 +7,7 @@
 会临时起一个 web.app（随机端口 + 临时数据库），跑完自动清理，
 不会动到 shared/data.db。
 """
+import contextlib
 import json
 import os
 import shutil
@@ -252,10 +253,8 @@ def main():
             proc.terminate()
             proc.wait(timeout=8)
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 proc.kill()
-            except Exception:
-                pass
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     print("\n" + "=" * 56)

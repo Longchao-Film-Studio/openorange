@@ -20,6 +20,7 @@
 离线改存档是当前最可靠的方式。
 """
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -85,10 +86,8 @@ def give(props, item_id, num, grid_key=None):
     for k in bag:
         if k in ("__tp__", "__id__"):
             continue
-        try:
+        with contextlib.suppress(Exception):
             used.add(int(k))
-        except Exception:
-            pass
     nk = grid_key
     if nk is None:
         nk = 1

@@ -177,7 +177,7 @@ def cmd_actor(bdd):
                 continue
             try:
                 s = int(s)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             states[s] += 1
     print("=== 街景 NPC 的 preTask 条件分布 ===")

@@ -10,6 +10,7 @@
   3. 账号中心  账号信息 / 修改密码 / 删除账号
   4. 启动器     POST /api/launcher/login -> 官方同构的 {code,msg,data}
 """
+import contextlib
 import json
 import os
 import sys
@@ -42,13 +43,11 @@ def _server_name():
         os.path.join(os.path.dirname(here), "server_name.txt"),
         os.path.join(here, "server_name.txt"),
     ):
-        try:
+        with contextlib.suppress(Exception):
             with open(cand, "r", encoding="utf-8") as f:
                 v = f.read().strip()
             if v:
                 return v
-        except Exception:
-            pass
     return DEFAULT_SERVER_NAME
 
 def _fmt_ts(ts):

@@ -31,6 +31,6 @@ def _change_micro_state(params, uid=None):
     st = state(uid)
     try:
         st.props["_oo_micro_state"] = int(vals[0] or 0)
-    except Exception:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
         pass
     return []

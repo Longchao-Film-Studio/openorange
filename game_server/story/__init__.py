@@ -278,7 +278,7 @@ def sync_story_max_collect_num(st):
             continue
         try:
             sid = int(row.get("id"))
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         want = story_max_collect_num_of(sid)
         if want <= 0 or mc.get(sid) == want:
@@ -314,7 +314,7 @@ def sync_story_reward_list(st):
             continue
         try:
             sid = int(row.get("id"))
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if sid in rl:
             continue
@@ -338,7 +338,7 @@ def has_award_items(task_id):
         try:
             if int(v) > 0:
                 return True
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
     return False
 
@@ -388,7 +388,7 @@ def finish_parameters_of(item):
     for _k, v in _fp_items(fp):
         try:
             out.add(int(v))
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             pass
     return out
 
@@ -467,7 +467,7 @@ def story_award(st, task_id, _now=None):
         try:
             item_id = int(k)
             count = int(v)
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if count <= 0:
             continue
@@ -645,7 +645,7 @@ def street_arrival_tasks(st, street_id):
             continue
         try:
             target = int(p1[0])
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue
         if target == want:
             hits.append(task_id)

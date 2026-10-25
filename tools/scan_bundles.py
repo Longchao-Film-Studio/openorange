@@ -4,6 +4,7 @@
 只读容器路径（AssetBundle 的 m_Container），不解析资源内容，速度最快。
 """
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -29,14 +30,12 @@ def bundle_containers(path):
         blob = stream[node["offset"]:node["offset"] + node["size"]]
         if len(blob) < 32:
             continue
-        try:
+        with contextlib.suppress(Exception):
             env = UnityPy.load(blob)
             for o in env.objects:
                 c = o.container
                 if c:
                     out.append((c, o.type.name))
-        except Exception:
-            pass
     return out
 
 

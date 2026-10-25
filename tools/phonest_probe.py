@@ -30,6 +30,7 @@
   * 回喂错误负载会让原生解析器抛 C++ 异常（0xe06d7363），需进程隔离
 """
 import argparse
+import contextlib
 import ctypes
 import os
 import socket
@@ -126,15 +127,13 @@ def start_server(port, cap):
 
     def read_loop(c):
         c.settimeout(30)
-        try:
+        with contextlib.suppress(Exception):
             while True:
                 d = c.recv(65536)
                 if not d:
                     break
                 cap.append(d)
                 print(f'  [srv] RX {len(d):2d} B  {d.hex()}', flush=True)
-        except Exception:
-            pass
 
     threading.Thread(target=accept_loop, daemon=True).start()
     return holder

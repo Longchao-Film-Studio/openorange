@@ -11,6 +11,7 @@
   * 有不安全帧就记一条（哪个测试、哪个 RPC、客户端会崩在哪）
 """
 import atexit
+import contextlib
 import json
 import os
 import runpy
@@ -83,12 +84,10 @@ def _dump():
     out = os.environ.get("OO_FRAME_AUDIT_OUT")
     if not out:
         return
-    try:
+    with contextlib.suppress(Exception):
         with open(out, "w", encoding="utf-8") as f:
             json.dump({"stats": _STATS, "errors": _ERRORS}, f,
                       ensure_ascii=False, indent=1)
-    except Exception:
-        pass
 
 
 def main(argv):

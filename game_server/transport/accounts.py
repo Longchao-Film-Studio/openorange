@@ -7,6 +7,7 @@
   要彻底解决得让客户端把账号带进 connectServer 的 auth 字段 —— 见
   transport/gate.py 里 ownerid 的用法。
 """
+import contextlib
 import threading
 import time
 
@@ -149,7 +150,7 @@ def uid_from_auth(fields):
     raw = fields.get(5)
     if not raw:
         return None
-    try:
+    with contextlib.suppress(Exception):
         mb = msmod.pb_parse(raw[0])
         name = mb.get(1, [b""])[0]
         if isinstance(name, bytes):
@@ -157,8 +158,6 @@ def uid_from_auth(fields):
         for p in ("account_", "avatar_"):
             if name.startswith(p):
                 return name[len(p):]
-    except Exception:
-        pass
     return None
 
 

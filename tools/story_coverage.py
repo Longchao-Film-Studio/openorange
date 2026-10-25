@@ -216,7 +216,7 @@ def main():
                 continue
             try:
                 SP.setdefault(int(_a), _row)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
     if not S:
         print("[coverage] StoryTaskData 读不到，退出", file=sys.stderr)

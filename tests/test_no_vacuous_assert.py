@@ -42,7 +42,7 @@ ALLOW = {
         "汇总信息性输出；每条 RPC 的覆盖在上方逐条断言",
     ("tests/test_id_allocator.py", 131):
         "try 内可达性：check_frames 抛 AssertionError 会走 except 分支标失败",
-    ("tests/test_ms_frames.py", 47):
+    ("tests/test_ms_frames.py", 48):
         "try 内可达性：上面调用抛异常会走 except 分支标失败",
     ("tests/test_multi_account.py", 190):
         "try 内可达性：sync_frame 抛异常会走 except 分支标失败",

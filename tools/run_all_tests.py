@@ -4,6 +4,7 @@
 用法：python -u tools/run_all_tests.py [-v]
   -v  额外打印每个套件的通过项数
 """
+import contextlib
 import os
 import re
 import subprocess
@@ -21,10 +22,8 @@ SUMMARY = re.compile(r"\u901a\u8fc7 (\d+) \u9879\uff0c\u5931\u8d25 (\d+) \u9879"
 
 
 def main():
-    try:
+    with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
     verbose = "-v" in sys.argv[1:]
     os.chdir(ROOT)
     files = sorted(f[:-3] for f in os.listdir("tests")

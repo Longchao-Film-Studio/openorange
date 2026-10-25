@@ -10,6 +10,7 @@
     RESPOND_CYCLE  —— 按连接序号轮换 6 组「帧类型 + 字段布局」应答（爆破）
   协议早已从 client_gate.proto 描述符完整解出，正式路径在 transport/gate.py。
 """
+import contextlib
 import os
 import socket
 import threading
@@ -58,10 +59,8 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
             t2.start()
             t1.join(timeout=300)
             t2.join(timeout=300)
-            try:
+            with contextlib.suppress(Exception):
                 up.close()
-            except Exception:
-                pass
             return
 
         while True:
@@ -86,14 +85,10 @@ def handle_capture(conn, addr, cid, echo=False, upstream=None):
     except Exception as e:
         _log.warning(f'[game] #{cid:03d} error: {e}')
     finally:
-        try:
+        with contextlib.suppress(Exception):
             conn.close()
-        except Exception:
-            pass
         if f is not None:
-            try:
+            with contextlib.suppress(Exception):
                 f.close()
-            except Exception:
-                pass
         dur = int((time.time() - t0) * 1000)
         print(f'[game] #{cid:03d} CLOSE after {dur:d}ms -> {os.path.basename(cap_path)}', flush=True)

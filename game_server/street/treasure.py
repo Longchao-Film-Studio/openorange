@@ -42,7 +42,7 @@ def _grant_treasure_reward(st, tid):
             try:
                 iid = int(k)
                 cnt = int(v)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             if cnt <= 0:
                 continue

@@ -38,7 +38,7 @@ def _warn():
     _WARNED = True
     try:
         print(f"[admin] 警告：未设置 OO_ADMIN_TOKEN，使用自动生成口令（{token_file()}）。", file=sys.stderr, flush=True)
-    except Exception:
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
         pass
 
 

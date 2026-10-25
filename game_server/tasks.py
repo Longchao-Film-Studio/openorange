@@ -226,7 +226,7 @@ def _all_task_ids():
         if isinstance(v, dict) and v.get("uiD") is not None:
             try:
                 out.append(int(v["uiD"]))
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 pass
     return sorted(out)
 

@@ -249,5 +249,5 @@ def _remove_unread(tx, st, topic_id):
             if int(v) == int(topic_id):
                 tx.remove_at(("npc_chat_prop", "resident_topic_ids"), int(pos))
                 return
-        except Exception:
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             continue

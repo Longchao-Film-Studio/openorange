@@ -13,6 +13,7 @@
 
 用法: python tests/test_dungeon_levels.py
 """
+import contextlib
 import os
 import sys
 import tempfile
@@ -133,10 +134,8 @@ def run():
     _orig = _events.apply_event
 
     def _spy(st_, event, now=None):
-        try:
+        with contextlib.suppress(Exception):
             seen.append((event.type, dict(event.params or {})))
-        except Exception:
-            pass
         return _orig(st_, event, now)
 
     _events.apply_event = _spy

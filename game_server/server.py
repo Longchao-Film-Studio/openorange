@@ -34,6 +34,7 @@
   * 每次 recv 的：相对时间(ms)、方向(C=客户端发来 / S=服务端发来)、字节数、十六进制、ASCII
   * 原始字节流另存到 work/captures/conn_*.bin
 """
+import contextlib
 import os
 import socket
 import sys
@@ -179,11 +180,9 @@ def main():
         _log_install("game", ooconf.LOG_DIR)
     except Exception as _e:
         # 日志装不上不能挡启动（极端只读环境）：退回老的编码兜底
-        try:
+        with contextlib.suppress(Exception):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-        except Exception:
-            pass
         _log.warning(f"[log] 统一日志安装失败，退回控制台模式: {_e}")
 
     argv = sys.argv[1:]

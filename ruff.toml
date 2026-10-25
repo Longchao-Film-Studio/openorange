@@ -27,7 +27,13 @@ select = ["F", "E9", "UP009", "I001", "FURB105", "UP004", "FURB167",
           "RUF023", "SIM102", "SIM118", "PERF102", "C4", "UP020", "UP031", "UP032",
           "ARG001", "ARG005", "B007", "RUF059"]
 ignore = [
-  "BLE001",  # 裸 except 大量是故意的兜底（291 处），收窄需逐处判断
+  "BLE001",  # 裸 except：服务端在 RPC / 数据边界必须有兜底——一个坏请求不能拖垮进程。
+             #   2026-10-25 已把「静默吞异常」清零（291 -> 223）：
+             #     · 生产代码 49 处：27 处纯 int/float 转换收窄为数据类异常
+             #       (ValueError, TypeError, KeyError, IndexError, AttributeError)；
+             #       22 处清理操作(close/flush/shutdown) 改为 contextlib.suppress(Exception)
+             #     · tests/tools 19 处同类处理
+             #   剩余 223 处都带日志或返回默认值，属于有意的边界兜底，保留宽捕获。
   "S110",    # try-except-pass：同上
   "S112",    # try-except-continue：同上
   "SIM115",  # open 不用 with：涉及生命周期语义，逐处判断

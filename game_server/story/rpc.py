@@ -21,6 +21,7 @@
 #   RequestStreetActor_CS {actor_id}  = RequestDoneStoryTaskParamInt_CS(2, actor_id)
 #     + serverRpc("RequestStreetActor_CS")  ← 街景 NPC 交互就是剧情推进
 
+import contextlib
 import time
 
 from shared.log_tee import get_logger
@@ -223,7 +224,7 @@ def _emit_get_item(st, item_id, count):
     if not item_id:
         return []
     item_type = grade = level = sub_type = None
-    try:
+    with contextlib.suppress(Exception):
         info = gamedata.item(item_id) or {}
         for name, box in (("itemType", "t"), ("grade", "g"),
                           ("level", "l"), ("itemSubType", "s")):
@@ -237,8 +238,6 @@ def _emit_get_item(st, item_id, count):
                     level = v
                 else:
                     sub_type = v
-    except Exception:
-        pass
     ev = _events.ev_get_item(int(item_id), int(count or 1), item_type, level,
                              grade)
     if sub_type is not None:
@@ -296,7 +295,7 @@ def _finish_story_tasks(st, task_ids, depth=0, param=None, source="internal"):
         for _tid in task_ids:
             try:
                 _tid = int(_tid)
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
             _tt = (gamedata.story_task(_tid) or {}).get("TaskType")
             if _tt in allowed:

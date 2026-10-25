@@ -8,6 +8,7 @@
 ★ 早期协议未知时这里做过「帧类型爆破」（build_candidates / build_by_type 那一批），
   已全部删除；现在只有一条正确路径。
 """
+import contextlib
 import os
 import struct
 import time
@@ -58,10 +59,8 @@ def handle_ms(conn, addr, cid):
     cap_path = os.path.join(CAPTURE_DIR, f'ms_{cid:03d}_{addr[1]}.bin')
     _log.info(f'[ms] #{cid:03d} OPEN from {addr[0]}:{addr[1]:d}')
     f = None
-    try:
+    with contextlib.suppress(Exception):
         f = open(cap_path, "wb")
-    except Exception:
-        pass
 
     try:
         conn.settimeout(60)
@@ -82,11 +81,9 @@ def handle_ms(conn, addr, cid):
             mtype = struct.unpack("<H", payload[:2])[0]
             body = payload[2:]
             if f is not None:
-                try:
+                with contextlib.suppress(Exception):
                     f.write(hdr + payload)
                     f.flush()
-                except Exception:
-                    pass
 
             try:
                 fields = msmod.pb_parse(body)
@@ -98,11 +95,9 @@ def handle_ms(conn, addr, cid):
             seq = fields.get(1, [0])[0]
             service = fields.get(2, [b""])[0]
             method = fields.get(3, [b""])[0]
-            try:
+            with contextlib.suppress(Exception):
                 service = service.decode("utf-8", "replace")
                 method = method.decode("utf-8", "replace")
-            except Exception:
-                pass
 
             print(f'[ms] #{cid:03d} RX type={mtype:d} seq={seq} service={service} method={method}  ({len(payload):d} B)', flush=True)
             _log.info(maybe_hexdump(payload, limit=256))
@@ -120,7 +115,7 @@ def handle_ms(conn, addr, cid):
                             accounts.remember_username(_q["Username"])
                             print('[ms] #{:03d} 账号 {}'.format(cid, _q["Username"]),
                                   flush=True)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                         pass
                 params = msmod.build_load_service_params(ooconf.GATE_PORT)
             elif method == "batchGetAttribute":
@@ -171,14 +166,10 @@ def handle_ms(conn, addr, cid):
     except Exception as e:
         _log.warning(f'[ms] #{cid:03d} error: {e}')
     finally:
-        try:
+        with contextlib.suppress(Exception):
             conn.close()
-        except Exception:
-            pass
         if f is not None:
-            try:
+            with contextlib.suppress(Exception):
                 f.close()
-            except Exception:
-                pass
         print(f'[ms] #{cid:03d} CLOSE after {int((time.time() - t0) * 1000):d}ms',
               flush=True)

@@ -290,7 +290,7 @@ def _set_formation_hero(st, want, syncs):
                 if int(v) == other:
                     lst[k] = want
                     hit = True
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
         if hit:
             changed_teams.append((idx, team))

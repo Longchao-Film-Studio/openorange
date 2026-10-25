@@ -11,6 +11,8 @@
   客户端 SC 收到自己的 uid 也会走 OnPlayEmoji 播放（与 Soul 帧回显同一闭环思路）。
   未来多人时，这里改成向同 street 空间的所有连接转发即可（框架不变）。
 """
+import contextlib
+
 from ..rpc_common import decode_params, state
 from ..space.space import _s2c_entity
 
@@ -33,10 +35,8 @@ def _play_act_emoji(params, uid=None):
                 emoji_id = int(vals[1] or 0)
             except (TypeError, ValueError):
                 emoji_id = 0
-    try:
+    with contextlib.suppress(Exception):
         state(uid).props["_oo_last_emoji"] = emoji_id
-    except Exception:
-        pass
     # ★ T3：下发 Avatar_Play_ActEmoji_SC(uid, type, emoji_id)
     #   单向消息（rid=0）也能带 S2C 帧（dispatch 会把 out 列表拼进应答流）
     if emoji_id:

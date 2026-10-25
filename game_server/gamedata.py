@@ -361,7 +361,7 @@ def space_task_of_avatar(story_task_id):
             try:
                 if int(row.get("avatarTask")) == want:
                     hits.append((int(tid), row))
-            except Exception:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
     if not hits:
         return None

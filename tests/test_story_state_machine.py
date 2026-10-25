@@ -21,6 +21,7 @@
 用法: python tests/test_story_state_machine.py
 """
 import ast
+import contextlib
 import glob
 import os
 import random
@@ -465,10 +466,8 @@ def run():
             _base[_g.get("itemId")] = _g.get("num") or 0
     story.story_award = boom
     try:
-        try:
+        with contextlib.suppress(Exception):
             erpc._finish_story_tasks(st10, [AWARD_TASK])
-        except Exception:
-            pass
     finally:
         story.story_award = orig_award
     check("发奖失败后任务仍在 bag 且 state=6",
@@ -486,10 +485,8 @@ def run():
     for _k, _v in _award_cfg.items():
         if _k in ("KeyList", "__bdd_metatype__"):
             continue
-        try:
+        with contextlib.suppress(Exception):
             _want[int(_k)] = int(_v)
-        except Exception:
-            pass
     _have = {}
     for _g in (st10.props.get("item_bag") or {}).values():
         if isinstance(_g, dict) and _g.get("itemId") in _want:

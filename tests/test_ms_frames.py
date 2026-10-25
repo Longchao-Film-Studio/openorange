@@ -13,6 +13,7 @@
 
 用法: python tests/test_ms_frames.py
 """
+import contextlib
 import os
 import sys
 
@@ -166,11 +167,9 @@ def run():
     check("initDict 顶层无 _oo_ 字段",
           not [k for k in init["__Properties__"] if str(k).startswith("_oo_")])
     # 清理测试账号的状态文件，别留垃圾
-    try:
+    with contextlib.suppress(Exception):
         from game_server import player_state as pstate
         pstate.forget("__ms_frame_test__")
-    except Exception:
-        pass
 
     print("\n" + "=" * 56)
     print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
