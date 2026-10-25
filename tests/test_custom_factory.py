@@ -29,8 +29,8 @@ os.environ["OO_DB_PATH"] = os.path.join(
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import gamedata, player_state as pstate  # noqa: E402
-from game_server.property import factory, spec  # noqa: E402
+from game_server import gamedata, player_state as pstate
+from game_server.property import factory, spec
 
 passed, failed = [], []
 

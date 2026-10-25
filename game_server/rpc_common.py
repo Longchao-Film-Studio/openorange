@@ -50,7 +50,7 @@ def state(uid=None):
 
 # 属性同步帧里的 ownerid 语义见 property/sync.py 的 SYNC_SELF 注释。
 # 这里 re-export，业务模块从 rpc_common 或 property.sync 取都可以。
-from .property.sync import SYNC_SELF  # noqa: F401  (re-export)
+from .property.sync import SYNC_SELF
 
 from shared.log_tee import get_logger
 _log = get_logger(__name__)

@@ -22,7 +22,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import stamina as S, gamedata as G, ms as msmod, player_state as pstate, config
 
-from tests.frame_guard import guarded_handle  # noqa: E402
+from tests.frame_guard import guarded_handle
 
 passed, failed = [], []
 

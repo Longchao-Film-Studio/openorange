@@ -24,7 +24,7 @@
 
 # pb / msgpack 编解码已拆到 protocol.py；userdata 应答在 userdata.py。
 # 这里 re-export，保持 msmod.pb_parse / msmod.mp_arr 等既有调用点不变。
-from .protocol import (  # noqa: F401  (re-export)
+from .protocol import (
     mp_any,
     mp_arr,
     mp_bool,
@@ -38,16 +38,16 @@ from .protocol import (  # noqa: F401  (re-export)
     pb_read_varint,
     pb_varint_field,
 )
-from .userdata import build_userdata_batch_params  # noqa: F401  (re-export)
+from .userdata import build_userdata_batch_params
 
 # P0-E3：ms.py 已按职责拆成 protocol / frames / entity / property / bind / userdata，
 # 这里统一 re-export，保持 msmod.xxx 的全部既有调用点不变。
-from .defaults import (  # noqa: F401  (re-export)
+from .defaults import (
     _DEF_ACCOUNT_EID,
     _DEF_AVATAR_EID,
     _DEF_UID,
 )
-from .frames import (  # noqa: F401  (re-export)
+from .frames import (
     CONNECT_RESP_TYPE,
     MS_RESP_TYPE,
     build_connect_server_resp,
@@ -57,8 +57,8 @@ from .frames import (  # noqa: F401  (re-export)
     frame_ms_response,
     split_frames,
 )
-from .protocol import _conv_int_keys  # noqa: F401  (re-export)
-from .initdict import (  # noqa: F401  (re-export)
+from .protocol import _conv_int_keys
+from .initdict import (
     AVATAR_INIT_DICT,
     CLIENT_AVATAR_CLASS,
     DEFAULT_INIT_DICT,
@@ -68,7 +68,7 @@ from .initdict import (  # noqa: F401  (re-export)
     _login_tick,
     build_channel_entity,
 )
-from .entity import (  # noqa: F401  (re-export)
+from .entity import (
     ENTITY_RESPONSE_FRAME_TYPE,
     build_entity_message,
     build_entity_response,
@@ -78,7 +78,7 @@ from .entity import (  # noqa: F401  (re-export)
     parse_entity_frame,
     parse_entity_response,
 )
-from .property import (  # noqa: F401  (re-export)
+from .property import (
     OP_ADD,
     OP_CHANGE,
     OP_DEL,
@@ -90,7 +90,7 @@ from .property import (  # noqa: F401  (re-export)
     RPC_INDEX_USE_ITEM_CS,
     build_property_sync,
 )
-from .bind import (  # noqa: F401  (re-export)
+from .bind import (
     BIND_ACCOUNT_TYPE,
     BIND_AVATAR_TYPE,
     BIND_SOUL_TYPE,

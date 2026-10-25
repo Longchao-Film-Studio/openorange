@@ -25,9 +25,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 sys.path.insert(0, _ROOT)
 
-from game_server import player_state as pstate  # noqa: E402
-from game_server import ms as msmod  # noqa: E402
-from game_server import gamedata  # noqa: E402
+from game_server import player_state as pstate
+from game_server import ms as msmod
+from game_server import gamedata
 
 INIT_JSON = os.path.join(_ROOT, "game_server", "avatar_init.json")
 
@@ -50,7 +50,7 @@ def load_props(uid):
 # ★ 2026-10-21 审计：这里原本自带一份 max_id + 自己发 __id__，
 #   不更新 props 的 _oo_next_id -> 发完角色重登后第一次分配就撞号。
 #   现在统一走 property.ids.alloc_id（全项目唯一发号入口）。
-from game_server.property import ids as _ids  # noqa: E402
+from game_server.property import ids as _ids
 
 
 def max_id(obj, cur=0):

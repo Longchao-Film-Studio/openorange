@@ -47,7 +47,7 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_p1k_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import gamedata  # noqa: E402
+from game_server import gamedata
 
 passed, failed = [], []
 

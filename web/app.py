@@ -19,9 +19,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from shared import commands as cmds  # noqa: E402
-from shared import db, models  # noqa: E402
-from shared.log_tee import get_logger  # noqa: E402
+from shared import commands as cmds
+from shared import db, models
+from shared.log_tee import get_logger
 
 _log = get_logger(__name__)
 
@@ -59,7 +59,7 @@ def _fmt_ts(ts):
 
 # ---------------------------------------------------------------- 登录限速
 # 失败计数与判定在 web/ratelimit.py（P0-E3 抽出），这里只做名字兼容。
-from web.ratelimit import (  # noqa: E402
+from web.ratelimit import (
     blocked as _login_blocked,
     note_fail as _note_login_fail,
     note_ok as _note_login_ok,
@@ -69,7 +69,7 @@ from web.ratelimit import (  # noqa: E402
 # ---------------------------------------------------------------- 静态资源
 # 样式 / 脚本 / 页面片段都在 web/static 与 web/templates 下（P0-E3 抽出），
 # 由 web/assets.py 统一加载；这里只做名字兼容，保持既有调用点不变。
-from web.assets import (  # noqa: E402
+from web.assets import (
     ADMIN_BODY,
     ADMIN_SCRIPT,
     BODY,

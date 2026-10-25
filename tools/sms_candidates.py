@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import gamedata  # noqa: E402
+from game_server import gamedata
 
 _STOP = set("的了是在我你他她它我们你们他们这那也都很就还又再把被和跟对从向让给叫做吗呢吧啊呀哦嗯去来说对于而已".split())
 

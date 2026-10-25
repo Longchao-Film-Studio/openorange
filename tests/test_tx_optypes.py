@@ -29,7 +29,7 @@ from game_server.property import ids as _ids
 from game_server.property import tx as _tx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe   # noqa: E402
+from shadow_cache import frames_safe
 
 passed, failed = [], []
 

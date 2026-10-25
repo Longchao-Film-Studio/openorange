@@ -60,7 +60,7 @@ from . import unknown_log as _ulog
 
 # 名字 -> genRpcIndex 的索引表已拆到 rpc_index.py（P0-E1）；
 # 这里 re-export，保持 erpc.RPC_INDEX / erpc.describe 等既有调用点不变。
-from .rpc_index import (  # noqa: F401  (re-export)
+from .rpc_index import (
     ACK_OK,
     ONE_WAY,
     RPC_INDEX,
@@ -69,7 +69,7 @@ from .rpc_index import (  # noqa: F401  (re-export)
 )
 
 # 跨业务域共用的基础设施（P0-E2）：状态 / 帧构造 / 节流存档 / 参数解码
-from .rpc_common import (  # noqa: F401  (re-export)
+from .rpc_common import (
     _LAST_SAVE,
     _SAVE_INTERVAL,
     EVENT_MAX_DEPTH,
@@ -84,7 +84,7 @@ from .rpc_common import (  # noqa: F401  (re-export)
 _EVENT_MAX_DEPTH = EVENT_MAX_DEPTH
 
 # 业务域模块（P0-E2 第 1 步）：Set* 系列 / 无状态 RPC / 表情
-from .property.setters import (  # noqa: F401  (re-export)
+from .property.setters import (
     _CONST_SETTERS,
     _SIMPLE_SETTERS,
     _make_setter,
@@ -92,11 +92,11 @@ from .property.setters import (  # noqa: F401  (re-export)
     _set_character_list_name,
     _set_signature,
 )
-from .misc.emoji import _play_act_emoji  # noqa: F401
-from .misc.unimplemented import _ack_only, _noop_one_way  # noqa: F401
+from .misc.emoji import _play_act_emoji
+from .misc.unimplemented import _ack_only, _noop_one_way
 
 # 业务域模块（P0-E2 第 2 步）：space / story
-from .space.space import (  # noqa: F401  (re-export)
+from .space.space import (
     RPC_ON_ENTER_SPACE,
     RPC_ON_TELEPORT_OUT,
     SPACE_EDEN,
@@ -107,9 +107,9 @@ from .space.space import (  # noqa: F401  (re-export)
     _space_prop,
     _space_sync_frames,
 )
-from .space.move import _change_micro_state, _client_move  # noqa: F401
-from .space.eden import _eden_chat_history, _enter_eden  # noqa: F401
-from .space.soul import (  # noqa: F401  (re-export)
+from .space.move import _change_micro_state, _client_move
+from .space.eden import _eden_chat_history, _enter_eden
+from .space.soul import (
     CMD_PROPERTY_RELIABLE_SYNC_SC,
     SOUL_HEARTBEAT_SC,
     SYNC_FRAME_FROM_SERVER,
@@ -117,7 +117,7 @@ from .space.soul import (  # noqa: F401  (re-export)
     _soul_heartbeat,
     _space_frame_message,
 )
-from .story.rpc import (  # noqa: F401  (re-export)
+from .story.rpc import (
     _done_story_task,
     _emit_get_item,
     _find_story_tasks_by_param,
@@ -127,7 +127,7 @@ from .story.rpc import (  # noqa: F401  (re-export)
     _street_actor,
     _story_sync_frames,
 )
-from .story.tasks import (  # noqa: F401  (re-export)
+from .story.tasks import (
     _task_done,
     _task_done_type,
     _task_fetch,
@@ -137,25 +137,25 @@ from .story.tasks import (  # noqa: F401  (re-export)
 )
 
 # ★ P1 阶段 N-a1：取名链路（之前 3 个 RPC 全缺，见 game_server/avatar.py 的说明）
-from .avatar import (  # noqa: F401  (re-export)
+from .avatar import (
     _change_nickname,
     _check_nickname,
     _commit_name_gender,
 )
 
 # 业务域模块（P0-E2 第 3 步）：dungeon / 背包 / 角色 / 登录查询
-from .dungeon.context import _STORY_TYPE_MAINSTORY, _remember_dungeon  # noqa: F401
-from .dungeon.enter import (  # noqa: F401  (re-export)
+from .dungeon.context import _STORY_TYPE_MAINSTORY, _remember_dungeon
+from .dungeon.enter import (
     _avatar_start_game,
     _resolve_copy_id,
     _single_start_match,
 )
-from .dungeon.level import (  # noqa: F401  (re-export)
+from .dungeon.level import (
     _avatar_enter_next,
     _battle_teach_activate,
 )
-from .dungeon.reward import _grant_battle_items  # noqa: F401
-from .dungeon.settle import (  # noqa: F401  (re-export)
+from .dungeon.reward import _grant_battle_items
+from .dungeon.settle import (
     RPC_AVATAR_SPACE_FINISH_SC,
     _advance_story_on_finish,
     _dungeon_finish,
@@ -164,34 +164,34 @@ from .dungeon.settle import (  # noqa: F401  (re-export)
     _storyline_finish_game,
 )
 # 业务域模块（P0-E2 第 4 步）：street
-from .street.info import (  # noqa: F401  (re-export)
+from .street.info import (
     _make_street_info_entry,
     _street_info_of,
     _street_tx_begin,
 )
-from .street.enter import (  # noqa: F401  (re-export)
+from .street.enter import (
     _apply_street_change,
     _leave_street,
     _switch_street,
     _update_street_pos,
 )
-from .street.surface import (  # noqa: F401  (re-export)
+from .street.surface import (
     _enter_surface,
     _leave_surface,
     _set_surface_time,
 )
-from .street.interact import (  # noqa: F401  (re-export)
+from .street.interact import (
     _actor_interact,
     _clear_treasure_actor,
     _street_redpoint,
     _street_trace_task,
 )
-from .street.treasure import (  # noqa: F401  (re-export)
+from .street.treasure import (
     _grant_treasure_reward,
     _street_treasure_rpc,
     _touch_treasure,
 )
-from .street.prestige import (  # noqa: F401  (re-export)
+from .street.prestige import (
     _add_prestige_exp,
     _apply_prestige_exp,
     _get_prestige_award,
@@ -199,31 +199,31 @@ from .street.prestige import (  # noqa: F401  (re-export)
     _prestige_info,
     _prestige_push,
 )
-from .street.dispatch import (  # noqa: F401  (re-export)
+from .street.dispatch import (
     _cancel_dispatch,
     _dispatch_char,
     _finish_dispatch,
 )
-from .street.misc import (  # noqa: F401  (re-export)
+from .street.misc import (
     _finish_storyline,
     _mainline_levelup,
     _street_cd_update,
 )
 
-from .npc_chat import (  # noqa: F401  (re-export)
+from .npc_chat import (
     _check_topic_can_open,
     _gm_open_npc_chat_topic,
     _update_npc_chat_info,
 )
-from .property.character import _upgrade_character  # noqa: F401
-from .property.items import (  # noqa: F401  (re-export)
+from .property.character import _upgrade_character
+from .property.items import (
     _USE_PARAM_PROP,
     _apply_item_effect,
     _record_item_obtain,
     _submit_item,
     _use_item,
 )
-from .misc.session import _match_duration, _sunact_level, _team_info  # noqa: F401
+from .misc.session import _match_duration, _sunact_level, _team_info
 
 from shared.log_tee import get_logger
 _log = get_logger(__name__)

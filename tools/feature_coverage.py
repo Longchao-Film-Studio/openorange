@@ -30,9 +30,9 @@ sys.path.insert(0, ROOT)
 os.environ.setdefault("OO_STATE_DIR",
                     os.path.join(ROOT, "work", "player_state"))
 
-from game_server import gamedata  # noqa: E402
-from game_server import player_state as pstate  # noqa: E402
-from game_server.story.rpc import _unlock_data_satisfied  # noqa: E402
+from game_server import gamedata
+from game_server import player_state as pstate
+from game_server.story.rpc import _unlock_data_satisfied
 
 TYPE_NAME = {1: "Task 通用任务", 2: "StoryTask 剧情任务", 3: "Level 等级"}
 

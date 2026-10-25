@@ -29,7 +29,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from game_server import admin_api
 
-from tests.frame_guard import guarded_handle  # noqa: E402
+from tests.frame_guard import guarded_handle
 from shared import commands as cmds
 from game_server import ms as msmod, entity_rpc as erpc, config
 

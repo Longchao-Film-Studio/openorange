@@ -25,7 +25,7 @@ from game_server import (ms as msmod, entity_rpc as erpc, player_state as pstate
 
                          config, story)
 
-from tests.frame_guard import guarded_handle  # noqa: E402
+from tests.frame_guard import guarded_handle
 
 passed, failed = [], []
 

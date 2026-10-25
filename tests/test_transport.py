@@ -36,11 +36,11 @@ os.environ["OO_CAPTURE_DIR"] = tempfile.mkdtemp(prefix="oo_test_captures_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod  # noqa: E402
-from game_server.transport import accounts  # noqa: E402
-from game_server.transport.capture import handle_capture  # noqa: E402
-from game_server.transport.gate import handle_gate  # noqa: E402
-from game_server.transport.ms_service import handle_ms  # noqa: E402
+from game_server import ms as msmod
+from game_server.transport import accounts
+from game_server.transport.capture import handle_capture
+from game_server.transport.gate import handle_gate
+from game_server.transport.ms_service import handle_ms
 
 passed, failed = [], []
 

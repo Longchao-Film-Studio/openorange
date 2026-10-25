@@ -18,7 +18,7 @@ os.environ["OO_DB_PATH"] = os.path.join(
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from shared import log_tee  # noqa: E402
+from shared import log_tee
 
 passed, failed = [], []
 

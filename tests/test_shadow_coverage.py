@@ -24,11 +24,11 @@ os.environ["OO_STATE_DIR"] = tempfile.mkdtemp(prefix="oo_test_cov_")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import ms as msmod, player_state as pstate  # noqa: E402
-from game_server.property import sync as prop_sync  # noqa: E402
-from game_server.property import tx as _tx  # noqa: E402
-from tests import frame_guard as fg  # noqa: E402
-from tests.frame_guard import check_frames, pre_snapshot  # noqa: E402
+from game_server import ms as msmod, player_state as pstate
+from game_server.property import sync as prop_sync
+from game_server.property import tx as _tx
+from tests import frame_guard as fg
+from tests.frame_guard import check_frames, pre_snapshot
 
 passed, failed = [], []
 

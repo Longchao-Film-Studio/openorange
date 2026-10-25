@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 # ★ 雷2：本套件会触发未实现 RPC（兜底分支），日志/存档都别写进真实目录
-import tempfile  # noqa: E402
+import tempfile
 os.environ.setdefault("OO_STATE_DIR", tempfile.mkdtemp(prefix="oo_test_rpc_state_"))
 os.environ["OO_UNKNOWN_LOG"] = os.path.join(
     tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv")
@@ -23,11 +23,11 @@ os.environ["OO_UNKNOWN_LOG"] = os.path.join(
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from game_server import entity_rpc as erpc  # noqa: E402
+from game_server import entity_rpc as erpc
 
-from tests.frame_guard import guarded_handle  # noqa: E402
+from tests.frame_guard import guarded_handle
 from game_server import config as ooconf
-from game_server import ms as msmod  # noqa: E402
+from game_server import ms as msmod
 
 passed = []
 failed = []

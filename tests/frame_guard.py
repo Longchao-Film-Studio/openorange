@@ -27,12 +27,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from game_server import entity_rpc as _erpc   # noqa: E402
-from game_server import player_state as _pstate  # noqa: E402
-from game_server.property import sync as _sync  # noqa: E402
+from game_server import entity_rpc as _erpc
+from game_server import player_state as _pstate
+from game_server.property import sync as _sync
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shadow_cache import frames_safe   # noqa: E402
+from shadow_cache import frames_safe
 
 
 def pre_snapshot(uid):
