@@ -49,7 +49,7 @@ CHAIN_CLASSES = [
 def bdd_dir(arg):
     p = os.path.abspath(arg or _DEFAULT_BDD)
     if not os.path.isdir(p):
-        sys.exit("找不到 BDD 目录: %s\n用 --bdd 指定（例如 F:/haowancheng/archive/game_data/BDD）" % p)
+        sys.exit("找不到 BDD 目录: {}\n用 --bdd 指定（例如 F:/haowancheng/archive/game_data/BDD）".format(p))
     return p
 
 
@@ -117,7 +117,7 @@ def cmd_unlock(bdd):
         ut, up = v.get("unlockType"), v.get("unlockParam")
         kind = {1: "Task", 2: "StoryTask", 3: "Level"}.get(ut)
         if kind:
-            by[(kind, up)].append("%s(%s)" % (v.get("sysName"), v.get("id")))
+            by[(kind, up)].append("{}({})".format(v.get("sysName"), v.get("id")))
     print("=== 系统解锁规则（unlockType / unlockParam -> 系统）===")
     for k in sorted(by, key=lambda x: (x[0], str(x[1]))):
         names = by[k]
@@ -155,7 +155,7 @@ def cmd_walk(bdd, start):
         posts = v.get("PostTasks") or []
         cur = posts[0] if posts else None
     if i == 0:
-        print("  任务 %s 不在 StoryTaskData 里" % start)
+        print("  任务 {} 不在 StoryTaskData 里".format(start))
 
 
 def cmd_actor(bdd):

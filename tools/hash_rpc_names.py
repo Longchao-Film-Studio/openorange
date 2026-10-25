@@ -94,9 +94,9 @@ def cmd_build(argv):
     lua_src = os.environ.get("OO_LUA_SRC") or DEFAULT_LUA_SRC
     dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
     if not os.path.isdir(lua_src):
-        raise SystemExit("找不到 Lua 语料目录: %s" % lua_src)
+        raise SystemExit("找不到 Lua 语料目录: {}".format(lua_src))
     if not os.path.isfile(dll):
-        raise SystemExit("找不到 xlua.dll: %s" % dll)
+        raise SystemExit("找不到 xlua.dll: {}".format(dll))
 
     names, n_files = collect_names(lua_src)
     print("扫描 %d 个 Lua 文件，候选名字 %d 个" % (n_files, len(names)))
@@ -108,8 +108,8 @@ def cmd_build(argv):
 
     lib, state = _open_lua(dll)
     lua_code = """
-local f = io.open('%s', 'r')
-local o = io.open('%s', 'w')
+local f = io.open('{}', 'r')
+local o = io.open('{}', 'w')
 for line in f:lines() do
   if #line > 0 then
     local ok, v = pcall(phonestcore.genRpcIndex, line)
@@ -118,12 +118,12 @@ for line in f:lines() do
 end
 f:close()
 o:close()
-""" % (in_txt.replace("\\", "/"), OUT_TSV.replace("\\", "/"))
+""".format(in_txt.replace("\\", "/"), OUT_TSV.replace("\\", "/"))
     if lib.luaL_loadstring(state, lua_code.encode("utf-8")) != 0:
         raise SystemExit("Lua 片段加载失败")
     rc = lib.lua_pcall(state, 0, 0, 0)
     if rc != 0:
-        raise SystemExit("genRpcIndex 批处理失败 rc=%s" % rc)
+        raise SystemExit("genRpcIndex 批处理失败 rc={}".format(rc))
     n = sum(1 for _ in open(OUT_TSV, encoding="utf-8"))
     print("已写出 %s（%d 行）" % (OUT_TSV, n))
 
@@ -132,7 +132,7 @@ def cmd_lookup(argv):
     if not argv:
         raise SystemExit("用法: hash_rpc_names.py lookup <index> [<index> ...]")
     if not os.path.isfile(OUT_TSV):
-        raise SystemExit("映射表不存在，先跑 build: %s" % OUT_TSV)
+        raise SystemExit("映射表不存在，先跑 build: {}".format(OUT_TSV))
     by_hash = {}
     for line in open(OUT_TSV, encoding="utf-8"):
         parts = line.rstrip("\n").split("\t")
@@ -151,16 +151,16 @@ def cmd_verify(argv):
     """
     dll = os.environ.get("OO_XLUA_DLL") or DEFAULT_DLL
     if not os.path.isfile(dll):
-        raise SystemExit("找不到 xlua.dll: %s" % dll)
+        raise SystemExit("找不到 xlua.dll: {}".format(dll))
     sys.path.insert(0, ROOT)
     from game_server.entity_rpc import RPC_INDEX
 
     lib, state = _open_lua(dll)
-    lua_lines = ["local f = io.open('%s', 'w')" % os.path.join(
-        ROOT, "work", "verify_hashes.tsv").replace("\\", "/")]
+    lua_lines = ["local f = io.open('{}', 'w')".format(os.path.join(
+        ROOT, "work", "verify_hashes.tsv").replace("\\", "/"))]
     lua_lines.append("local names = {")
     for nm in RPC_INDEX:
-        lua_lines.append('  "%s",' % nm)
+        lua_lines.append('  "{}",'.format(nm))
     lua_lines.append("}")
     lua_lines.append("for _, n in ipairs(names) do")
     lua_lines.append("  local ok, v = pcall(phonestcore.genRpcIndex, n)")

@@ -55,7 +55,7 @@ RE_CB = re.compile(r'^\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,?\s*$')
 
 def parse_config():
     if not os.path.exists(CONFIG_LUA):
-        print("[gen_contract] 找不到 %s" % CONFIG_LUA, file=sys.stderr)
+        print("[gen_contract] 找不到 {}".format(CONFIG_LUA), file=sys.stderr)
         return {}
     with open(CONFIG_LUA, encoding="utf-8") as f:
         lines = f.read().split("\n")
@@ -64,7 +64,7 @@ def parse_config():
     i = 0
     n = len(lines)
     while i < n:
-        m = re.match(r"^\s*(%s)\s*=\s*\{\s*$" % "|".join(COMPONENTS), lines[i])
+        m = re.match(r"^\s*({})\s*=\s*\{{\s*$".format("|".join(COMPONENTS)), lines[i])
         if not m:
             i += 1
             continue
@@ -157,7 +157,7 @@ def main():
 
     if args.check:
         if not os.path.exists(OUT):
-            print("[gen_contract] %s 不存在" % OUT, file=sys.stderr)
+            print("[gen_contract] {} 不存在".format(OUT), file=sys.stderr)
             return 1
         with open(OUT, encoding="utf-8") as f:
             old = json.load(f)
@@ -177,7 +177,7 @@ def main():
              doc["_source"]))
     for k in sorted(doc["properties"]):
         rows = doc["properties"][k]
-        desc = "; ".join("%s->%s(op=%s)" % (r["callback"], r["section"],
+        desc = "; ".join("{}->{}(op={})".format(r["callback"], r["section"],
                                            r["optype"]) for r in rows)
         print("  %-42s %s" % (k, desc))
     return 0

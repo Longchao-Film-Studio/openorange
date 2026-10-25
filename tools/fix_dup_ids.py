@@ -54,7 +54,7 @@ def collect(obj, path="", out=None):
         for k, v2 in obj.items():
             if k == "__id__":
                 continue
-            collect(v2, "%s.%s" % (path, k), out)
+            collect(v2, "{}.{}".format(path, k), out)
     elif isinstance(obj, list):
         for i, v2 in enumerate(obj):
             collect(v2, "%s[%d]" % (path, i), out)
@@ -87,7 +87,7 @@ def fix(props, dry_run=False):
                       % (nid, len(group), keep[0]))
         for path, ref in group[1:]:
             if dry_run:
-                report.append("    [dry-run] %s 需要重新分配" % path)
+                report.append("    [dry-run] {} 需要重新分配".format(path))
                 continue
             new_id = _ids.alloc_id(props)
             ref["__id__"] = new_id
@@ -118,15 +118,15 @@ def main():
 
     total = 0
     for uid in targets:
-        p = os.path.join(state_dir, "%s.json" % uid)
+        p = os.path.join(state_dir, "{}.json".format(uid))
         if not os.path.exists(p):
-            print("跳过 %s：文件不存在" % uid)
+            print("跳过 {}：文件不存在".format(uid))
             continue
         with open(p, "r", encoding="utf-8") as f:
             d = json.load(f)
         props = d.get("props") or {}
         fixed, report = fix(props, dry_run=args.dry_run)
-        print("=== %s ===" % uid)
+        print("=== {} ===".format(uid))
         for line in report:
             print(line)
         if fixed and not args.dry_run:

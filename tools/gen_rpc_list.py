@@ -116,7 +116,7 @@ def load_implemented():
         from game_server import entity_rpc
         return set(entity_rpc.RPC_INDEX.keys())
     except Exception as e:
-        print("[warn] 读不到 entity_rpc.RPC_INDEX: %s" % e)
+        print("[warn] 读不到 entity_rpc.RPC_INDEX: {}".format(e))
         return set()
 
 
@@ -126,7 +126,7 @@ def main():
     args = ap.parse_args()
 
     if not os.path.isdir(LUA_SRC):
-        raise SystemExit("找不到 Lua 源码目录: %s（用 OO_LUA_SRC 指定）" % LUA_SRC)
+        raise SystemExit("找不到 Lua 源码目录: {}（用 OO_LUA_SRC 指定）".format(LUA_SRC))
 
     sonly = parse_server_only_msg()
     sites = scan_client_calls()
@@ -150,11 +150,11 @@ def main():
     with open(OUT_TSV, "w", encoding="utf-8") as f:
         f.write("direction\tname\tindex\timplemented\tparams\tsites\n")
         for name, params in sonly.items():
-            f.write("S2C\t%s\t%s\t%s\t%s\t\n" % (
+            f.write("S2C\t{}\t{}\t{}\t{}\t\n".format(
                 name, hashes.get(name, ""),
                 "yes" if name in implemented else "no", params))
         for name, ss in sorted(sites.items()):
-            f.write("C2S\t%s\t%s\t%s\t\t%s\n" % (
+            f.write("C2S\t{}\t{}\t{}\t\t{}\n".format(
                 name, hashes.get(name, ""),
                 "yes" if name in implemented else "no",
                 ";".join("%s:%d" % s for s in ss[:3])))
@@ -236,7 +236,7 @@ def main():
     lines.append("| 消息 | 索引 | 已实现 | 参数 |")
     lines.append("|---|---|---|---|")
     for name, params in sonly.items():
-        lines.append("| `%s` | %s | %s | %s |" % (
+        lines.append("| `{}` | {} | {} | {} |".format(
             name, hashes.get(name, "?"),
             "✅" if name in implemented else "",
             params.replace("|", "\\|") or "(无)"))
@@ -246,7 +246,7 @@ def main():
     lines.append("| RPC | 索引 | 已实现 | 调用点（最多 3 处） |")
     lines.append("|---|---|---|---|")
     for name, ss in sorted(sites.items()):
-        lines.append("| `%s` | %s | %s | %s |" % (
+        lines.append("| `{}` | {} | {} | {} |".format(
             name, hashes.get(name, "?"),
             "✅" if name in implemented else "",
             "<br>".join("%s:%d" % s for s in ss[:3])))
@@ -255,8 +255,8 @@ def main():
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print("\n已写出:")
-    print("  %s" % OUT_MD)
-    print("  %s" % OUT_TSV)
+    print("  {}".format(OUT_MD))
+    print("  {}".format(OUT_TSV))
     return 0
 
 

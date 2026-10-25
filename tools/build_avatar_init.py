@@ -478,7 +478,7 @@ def gen_top(types, typ):
 
 def main():
     if not os.path.exists(CONFIG_LUA):
-        raise SystemExit("找不到 config.lua: %s" % CONFIG_LUA)
+        raise SystemExit("找不到 config.lua: {}".format(CONFIG_LUA))
     txt = open(CONFIG_LUA, encoding="utf-8", errors="replace").read()
     types = parse_custom_types(txt)
     print("自定义类型: %d（结构体 %d）"
@@ -524,14 +524,14 @@ def main():
     for k, entries in SEED.items():
         node = props.get(k)
         if not isinstance(node, dict):
-            raise SystemExit("SEED 目标属性不存在或不是自定义类型: %s" % k)
+            raise SystemExit("SEED 目标属性不存在或不是自定义类型: {}".format(k))
         node.update(entries)
 
     # 初始角色：往 characterBag 里塞一个男主角色
     for prop, chars in STARTER_CHARS.items():
         node = props.get(prop)
         if not isinstance(node, dict):
-            raise SystemExit("STARTER_CHARS 目标属性不存在: %s" % prop)
+            raise SystemExit("STARTER_CHARS 目标属性不存在: {}".format(prop))
         for char_id, overrides in chars.items():
             info = gen_nested(types, "CharacterInfo")
             info.update(overrides)
@@ -544,7 +544,7 @@ def main():
     for prop, items in STARTER_FORMATION.items():
         node = props.get(prop)
         if not isinstance(node, dict):
-            raise SystemExit("STARTER_FORMATION 目标属性不存在: %s" % prop)
+            raise SystemExit("STARTER_FORMATION 目标属性不存在: {}".format(prop))
         for idx, item in enumerate(items, 1):
             ent = gen_nested(types, "Character")
             for k, v in item.items():
@@ -561,7 +561,7 @@ def main():
     for prop, entries in STARTER_ITEMS.items():
         node = props.get(prop)
         if not isinstance(node, dict):
-            raise SystemExit("STARTER_ITEMS 目标属性不存在: %s" % prop)
+            raise SystemExit("STARTER_ITEMS 目标属性不存在: {}".format(prop))
         for ent in entries:
             info = gen_nested(types, "ItemInfo")
             info.update(ent)
@@ -571,7 +571,7 @@ def main():
     for prop, ids in STARTER_FASHIONS.items():
         node = props.get(prop)
         if not isinstance(node, dict):
-            raise SystemExit("STARTER_FASHIONS 目标属性不存在: %s" % prop)
+            raise SystemExit("STARTER_FASHIONS 目标属性不存在: {}".format(prop))
         for fid in ids:
             ent = gen_nested(types, "Fashion")
             ent["id"] = fid

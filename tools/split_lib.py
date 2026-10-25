@@ -33,7 +33,7 @@ def _starts(lines):
 def take(src, name):
     """整段取走顶层定义 name，返回 (chunk, rest)。"""
     lines = src.split("\n")
-    pat = re.compile(r"^(def %s\(|%s = )" % (re.escape(name), re.escape(name)))
+    pat = re.compile(r"^(def {}\(|{} = )".format(re.escape(name), re.escape(name)))
     idx = [i for i, l in enumerate(lines) if pat.match(l)]
     if len(idx) != 1:
         raise SystemExit("take(%s): 命中 %d 处" % (name, len(idx)))

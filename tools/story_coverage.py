@@ -52,9 +52,9 @@ EVENT_PARAM_KEYS = {
 
 
 def _table(name):
-    p = os.path.join(BDD_DIR, "TableData.CommonData.%s.json" % name)
+    p = os.path.join(BDD_DIR, "TableData.CommonData.{}.json".format(name))
     if not os.path.exists(p):
-        print("[coverage] 找不到 %s" % p, file=sys.stderr)
+        print("[coverage] 找不到 {}".format(p), file=sys.stderr)
         return {}
     with open(p, encoding="utf-8") as f:
         d = json.load(f)
@@ -140,7 +140,7 @@ def completable(S, T, E, tid, SP=None):
         # FinishSpaceTask_Directly_CS {taskId}，服务端按 avatarTask 完成剧情任务。
         # 阶段 E 只看 StoryTaskData 就下了「无完成条件」的结论，漏了 SpaceTask 这层。
         if SP and tid in SP:
-            return True, "SpaceTask 驱动（SpaceTask %s，副本 %s 关卡 %s）" % (
+            return True, "SpaceTask 驱动（SpaceTask {}，副本 {} 关卡 {}）".format(
                 SP[tid].get("id"), SP[tid].get("dungeonId"),
                 SP[tid].get("levelId"))
         return False, "type0 但没有 SpaceTask.avatarTask 指向它"
@@ -160,8 +160,8 @@ def completable(S, T, E, tid, SP=None):
         except Exception:
             return False, "type4 的 Parameter1[0] 不是整数"
         if want not in street_ids():
-            return False, "type4 的 Parameter1[0]=%s 不是合法 StreetData 键" % want
-        return True, "街区型（切街到 Parameter1[0]=%s）" % want
+            return False, "type4 的 Parameter1[0]={} 不是合法 StreetData 键".format(want)
+        return True, "街区型（切街到 Parameter1[0]={}）".format(want)
     if tt in (3, 7):
         # 阶段 I 修正：Parameter1 对 type3/7 不总是指向 TaskData。
         # 实测 92 条指向 TaskData（有 TriggerEventList，可判定），
@@ -181,10 +181,10 @@ def completable(S, T, E, tid, SP=None):
               and _keys_of(E_by_type(E, e), "EventParam")
               <= EVENT_PARAM_KEYS.get(e, set())]
         if ok:
-            return True, "事件型（%s）" % ",".join(sorted(set(ok)))
-        return False, "需要未实现事件：%s" % ",".join(
-            sorted({e for e in ets if e not in IMPL_EVENTS}))
-    return False, "未知 TaskType=%s" % tt
+            return True, "事件型（{}）".format(",".join(sorted(set(ok))))
+        return False, "需要未实现事件：{}".format(",".join(
+            sorted({e for e in ets if e not in IMPL_EVENTS})))
+    return False, "未知 TaskType={}".format(tt)
 
 
 def E_by_type(E, etype):
@@ -271,13 +271,13 @@ def main():
           % (report["completable"], report["coverage_pct"]))
     print("  阻塞                     : %d" % report["blocked"])
     print("-" * W)
-    print("可达任务的 TaskType 分布   : %s" % report["reachable_by_type"])
-    print("可完成任务的 TaskType 分布 : %s" % report["completable_by_type"])
+    print("可达任务的 TaskType 分布   : {}".format(report["reachable_by_type"]))
+    print("可完成任务的 TaskType 分布 : {}".format(report["completable_by_type"]))
     print("-" * W)
     print("阻塞原因：")
     for why, cnt in report["blocked_reasons"].items():
         print("  %-46s %d" % (why, cnt))
-        print("      例: %s" % report["blocked_samples"][why][:8])
+        print("      例: {}".format(report["blocked_samples"][why][:8]))
     print("=" * W)
     return 0
 

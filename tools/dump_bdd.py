@@ -151,7 +151,7 @@ def main():
         if rc != 0:
             n = c_size_t(0)
             msg = lib.lua_tolstring(L, -1, ctypes.byref(n))
-            print("  [%s] 失败: %s" % (label, msg.decode("utf-8", "replace") if msg else "?"))
+            print("  [{}] 失败: {}".format(label, msg.decode("utf-8", "replace") if msg else "?"))
             lib.lua_settop(L, 0)
             return False
         lib.lua_settop(L, 0)
@@ -160,9 +160,9 @@ def main():
     print("初始化 bdd ...")
     run("bdd.init()", "init")
     print("加载 pmdata.bin ...")
-    run("pcall(bdd.load_from_file, '%s')" % pm, "load")
+    run("pcall(bdd.load_from_file, '{}')".format(pm), "load")
 
-    script = LUA_SCRIPT.replace("local OUT = ...", "local OUT = '%s'" % out_lua)
+    script = LUA_SCRIPT.replace("local OUT = ...", "local OUT = '{}'".format(out_lua))
     print("开始导出到", out)
     run(script, "dump")
     return 0

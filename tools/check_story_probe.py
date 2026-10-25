@@ -34,7 +34,7 @@ def main():
     print("=" * 60)
     text = read_log(LOG)
     if text is None:
-        print("找不到注入日志：%s" % LOG)
+        print("找不到注入日志：{}".format(LOG))
         return 2
     lines = text.split(chr(10))
     print("日志行数：%d" % len(lines))

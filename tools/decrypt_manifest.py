@@ -118,7 +118,7 @@ def main():
             rel = info.get("release", {}).get("win64", {}).get("release", {})
             for k in ("patchlist", "dlclist", "hybridlist", "target_full_ver"):
                 if k in rel:
-                    print("       %s = %s" % (k, rel[k]))
+                    print("       {} = {}".format(k, rel[k]))
     return 0
 
 

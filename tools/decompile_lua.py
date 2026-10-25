@@ -93,7 +93,7 @@ def main():
             print("  %-60s %s" % (n, e))
         with open(os.path.join(out_dir, "_decompile_failed.txt"), "w", encoding="utf-8") as f:
             for n, e in failed:
-                f.write("%s\t%s\n" % (n, e))
+                f.write("{}\t{}\n".format(n, e))
     return 0 if fail == 0 else 1
 
 

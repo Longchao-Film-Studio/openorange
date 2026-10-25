@@ -46,7 +46,7 @@ def check_dab(path):
             head = f.read(8)
         size = os.path.getsize(path)
     except OSError as e:
-        return False, "读不到: %s" % e
+        return False, "读不到: {}".format(e)
     if head.startswith(UNITYFS):
         return True, "正常 (UnityFS, %d B)" % size
     if head == ZEROS:
@@ -64,10 +64,10 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(args.zip_path):
-        print("zip 不存在: %s" % args.zip_path)
+        print("zip 不存在: {}".format(args.zip_path))
         return 2
 
-    print("打开 %s (%.2f GB)" % (args.zip_path,
+    print("打开 {} ({:.2f} GB)".format(args.zip_path,
                                  os.path.getsize(args.zip_path) / 1024 ** 3))
     with zipfile.ZipFile(args.zip_path) as z:
         infos = z.infolist()
@@ -87,7 +87,7 @@ def main():
         for name in want:
             info = by_name.get(name)
             if info is None:
-                print("  [缺失] %s" % name)
+                print("  [缺失] {}".format(name))
                 continue
             found.append((name, info))
             print("  [找到] %s  %d B  路径: %s"
@@ -107,21 +107,21 @@ def main():
         out_dir = args.out or os.path.join(HERE, "work", "patch_dabs")
         os.makedirs(out_dir, exist_ok=True)
         print()
-        print("解压到 %s" % out_dir)
+        print("解压到 {}".format(out_dir))
         ok_files = []
         for name, info in found:
             dst = os.path.join(out_dir, name)
             with z.open(info) as src, open(dst, "wb") as f:
                 shutil.copyfileobj(src, f)
             good, why = check_dab(dst)
-            print("  %s -> %s" % (name, why))
+            print("  {} -> {}".format(name, why))
             if good:
                 ok_files.append(name)
 
         if not args.install:
             print()
             print("完成。要装进游戏加 --install，或手动拷到:")
-            print("  %s" % GAME_PATCH_DIR)
+            print("  {}".format(GAME_PATCH_DIR))
             return 0
 
         if not ok_files:
@@ -133,17 +133,17 @@ def main():
         bak_dir = os.path.join(GAME_PATCH_DIR, "_corrupt_backup")
         os.makedirs(bak_dir, exist_ok=True)
         print()
-        print("安装到 %s" % GAME_PATCH_DIR)
+        print("安装到 {}".format(GAME_PATCH_DIR))
         for name in ok_files:
             dst = os.path.join(GAME_PATCH_DIR, name)
             if os.path.exists(dst):
                 good, why = check_dab(dst)
                 if not good:
                     shutil.move(dst, os.path.join(bak_dir, name))
-                    print("  备份坏文件 %s -> _corrupt_backup/" % name)
+                    print("  备份坏文件 {} -> _corrupt_backup/".format(name))
             shutil.copy2(os.path.join(out_dir, name), dst)
             good, why = check_dab(dst)
-            print("  装好 %s -> %s" % (name, why))
+            print("  装好 {} -> {}".format(name, why))
         print()
         print("完成。重启游戏验证 HUD。")
         return 0

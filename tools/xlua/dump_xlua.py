@@ -28,7 +28,7 @@ def main():
     h = k32.LoadLibraryW(dll)
     if not h:
         sys.exit("LoadLibrary 失败: %d" % ctypes.get_last_error())
-    print("模块基址: %#x" % h)
+    print("模块基址: {:#x}".format(h))
 
     base = h
     hdr = ctypes.string_at(base, 0x1000)

@@ -117,7 +117,7 @@ def load(tag):
         bundles = parse_ab_mapping(ab) if os.path.exists(ab) else {}
         packs = parse_big_pack(bp) if os.path.exists(bp) else []
         return bundles, packs
-    raise SystemExit("未知清单: %s" % tag)
+    raise SystemExit("未知清单: {}".format(tag))
 
 
 def cmd_stats(_argv):
@@ -125,7 +125,7 @@ def cmd_stats(_argv):
         bundles, packs = load(tag)
         n_paths = sum(len(v) for v in bundles.values())
         dabs = [f for f in os.listdir(d) if f.lower().endswith(".dab")] if os.path.isdir(d) else []
-        print("== %s (%s)" % (tag, d))
+        print("== {} ({})".format(tag, d))
         print("   资源包 %d 个，资源路径 %d 条" % (len(bundles), n_paths))
         print("   big_pack_info 名字 %d 个（含包名与大包名）" % len(packs))
         print("   盘上 .dab 大包 %d 个" % len(dabs))
@@ -136,12 +136,12 @@ def cmd_lookup(argv):
         raise SystemExit("用法: parse_ab_mapping.py lookup <关键字> [关键字 ...]")
     for tag, _d in SOURCES:
         bundles, _packs = load(tag)
-        print("== %s" % tag)
+        print("== {}".format(tag))
         for kw in argv:
             hits = [(b, a) for b, ps in bundles.items() for a in ps if kw.lower() in a.lower()]
             print("   关键字 %-20s 命中 %d" % (kw, len(hits)))
             for b, a in hits[:10]:
-                print("      %s  <-  %s" % (b, a))
+                print("      {}  <-  {}".format(b, a))
 
 
 def cmd_scene(argv):

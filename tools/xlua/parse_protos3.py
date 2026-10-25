@@ -91,7 +91,7 @@ def dump_message(blob, lines):
     mname = b"?"
     for f, wt, v in fs:
         if f == 1 and wt == 2: mname = v
-    lines.append("**%s**" % mname.decode())
+    lines.append("**{}**".format(mname.decode()))
     lines.append("")
     for f, wt, v in fs:
         if f != 2 or wt != 2: continue
@@ -105,7 +105,7 @@ def dump_message(blob, lines):
             elif a == 6 and w2 == 2: tname = b.decode()
         ts = TYPES.get(typ, str(typ))
         if tname: ts = tname
-        lines.append("- %s = %s : %s %s" % (num, nm, LABELS.get(lab, ""), ts))
+        lines.append("- {} = {} : {} {}".format(num, nm, LABELS.get(lab, ""), ts))
     lines.append("")
 
 lines = []

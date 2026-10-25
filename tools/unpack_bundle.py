@@ -125,7 +125,7 @@ def parse_bundle(data):
     p = 0
     sig, p = read_cstr(data, p)
     if sig not in ("UnityFS", "ENCR"):
-        raise RuntimeError("不是 UnityFS 包: %r" % sig)
+        raise RuntimeError("不是 UnityFS 包: {!r}".format(sig))
     version = struct.unpack_from(">I", data, p)[0]; p += 4
     unity_ver, p = read_cstr(data, p)
     unity_rev, p = read_cstr(data, p)
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     data = open(path, "rb").read()
     print("文件:", os.path.basename(path), len(data), "字节")
     info = parse_bundle(data)
-    print("Unity 版本:", info["unity_revision"], " flags=0x%X" % info["flags"])
+    print("Unity 版本:", info["unity_revision"], " flags=0x{:X}".format(info["flags"]))
     print("加密:", info["encrypted"], " Sub:", info.get("sub"))
     print("块数:", len(info["blocks"]), " 节点数:", len(info["nodes"]))
     print("解压后数据流:", len(info["stream"]), "字节")

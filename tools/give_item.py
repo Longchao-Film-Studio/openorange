@@ -133,8 +133,8 @@ def main():
 
     st = pstate.PlayerState(uid=args.uid, props=props)
     if not st.save():
-        raise SystemExit("写盘失败: %s" % st.path())
-    print("已写入 %s" % st.path())
+        raise SystemExit("写盘失败: {}".format(st.path()))
+    print("已写入 {}".format(st.path()))
     print("提示：需要重新登录游戏才生效。")
     return 0
 

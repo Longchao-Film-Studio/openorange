@@ -98,7 +98,7 @@ class Phonest:
         if rc != 0:
             n = c_size_t(0)
             msg = lib.lua_tolstring(self.L, -1, ctypes.byref(n))
-            print("  [%s] ERR %s" % (label, msg.decode("utf-8", "replace") if msg else "?"),
+            print("  [{}] ERR {}".format(label, msg.decode("utf-8", "replace") if msg else "?"),
                   flush=True)
             lib.lua_settop(self.L, 0)
             return False
@@ -158,7 +158,7 @@ def main():
     ph.pump(40)
 
     print("[probe] 已连接，抓包 %d 个" % len(cap), flush=True)
-    ph.run("pcall(function() COBJ:dispatchRpc(%r, 'A') end)" % args.rpc, "dispatch")
+    ph.run("pcall(function() COBJ:dispatchRpc({!r}, 'A') end)".format(args.rpc), "dispatch")
     ph.pump(20)
     print("[probe] dispatch 后抓包: %s" % [x.hex() for x in cap], flush=True)
 
@@ -169,11 +169,11 @@ def main():
             ("len2+0000",  bytes.fromhex("020000000000")),
         ]
         for label, payload in trials:
-            print("[probe] 发送 %s: %s" % (label, payload.hex()), flush=True)
+            print("[probe] 发送 {}: {}".format(label, payload.hex()), flush=True)
             try:
                 holder["conn"].sendall(payload)
             except Exception as e:
-                print("  发送失败: %s" % e, flush=True)
+                print("  发送失败: {}".format(e), flush=True)
             ph.pump(25)
             ph.run(r"""
 local n = #CALLED

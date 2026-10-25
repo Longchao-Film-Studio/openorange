@@ -201,7 +201,7 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(CONFIG_LUA):
-        raise SystemExit("找不到 config.lua: %s" % CONFIG_LUA)
+        raise SystemExit("找不到 config.lua: {}".format(CONFIG_LUA))
     txt = open(CONFIG_LUA, encoding="utf-8", errors="replace").read()
 
     types = parse_custom_types(txt)
@@ -236,7 +236,7 @@ def main():
                       if p["type"] not in ("int", "double", "string", "boolean")
                       and p["type"] not in types})
     if missing:
-        print("  ⚠ 属性引用了但 Custom 里没有的类型: %s" % missing)
+        print("  ⚠ 属性引用了但 Custom 里没有的类型: {}".format(missing))
     else:
         print("  ✅ 属性引用的自定义类型全部存在")
 
@@ -245,9 +245,9 @@ def main():
     for tn, t in types.items():
         for f, (ft, _dv) in t["props"].items():
             if ft not in ("int", "double", "string", "boolean") and ft not in types:
-                bad_fields.append("%s.%s -> %s" % (tn, f, ft))
+                bad_fields.append("{}.{} -> {}".format(tn, f, ft))
     if bad_fields:
-        print("  ⚠ 结构体字段引用了不存在的类型: %s" % bad_fields[:8])
+        print("  ⚠ 结构体字段引用了不存在的类型: {}".format(bad_fields[:8]))
     else:
         print("  ✅ 结构体字段类型全部存在")
 
@@ -261,7 +261,7 @@ def main():
         # ★ 审计 P1-6：--check 必须做 diff，否则客户端版本更新后
         #   spec_data.json 会静默变旧，Tx 的 struct/container 判断跟着错。
         if not os.path.exists(OUT_JSON):
-            print("❌ %s 不存在" % OUT_JSON)
+            print("❌ {} 不存在".format(OUT_JSON))
             return 1
         with open(OUT_JSON, "r", encoding="utf-8") as f:
             old = json.load(f)
@@ -291,8 +291,7 @@ def main():
     os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     with open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
-    print("写出 %s（%.1f KB）"
-          % (OUT_JSON, os.path.getsize(OUT_JSON) / 1024.0))
+    print("写出 {}（{:.1f} KB）".format(OUT_JSON, os.path.getsize(OUT_JSON) / 1024.0))
 
 
 if __name__ == "__main__":

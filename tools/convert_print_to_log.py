@@ -107,11 +107,11 @@ def convert_call(call_src):
         # 字符串 + 其余参数：保持 % 语义 —— logging 用 args 传
         rest = args[1:]
         if len(rest) == 1:
-            return lvl, "%s, %s" % (first, rest[0])
-        return lvl, "%s, (%s,)" % (first, ", ".join(rest))
+            return lvl, "{}, {}".format(first, rest[0])
+        return lvl, "{}, ({},)".format(first, ", ".join(rest))
     # 多参 print -> "%s %s" 形式
     n = len(args)
-    return lvl, '"%s" %% (%s,)' % (" ".join(["%s"] * n), ", ".join(args))
+    return lvl, '"{}" % ({},)'.format(" ".join(["%s"] * n), ", ".join(args))
 
 
 def process_file(path, write):
@@ -175,7 +175,7 @@ def process_file(path, write):
         prefix = line[:col]
         suffix = line[end + 1:]
         levels[lvl] = levels.get(lvl, 0) + 1
-        new_line = "%s_log.%s(%s)%s" % (prefix, lvl, new_args, suffix)
+        new_line = "{}_log.{}({}){}".format(prefix, lvl, new_args, suffix)
         lines[node.lineno - 1] = new_line
         changed += 1
 
@@ -199,7 +199,7 @@ def process_file(path, write):
         rel_norm = os.path.relpath(path, ROOT).replace("\\", "/")
         pkg_depth = rel_norm.count("/")          # 距仓库根的包层级
         dots = "." * pkg_depth
-        log_import = "from %slog_tee import get_logger" % dots
+        log_import = "from {}log_tee import get_logger".format(dots)
         lines.insert(last_top + 1, "")
         lines.insert(last_top + 2, log_import)
         lines.insert(last_top + 3, LOG_FOOTER)

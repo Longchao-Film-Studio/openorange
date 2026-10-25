@@ -110,7 +110,7 @@ def main():
     print("=" * W)
     print("系统入口真实可用率（tools/feature_coverage.py，现场生成）")
     print("=" * W)
-    print("账号            : %s（level=%s）" % (args.uid, st.props.get("level")))
+    print("账号            : {}（level={}）".format(args.uid, st.props.get("level")))
     print("系统入口总数    : %d" % total)
     print("数据条件满足    : %d" % n_data)
     print("服务端已推送    : %d" % n_push)
