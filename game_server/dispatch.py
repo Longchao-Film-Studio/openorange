@@ -71,10 +71,10 @@ from .rpc_common import (
 from .rpc_common import (
     state as _state,
 )
-from .rpc_common import (
+from .rpc_common import (  # noqa: F401  (re-export -> entity_rpc)
     sync_frame as _sync_frame,
 )
-from .rpc_common import (
+from .rpc_common import (  # noqa: F401  (re-export -> entity_rpc)
     throttled_save as _throttled_save,
 )
 
