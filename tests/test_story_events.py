@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """剧情触发引擎测试（TaskType 3 / 6 / 7）。
 
 逆向结论（BDD + Lua 全查证）：

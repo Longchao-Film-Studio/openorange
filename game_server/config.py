@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.config —— 游戏服唯一配置源。
 
 设计原则

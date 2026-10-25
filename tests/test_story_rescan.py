@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 D：链式扫全表（rescan）。
 
 ★ 背景：阶段 C 实测发现 PostTasks 与 PreTask 字段 958/958 完全一致，

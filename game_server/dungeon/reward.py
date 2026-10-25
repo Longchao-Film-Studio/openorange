@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """副本结算发奖（P0-E2 第 3 步）。
 
 LevelData 里**没有任何奖励字段**，奖励完全来自客户端算好的 battle_items

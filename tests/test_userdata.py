@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """UserDataService.batchGetAttribute 应答构造测试（阶段 1-3 主数据通道）。
 
 依据：

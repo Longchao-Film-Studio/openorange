@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """RPC 索引表 —— 名字 -> genRpcIndex，以及应答常量。
 
 从 entity_rpc.py 拆出来的纯数据模块（P0-E1）。这里不放任何业务逻辑：

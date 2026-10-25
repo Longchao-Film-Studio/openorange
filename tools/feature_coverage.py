@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """tools/feature_coverage.py —— 83 个系统入口的「真实可用率」。
 
 为什么必须有这个工具

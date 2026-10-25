@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """给玩家发角色（离线改存档）。
 
 用法

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """脚手架覆盖层测试（game_server/scaffold.py）。
 
 架构：脚手架是**运行时可开关的覆盖层**，不烤进 avatar_init.json。

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """同账号并发锁（雷5）回归测试。
 
 背景：PlayerState 按 uid 共享，业务 handler 大量直接写 st.props[...]，

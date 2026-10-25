@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2：街区切换测试。
 
 逆向依据：

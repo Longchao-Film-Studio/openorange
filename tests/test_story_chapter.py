@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 G：章节 / 收集 / 奖励（AvatarStorylineComp 的三个属性）。
 
 ★ 客户端契约（generated/config.lua:9958-9983）

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P0-C：客户端影子缓存校验测试。
 
 ## 这个测试在验什么

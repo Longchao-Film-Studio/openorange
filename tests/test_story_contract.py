@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 H：客户端回调面回归（元测试）。
 
 ★ 这个文件的目的

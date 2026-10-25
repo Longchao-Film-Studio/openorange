@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """统一日志组件（shared/log_tee.py）回归测试。
 
 用法: python tests/test_log_tee.py

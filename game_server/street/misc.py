@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """主线等级 / 街区剧情线 / CD 选择（P0-E2 第 4 步）。
 
 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua：

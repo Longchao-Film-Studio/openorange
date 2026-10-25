@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 r"""从 PC 整合包 zip 里精确取出缺失的 .dab 补丁文件。
 
 背景

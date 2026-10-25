@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P0-D：事件总线测试。
 
 ## 要验什么

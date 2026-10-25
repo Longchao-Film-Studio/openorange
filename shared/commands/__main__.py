@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """python -m shared.commands —— 手动敲几条命令看输出（开发自检用）。
 
 以前这段写在 __init__.py 里，靠 __name__ == "__main__" 触发；

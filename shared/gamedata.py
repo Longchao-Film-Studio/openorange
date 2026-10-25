@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """shared.gamedata —— 物品 / 角色 索引
 
 数据来源: tools/extract_tables.py 从客户端配置表抽取的 JSON。

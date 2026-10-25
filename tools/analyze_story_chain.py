@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """剧情与解锁链分析工具。
 
 数据来源

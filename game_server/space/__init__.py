@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """game_server.space -- 空间/场景业务域（P0-E2 第 2 步）。
 
 space.py 进出空间 + 场景加载完成

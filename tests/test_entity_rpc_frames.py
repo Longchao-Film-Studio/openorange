@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """实体帧解析 / 应答的抓包回归测试。
 
 用法:

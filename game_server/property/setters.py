@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Set*_CS 系列：改属性 + 推根/子属性同步（P0-E2 第 1 步）。
 
 客户端 entities/avatarcomponent/avataruserdatacomp.lua 里每个 setter 都是

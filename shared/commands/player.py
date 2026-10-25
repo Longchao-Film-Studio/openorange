@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """基础命令：/help /who /search /account /server /clear。"""
 import time
 

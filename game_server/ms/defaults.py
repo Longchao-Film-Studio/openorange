@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """默认 uid / 实体 id（P0-E3 从 ms.py 拆出）。
 
 ★ 这些值必须从 config 取，不要在这里写死端口/uid/实体 id

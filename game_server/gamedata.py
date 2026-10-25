@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.gamedata —— 只读访问客户端的 BDD 数据表。
 
 为什么需要它

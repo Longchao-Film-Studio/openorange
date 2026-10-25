@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """表情播放（P0-E2 第 1 步 → 审计 T3 补广播）。
 
 协议（avataraoicomp.lua）：

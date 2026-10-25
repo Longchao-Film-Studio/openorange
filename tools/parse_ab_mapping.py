@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """解析客户端的资源清单 ab_mapping.bin / big_pack_info.bin。
 
 这两个文件在

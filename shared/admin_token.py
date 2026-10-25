@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """本地管理接口的口令（雷3）。
 
 背景

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """街区条目（street_info）基础设施（P0-E2 第 4 步）。
 
 street_info 是 StreetInfoDict（generated/config.lua:6834/6928），客户端多处

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """生成 game_server/property/spec_data.json —— 属性声明表（P0 地基 B1）。
 
 数据来源：客户端 generated/config.lua（**权威声明表**）

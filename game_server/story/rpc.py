@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """剧情任务的 RPC 入口与落状态（P0-E2 第 2 步）。
 
 落状态的**唯一**入口是 _finish_story_tasks：

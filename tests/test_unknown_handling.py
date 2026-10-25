@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """未实现请求的处理策略（雷2）回归测试。
 
 背景

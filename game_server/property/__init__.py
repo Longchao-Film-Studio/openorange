@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """game_server.property —— 属性同步地基（P0）。
 
 模块：

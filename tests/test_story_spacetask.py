@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 J：TaskType=0 的完成路径（SpaceTask 驱动）。
 
 ★ 这个阶段推翻了阶段 E 的结论

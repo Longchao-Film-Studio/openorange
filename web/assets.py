@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """web.assets —— 静态资源与页面模板加载（P0-E3 从 web/app.py 抽出）。
 
 约定：

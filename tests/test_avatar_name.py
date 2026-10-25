@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 N-a1：取名链路（RpcCheckNickName / RpcChangeNickName / RpcCommitNameGender）。
 
 ★ 为什么有这个测试

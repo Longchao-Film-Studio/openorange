@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """自定义类型工厂（property/factory.py）回归测试。
 
 背景（2026-10-23）

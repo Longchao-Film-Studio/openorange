@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """tools/gen_contract.py —— 从客户端 generated/config.lua 生成回调契约表。
 
 为什么必须有这个工具

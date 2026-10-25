@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.stamina —— 体力（时之砂 / tower_reward_keys）。
 
 数据依据

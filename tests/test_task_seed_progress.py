@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 N-a2 / N-a3：通用任务播种 + 事件驱动进度推进。
 
 ★ 为什么有这个测试

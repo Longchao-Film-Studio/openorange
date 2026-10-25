@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """shared.models —— 账号/票据的业务逻辑(网页与启动器共用)
 
 账号策略:

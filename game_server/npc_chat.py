@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """NPC 手机短信的三个实体 RPC（avatarnpcchatcomp.lua:26-95）。
 
 逆向依据：

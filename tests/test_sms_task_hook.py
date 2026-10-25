@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P6 短信任务钩子测试：任务推进时自动解锁短信（docs/计划-剧情短信RPC.md P6）。
 
 不变量：

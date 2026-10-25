@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.story.state_machine —— 剧情任务状态机（唯一写入口）。
 
 ★ P1 阶段 A：为什么要有这个模块

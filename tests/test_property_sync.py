@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """propertySync2Client 与写操作链路测试。
 
 propertySyncClientMessage 的字段是扫客户端进程内存拿到的 proto 描述符：

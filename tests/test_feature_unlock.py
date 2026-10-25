@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """roadmap 队列第 2 项：功能解锁修复（83 个系统入口）。
 
 ★ 背景（docs/功能解锁research.md / docs/检讨-功能解锁遗漏.md）

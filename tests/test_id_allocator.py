@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P0-A：单一 __id__ 分配器测试。
 
 背景（2026-10-21 审计）：

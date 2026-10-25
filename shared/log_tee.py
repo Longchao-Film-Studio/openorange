@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """统一日志（logging 模块 + 级别）。
 
 文件布局（config.LOG_DIR，默认 work/logs/）：

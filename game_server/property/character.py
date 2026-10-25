@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """角色数据 RPC（P0-E2）。
 
 UpgradeCharacter_CS：加 CharLevel + 推 characterBag 子属性同步。

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """副本内关卡切换与战斗教学（P0-E2 第 3 步）。
 
 ★ 逆向依据 battlecontainer/dispatchhub/dispatchhubonline.lua:198-232：

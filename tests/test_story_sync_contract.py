@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 B：属性同步契约（服务端发的帧 vs 客户端 PropertyCallbacks）。
 
 ★ 这份测试的唯一目的：把 docs/P1-剧情任务状态机.md §2.1 那张表变成可执行断言。

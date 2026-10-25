@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """把归龙潮的 BDD 配置表数据库（pmdata.bin）完整导出。
 
 原理：

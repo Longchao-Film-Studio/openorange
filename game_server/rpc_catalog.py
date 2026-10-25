@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """RPC 名字反查（未实现请求落盘 / 黑名单用）。
 
 数据源

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """实体 RPC（serverRpc）应答层 —— 兼容层（P0-E2）。
 
 历史名字，保留是为了不改动 server.py / tests / tools 里已有的

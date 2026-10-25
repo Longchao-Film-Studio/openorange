@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """街景宝箱奖励测试。
 
 逆向依据（BDD StreetTreasureTaskData，44 条）：

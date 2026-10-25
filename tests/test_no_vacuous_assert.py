@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """元测试：禁止「空断言」—— check(<名字>, True/False) 字面量。
 
 ★ 为什么必须有（2026-10-22 检讨）
@@ -25,27 +24,27 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 豁免清单：(相对路径, 行号) -> 理由。每条必须写清「为什么这不是空断言」。
-# 豁免清单：(相对路径, 行号) -> 理由。每条必须写清「为什么这不是空断言」。
 # ★ 只查 `True` 字面量：`check(..., False, reason)` 是「守卫分支主动标失败」，
 #   本身永远不会「假通过」，不在此列。
 ALLOW = {
-    ("tests/test_position.py", 159):
+    # ★ 2026-10-25 ruff UP009 批量清理删了各测试文件的 coding 声明行，以下行号整体 -1
+    ("tests/test_position.py", 158):
         "可达性断言：上一行 guarded_handle 抛异常会直接崩，能走到这行就说明没崩",
-    ("tests/test_shadow_coverage.py", 149):
+    ("tests/test_shadow_coverage.py", 148):
         "在 try 内、check_frames 调用之后；能走到就说明没抛 AssertionError",
-    ("tests/test_story.py", 95):
+    ("tests/test_story.py", 94):
         "信息性：1000 无奖励是已知事实，有奖励时的真实验证在 if 分支里",
-    ("tests/test_story_sync_contract.py", 284):
+    ("tests/test_story_sync_contract.py", 283):
         "文档化不适用：首通本来就不走 changed，真验证在第二次触发那一项",
-    ("tests/test_story_sync_contract.py", 319):
+    ("tests/test_story_sync_contract.py", 318):
         "文档化不适用：SECOND_PASS 里列出的是本次场景不可达的契约行",
-    ("tests/test_phase2_coverage.py", 103):
+    ("tests/test_phase2_coverage.py", 102):
         "汇总信息性输出；每条 RPC 的覆盖在上方逐条断言",
-    ("tests/test_id_allocator.py", 130):
+    ("tests/test_id_allocator.py", 129):
         "try 内可达性：check_frames 抛 AssertionError 会走 except 分支标失败",
-    ("tests/test_ms_frames.py", 48):
+    ("tests/test_ms_frames.py", 47):
         "try 内可达性：上面调用抛异常会走 except 分支标失败",
-    ("tests/test_multi_account.py", 190):
+    ("tests/test_multi_account.py", 189):
         "try 内可达性：sync_frame 抛异常会走 except 分支标失败",
 }
 

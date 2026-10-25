@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """管理接口口令（雷3）回归测试。
 
 背景：admin_api 原来写死 DEFAULT_TOKEN="local-dev"，启动脚本也不覆盖 ——

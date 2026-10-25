@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """把内存 dump 重建成合法 PE（file offset == RVA），供 Ghidra 正常导入。
 
 原理：dump 出来的镜像里，每个段的字节就位于它的 VirtualAddress 处。

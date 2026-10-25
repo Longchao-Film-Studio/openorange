@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2 覆盖度验收：按 docs/RPC缺口分析.md 的四个组逐条核对。
 
 判据：

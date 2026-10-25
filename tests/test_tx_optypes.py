@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """B 段「变更集框架」6 项测试的正式用例（P0-B 收尾）。
 
 对应 docs/P0-地基.md B 段「测试」那 6 条：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """拆文件助手（P0-E2 专用，不参与运行时）。
 
 entity_rpc.py 有 2600+ 行、87 个顶层定义。手工搬容易漏行、容易把

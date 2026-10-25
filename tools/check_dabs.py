@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 r"""体检：扫描游戏所有 .dab 文件，找出文件头不是 UnityFS 的坏文件。
 
 正常 Unity .dab 文件头是 "UnityFS"（55 6E 69 74 79 46 53）。

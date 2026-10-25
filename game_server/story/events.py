@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """game_server.story.events —— 事件总线（P0-D）。
 
 ## 要解决的问题

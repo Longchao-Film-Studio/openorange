@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 C：任务播种器。
 
 ★ 不变量（本文件逐条验证）

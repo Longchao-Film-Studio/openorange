@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """体力（时之砂 / tower_reward_keys）测试。
 
 数据依据：

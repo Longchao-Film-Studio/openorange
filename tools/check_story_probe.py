@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """tools/check_story_probe.py —— 实机测试后一键看结果。
 
 用法（客户端测完关掉后跑）：

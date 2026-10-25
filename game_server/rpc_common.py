@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """跨业务域共用的 RPC 基础设施（P0-E2）。
 
 拆 entity_rpc.py 时发现，有四个东西几乎每个业务域都要用：

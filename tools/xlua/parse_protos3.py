@@ -1,5 +1,4 @@
 
-# -*- coding: utf-8 -*-
 """完整解析 proto 描述符：service / method / message / field。"""
 import sys
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")

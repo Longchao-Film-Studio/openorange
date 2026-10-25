@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """解密客户端那几个加密清单（AES-256-ECB + Base64）。
 
 哪些文件是加密的

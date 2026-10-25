@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.scaffold —— 脚手架覆盖层（默认关闭）。
 
 它是什么

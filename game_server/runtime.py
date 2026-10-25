@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.runtime —— 运行时可变状态（进程内）。
 
 和 config.py 的区别：

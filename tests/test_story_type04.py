@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 E / 阶段 P：TaskType 0 / TaskType 4。
 
 ★ Type4（13 条）—— 2026-10-22 阶段 P 已纠正完成条件

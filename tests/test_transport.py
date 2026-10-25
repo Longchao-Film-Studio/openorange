@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """传输层回归测试（P0 遗留第 1 条：server.py -> transport/ 拆分之后补的）。
 
 为什么需要：拆分前 transport 层只有人工验证，32 套件 1176 项全绿也**覆盖不到**

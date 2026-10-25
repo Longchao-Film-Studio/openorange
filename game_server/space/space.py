@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """空间/场景进出（P0-E2 第 2 步）。
 
 逆向依据 entities/avatarcomponent/avatarspacecomp.lua：

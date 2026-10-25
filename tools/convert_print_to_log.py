@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 _QUOTED = "^(f|r|b)?(['\"])"
 """print -> logging AST 转换器（一次性迁移工具）。
 

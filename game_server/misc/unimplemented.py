@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """客户端发、服务端只需静默或只回 status=true 的 RPC（P0-E2 第 1 步）。
 
 分两类：

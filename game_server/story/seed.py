@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.story.seed —— 剧情任务播种器（阶段 C）。
 
 ★ 为什么需要它

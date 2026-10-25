@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2：街景声望 + 派遣 + AOI 表情。
 
 逆向依据：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """街区切换 / 离开 / 位置上报（P0-E2 第 4 步）。
 
 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:107-128, 651-668：

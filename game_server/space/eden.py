@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """伊甸（Eden）（P0-E2 第 2 步）。
 
 逆向依据 entities/avatarcomponent/avataredencomp.lua:30-39：

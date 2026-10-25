@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """游戏命令：/give /char /lv /money /tp /quest /story /act。
 
 ★ 诚实化（2026-10-23）：不再「解析+预览+未生效」然后假装成功了。

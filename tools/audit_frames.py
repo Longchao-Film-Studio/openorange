@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """影子缓存覆盖率审计：跑测试时顺便把每一帧喂进客户端影子缓存，收集不安全的帧。
 
 用法（由 tools/audit_frames_all.py 批量调）：

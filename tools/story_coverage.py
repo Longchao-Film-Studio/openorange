@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """tools/story_coverage.py —— 剧情任务覆盖率统计（P1 阶段 C/D 的验收工具）。
 
 为什么必须有这个工具

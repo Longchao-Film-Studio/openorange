@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """微服务（GameLoadService / UserDataService）连接处理（P0 遗留清理：从 server.py 拆出）。
 
 协议已完全解出（见 game_server/ms/ 头注释）：

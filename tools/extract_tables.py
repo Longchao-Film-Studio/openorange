@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """从反编译的客户端配置表里抽取 ID / 名字索引。
 
 用法:

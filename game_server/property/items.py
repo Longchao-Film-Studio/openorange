@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """背包与货币相关 RPC（P0-E2）。
 
   UseItem_CS          使用道具：扣数量 + 应用 ItemData 声明的效果

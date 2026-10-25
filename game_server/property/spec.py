@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """属性声明表（P0 地基 B1）。
 
 数据来自 spec_data.json（由 tools/gen_property_spec.py 从客户端

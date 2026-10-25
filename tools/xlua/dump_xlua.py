@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """从已加载的 xlua.dll 内存镜像里 dump 解密后的 PE。
 
 背景：xlua.dll 是加壳的 —— 文件里 .text/.rdata/.data 的 raw size 全是 0，

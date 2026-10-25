@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """initDict（createChannelEntity 的属性表）不变量测试。
 
 用法:

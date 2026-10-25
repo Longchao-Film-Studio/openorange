@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """把解包出来的 .luac 批量反编译成 .lua。
 
 用法:

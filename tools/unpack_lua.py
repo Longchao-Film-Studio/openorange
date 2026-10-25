@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """从客户端 Patch/Lua 的全部 .bytes 包里解出所有 Lua 文件。
 
 完全复刻 FPArchive.LuaArchiveFile.LoadAllArchiveFile 的逻辑：

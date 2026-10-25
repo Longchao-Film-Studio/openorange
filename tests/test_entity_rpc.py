@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """实体 RPC 应答层测试（阶段 1 地基）。
 
 用法:

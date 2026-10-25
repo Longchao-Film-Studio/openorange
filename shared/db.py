@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """shared.db —— OpenOrange 共享数据层(库, 非服务)
 
 web / game_server 都 import 本模块, 直接读写同一个 SQLite 文件。

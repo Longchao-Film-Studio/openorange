@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """game_server.dungeon -- 副本业务域（P0-E2 第 3 步）。
 
 enter.py  进副本入口（_avatar_start_game / _single_start_match）

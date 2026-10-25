@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """game_server.transport —— 传输层（P0 遗留清理：从 server.py 拆出）。
 
 server.py 原来 923 行，混了四件事：

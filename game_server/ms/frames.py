@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """帧封装与拆帧（P0-E3 从 ms.py 拆出）。
 
 帧格式：[u32 小端 载荷长度][u16 小端 类型][protobuf]

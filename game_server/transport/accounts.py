@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """多账号：gate 连接 <-> 账号 的关联（P0 遗留清理：从 server.py 拆出）。
 
 客户端登录顺序是固定的：ms 上先发 GameLoadService.query（带 Username），

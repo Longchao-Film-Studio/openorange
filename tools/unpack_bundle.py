@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """解包归龙潮的 UnityFS AssetBundle（UnityCN 归龙潮变体）。
 
 算法来源：AXiX-official/Studio（AssetStudio 分支）

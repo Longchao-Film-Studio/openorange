@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """通用任务（TaskData 那一套：task_bag / done_tasks）（P0-E2 第 2 步）。
 
 逆向依据 entities/avatarcomponent/avatartaskcomp.lua:

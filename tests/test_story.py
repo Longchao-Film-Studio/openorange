@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2：剧情任务推进测试。
 
 逆向依据 entities/avatarcomponent/avatarstorytaskcomp.lua:617-710：

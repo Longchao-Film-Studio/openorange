@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 I：主线可玩段端到端验收（服务端侧）。
 
 这个文件验什么

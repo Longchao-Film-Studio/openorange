@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """进副本入口（P0-E2 第 3 步）。
 
 两条入口：

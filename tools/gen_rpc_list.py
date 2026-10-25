@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """生成归龙潮的完整 RPC 总表。
 
 数据来源（三处合并）

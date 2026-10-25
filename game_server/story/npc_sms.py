@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """剧情短信（NPC 手机对话）领域层 —— 状态写入口唯一（R8）。
 
 背景与契约见 docs/方案-剧情短信.md / docs/计划-剧情短信RPC.md。

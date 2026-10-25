@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.admin_api —— 游戏服的本地管理接口（给网页命令系统用）。
 
 为什么要有这个

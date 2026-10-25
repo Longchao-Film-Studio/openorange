@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """阴阳界切换（P0-E2 第 4 步）。
 
 逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:433-448：

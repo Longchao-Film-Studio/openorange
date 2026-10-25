@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P0-B：属性声明表 / 变更集 / 序列化器 测试。
 
 覆盖：

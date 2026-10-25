@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """属性同步帧（P0-E3 从 ms.py 拆出）。
 
 propertySync2Client 的帧类型是 13，载荷是 protobuf：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """副本结算（P0-E2 第 3 步）。
 
 完整五步链路（见 ROADMAP 2-4 节）：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """start_server.py —— 一键启动 OpenOrange 的本地服务（开发用）
 
 用法:

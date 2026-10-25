@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """实体帧：应答构造 / 解析 / S2C 消息（P0-E3 从 ms.py 拆出）。
 
 ★ 应答不是独立帧类型，而是 entityMessage(type=2) 带 methodName=__rpc_response__。

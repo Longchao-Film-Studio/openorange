@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """用 genRpcIndex 当哈希预言机，把抓包里的 RPC 索引反查回名字。
 
 背景

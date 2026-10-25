@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """跑 tests/ 下全部套件，汇总「套件数 / 项数 / 失败套件」。
 
 用法：python -u tools/run_all_tests.py [-v]

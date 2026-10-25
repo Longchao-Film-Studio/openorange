@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """未实现请求的落盘 + 聚合（雷2）。
 
 为什么要它

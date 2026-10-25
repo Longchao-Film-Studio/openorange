@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """找出 Python 文件里「导入了但没用」的名字（P0 遗留清理用的小工具）。
 
 ★ 两种口径：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """NPC 交互 / 红点 / 追踪任务 / 清理宝箱 actor（P0-E2 第 4 步）。
 
 逆向依据 entities/avatarcomponent/avatarstreetactorcomp.lua:19-40：

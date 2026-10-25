@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2：通用任务（TaskData）测试。
 
 逆向依据 entities/avatarcomponent/avatartaskcomp.lua:256-284：

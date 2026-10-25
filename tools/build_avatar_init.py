@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """tools/build_avatar_init.py —— 生成 createChannelEntity 用的 initDict
 
 数据来源（全部逆向自客户端，无猜测）：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Soul 连接：心跳 / 可靠属性同步 / 战斗帧回传（P0-E2 第 2 步）。
 
 客户端 soulnet.lua:82-90 用 now - info.reqMs 算 ping，并做 15 秒超时判定，

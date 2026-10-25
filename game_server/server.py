@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.server —— 游戏服入口（微服务网关 + 游戏网关）。
 
 监听:

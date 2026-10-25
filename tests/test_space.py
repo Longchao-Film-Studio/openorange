@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """阶段 2：空间/场景进出测试。
 
 逆向依据 entities/avatarcomponent/avatarspacecomp.lua：

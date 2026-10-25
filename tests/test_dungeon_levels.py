@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """序章三关推进测试（Cmd_Avatar_EnterNext_CS / levelInfo / 关卡上下文）。
 
 为什么单独一个文件：

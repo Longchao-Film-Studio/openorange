@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """元测试：每个 apply_event 调用点都必须把通用任务同步帧 drain 出去。
 
 ★ 为什么有这个测试

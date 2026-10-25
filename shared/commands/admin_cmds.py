@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """管理员命令：/dungeon（副本关卡覆盖）、/prologue（跳过序章）。
 
 这两条真正会改游戏服状态 —— 走 game_server/admin_api.py 的本地 HTTP 接口，

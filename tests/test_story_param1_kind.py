@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 I 追加：Parameter1 归属分类的正确性。
 
 ★ 背景（本轮实测纠正的一个模型错误）

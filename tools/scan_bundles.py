@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """扫描归龙潮的 AssetBundle，列出所有资源容器路径，找关键字。
 
 只读容器路径（AssetBundle 的 m_Container），不解析资源内容，速度最快。

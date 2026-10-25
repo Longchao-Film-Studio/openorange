@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """web.ratelimit —— 登录失败限速（P0-E3 从 web/app.py 抽出）。
 
 同一账号 10 分钟内失败 5 次即暂时拒绝，防止在线爆破。

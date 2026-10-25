@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 N-d：跨天重置 + 头衔日常刷新限额。
 
 ★ 为什么需要

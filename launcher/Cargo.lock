@@ -132,6 +132,7 @@ dependencies = [
 name = "oo_selfcheck"
 version = "0.1.0"
 dependencies = [
+ "oo_internal",
  "oo_shared",
  "serde_json",
  "windows",

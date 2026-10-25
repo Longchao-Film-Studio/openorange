@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """shared.commands —— 指令系统（P0 遗留第 2 条：按命令组拆分）。
 
 语法:

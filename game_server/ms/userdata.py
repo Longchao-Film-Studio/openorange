@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """avataruserdatacomp 的 batchGetAttribute 应答（P0-E3 从 ms.py 拆出）。
 
 客户端 entities/avatarcomponent/avataruserdatacomp.lua:151 用这个通道批量取

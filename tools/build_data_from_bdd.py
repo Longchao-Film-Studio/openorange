@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """从 BDD 导出的 JSON 生成 shared/data/*.json。
 
 数据来源：tools/dump_bdd.py 产出的 archive/game_data/BDD/*.json

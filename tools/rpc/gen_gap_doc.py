@@ -1,5 +1,4 @@
 
-# -*- coding: utf-8 -*-
 """生成 docs/RPC缺口分析.md"""
 import os, re, sys, collections
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")

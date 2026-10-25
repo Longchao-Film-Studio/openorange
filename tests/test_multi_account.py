@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """多账号 / ownerid 帧路由（P0 遗留第 4 条）。
 
 遗留原状：「多账号 / ownerid 的帧路由未建模（当前 30 处 _sync_frame 全传空 ownerid）」。

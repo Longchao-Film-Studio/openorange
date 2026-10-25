@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.ms —— 微服务（GameLoadService）最小实现
 
 协议已由实测抓包完全解出（见 docs/协议/协议总纲.md 第八部分）：

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """实体 RPC（serverRpc）应答层。
 
 为什么需要这一层

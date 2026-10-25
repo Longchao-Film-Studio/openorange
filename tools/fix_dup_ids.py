@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """修复存档里重复的 __id__（P0-A 审计 P0-3）。
 
 ## 背景

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """ClientAvatar 的 initDict（登录快照）与 createChannelEntity（P0-E3 拆出）。
 
 三个要点：

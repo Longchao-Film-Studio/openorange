@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """web.app —— OpenOrange 账号门户
 
 独立启动:  python -m web.app

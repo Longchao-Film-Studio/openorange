@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """绑定账号 / Avatar / Soul 的帧（P0-E3 从 ms.py 拆出）。
 
 登录链路：connectServer -> bindAccount(6) -> bindAvatar(7) -> bindSoul(8)。

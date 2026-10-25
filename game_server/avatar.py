@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """game_server.avatar —— 玩家资料类 RPC（取名 / 改名）。
 
 逆向依据 `entities/avatarcomponent/namecomp.lua`：

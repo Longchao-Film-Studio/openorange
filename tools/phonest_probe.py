@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """phonestcore 协议黑盒探针。
 
 原理：xlua.dll 导出了 luaopen_phonestcore，可以脱离游戏加载原生 RPC 层。

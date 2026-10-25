@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """唯一序列化器：变更集 -> propertySync 帧（P0 地基 B3）。
 
 ## 职责

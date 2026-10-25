@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """protobuf / msgpack 编解码（P0-E3 从 ms.py 拆出）。
 
 两边都是"够用就好"的最小实现，不是通用库：

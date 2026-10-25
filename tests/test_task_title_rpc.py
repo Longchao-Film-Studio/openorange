@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """P1 阶段 N-c：头衔两个 RPC（RequestDoneTitleTask_CS / RequestRefreshTitleDailyTask_CS）。
 
 ★ 客户端契约
