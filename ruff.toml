@@ -15,6 +15,10 @@
 #   收尾   全规则扫描 19,959 处 / 104 条规则，逐族核实后写入下方 ignore
 #
 # 全量基线：suites=65 items=1945 bad=[]；ruff check . -> All checks passed
+#
+# 工具链钉版本：requirements-dev.txt（ruff==0.17.2 —— 本配置在该版本实测全绿）。
+#   复核：py -m pip install -r requirements-dev.txt && py -m ruff check .
+#   注意 select = ["ALL"] 的规则全集随版本变化，升级 ruff 必须重跑并复核豁免清单。
 
 target-version = "py312"
 line-length = 100
@@ -38,7 +42,7 @@ ignore = [
   "RUF001", "RUF002", "RUF003",
 
   # ---- B. 类型注解：3,255 处 ----
-  # 项目从未采用类型注解风格；mypy 只做增量检查（见 mypy.ini），
+  # 项目从未采用类型注解风格（未引入 mypy / pyright）。
   # 全量补注解是数万行的纯翻新，收益与风险不成比例。
   "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN206",
 

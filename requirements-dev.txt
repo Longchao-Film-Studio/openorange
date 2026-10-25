@@ -1,0 +1,12 @@
+# 开发工具链（钉版本 —— 规则集随 ruff 版本变化，漂移会让 ruff.toml 的豁免清单失效）
+#
+# 复核方式：
+#     py -m pip install -r requirements-dev.txt
+#     py -m ruff check .            # 期望：All checks passed!
+#     py -m ruff check . --statistics
+#
+# ⚠ ruff.toml 的 select = ["ALL"] 依赖具体版本的规则全集：
+#   同一份配置在不同 ruff 版本下判定结果不同（升级时会新增/改名/移除规则）。
+#   升级步骤：改这里的版本 -> ruff check . -> 逐条核实新增违规
+#   -> 该修就修、该豁免就写进 ruff.toml 并注明理由。
+ruff==0.17.2
