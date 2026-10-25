@@ -62,7 +62,7 @@ def run():
           gamedata.area_of_copy(COPY) == AREA,
           gamedata.area_of_copy(COPY))
     ev = gamedata.task_event(EVENT) or {}
-    check("事件 %d 是 FinishDungeon{typeId:1000, areaid:%d}" % (EVENT, AREA),
+    check('事件 {:d} 是 FinishDungeon{{typeId:1000, areaid:{:d}}}'.format(EVENT, AREA),
           ev.get("EventType") == "FinishDungeon"
           and (ev.get("EventParam") or {}).get("areaid") == AREA, ev)
     st_cfg = gamedata.story_task(TASK) or {}

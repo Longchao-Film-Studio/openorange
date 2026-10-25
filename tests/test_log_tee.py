@@ -73,7 +73,7 @@ def run():
         print("\n[4] 多线程不撕行")
         def spam(tag):
             for i in range(50):
-                print("line-%s-%04d %s" % (tag, i, "x" * 60))
+                print('line-{}-{:04d} {}'.format(tag, i, "x" * 60))
         ts = [threading.Thread(target=spam, args=(t,)) for t in ("a", "b", "c")]
         for t in ts: t.start()
         for t in ts: t.join()
@@ -82,7 +82,7 @@ def run():
         torn = 0
         for t in ("a", "b", "c"):
             for i in range(50):
-                if ("line-%s-%04d" % (t, i)) not in content:
+                if ('line-{}-{:04d}'.format(t, i)) not in content:
                     torn += 1
         check("150 行全部完整（无撕裂）", torn == 0, torn)
 
@@ -99,7 +99,7 @@ def run():
         print("\n[6] 轮转：30 份保留")
         for i in range(35):
             with open(os.path.join(
-                    _LOG_DIR, "2026-01-01-00-00-%02d.test.log" % i), "w") as f:
+                    _LOG_DIR, '2026-01-01-00-00-{:02d}.test.log'.format(i)), "w") as f:
                 f.write("old")
         log_tee._rotate_keep(_LOG_DIR, "test")
         left = [f for f in os.listdir(_LOG_DIR)

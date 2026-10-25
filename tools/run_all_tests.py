@@ -43,7 +43,7 @@ def main():
         if broken:
             bad.append(name)
         if verbose or broken:
-            print("%-30s ok=%-4d fail=%-3d rc=%d" % (name, ok, fail, p.returncode))
+            print('{:<30} ok={:<4d} fail={:<3d} rc={:d}'.format(name, ok, fail, p.returncode))
         if broken:
             lines = [l for l in out.split("\n")
                      if "FAIL" in l or "Error" in l or "Traceback" in l]

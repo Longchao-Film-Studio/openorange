@@ -92,11 +92,10 @@ def main():
         if not cands:
             continue
         cands.sort(reverse=True)
-        print("任务 %-7s %-14s %s" % (t, cfg.get("TaskName"), desc[:24]))
+        print('任务 {:<7} {:<14} {}'.format(t, cfg.get("TaskName"), desc[:24]))
         for hit, tid, cname, text in cands[:4]:
             mark = "  ←已配" if npc_sms__mapped(t) == tid else ""
-            print("    候选 topic=%-6s %-14s 重合=%d  首句=%s%s"
-                  % (tid, cname, hit, text, mark))
+            print('    候选 topic={:<6} {:<14} 重合={:d}  首句={}{}'.format(tid, cname, hit, text, mark))
         print()
 
 

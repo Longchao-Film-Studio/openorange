@@ -139,7 +139,7 @@ def cmd_lookup(argv):
         print("== {}".format(tag))
         for kw in argv:
             hits = [(b, a) for b, ps in bundles.items() for a in ps if kw.lower() in a.lower()]
-            print("   关键字 %-20s 命中 %d" % (kw, len(hits)))
+            print('   关键字 {:<20} 命中 {:d}'.format(kw, len(hits)))
             for b, a in hits[:10]:
                 print("      {}  <-  {}".format(b, a))
 
@@ -162,7 +162,7 @@ def cmd_scene(argv):
     for name in argv:
         seg = "/" + name + "/"
         hits = [a for a in all_paths if seg in ("/" + a)]
-        print("   %-24s %s" % (name, '有资源目录（{} 条）'.format(len(hits)) if hits else "★ 清单里没有"))
+        print('   {:<24} {}'.format(name, '有资源目录（{} 条）'.format(len(hits)) if hits else "★ 清单里没有"))
 
 
 def main():

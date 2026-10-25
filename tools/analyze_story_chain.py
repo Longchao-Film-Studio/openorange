@@ -104,7 +104,7 @@ def cmd_scan(bdd):
         print("\n" + "=" * 70)
         print('【{}】{} 个表'.format(cname, len(d)))
         for t in sorted(d):
-            print("  %-46s %s" % (t, ", ".join(sorted(d[t])[:8])))
+            print('  {:<46} {}'.format(t, ", ".join(sorted(d[t])[:8])))
 
 
 def cmd_unlock(bdd):
@@ -121,7 +121,7 @@ def cmd_unlock(bdd):
     print("=== 系统解锁规则（unlockType / unlockParam -> 系统）===")
     for k in sorted(by, key=lambda x: (x[0], str(x[1]))):
         names = by[k]
-        print("  %-10s %-8s -> %s" % (k[0], k[1], ", ".join(names)))
+        print('  {:<10} {:<8} -> {}'.format(k[0], k[1], ", ".join(names)))
     print("\n提示：unlockParam=999 的是「永远不开」的占位。")
 
 
@@ -149,9 +149,7 @@ def cmd_walk(bdd, start):
         mark = ""
         if unlock_by_task.get(cur):
             mark = "   <<< 解锁 " + " ".join(unlock_by_task[cur])
-        print("  %2d. %-8s type=%-2s %-10s %-24s %s%s"
-              % (i, cur, v.get("TaskType"), v.get("ChapterId") or "-",
-                 v.get("TaskName") or "", v.get("Location") or "", mark))
+        print('  {:2d}. {:<8} type={:<2} {:<10} {:<24} {}{}'.format(i, cur, v.get("TaskType"), v.get("ChapterId") or "-", v.get("TaskName") or "", v.get("Location") or "", mark))
         posts = v.get("PostTasks") or []
         cur = posts[0] if posts else None
     if i == 0:
@@ -186,7 +184,7 @@ def cmd_actor(bdd):
     print('StreetActorInfoData 共 {} 条，其中 {} 条带 preTask'.format(len(rows), with_pre))
     print()
     for s, n in states.most_common():
-        print("  state=%-3s %-10s  %d 条" % (s, TASK_STATE.get(s, "?"), n))
+        print('  state={:<3} {:<10}  {:d} 条'.format(s, TASK_STATE.get(s, "?"), n))
     print()
     print("★ state=3(Doing) 表示「该任务进行中才出现」，")
     print("  所以把任务标成 Finished(6) 反而会让这些 NPC 消失。")

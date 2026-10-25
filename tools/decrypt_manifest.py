@@ -102,17 +102,17 @@ def main():
     os.makedirs(outdir, exist_ok=True)
     for tag, path in TARGETS:
         if not os.path.exists(path):
-            print("跳过 %-18s 不存在: %s" % (tag, path))
+            print('跳过 {:<18} 不存在: {}'.format(tag, path))
             continue
         try:
             obj, n = decrypt_file(path)
         except Exception as e:
-            print("失败 %-18s %s" % (tag, e))
+            print('失败 {:<18} {}'.format(tag, e))
             continue
         out = os.path.join(outdir, tag + ".json")
         open(out, "w", encoding="utf-8").write(
             json.dumps(obj, ensure_ascii=False, indent=1))
-        print("OK   %-18s 明文 %8d 字节 -> %s" % (tag, n, out))
+        print('OK   {:<18} 明文 {:8d} 字节 -> {}'.format(tag, n, out))
         if tag == "patch_info":
             info = obj.get("patchinfo", {})
             rel = info.get("release", {}).get("win64", {}).get("release", {})

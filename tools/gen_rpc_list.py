@@ -157,7 +157,7 @@ def main():
             f.write("C2S\t{}\t{}\t{}\t\t{}\n".format(
                 name, hashes.get(name, ""),
                 "yes" if name in implemented else "no",
-                ";".join("%s:%d" % s for s in ss[:3])))
+                ";".join("{}:{}".format(*s) for s in ss[:3])))
 
     # Markdown
     lines = []
@@ -249,7 +249,7 @@ def main():
         lines.append("| `{}` | {} | {} | {} |".format(
             name, hashes.get(name, "?"),
             "✅" if name in implemented else "",
-            "<br>".join("%s:%d" % s for s in ss[:3])))
+            "<br>".join("{}:{}".format(*s) for s in ss[:3])))
     lines.append("")
 
     with open(OUT_MD, "w", encoding="utf-8") as f:

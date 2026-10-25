@@ -219,4 +219,4 @@ if __name__ == "__main__":
     print()
     print("=== 前 20 个节点 ===")
     for n in info["nodes"][:20]:
-        print("  %-60s off=%-10d size=%d" % (n["path"], n["offset"], n["size"]))
+        print('  {:<60} off={:<10d} size={:d}'.format(n["path"], n["offset"], n["size"]))

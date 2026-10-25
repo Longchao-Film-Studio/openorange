@@ -342,7 +342,7 @@ def run():
     pct = 100.0 * n_ok / len(reach)
     check("★ 可完成数 >= 950（阶段 J 前是 685）", n_ok >= 950, n_ok)
     check("★ 覆盖率 >= 92%", pct >= 92.0, round(pct, 1))
-    print("      可达 %d，可完成 %d（%.1f%%）" % (len(reach), n_ok, pct))
+    print('      可达 {:d}，可完成 {:d}（{:.1f}%）'.format(len(reach), n_ok, pct))
 
     print("\n" + "=" * 56)
     print('通过 {} 项，失败 {} 项'.format(len(passed), len(failed)))

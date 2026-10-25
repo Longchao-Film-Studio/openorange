@@ -37,7 +37,7 @@ def hexdump(data, width=16, limit=None):
         chunk = data[off:off + width]
         hx = " ".join("{:02X}".format(b) for b in chunk)
         asc = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
-        out.append("      %04X  %-*s  |%s|" % (off, width * 3, hx, asc))
+        out.append(f"      {off:04X}  {hx:<{width * 3}}  |{asc}|")
     if limit is not None and len(data) > limit:
         out.append('      ... (共 {} 字节，其余见 .bin)'.format(len(data)))
     return "\n".join(out)
@@ -58,7 +58,7 @@ def maybe_hexdump(data, limit=None):
 def log_packet(cid, direction, data, t0, f):
     """打印一帧，并（可选）写进 .bin 抓包文件。"""
     dt = int((time.time() - t0) * 1000)
-    _log.info("[game] #%03d %s +%dms  %d B" % (cid, direction, dt, len(data)))
+    _log.info('[game] #{:03d} {} +{:d}ms  {:d} B'.format(cid, direction, dt, len(data)))
     if ooconf.packet_log_enabled():
         _log.info(hexdump(data, limit=512))
     if f is not None:
@@ -86,7 +86,7 @@ def pump(src, dst, direction, cid, t0, f, done_evt):
             try:
                 dst.sendall(data)
             except OSError as e:
-                _log.warning("[game] #%03d %s forward failed: %s" % (cid, direction, e))
+                _log.warning('[game] #{:03d} {} forward failed: {}'.format(cid, direction, e))
                 break
     finally:
         try:

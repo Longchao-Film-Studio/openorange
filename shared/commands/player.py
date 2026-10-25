@@ -61,7 +61,7 @@ def cmd_who(ctx, target, *args):
         uid = r.get("uid") or "-"
         addr = r.get("addr") or "-"
         since = time.strftime("%m-%d %H:%M", time.localtime(int(r.get("since_ts") or 0)))
-        lines.append("  %-16s %-8s uid=%-12s %s  上线 %s" % (name, perm, uid, addr, since))
+        lines.append('  {:<16} {:<8} uid={:<12} {}  上线 {}'.format(name, perm, uid, addr, since))
     chat = '在线 {} 人: {}'.format(len(rows), " ".join(r.get("username") or "?" for r in rows[:4]))
     return ok(lines, chat=chat)
 
@@ -95,17 +95,13 @@ def cmd_search(ctx, target, *args):
         lines.append("")
         lines.append('角色 ({})'.format(len(chars)))
         for ch in chars[:20]:
-            lines.append("  %-7d %s %-8s %s星  %s" % (
-                ch["id"], _pad(gamedata.tier_name(ch), 4), ch["name"],
-                ch.get("grade") or "-", ch.get("area") or ""))
+            lines.append('  {:<7d} {} {:<8} {}星  {}'.format(ch["id"], _pad(gamedata.tier_name(ch), 4), ch["name"], ch.get("grade") or "-", ch.get("area") or ""))
 
     if items:
         lines.append("")
         lines.append('物品 ({})'.format(len(items)))
         for it in items[:30]:
-            lines.append("  %-7d %s %-20s type=%s quality=%s" % (
-                it["id"], _pad(gamedata.tier_name(it), 4), it["name"],
-                it.get("type"), it.get("quality")))
+            lines.append('  {:<7d} {} {:<20} type={} quality={}'.format(it["id"], _pad(gamedata.tier_name(it), 4), it["name"], it.get("type"), it.get("quality")))
 
     # 游戏内：单行紧凑 + 分页
     flat = [("角色", c["id"], c["name"]) for c in chars] + \

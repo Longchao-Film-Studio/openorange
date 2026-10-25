@@ -68,5 +68,5 @@ def take_all(src, names):
 
 def strip_blank_runs(text, keep=2):
     """把连续空行压到 keep 行以内（搬走一段后常留下大段空白）。"""
-    out = re.sub(r"\n{%d,}" % (keep + 1), "\n" * keep, text)
+    out = re.sub('\\n{{{:d},}}'.format(keep + 1), "\n" * keep, text)
     return out

@@ -77,14 +77,12 @@ def main():
             for c, t in conts:
                 if any(k in c.lower() for k in kws):
                     hits += 1
-                    print("  *** %-28s %-18s %s" % (os.path.basename(fp), t, c), flush=True)
+                    print('  *** {:<28} {:<18} {}'.format(os.path.basename(fp), t, c), flush=True)
         if (i + 1) % 50 == 0:
             el = time.time() - t0
-            print("  ...%d/%d  用时 %.0fs  已收 %d 条路径  命中 %d"
-                  % (i + 1, len(files), el, sum(len(v) for v in allc.values()), hits), flush=True)
+            print('  ...{:d}/{:d}  用时 {:.0f}s  已收 {:d} 条路径  命中 {:d}'.format(i + 1, len(files), el, sum(len(v) for v in allc.values()), hits), flush=True)
 
-    print("完成：%d 个包，用时 %.0fs，路径 %d 条，命中 %d"
-          % (len(files), time.time() - t0, sum(len(v) for v in allc.values()), hits), flush=True)
+    print('完成：{:d} 个包，用时 {:.0f}s，路径 {:d} 条，命中 {:d}'.format(len(files), time.time() - t0, sum(len(v) for v in allc.values()), hits), flush=True)
     if args.dump:
         with open(args.dump, "w", encoding="utf-8") as f:
             json.dump(allc, f, ensure_ascii=False, indent=1)

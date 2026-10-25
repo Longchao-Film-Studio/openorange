@@ -66,9 +66,9 @@ def check_ports():
         s.settimeout(1.0)
         try:
             s.connect(("127.0.0.1", p))
-            print("  %-6d 监听中" % p)
+            print('  {:<6d} 监听中'.format(p))
         except Exception:
-            print("  %-6d 未监听（看新开的窗口里有没有报错）" % p)
+            print('  {:<6d} 未监听（看新开的窗口里有没有报错）'.format(p))
             ok = False
         finally:
             s.close()

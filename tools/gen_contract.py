@@ -176,7 +176,7 @@ def main():
         rows = doc["properties"][k]
         desc = "; ".join("{}->{}(op={})".format(r["callback"], r["section"],
                                            r["optype"]) for r in rows)
-        print("  %-42s %s" % (k, desc))
+        print('  {:<42} {}'.format(k, desc))
     return 0
 
 

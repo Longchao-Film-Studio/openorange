@@ -263,11 +263,9 @@ def main():
     print("=" * W)
     print('StoryTaskData 总条数      : {}'.format(report["total"]))
     print('无 PreTask 的根           : {}'.format(report["roots"]))
-    print("从全部根 PostTasks BFS 可达: %d（%.1f%%）"
-          % (report["reachable"], 100.0 * report["reachable"] / report["total"]))
+    print('从全部根 PostTasks BFS 可达: {:d}（{:.1f}%）'.format(report["reachable"], 100.0 * report["reachable"] / report["total"]))
     print('  任何根都不可达           : {}  {}'.format(report["unreachable"], report["unreachable_ids"][:8]))
-    print("其中按当前实现可完成       : %d（%.1f%% of 可达）"
-          % (report["completable"], report["coverage_pct"]))
+    print('其中按当前实现可完成       : {:d}（{:.1f}% of 可达）'.format(report["completable"], report["coverage_pct"]))
     print('  阻塞                     : {}'.format(report["blocked"]))
     print("-" * W)
     print("可达任务的 TaskType 分布   : {}".format(report["reachable_by_type"]))
@@ -275,7 +273,7 @@ def main():
     print("-" * W)
     print("阻塞原因：")
     for why, cnt in report["blocked_reasons"].items():
-        print("  %-46s %d" % (why, cnt))
+        print('  {:<46} {:d}'.format(why, cnt))
         print("      例: {}".format(report["blocked_samples"][why][:8]))
     print("=" * W)
     return 0

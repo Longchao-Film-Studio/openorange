@@ -215,9 +215,7 @@ def cmd_act(ctx, target, *args):
         shown = rows[:15]
         lines = ['活动共 {} 个，前 {} 个：'.format(len(rows), len(shown))]
         for a in shown:
-            lines.append("  %-6s %-16s type=%-4s %s"
-                         % (a["id"], a.get("name") or "-", a.get("type"),
-                            "显示" if a.get("show") else "隐藏"))
+            lines.append('  {:<6} {:<16} type={:<4} {}'.format(a["id"], a.get("name") or "-", a.get("type"), "显示" if a.get("show") else "隐藏"))
         lines.append("")
         lines.append("  用法：/act <id或名字> [open|close]")
         return ok(lines, chat='活动 {} 个'.format(len(rows)),

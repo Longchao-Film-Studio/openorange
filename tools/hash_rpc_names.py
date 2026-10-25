@@ -141,7 +141,7 @@ def cmd_lookup(argv):
     for raw in argv:
         idx = str(int(raw, 0))
         names = by_hash.get(idx)
-        print("%-12s -> %s" % (idx, ", ".join(names) if names else "（表里没有）"))
+        print('{:<12} -> {}'.format(idx, ", ".join(names) if names else "（表里没有）"))
 
 
 def cmd_verify(argv):
@@ -184,7 +184,7 @@ def cmd_verify(argv):
         n += 1
         if RPC_INDEX[nm] != idx:
             bad += 1
-            print("  MISMATCH %-40s 代码=%s 真身=%s" % (nm, RPC_INDEX[nm], idx))
+            print('  MISMATCH {:<40} 代码={} 真身={}'.format(nm, RPC_INDEX[nm], idx))
     print('核对 {} 条，不一致 {} 条'.format(n, bad))
     return 0 if bad == 0 else 1
 

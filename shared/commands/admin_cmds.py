@@ -45,7 +45,7 @@ def cmd_dungeon(ctx, target, *args):
     if not args:
         lines = [
             "副本关卡覆盖    账号 {}".format(uid),
-            "  当前            %s" % ("不覆盖" if not cur else "只打 %d" % cur),
+            "  当前            %s" % ("不覆盖" if not cur else '只打 {:d}'.format(cur)),
             "",
             "  用法：/dungeon <target> [<关卡ID> | off]",
             "    /dungeon @ 50003     自己只打 50003",
@@ -55,14 +55,14 @@ def cmd_dungeon(ctx, target, *args):
         ]
         for lid, nm in _GUIDE01_LEVELS:
             mark = "  ← 当前" if lid == cur else ""
-            lines.append("    %-7s %s%s" % (lid, nm, mark))
+            lines.append('    {:<7} {}{}'.format(lid, nm, mark))
         lines += [
             "",
             "  按账号生效，多开互不影响；重启游戏服不丢。",
             "  适用于所有副本：关卡 id 属于该副本 rootLevel 才生效。",
         ]
         return ok(lines,
-                  chat="{} 副本: {}".format(uid, ("只打 %d" % cur) if cur else "不覆盖"),
+                  chat="{} 副本: {}".format(uid, ('只打 {:d}'.format(cur)) if cur else "不覆盖"),
                   data={"action": "dungeon_show", "uid": uid,
                         "force_level": cur, "levels": _GUIDE01_LEVELS})
 
@@ -91,8 +91,8 @@ def cmd_dungeon(ctx, target, *args):
     except Exception:
         _bdd_ok = False
     if _bdd_ok and entry is None:
-        return err("关卡 %d 不存在（LevelData 里没有这个 id）" % level,
-                   chat="✗ 关卡 %d 不存在" % level)
+        return err('关卡 {:d} 不存在（LevelData 里没有这个 id）'.format(level),
+                   chat='✗ 关卡 {:d} 不存在'.format(level))
     name = (entry or {}).get("levelName") or "-"
     scene = (entry or {}).get("scene") or "-"
     nxt = (entry or {}).get("nextLevel") or "无"
@@ -104,7 +104,7 @@ def cmd_dungeon(ctx, target, *args):
     lines = [
         "✔ 已设置副本关卡覆盖",
         "  账号    {}".format(uid),
-        "  关卡    %d  %s" % (level, name),
+        '  关卡    {:d}  {}'.format(level, name),
         "  场景    {}".format(scene),
         "  下一关  {}".format(nxt),
         "",
@@ -112,7 +112,7 @@ def cmd_dungeon(ctx, target, *args):
         "  如果该关卡不属于当前副本的 rootLevel，会被忽略并在服务端打日志。",
     ]
     return ok(lines,
-              chat="✔ %s 副本: 只打 %d（%s）" % (uid, level, name),
+              chat='✔ {} 副本: 只打 {:d}（{}）'.format(uid, level, name),
               data={"action": "dungeon_set", "uid": uid, "force_level": got,
                     "level": entry})
 
@@ -187,12 +187,11 @@ def cmd_prologue(ctx, target, *args):
         t1000 = p.get("story_task_1000")
         lines = [
             "序章状态    账号 {}".format(uid),
-            "  story_finished[1]    %s" % ("已过" if sf1 else "未过"),
-            "  StoryTask 1000       %s" % (
-                "已完成" if t1000 == 6 else
+            '  story_finished[1]    {}'.format("已过" if sf1 else "未过"),
+            '  StoryTask 1000       {}'.format("已完成" if t1000 == 6 else
                 "进行中" if t1000 == 3 else
                 "未开始" if t1000 == -1 else "状态 {}".format(t1000)),
-            "  进行中的剧情任务     %s" % (p.get("active") or "无"),
+            '  进行中的剧情任务     {}'.format(p.get("active") or "无"),
             "",
             "  用法：/prologue <target> [skip]",
             "    /prologue @ skip     跳过自己的序章",
@@ -213,10 +212,9 @@ def cmd_prologue(ctx, target, *args):
     lines = [
         "✔ 序章已跳过（立即生效）",
         "  账号              {}".format(uid),
-        "  StoryTask 1000    %s" % (
-            "本来就已完成" if r.get("already_finished") else "已标完成"),
-        "  story_finished[1] %s" % ("True" if r.get("story_finished_1") else "False"),
-        "  进行中任务        %s" % (r.get("story_task_bag") or "无"),
+        '  StoryTask 1000    {}'.format("本来就已完成" if r.get("already_finished") else "已标完成"),
+        '  story_finished[1] {}'.format("True" if r.get("story_finished_1") else "False"),
+        '  进行中任务        {}'.format(r.get("story_task_bag") or "无"),
         "",
         "  客户端下次登录/重连就会直接进街区，不再进序章副本。",
     ]

@@ -82,7 +82,7 @@ def main():
         n = sum(1 for l in lines if kw in l)
         if n:
             found_any = True
-            print("    %-12s %d 条" % (name, n))
+            print('    {:<12} {:d} 条'.format(name, n))
     if not found_any:
         print("    日志里没有服务端剧情日志（注入日志只记客户端，服务端日志在控制台）")
 

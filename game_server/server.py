@@ -81,7 +81,7 @@ def _serve_capture(host=None, port=None):
     port = port or PORT
     srv = _listen(host, port)
     if UPSTREAM:
-        mode = "proxy->%s:%d" % UPSTREAM
+        mode = "proxy->{}:{}".format(*UPSTREAM)
     else:
         mode = "echo" if ECHO else "capture-only"
     _log.info('[game] listening on {}:{} ({})'.format(host, port, mode))

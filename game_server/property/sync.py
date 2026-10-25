@@ -88,8 +88,7 @@ def validate(ops):
             v = obj.get("__id__")
             if isinstance(v, int) and not isinstance(v, bool):
                 if v in seen_ids:
-                    errs.append("__id__ %d 重复：%r 和 %r"
-                                % (v, seen_ids[v], path))
+                    errs.append('__id__ {:d} 重复：{!r} 和 {!r}'.format(v, seen_ids[v], path))
                 else:
                     seen_ids[v] = path
             else:

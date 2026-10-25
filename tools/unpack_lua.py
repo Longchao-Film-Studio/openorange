@@ -150,8 +150,7 @@ def main():
             added += 1
         pack_stats.append((nm, len(pk["entries"]), added, dup))
         if idx % 20 == 0 or added:
-            print("  [%3d/%d] %-34s 条目%-6d 新增%-6d 重复%d"
-                  % (idx + 1, len(names), nm, len(pk["entries"]), added, dup))
+            print('  [{:3d}/{:d}] {:<34} 条目{:<6d} 新增{:<6d} 重复{:d}'.format(idx + 1, len(names), nm, len(pk["entries"]), added, dup))
 
     print()
     print("唯一文件数:", len(seen))

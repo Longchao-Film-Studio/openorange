@@ -236,17 +236,17 @@ def main():
     s1 = write_json(items, p1)
     s2 = write_json(chars, p2)
 
-    print("物品: %d 条 -> %s (%.1f KB)" % (items["count"], p1, s1 / 1024.0))
-    print("角色: %d 条 -> %s (%.1f KB)" % (chars["count"], p2, s2 / 1024.0))
+    print('物品: {:d} 条 -> {} ({:.1f} KB)'.format(items["count"], p1, s1 / 1024.0))
+    print('角色: {:d} 条 -> {} ({:.1f} KB)'.format(chars["count"], p2, s2 / 1024.0))
 
     # 抽样打印，方便肉眼核对
     print()
     print("物品抽样:")
     for it in items["items"][:5]:
-        print("  %-7d %s" % (it["id"], it["name"]))
+        print('  {:<7d} {}'.format(it["id"], it["name"]))
     print("角色抽样:")
     for ch in chars["chars"][:5]:
-        print("  %-7d %-10s %s" % (ch["id"], ch["name"], ch["title"] or ""))
+        print('  {:<7d} {:<10} {}'.format(ch["id"], ch["name"], ch["title"] or ""))
     return 0
 
 

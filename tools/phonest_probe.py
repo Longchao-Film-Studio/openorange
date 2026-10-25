@@ -132,7 +132,7 @@ def start_server(port, cap):
                 if not d:
                     break
                 cap.append(d)
-                print("  [srv] RX %2d B  %s" % (len(d), d.hex()), flush=True)
+                print('  [srv] RX {:2d} B  {}'.format(len(d), d.hex()), flush=True)
         except Exception:
             pass
 

@@ -83,14 +83,14 @@ def main():
                 failed.append((os.path.relpath(s, luac_dir), err))
             if done % 1000 == 0:
                 el = time.time() - t0
-                print("  %d/%d  成功%d 失败%d  %.1fs" % (done, total, ok, fail, el), flush=True)
+                print('  {:d}/{:d}  成功{:d} 失败{:d}  {:.1f}s'.format(done, total, ok, fail, el), flush=True)
 
     print()
-    print("完成: 成功 %d, 失败 %d, 用时 %.1f 秒" % (ok, fail, time.time() - t0))
+    print('完成: 成功 {:d}, 失败 {:d}, 用时 {:.1f} 秒'.format(ok, fail, time.time() - t0))
     if failed:
         print("失败样例（前 20）:")
         for n, e in failed[:20]:
-            print("  %-60s %s" % (n, e))
+            print('  {:<60} {}'.format(n, e))
         with open(os.path.join(out_dir, "_decompile_failed.txt"), "w", encoding="utf-8") as f:
             for n, e in failed:
                 f.write("{}\t{}\n".format(n, e))

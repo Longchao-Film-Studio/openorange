@@ -40,7 +40,7 @@ def main():
     opt = coff + 20
     magic, = struct.unpack_from('<H', hdr, opt)
     size_of_image, = struct.unpack_from('<I', hdr, opt + 56)
-    print("sections=%d  SizeOfImage=%#x (%d MB)" % (nsec, size_of_image, size_of_image // 1048576))
+    print('sections={:d}  SizeOfImage={:#x} ({:d} MB)'.format(nsec, size_of_image, size_of_image // 1048576))
 
     img = ctypes.string_at(base, size_of_image)
     with open(outp, 'wb') as f:
@@ -57,9 +57,9 @@ def main():
         secs.append((nm, va, vs))
     print("\n段（内存里）:")
     for nm, va, vs in secs:
-        print("   %-10s va=%#010x vs=%#x" % (nm, va, vs))
+        print('   {:<10} va={:0#10x} vs={:#x}'.format(nm, va, vs))
     for rva, label in ((0x152a3, 'luaopen_phonestcore'), (0x87a6, 'luaL_newstate')):
-        print('  %-22s rva=%#x bytes=%s' % (label, rva, img[rva:rva+24].hex(' ')))
+        print('  {:<22} rva={:#x} bytes={}'.format(label, rva, img[rva:rva+24].hex(' ')))
 
 
 if __name__ == "__main__":

@@ -68,8 +68,7 @@ class Op:
         self.path = path
 
     def __repr__(self):
-        return "Op(pid=%r op=%d name=%r path=%r)" % (
-            self.property_id, self.optype, self.name, self.path)
+        return 'Op(pid={!r} op={:d} name={!r} path={!r})'.format(self.property_id, self.optype, self.name, self.path)
 
 
 class Tx:
@@ -114,13 +113,13 @@ class Tx:
             raise TxError("根属性 {!r} 没有 __id__，不能改它的子项".format(root))
         for i, key in enumerate(path[1:-1], start=1):
             if not isinstance(cur, dict):
-                raise TxError("路径 %r 第 %d 段 %r 的父不是 dict" % (path, i, key))
+                raise TxError('路径 {!r} 第 {:d} 段 {!r} 的父不是 dict'.format(path, i, key))
             if key not in cur:
-                raise TxError("路径 %r 第 %d 段 %r 不存在" % (path, i, key))
+                raise TxError('路径 {!r} 第 {:d} 段 {!r} 不存在'.format(path, i, key))
             cur = cur[key]
             nid = cur.get("__id__") if isinstance(cur, dict) else None
             if not isinstance(nid, int):
-                raise TxError("路径 %r 第 %d 段 %r 没有 __id__" % (path, i, key))
+                raise TxError('路径 {!r} 第 {:d} 段 {!r} 没有 __id__'.format(path, i, key))
             cur_pid = nid
             # ★ 更新类型：先看「这个 key 是不是当前类型的结构体字段」，
             #   再看「当前类型是不是容器（取元素类型）」。

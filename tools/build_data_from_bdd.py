@@ -233,8 +233,7 @@ def main():
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             json.dump(obj, f, ensure_ascii=False, indent=0, separators=(",", ":"))
             f.write("\n")
-        print("写出 %-18s %6d 条  %8.1f KB"
-              % (fname, obj["count"], os.path.getsize(path) / 1024.0))
+        print('写出 {:<18} {:6d} 条  {:8.1f} KB'.format(fname, obj["count"], os.path.getsize(path) / 1024.0))
 
     chars = build_chars(args.bdd)["chars"]
     build_items(args.bdd)["items"]
@@ -242,8 +241,7 @@ def main():
     print('可玩角色（tier 0）共 {} 个：'.format(sum(1 for c in chars if c["tier"] == 0)))
     for c in chars:
         if c["tier"] == 0:
-            print("  %-6d %-8s %-10s grade=%s cv=%s"
-                  % (c["id"], c["name"], c["title"], c["grade"], c["cv"] or "-"))
+            print('  {:<6d} {:<8} {:<10} grade={} cv={}'.format(c["id"], c["name"], c["title"], c["grade"], c["cv"] or "-"))
 
 
 if __name__ == "__main__":

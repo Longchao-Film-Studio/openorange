@@ -235,7 +235,7 @@ def main():
             total_calls += r["changed"]
             for k, v in r["levels"].items():
                 lvl_sum[k] = lvl_sum.get(k, 0) + v
-            print("%-46s %3d 处  %s" % (r["file"], r["changed"], r["levels"]))
+            print('{:<46} {:3d} 处  {}'.format(r["file"], r["changed"], r["levels"]))
     print('\n文件 {}，print {} 处，分级 {}'.format(total_files, total_calls, lvl_sum))
     if not args.write:
         print("(dry run —— 加 --write 落盘)")
