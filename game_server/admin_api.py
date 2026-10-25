@@ -420,11 +420,30 @@ class _Handler(BaseHTTPRequestHandler):
         self.do_POST()
 
 
+def _resolve_port(explicit):
+    """解析监听端口。
+
+    ★ 为什么单独成函数：start(port=...) 的参数名会遮蔽模块级 port()，
+      写成 `p = port or port()` 就是 `None or None()` -> TypeError
+      （D5 把 _port 重命名成 port 时就踩了这个坑，管理接口在真实启动路径上
+      静默起不来；测试因为都显式传 port= 所以全绿，没拦住）。
+      这里放一个不接收同名参数的函数，让 port() 指向模块级那个。
+
+    explicit 为 0 时也要尊重（0 = 让内核分配临时端口，测试用）。
+    """
+    if explicit is not None:
+        return int(explicit)
+    return port()
+
+
 def start(host="127.0.0.1", port=None):
-    """在后台线程起管理接口。返回 (server, thread)。"""
+    """在后台线程起管理接口。返回 (server, thread)。
+
+    port=None 时取 OO_ADMIN_PORT / DEFAULT_PORT；port=0 表示临时端口。
+    """
     if runtime.STARTED_AT is None:
         runtime.STARTED_AT = int(time.time())
-    p = port or port()
+    p = _resolve_port(port)
     srv = ThreadingHTTPServer((host, p), _Handler)
     th = threading.Thread(target=srv.serve_forever, name="oo-admin-api",
                           daemon=True)

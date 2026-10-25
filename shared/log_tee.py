@@ -129,14 +129,30 @@ def _rotate_keep(log_dir, channel, keep=30):
             pass
 
 
+def _env_level(default=logging.INFO):
+    """环境变量 OO_LOG_LEVEL -> 记录级别。
+
+    支持 DEBUG/INFO/WARNING/ERROR/CRITICAL（大小写不敏感），或数字。
+    逐帧诊断（gate 的 RX/TX 帧头、ms 的 RX、hexdump）都是 DEBUG 级 ——
+    排协议问题时用 OO_LOG_LEVEL=DEBUG 打开，平时默认 INFO 不落盘。
+    """
+    raw = os.environ.get("OO_LOG_LEVEL", "").strip().upper()
+    if not raw:
+        return default
+    if raw.isdigit():
+        return int(raw)
+    return getattr(logging, raw, default)
+
+
 def install(channel, log_dir, level=logging.INFO):
     """给本进程装日志：文件双写 + 控制台 + stdout/stderr 拦截。
 
     channel: "game" / "web"（文件名后缀）
     log_dir: 日志目录（调用方从自己的 config 取，模块不反向依赖）
-    level:  文件里记录的最低级别（控制台始终全量，保持旧行为）
+    level:  文件里记录的最低级别（默认 INFO；OO_LOG_LEVEL 可覆盖）
     返回该 channel 的 logger。
     """
+    level = _env_level(level)
     global _intercepted
     with _install_lock:
         if channel in _channel_handlers:
@@ -177,7 +193,8 @@ def install(channel, log_dir, level=logging.INFO):
             sys.stderr = _PrintInterceptor(sys.stderr, logger, logging.WARNING)
             _intercepted = True
 
-        logger.info("=== 日志启动 channel=%s run=%s ===", channel, run_path)
+        logger.info("=== 日志启动 channel=%s level=%s run=%s ===",
+                    channel, logging.getLevelName(level), run_path)
         return logger
 
 

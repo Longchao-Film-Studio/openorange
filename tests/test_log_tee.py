@@ -106,6 +106,20 @@ def run():
                 if f.endswith(".test.log") and f.startswith("2026-01-01")]
         check("旧时间戳文件被清到 30", len(left) <= 30, len(left))
 
+        print("\n[6b] OO_LOG_LEVEL 开关")
+        check("默认级别 INFO", log_tee._env_level() == log_tee.INFO,
+              log_tee._env_level())
+        os.environ["OO_LOG_LEVEL"] = "debug"
+        check("env=debug -> DEBUG", log_tee._env_level() == log_tee.DEBUG,
+              log_tee._env_level())
+        os.environ["OO_LOG_LEVEL"] = "20"
+        check("env 数字也可", log_tee._env_level() == log_tee.INFO,
+              log_tee._env_level())
+        os.environ["OO_LOG_LEVEL"] = "垃圾值"
+        check("非法值回退 INFO", log_tee._env_level() == log_tee.INFO,
+              log_tee._env_level())
+        del os.environ["OO_LOG_LEVEL"]
+
         print("\n[7] 未 install 的进程（tests/tools 场景）get_logger 也能用")
         lg2 = log_tee.get_logger("no_install_mod")
         check("返回 logger 不抛异常", lg2 is not None)
