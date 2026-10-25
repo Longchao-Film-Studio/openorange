@@ -303,6 +303,11 @@ class _Handler(BaseHTTPRequestHandler):
             if path == "/health":
                 return self._send(200, {"ok": True,
                                         "started_at": runtime.STARTED_AT})
+            if path == "/announce":          # 公告历史（管理页用）
+                from . import announce as _announce
+                return self._send(200, {"ok": True,
+                                        "kinds": _announce.kinds(),
+                                        "history": _announce.history(30)})
             if path == "/state":
                 from . import config as ooconf
                 state = runtime.snapshot()
@@ -325,6 +330,7 @@ class _Handler(BaseHTTPRequestHandler):
                                     "trace": traceback.format_exc()[-800:]})
 
     _ROUTES: ClassVar[dict[str, str]] = {
+        "/announce": "_r_announce",
         "/dungeon/level": "_r_dungeon_level",
         "/player/unlock-npc-topic": "_r_player_unlock_npc_topic",
         "/player/skip-prologue": "_r_player_skip_prologue",
@@ -350,6 +356,19 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"{type(e).__name__}: {e}",
                                     "trace": traceback.format_exc()[-800:]})
+
+    def _r_announce(self, payload):
+        """发全服公告 / 定向喊话。
+
+        payload: {kind: "banner"|"toast"|"gm", text: str, uid?: str}
+        uid 为空 = 全服广播（只发已登录连接）；非空 = 只发该账号所有连接。
+        """
+        from . import announce as _announce
+        res = _announce.announce(
+            str(payload.get("text") or ""),
+            kind=str(payload.get("kind") or "banner"),
+            uid=(payload.get("uid") or None))
+        return self._send(200 if res.get("ok") else 400, res)
 
     def _r_dungeon_level(self, payload):
         uid = str(payload.get("uid") or "").strip()

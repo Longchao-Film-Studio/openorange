@@ -237,4 +237,39 @@ def cmd_act(ctx, _target, *args):
               data={"action": "act", "activity": entry, "mode": mode,
                     "applied": False, "implemented": False})
 
+@register("announce", aliases=("公告", "喊话"), args="[banner|toast|gm] <文案>",
+          desc="发全服公告（跑马灯 / Toast / GM 提示）", perm=PERM_GM,
+          needs_target=False, group="GM")
+def cmd_announce(_ctx, _target, *args):
+    """全服公告。默认 banner（跑马灯），可显式指定 toast / gm。
+
+    三种类型对应三条 S2C 通道（见 docs/S2C接收端地图.md）：
+      banner -> sendWorldBanner   全服跑马灯
+      toast  -> RpcPopToastText   普通 Toast
+      gm     -> GmRpcOnNotifyTip  官方 crontab 提示通道
+    """
+    from .backend import admin_call
+    if not args:
+        return err("用法：/announce [banner|toast|gm] <文案>",
+                   chat="✗ 用法: /announce [类型] <文案>")
+    kind = "banner"
+    if args[0].lower() in ("banner", "toast", "gm"):
+        kind = args[0].lower()
+        args = args[1:]
+    text = " ".join(args).strip()
+    if not text:
+        return err("文案不能为空", chat="✗ 文案不能为空")
+    res, e = admin_call("POST", "/announce", {"kind": kind, "text": text})
+    if e:
+        return _admin_down_result(e)
+    if not res or not res.get("ok"):
+        msg = (res or {}).get("error") or "公告发送失败"
+        return err(msg, chat=f"✗ 公告发送失败：{msg}")
+    return ok(["✔ 已发送公告",
+               f"  类型    {res.get('kind')}",
+               f"  目标    {res.get('uid') or '全服'}",
+               f"  送达    {res.get('ok_count')} 条连接",
+               f"  文案    {res.get('text')}"],
+              chat=f"✔ 公告已发（{res.get('kind')}，{res.get('ok_count')} 条连接）",
+              data=res)
 
