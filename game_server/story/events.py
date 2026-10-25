@@ -69,10 +69,10 @@ EV_SIGN = "Sign"                 # 完成取名（TaskEventData[1000]，无 Even
 CORE_TYPES = (EV_SUBMIT_ITEM, EV_AVATAR_ATTR, EV_GET_ITEM, EV_CHAR_DATA)
 
 
-class GameEvent(object):
+class GameEvent:
     """一条游戏事件。"""
 
-    __slots__ = ("type", "params", "source", "event_id")
+    __slots__ = ("event_id", "params", "source", "type")
 
     def __init__(self, type, params=None, source="", event_id=None):
         self.type = type
@@ -89,7 +89,7 @@ class GameEvent(object):
                 "source": self.source, "event_id": self.event_id}
 
 
-class EventResult(object):
+class EventResult:
     """apply_event 的结果。
 
     hits        检测到可以完成的剧情任务 id 列表（TaskType 3/7）
@@ -99,8 +99,15 @@ class EventResult(object):
     deduped     是不是因为 event_id 重复被跳过
     """
 
-    __slots__ = ("hits", "chain_hits", "task_hits", "task_sync", "frames",
-                 "deduped", "event")
+    __slots__ = (
+        "chain_hits",
+        "deduped",
+        "event",
+        "frames",
+        "hits",
+        "task_hits",
+        "task_sync",
+    )
 
     def __init__(self, hits=None, chain_hits=None, deduped=False, event=None,
                  task_hits=None, task_sync=None, frames=None):

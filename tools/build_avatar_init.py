@@ -428,14 +428,14 @@ def parse_custom_types(txt):
         raise RuntimeError("config.lua 里找不到 Custom 段")
     cblk = extract_block(txt, txt.find("{", i))
     types = {}
-    for m in re.finditer(r"^    (\w+) = \{", cblk, re.M):
+    for m in re.finditer(r"^    (\w+) = \{", cblk, re.MULTILINE):
         name = m.group(1)
         blk = extract_block(cblk, cblk.find("{", m.start()))
         props = {}
         pm = blk.find("Properties = {")
         if pm >= 0:
             pb = extract_block(blk, blk.find("{", pm))
-            for pm2 in re.finditer(r"^        (\w+) = \{", pb, re.M):
+            for pm2 in re.finditer(r"^        (\w+) = \{", pb, re.MULTILINE):
                 k = pm2.group(1)
                 eb = extract_block(pb, pb.find("{", pm2.start()))
                 parts = split_top(eb[1:-1])
@@ -490,7 +490,7 @@ def main():
     pm = blk.find("Properties = {")
     pb = extract_block(blk, blk.find("{", pm))
     props = {}
-    for m in re.finditer(r"^        (\w+) = \{", pb, re.M):
+    for m in re.finditer(r"^        (\w+) = \{", pb, re.MULTILINE):
         k = m.group(1)
         eb = extract_block(pb, pb.find("{", m.start()))
         parts = split_top(eb[1:-1])
@@ -503,7 +503,7 @@ def main():
     # 一开始只挑了被 pairs() 遍历的那些，结果非遍历的（如 fishing_miner_act_prop）
     # 照样在组件 start() 里被直接索引而崩。既然客户端要求属性齐全，
     # 就按权威表全给。
-    for m in re.finditer(r"^        (\w+) = \{", pb, re.M):
+    for m in re.finditer(r"^        (\w+) = \{", pb, re.MULTILINE):
         k = m.group(1)
         eb = extract_block(pb, pb.find("{", m.start()))
         parts = split_top(eb[1:-1])

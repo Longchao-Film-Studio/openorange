@@ -169,7 +169,7 @@ def struct_fields(type_name):
 
 
 # ---------------------------------------------------------------- 根属性
-class PropSpec(object):
+class PropSpec:
     """一个根属性的声明。
 
     source:
@@ -177,7 +177,7 @@ class PropSpec(object):
       "initdict" —— 来自 avatar_init.json 的 __tp__（45 个，只在 PropertyCallbacks 里出现）
     """
 
-    __slots__ = ("name", "type", "default", "scope", "persist", "source")
+    __slots__ = ("default", "name", "persist", "scope", "source", "type")
 
     def __init__(self, name, d):
         self.name = name

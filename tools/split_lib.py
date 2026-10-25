@@ -12,16 +12,15 @@ entity_rpc.py 有 2600+ 行、87 个顶层定义。手工搬容易漏行、容�
   3. 到下一个顶层定义/段落线为止；
   4. 结尾那串注释若紧贴下一个定义，还给 rest（不抢别人的注释）。
 """
-import io
 import re
 
 
 def load(path):
-    return io.open(path, encoding="utf-8").read()
+    return open(path, encoding="utf-8").read()
 
 
 def save(path, text):
-    io.open(path, "w", encoding="utf-8", newline="\n").write(text)
+    open(path, "w", encoding="utf-8", newline="\n").write(text)
 
 
 _TOP = re.compile(r"^(def |[A-Za-z_][A-Za-z0-9_]* = |# ---|@)")

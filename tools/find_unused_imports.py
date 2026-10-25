@@ -15,7 +15,6 @@
   * import * 跳过
 """
 import ast
-import io
 import os
 import sys
 
@@ -30,7 +29,7 @@ def _names_from_import(node):
 
 
 def check_file(path, strict=False):
-    src = io.open(path, encoding="utf-8").read()
+    src = open(path, encoding="utf-8").read()
     lines = src.split("\n")
     try:
         tree = ast.parse(src)

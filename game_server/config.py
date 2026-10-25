@@ -98,7 +98,7 @@ ONLINE_STALE_SEC = 120
 SCAFFOLD_LEVEL = 10
 
 
-class Scaffold(object):
+class Scaffold:
     """脚手架开关。默认全关 —— 走和真实游戏一致的开局。"""
 
     def __init__(self, unlock_all=False, level=None, all_tasks_done=None):

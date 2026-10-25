@@ -31,7 +31,7 @@ class Result:
     data:  结构化数据，供前端做额外渲染
     """
 
-    __slots__ = ("ok", "lines", "chat", "data")
+    __slots__ = ("chat", "data", "lines", "ok")
 
     def __init__(self, ok=True, lines=None, chat=None, data=None):
         self.ok = ok
@@ -58,7 +58,7 @@ def err(msg, chat=None, data=None):
 class Context:
     """一次命令执行的上下文。"""
 
-    __slots__ = ("actor", "perm", "source", "server_name", "allow_unavailables")
+    __slots__ = ("actor", "allow_unavailables", "perm", "server_name", "source")
 
     def __init__(self, actor, perm=PERM_PLAYER, source="web", server_name="",
                  allow_unavailables=False):
@@ -71,8 +71,17 @@ class Context:
 
 # ---------------------------------------------------------------- 命令定义
 class Command:
-    __slots__ = ("name", "handler", "aliases", "args", "desc", "perm",
-                 "needs_target", "implemented", "group")
+    __slots__ = (
+        "aliases",
+        "args",
+        "desc",
+        "group",
+        "handler",
+        "implemented",
+        "name",
+        "needs_target",
+        "perm",
+    )
 
     def __init__(self, name, handler, aliases=(), args="", desc="",
                  perm=PERM_PLAYER, needs_target=False, implemented=True, group="其它"):

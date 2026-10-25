@@ -11,7 +11,6 @@
     python tools/build_data_from_bdd.py --bdd <BDD 目录> --out <shared/data 目录>
 """
 import argparse
-import io
 import json
 import os
 import sys
@@ -54,7 +53,7 @@ def load(bdd_dir, name):
     path = os.path.join(bdd_dir, "TableData.CommonData.%s.json" % name)
     if not os.path.exists(path):
         return None
-    with io.open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -231,7 +230,7 @@ def main():
     for fname, fn, _ in builders:
         obj = fn(args.bdd)
         path = os.path.join(args.out, fname)
-        with io.open(path, "w", encoding="utf-8", newline="\n") as f:
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
             json.dump(obj, f, ensure_ascii=False, indent=0, separators=(",", ":"))
             f.write("\n")
         print("写出 %-18s %6d 条  %8.1f KB"

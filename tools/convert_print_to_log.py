@@ -29,8 +29,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-WARN_PAT = re.compile(r"error|失败|拒绝|异常|警告|危险|invalid|fail|拒绝|不足|无法", re.I)
-DEBUG_PAT = re.compile(r"^\[(GATE|ms|game)\]|RX|TX", re.I)
+WARN_PAT = re.compile(r"error|失败|拒绝|异常|警告|危险|invalid|fail|拒绝|不足|无法", re.IGNORECASE)
+DEBUG_PAT = re.compile(r"^\[(GATE|ms|game)\]|RX|TX", re.IGNORECASE)
 
 LOG_FOOTER = "_log = get_logger(__name__)"
 

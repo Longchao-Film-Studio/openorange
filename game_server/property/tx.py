@@ -55,10 +55,10 @@ class TxError(Exception):
     pass
 
 
-class Op(object):
+class Op:
     """一条待发送的变更。"""
 
-    __slots__ = ("property_id", "optype", "name", "value", "path")
+    __slots__ = ("name", "optype", "path", "property_id", "value")
 
     def __init__(self, property_id, optype, name, value, path):
         self.property_id = property_id
@@ -72,14 +72,14 @@ class Op(object):
             self.property_id, self.optype, self.name, self.path)
 
 
-class Tx(object):
+class Tx:
     """一次 RPC 内累积的变更集。
 
     所有改动**同时**写进 props（服务端状态）和 ops（待发送帧），
     保证两边一致。
     """
 
-    __slots__ = ("props", "ops", "_touched_roots", "_added_paths")
+    __slots__ = ("_added_paths", "_touched_roots", "ops", "props")
 
     def __init__(self, props):
         if not isinstance(props, dict):

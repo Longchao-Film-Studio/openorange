@@ -16,7 +16,6 @@
 Lua 表里的中文字符串是十进制字节转义（"\233\149\191"），这里统一解码成 UTF-8。
 """
 import argparse
-import io
 import json
 import os
 import re
@@ -73,7 +72,7 @@ def parse_entries(path):
     key = None
     depth = 0
     body = []
-    with io.open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
         for raw in f:
             line = raw.rstrip("\n").rstrip("\r")
             if key is None:
@@ -205,7 +204,7 @@ def extract_chars(lua_dir):
 
 def write_json(obj, path):
     tmp = path + ".tmp"
-    with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
     os.replace(tmp, path)

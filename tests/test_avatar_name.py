@@ -60,7 +60,7 @@ def call(rpc_name, args, rid, uid):
                           rid, uid=uid)
 
 
-class _SignCatcher(object):
+class _SignCatcher:
     """临时替换 events.apply_event，记录发出去的事件。"""
 
     def __init__(self):

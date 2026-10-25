@@ -109,14 +109,14 @@ def parse_custom_types(txt):
         raise RuntimeError("config.lua 里找不到 Custom 段")
     cblk = extract_block(txt, txt.find("{", i))
     types = {}
-    for m in re.finditer(r"^    (\w+) = \{", cblk, re.M):
+    for m in re.finditer(r"^    (\w+) = \{", cblk, re.MULTILINE):
         name = m.group(1)
         blk = extract_block(cblk, cblk.find("{", m.start()))
         props = {}
         pm = blk.find("Properties = {")
         if pm >= 0:
             pb = extract_block(blk, blk.find("{", pm))
-            for pm2 in re.finditer(r"^        (\w+) = \{", pb, re.M):
+            for pm2 in re.finditer(r"^        (\w+) = \{", pb, re.MULTILINE):
                 k = pm2.group(1)
                 eb = extract_block(pb, pb.find("{", pm2.start()))
                 parts = split_top(eb[1:-1])
@@ -182,7 +182,7 @@ def parse_avatar_properties(txt):
         raise RuntimeError("AvatarProperties 里没有 Properties")
     pb = extract_block(blk, blk.find("{", pm))
     out = {}
-    for m in re.finditer(r"^        (\w+) = \{", pb, re.M):
+    for m in re.finditer(r"^        (\w+) = \{", pb, re.MULTILINE):
         name = m.group(1)
         eb = extract_block(pb, pb.find("{", m.start()))
         parts = split_top(eb[1:-1])

@@ -54,11 +54,18 @@ from game_server import ms as _ms
 from game_server.property import spec as _spec
 
 
-class CustomObj(object):
+class CustomObj:
     """模拟客户端的 CustomDict / CustomList 实例。"""
 
-    __slots__ = ("type_name", "id", "props", "parent", "name", "is_list",
-                 "is_fixed")
+    __slots__ = (
+        "id",
+        "is_fixed",
+        "is_list",
+        "name",
+        "parent",
+        "props",
+        "type_name",
+    )
 
     def __init__(self, type_name, oid, parent=None, name=None,
                  is_list=False, is_fixed=False):
@@ -76,7 +83,7 @@ class CustomObj(object):
             sorted(str(k) for k in self.props)[:6])
 
 
-class ShadowCache(object):
+class ShadowCache:
     """客户端 PuppetPropertyComponent 的影子实现。"""
 
     def __init__(self):
@@ -623,7 +630,7 @@ def frames_safe(pre_init_dict, frames, tag=""):
     return sc, list(sc.errors)
 
 
-class _NilKey(object):
+class _NilKey:
     """客户端 tonumber(k) 失败返回 nil —— 拿 nil 当 table 键会崩。"""
     def __repr__(self):
         return "<nil>"

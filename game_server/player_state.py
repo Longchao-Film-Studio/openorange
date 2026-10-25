@@ -127,7 +127,7 @@ def _keys_from_json(obj):
     return obj
 
 
-class PlayerState(object):
+class PlayerState:
     def __init__(self, uid=DEFAULT_UID, props=None):
         self.uid = uid
         self.props = props if props is not None else {}

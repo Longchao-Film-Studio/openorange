@@ -64,7 +64,7 @@ end})
 """
 
 
-class Phonest(object):
+class Phonest:
     def __init__(self, dll):
         os.add_dll_directory(os.path.dirname(os.path.abspath(dll)))
         self.lib = ctypes.CDLL(dll)

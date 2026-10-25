@@ -14,7 +14,6 @@ token 规则:
     "#1001"   井号开头    -> 强制按 ID（跳过名字查找）
     "长命锁"  其它        -> 按名字（唯一则命中，重名返回候选）
 """
-import io
 import json
 import os
 
@@ -52,7 +51,7 @@ _story_by_id = {}
 
 def _load(name, list_key):
     path = os.path.join(DATA_DIR, name)
-    with io.open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
     return obj.get(list_key) or []
 
@@ -62,7 +61,7 @@ def _load_optional(name, list_key):
     path = os.path.join(DATA_DIR, name)
     if not os.path.exists(path):
         return []
-    with io.open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
     return obj.get(list_key) or []
 
