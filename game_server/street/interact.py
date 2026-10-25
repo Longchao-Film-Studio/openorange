@@ -54,7 +54,7 @@ def _actor_interact(rid, params, uid=None):
         if not is_new:
             tx.set(("street_info", street_id, "inter_actor_info"), ia)
         syncs.extend(tx.frames())
-    _log.info("[street] NPC %s 交互 %s" % (actor_id, interact_id))
+    _log.info("[street] NPC {} 交互 {}".format(actor_id, interact_id))
     # ★ P0-D：走事件总线发 StreetInteract（11 条剧情任务靠它推进）。
     #   event_id 用 actor+interact 组合，重复交互不会重复走一遍。
     res = _events.apply_event(
@@ -159,5 +159,5 @@ def _clear_treasure_actor(params, uid=None):
             for k in [k for k in tb if isinstance(k, int)]:
                 del tb[k]
             st.set("street_info", si)
-    _log.info("[street] 清理街区 %s 的宝箱 actor" % street_id)
+    _log.info("[street] 清理街区 {} 的宝箱 actor".format(street_id))
     return []

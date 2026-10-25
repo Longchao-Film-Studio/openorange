@@ -79,7 +79,7 @@ def alloc_id(props):
       - 落盘后重启继续递增（`_oo_next_id` 在 props 里）
     """
     if not isinstance(props, dict):
-        raise TypeError("alloc_id 需要 props dict，收到 %r" % (type(props),))
+        raise TypeError("alloc_id 需要 props dict，收到 {!r}".format(type(props)))
     with _LOCK:
         cur = props.get(_OO_NEXT_ID)
         if not isinstance(cur, int) or cur <= 0:
@@ -112,8 +112,7 @@ def reconcile(props, warn=True):
         fixed = True
     ok, dup = verify_unique(props)
     if warn and not ok:
-        print("[ids] ⚠ 存档里有重复 __id__：%s" %
-              ", ".join("%s:%s" % (k, v) for k, v in list(dup.items())[:5]),
+        print("[ids] ⚠ 存档里有重复 __id__：{}".format(", ".join("{}:{}".format(k, v) for k, v in list(dup.items())[:5])),
               flush=True)
         print("[ids]   客户端会打印 id repeated! 并覆盖缓存项 —— 建议用"
               " tools/fix_dup_ids.py 修一次", flush=True)
@@ -136,7 +135,7 @@ def verify_unique(props):
             for k, v2 in obj.items():
                 if k == "__id__":
                     continue
-                walk(v2, "%s.%s" % (path, k))
+                walk(v2, "{}.{}".format(path, k))
         elif isinstance(obj, (list, tuple)):
             for i, v2 in enumerate(obj):
                 walk(v2, "%s[%d]" % (path, i))

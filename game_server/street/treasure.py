@@ -56,8 +56,7 @@ def _grant_treasure_reward(st, tid):
                     SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if is_new else msmod.OP_CHANGE,
                     str(gkey), grid))
-            print("[street] 宝箱 %s 发道具 %s x%s -> 现在 %s"
-                  % (tid, iid, cnt, num), flush=True)
+            print("[street] 宝箱 {} 发道具 {} x{} -> 现在 {}".format(tid, iid, cnt, num), flush=True)
     # 2) 声望经验（AwardAttr.prestige_exp）
     aa = cfg.get("AwardAttr") or {}
     exp = 0
@@ -102,8 +101,7 @@ def _touch_treasure(params, uid=None):
     already = tb.get(tid) == 1
     tb[tid] = 1
     st.set("street_info", si)
-    print("[street] 开宝箱 %s（街区 %s）%s"
-          % (tid, street_id, "重复开启，不再发奖" if already else ""), flush=True)
+    print("[street] 开宝箱 {}（街区 {}）{}".format(tid, street_id, "重复开启，不再发奖" if already else ""), flush=True)
     if not is_new:
         tx.set(("street_info", street_id, "treasure_box_info"), tb)
     frames = list(tx.frames())

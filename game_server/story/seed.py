@@ -168,8 +168,7 @@ def seed(st, now=None, only_children_of=None, limit=SEED_LIMIT):
             cfg = cfg_of(tid) or {}
             if cfg.get("activityOn"):
                 # 活动系统未实现，无法判定 isActivityValid；按文档策略放行并留痕
-                print("[story] 播种任务 %s 带 activityOn=%s（活动系统未实现，按开启处理）"
-                      % (tid, cfg.get("activityOn")), flush=True)
+                print("[story] 播种任务 {} 带 activityOn={}（活动系统未实现，按开启处理）".format(tid, cfg.get("activityOn")), flush=True)
     if seeded:
         print("[story] 播种 %d 个任务（候选 %d 个）" % (seeded, len(cands)),
               flush=True)
@@ -259,8 +258,8 @@ def rescan(st, now=None, limit=SEED_LIMIT):
     # 数据缺陷告警（一次性）
     for t, pre in _broken_pre_tasks():
         _warn_once("broken:%d" % t,
-                   "数据缺陷：任务 %s 的 PreTask=%s 在 StoryTaskData/TaskData 里都不存在，"
-                   "该任务永远不可达" % (t, pre))
+                   "数据缺陷：任务 {} 的 PreTask={} 在 StoryTaskData/TaskData 里都不存在，"
+                   "该任务永远不可达".format(t, pre))
     dangling = _dangling_task_data_ids()
     if dangling:
         _warn_once("dangling",
@@ -272,7 +271,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
     try:
         out.extend(seed_cross_table(st, now))
     except Exception as e:
-        _log.warning("[story] rescan 跨表播种失败: %s" % e)
+        _log.warning("[story] rescan 跨表播种失败: {}".format(e))
 
     # ② 链式闸门（TaskType 6）
     from . import events as _events
@@ -283,7 +282,7 @@ def rescan(st, now=None, limit=SEED_LIMIT):
             from .rpc import _finish_story_tasks
             out.extend(_finish_story_tasks(st, hits, source="chain"))
     except Exception as e:
-        _log.warning("[story] rescan 链式检查失败: %s" % e)
+        _log.warning("[story] rescan 链式检查失败: {}".format(e))
 
     return out
 
@@ -319,6 +318,5 @@ def seed_cross_table(st, now=None):
         ch = story_mod.start_story_task(st, tid, int(now or time.time()))
         if ch:
             out.extend(ch)
-            print("[story] 跨表前置满足，播种任务 %s（PreTask=TaskData[%s]）"
-                  % (tid, pre), flush=True)
+            print("[story] 跨表前置满足，播种任务 {}（PreTask=TaskData[{}]）".format(tid, pre), flush=True)
     return out

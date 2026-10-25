@@ -33,7 +33,7 @@ def _mainline_levelup(rid, params, uid=None):
     ml[area_id] = cur + 1
     st.set("mainline_level", ml)
     st.save()
-    _log.info("[street] 主线 %s 等级 %s -> %s" % (area_id, cur, cur + 1))
+    _log.info("[street] 主线 {} 等级 {} -> {}".format(area_id, cur, cur + 1))
     syncs.append(sync_frame(
         SYNC_SELF, ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
     return respond_after_sync(rid, syncs)
@@ -55,7 +55,7 @@ def _finish_storyline(rid, params, uid=None):
         done.append(event_id)
     st.props["_oo_storyline_done"] = done
     st.save()
-    _log.info("[street] 街区剧情线完成 event=%s" % event_id)
+    _log.info("[street] 街区剧情线完成 event={}".format(event_id))
     return respond_after_sync(rid, [])
 
 def _street_cd_update(rid, params, uid=None):
@@ -79,5 +79,5 @@ def _street_cd_update(rid, params, uid=None):
             tx.set(("street_info", street_id, "cd_choose"), cd_id)
         st.save()
         syncs.extend(tx.frames())
-    _log.info("[street] CD 选择 street=%s cd=%s" % (street_id, cd_id))
+    _log.info("[street] CD 选择 street={} cd={}".format(street_id, cd_id))
     return respond_after_sync(rid, syncs)

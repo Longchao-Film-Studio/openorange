@@ -44,7 +44,7 @@ def _grant_battle_items(st, battle_items):
                 str(gkey), grid))
         reward_list.append({"item_id": iid, "item_num": cnt})
         granted.append((iid, cnt))
-        print("[dungeon] 结算发道具 %s x%s -> 现在 %s" % (iid, cnt, num),
+        print("[dungeon] 结算发道具 {} x{} -> 现在 {}".format(iid, cnt, num),
               flush=True)
     # ★ P0-D：战斗里捡到的道具也发 GetItem 事件
     #   （审计 P0-2：客户端只对 6 个 firstObtainNotice 道具发 RPC，

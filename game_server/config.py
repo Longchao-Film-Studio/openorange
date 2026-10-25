@@ -121,8 +121,8 @@ class Scaffold:
         if self.all_tasks_done:
             parts.append("任务全完成")
         if self.level is not None:
-            parts.append("等级=%s" % self.level)
-        return "开启（%s）" % "、".join(parts)
+            parts.append("等级={}".format(self.level))
+        return "开启（{}）".format("、".join(parts))
 
 
 # 运行时全局脚手架配置。main() 里按命令行参数覆盖。

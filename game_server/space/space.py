@@ -80,7 +80,7 @@ def _enter_space(params, uid=None):
     sp["ld_spaceno"] = 0
     st.set("space_p", sp)
     st.save()
-    _log.info("[space] %s -> %s (spaceid=%s)" % (old, spaceno, spaceid))
+    _log.info("[space] {} -> {} (spaceid={})".format(old, spaceno, spaceid))
     frames = _space_sync_frames(st, sp)
     if spaceno:
         frames.append(_s2c_entity(
@@ -108,7 +108,7 @@ def _scene_loaded(params, uid=None):
     sp["ld_spaceno"] = spaceno
     st.set("space_p", sp)
     st.save()
-    _log.info("[space] 场景加载完成 %s" % spaceno)
+    _log.info("[space] 场景加载完成 {}".format(spaceno))
     return _space_sync_frames(st, sp)
 
 def _leave_space_rpc(rid, params, uid=None):
@@ -125,7 +125,7 @@ def _leave_space_rpc(rid, params, uid=None):
     sp["loading"] = False
     st.set("space_p", sp)
     st.save()
-    _log.info("[space] 离开空间 %s" % old)
+    _log.info("[space] 离开空间 {}".format(old))
     syncs.extend(_space_sync_frames(st, sp))
     if old:
         syncs.append(_s2c_entity(

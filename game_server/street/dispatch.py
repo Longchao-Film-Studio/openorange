@@ -53,7 +53,7 @@ def _dispatch_char(rid, params, uid=None):
     d[dip_id] = entry
     st.set("street_dispatch", d)
     st.save()
-    _log.info("[street] 派遣 char=%s dip=%s" % (char_id, dip_id))
+    _log.info("[street] 派遣 char={} dip={}".format(char_id, dip_id))
     syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
     return respond_after_sync(rid, syncs)
@@ -76,7 +76,7 @@ def _finish_dispatch(rid, params, uid=None):
     entry["end_time"] = int(time.time())
     st.set("street_dispatch", d)
     st.save()
-    _log.info("[street] 完成派遣 dip=%s" % dip_id)
+    _log.info("[street] 完成派遣 dip={}".format(dip_id))
     syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
     return respond_after_sync(rid, syncs)
@@ -98,7 +98,7 @@ def _cancel_dispatch(rid, params, uid=None):
     del d[dip_id]
     st.set("street_dispatch", d)
     st.save()
-    _log.info("[street] 取消派遣 dip=%s" % dip_id)
+    _log.info("[street] 取消派遣 dip={}".format(dip_id))
     syncs.append(sync_frame(
         SYNC_SELF, d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
     return respond_after_sync(rid, syncs)

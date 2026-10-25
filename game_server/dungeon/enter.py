@@ -51,7 +51,7 @@ def _resolve_copy_id(match_info):
         if isinstance(v, str) and v and not v.isdigit():
             if gamedata.level_copy(v):
                 return v
-            print("[dungeon] 拒绝：copyId=%s 不在 Level_CopyData 里" % v,
+            print("[dungeon] 拒绝：copyId={} 不在 Level_CopyData 里".format(v),
                   flush=True)
             return None
     return None
@@ -66,7 +66,7 @@ def _avatar_start_game(rid, params, uid=None):
         match_info = {}
     copy_id = _resolve_copy_id(match_info)
     if not copy_id:
-        _log.info("[dungeon] 解析不出 copyId，match_info=%s" % match_info)
+        _log.info("[dungeon] 解析不出 copyId，match_info={}".format(match_info))
         return [msmod.build_entity_response(
             rid, ret={"status": False, "errorcode": 1})]
     copy_cfg = gamedata.level_copy(copy_id) or {}
@@ -97,15 +97,14 @@ def _avatar_start_game(rid, params, uid=None):
         if force:
             if force in ids:
                 ids = [force]
-                print("[dungeon] 强制关卡 %s（%s 的账号设置）" % (force, uid),
+                print("[dungeon] 强制关卡 {}（{} 的账号设置）".format(force, uid),
                       flush=True)
             else:
-                print("[dungeon] ⚠ 强制关卡 %s 不属于本副本（%s），忽略"
-                      % (force, ids), flush=True)
+                print("[dungeon] ⚠ 强制关卡 {} 不属于本副本（{}），忽略".format(force, ids), flush=True)
         elif ooconf.DUNGEON_LAST_ONLY and len(ids) > 1:
             # 命令行 --dungeon-last-only：只下发最后一关
             ids = ids[-1:]
-            print("[dungeon] --dungeon-last-only：只下发最后一关 %s" % ids,
+            print("[dungeon] --dungeon-last-only：只下发最后一关 {}".format(ids),
                   flush=True)
         inner["levelIds"] = ids
     space_info = {"spaceInfo": inner, "battleInfo": {}}
@@ -117,7 +116,7 @@ def _avatar_start_game(rid, params, uid=None):
     _remember_dungeon(st, copy_id, (inner.get("levelIds") or [None])[0])
     st.props.pop("_oo_cur_teach", None)   # 新副本，清掉上一轮的教学记录
     st.save()
-    _log.info("[dungeon] 进副本 copyId=%s roots=%s" % (copy_id, roots))
+    _log.info("[dungeon] 进副本 copyId={} roots={}".format(copy_id, roots))
     resp = {"status": True, "spaceInfo": space_info}
     return respond_after_sync(rid, [], resp=resp)
 
@@ -146,8 +145,7 @@ def _single_start_match(rid, params, uid=None):
         match_info = {}
     copy_id = _resolve_copy_id(match_info)
     if not copy_id:
-        print("[dungeon] SingleStartMatch 解析不出 copyId，match_info=%s"
-              % match_info, flush=True)
+        print("[dungeon] SingleStartMatch 解析不出 copyId，match_info={}".format(match_info), flush=True)
         return [msmod.build_entity_response(
             rid, ret={"status": False, "errorcode": 1})]
     cfg = gamedata.level_copy(copy_id) or {}
@@ -163,14 +161,12 @@ def _single_start_match(rid, params, uid=None):
     if not isinstance(want_level, int):
         want_level = root_ints[0] if root_ints else None
     elif root_ints and int(want_level) not in root_ints:
-        print("[dungeon] 拒绝：levelId=%s 不在 %s 的 rootLevel %s 里，改用首关"
-              % (want_level, copy_id, root_ints[:4]), flush=True)
+        print("[dungeon] 拒绝：levelId={} 不在 {} 的 rootLevel {} 里，改用首关".format(want_level, copy_id, root_ints[:4]), flush=True)
         want_level = root_ints[0]
     _remember_dungeon(st, copy_id, want_level)
     st.props.pop("_oo_cur_teach", None)
     st.save()
-    print("[dungeon] SingleStartMatch copyId=%s level=%s area=%s"
-          % (copy_id, st.props.get("_oo_cur_level"),
+    print("[dungeon] SingleStartMatch copyId={} level={} area={}".format(copy_id, st.props.get("_oo_cur_level"),
              st.props.get("_oo_cur_area")), flush=True)
     # 客户端只读 status，不需要 spaceInfo
     return respond_after_sync(rid, [], resp={"status": True})

@@ -93,12 +93,11 @@ def validate(ops):
                 else:
                     seen_ids[v] = path
             else:
-                errs.append("嵌套 dict %r 没有 __id__（客户端 roinit 会 assert）"
-                            % (path,))
+                errs.append("嵌套 dict {!r} 没有 __id__（客户端 roinit 会 assert）".format(path))
             for k, v2 in obj.items():
                 if k in ("__id__", "__tp__"):
                     continue
-                walk_ids(v2, "%s.%s" % (path, k))
+                walk_ids(v2, "{}.{}".format(path, k))
         elif isinstance(obj, (list, tuple)):
             for i, v2 in enumerate(obj):
                 walk_ids(v2, "%s[%d]" % (path, i))
@@ -106,7 +105,7 @@ def validate(ops):
     for op in ops:
         path = op.path or ()
         if not isinstance(op.property_id, int):
-            errs.append("%r 的 property_id 不是整数" % (path,))
+            errs.append("{!r} 的 property_id 不是整数".format(path))
         if op.optype == OP_ADD:
             # ★ 容器元素可能是「自定义类型」也可能是「简单类型」：
             #   item_bag / street_info 这类元素是结构体 -> 值必须是带 __id__ 的表；
@@ -120,38 +119,35 @@ def validate(ops):
                                           or _spec.is_container(vtype))
             if isinstance(op.value, dict):
                 if not isinstance(op.value.get("__id__"), int):
-                    errs.append("OP_ADD %r 的值没有 __id__" % (path,))
+                    errs.append("OP_ADD {!r} 的值没有 __id__".format(path))
                 if vtype is not None and not elem_custom:
-                    errs.append("OP_ADD %r 的元素类型 %r 是简单类型，值不该是表"
-                                % (path, vtype))
+                    errs.append("OP_ADD {!r} 的元素类型 {!r} 是简单类型，值不该是表".format(path, vtype))
             elif vtype is None or elem_custom:
                 # 父类型查不到（自定义根属性）时按旧规则从严：值必须是带 __id__ 的表
-                errs.append("OP_ADD %r 的值不是 dict" % (path,))
+                errs.append("OP_ADD {!r} 的值不是 dict".format(path))
             if op.property_id <= 0:
-                errs.append("OP_ADD %r 的 propertyId=0（客户端找不到父对象）" % (path,))
+                errs.append("OP_ADD {!r} 的 propertyId=0（客户端找不到父对象）".format(path))
             # 结构体字段不能 OP_ADD
             if len(path) >= 2:
                 ptype = _parent_type_of(ops, path)
                 if ptype and path[-1] in _spec.struct_fields(ptype):
-                    errs.append("OP_ADD %r 打的是结构体字段（应用 OP_CHANGE）" % (path,))
+                    errs.append("OP_ADD {!r} 打的是结构体字段（应用 OP_CHANGE）".format(path))
         if op.optype in (OP_DEL, OP_REMOVE) and op.value is not None:
-            errs.append("OP_DEL/REMOVE %r 不该带值" % (path,))
+            errs.append("OP_DEL/REMOVE {!r} 不该带值".format(path))
         # ★ B 段遗留：OP_INSERT / OP_REMOVE 以前没有任何校验（也没人产出）。
         #   客户端 __OpInsert__/__OpRemove__ 的第一句都是 assert(customObj ~= nil)，
         #   而且 name 会无条件 tonumber —— propertyId 填 0 或 name 不是正整数都会崩。
         if op.optype in (OP_INSERT, OP_REMOVE):
             if not isinstance(op.property_id, int) or op.property_id <= 0:
-                errs.append("OP_INSERT/REMOVE %r 的 propertyId 必须是父 list 的 __id__（>0）"
-                            % (path,))
+                errs.append("OP_INSERT/REMOVE {!r} 的 propertyId 必须是父 list 的 __id__（>0）".format(path))
             try:
                 pos = int(op.name)
             except Exception:
                 pos = None
             if pos is None or pos < 1:
-                errs.append("OP_INSERT/REMOVE %r 的 name=%r 必须是 1-based 位置"
-                            % (path, op.name))
+                errs.append("OP_INSERT/REMOVE {!r} 的 name={!r} 必须是 1-based 位置".format(path, op.name))
         if op.optype == OP_INSERT and op.value is None:
-            errs.append("OP_INSERT %r 没有值" % (path,))
+            errs.append("OP_INSERT {!r} 没有值".format(path))
         if op.value is not None:
             walk_ids(op.value, path)
     return errs
@@ -181,9 +177,9 @@ def ops_to_frames(ops, strict=False):
     errs = validate(ops)
     if errs:
         if strict:
-            raise ValueError("变更集校验失败：%s" % "; ".join(errs))
+            raise ValueError("变更集校验失败：{}".format("; ".join(errs)))
         for e in errs:
-            _log.debug("[tx] ⚠ 变更集校验: %s" % e)
+            _log.debug("[tx] ⚠ 变更集校验: {}".format(e))
 
     from .. import ms as _ms
 

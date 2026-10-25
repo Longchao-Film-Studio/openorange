@@ -81,8 +81,7 @@ def sync_frame(ownerid, property_id, op_type, name, value, session_id=""):
     elif not isinstance(ownerid, str):
         # ★ 不要静默 str()：传 int 会变成 "123"，客户端 getRealOwner("123")
         #   找不到就把整帧丢掉 —— 比直接报错更难排查。所以这里显式拒绝。
-        raise TypeError("ownerid 必须是 str（空串 = 收帧者自己），收到 %r"
-                        % (ownerid,))
+        raise TypeError("ownerid 必须是 str（空串 = 收帧者自己），收到 {!r}".format(ownerid))
     if op_type in (msmod.OP_DEL, msmod.OP_REMOVE):
         val = None
     else:
@@ -142,4 +141,4 @@ def throttled_save(st, uid, force=False):
     try:
         st.save()
     except Exception as e:
-        _log.warning("[save] 落盘失败 %s: %s" % (key, e))
+        _log.warning("[save] 落盘失败 {}: {}".format(key, e))

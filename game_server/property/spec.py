@@ -42,7 +42,7 @@ def _load():
     if _LOADED is None:
         if not os.path.exists(_DATA):
             raise RuntimeError(
-                "缺少 %s —— 先跑 python tools/gen_property_spec.py" % _DATA)
+                "缺少 {} —— 先跑 python tools/gen_property_spec.py".format(_DATA))
         with open(_DATA, "r", encoding="utf-8") as f:
             _LOADED = json.load(f)
     return _LOADED
@@ -212,9 +212,9 @@ class PropSpec:
         return self.scope == "ServerOnly"
 
     def __repr__(self):
-        return "PropSpec(%s: %s%s)" % (
+        return "PropSpec({}: {}{})".format(
             self.name, self.type,
-            " key=%s" % self.key_kind if self.key_kind else "")
+            " key={}".format(self.key_kind) if self.key_kind else "")
 
 
 def get(name):

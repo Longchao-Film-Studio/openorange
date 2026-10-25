@@ -77,11 +77,11 @@ def _do_unlock_npc_topic(uid, topic_id):
     st = player_state.get_state(uid=uid)
     cfg = __import__("game_server.gamedata", fromlist=["gamedata"]).npc_message(topic_id)
     if not isinstance(cfg, dict):
-        return {"ok": False, "error": "话题 %s 不在 NpcMessageData" % topic_id}
+        return {"ok": False, "error": "话题 {} 不在 NpcMessageData".format(topic_id)}
     try:
         chat_id = int(cfg.get("role"))
     except Exception:
-        return {"ok": False, "error": "话题 %s 缺 role 字段" % topic_id}
+        return {"ok": False, "error": "话题 {} 缺 role 字段".format(topic_id)}
     frames = npc_sms.unlock_topic(st, chat_id, topic_id,
                                   source="admin:/sms", allow_unmapped=True)
     return {"ok": True, "chat_id": chat_id, "frames": len(frames),
@@ -190,7 +190,7 @@ def _set_player_force_level(uid, level):
     else:
         st.props.pop("_oo_dungeon_force_level", None)
     st.save()
-    _log.info("[admin] %s 的副本关卡覆盖设为 %s" % (uid, v or "无"))
+    _log.info("[admin] {} 的副本关卡覆盖设为 {}".format(uid, v or "无"))
     return v
 
 
@@ -320,8 +320,7 @@ class _Handler(BaseHTTPRequestHandler):
                                         "player": _player_story(uid)})
             return self._send(404, {"ok": False, "error": "no such path"})
         except Exception as e:
-            return self._send(500, {"ok": False, "error": "%s: %s"
-                                    % (type(e).__name__, e),
+            return self._send(500, {"ok": False, "error": "{}: {}".format(type(e).__name__, e),
                                     "trace": traceback.format_exc()[-800:]})
 
     def do_POST(self):
@@ -391,8 +390,7 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True, "result": res})
             return self._send(404, {"ok": False, "error": "no such path"})
         except Exception as e:
-            return self._send(500, {"ok": False, "error": "%s: %s"
-                                    % (type(e).__name__, e),
+            return self._send(500, {"ok": False, "error": "{}: {}".format(type(e).__name__, e),
                                     "trace": traceback.format_exc()[-800:]})
 
     def do_PUT(self):

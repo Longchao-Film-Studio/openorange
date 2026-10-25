@@ -176,7 +176,7 @@ class PlayerState:
 
     # ---- 持久化 ----
     def path(self):
-        return os.path.join(_STATE_DIR, "%s.json" % self.uid)
+        return os.path.join(_STATE_DIR, "{}.json".format(self.uid))
 
     def save(self):
         d = self.to_dict()
@@ -234,7 +234,7 @@ def _migrate_item_bag_keys(props):
 
 def load(uid=DEFAULT_UID):
     """读盘；没有存档就返回 None。"""
-    p = os.path.join(_STATE_DIR, "%s.json" % uid)
+    p = os.path.join(_STATE_DIR, "{}.json".format(uid))
     if not os.path.exists(p):
         return None
     try:

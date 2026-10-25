@@ -398,7 +398,7 @@ def _drain_pending_chain(uid=None):
             _out.extend(_finish_story_tasks(st, _ch, source="chain"))
         return _out
     except Exception as e:
-        _log.warning("[story] 补完成链式任务失败: %s" % e)
+        _log.warning("[story] 补完成链式任务失败: {}".format(e))
         return []
 
 # ---------------------------------------------------------------- 未实现 RPC（雷2）
@@ -431,7 +431,7 @@ UNKNOWN_FAIL_RET = {"status": False, "errmsg": "not implemented"}
 def unknown_rpc_ret(index, uid=None, params=None):
     """未实现 RPC 的应答 ret：记日志 + 按模式决定成败。"""
     name = _catalog.name_of(index)
-    key = name or ("index:%s" % index)
+    key = name or ("index:{}".format(index))
     fake = _ooconf.unknown_fake_ok() and (name not in _NEVER_FAKE_OK_RPC)
     _ulog.record("rpc", key, uid=uid, params=params, fake_ok=fake,
                  reply="ack" if fake else "fail")
@@ -476,7 +476,7 @@ def _handle_locked(index, params, rid, uid=None):
             try:
                 out = fn1(params, uid)
             except Exception as e:
-                _log.warning("[rpc] 单向处理失败 index=%s: %s" % (index, e))
+                _log.warning("[rpc] 单向处理失败 index={}: {}".format(index, e))
                 out = None
             # 单向处理器可以返回「服务端主动下发的 S2C 帧」（比如 RpcOnEnterSpace）
             if isinstance(out, list):

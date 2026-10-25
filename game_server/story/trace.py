@@ -205,8 +205,7 @@ def apply(st, syncs=None, reason="", street_id=None, force_zero=False,
         syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE, TRACE_KEY, tid))
 
     if old != tid or reason:
-        print("[trace] %s：%s -> %s（街区 %s，%s）"
-              % (reason or "刷新", old, tid, _street_of(st, street_id), mode),
+        print("[trace] {}：{} -> {}（街区 {}，{}）".format(reason or "刷新", old, tid, _street_of(st, street_id), mode),
               flush=True)
     return tid
 

@@ -99,7 +99,7 @@ def apply(props, cfg=None):
 
     if cfg.level is not None:
         props["level"] = cfg.level
-        changed.append("level=%s" % cfg.level)
+        changed.append("level={}".format(cfg.level))
 
     if cfg.unlock_all:
         sysp = props.get("system_p")
@@ -124,7 +124,7 @@ def apply(props, cfg=None):
                     #   AvatarBagComp:refreshLocalBagData 里 pairs(nil) 报错 ->
                     #   ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页的死循环。
                     tb[tt] = _factory.new_container(props)
-            changed.append("task_bag 槽位 %s" % DONE_TASK_TYPES)
+            changed.append("task_bag 槽位 {}".format(DONE_TASK_TYPES))
 
         # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt
         dt = props.get("done_tasks")
@@ -136,7 +136,7 @@ def apply(props, cfg=None):
                     dt[tt] = slot
                 for tid in DONE_TASK_IDS:
                     slot[tid] = 1
-            changed.append("done_tasks 任务 %s" % DONE_TASK_IDS)
+            changed.append("done_tasks 任务 {}".format(DONE_TASK_IDS))
 
         # done_story_tasks：StoryTaskBag 的 __ValueType__ 是 StoryTaskItem 对象，
         # 不能直接塞 true（roinit 会拿 true 去建对象然后失败）。
@@ -180,7 +180,6 @@ def apply(props, cfg=None):
         # 正常流程里这一步是 avatar.py::_set_default_card 在取名时做的；
         # 脚手架跳过了取名，所以这里等价补上。
         props["player_card_id"] = 2
-        changed.append("player_name=%r gender=1 player_card_id=2（已取名，进街区用）"
-                       % SCAFFOLD_PLAYER_NAME)
+        changed.append("player_name={!r} gender=1 player_card_id=2（已取名，进街区用）".format(SCAFFOLD_PLAYER_NAME))
 
     return changed

@@ -86,10 +86,10 @@ def _apply_street_change(new_id, uid):
         if _hits:
             syncs.extend(_finish_story_tasks(st, _hits, source="street_arrival") or [])
     except Exception as _e:
-        _log.warning("[street] 切街完成 type4 失败: %s" % _e)
+        _log.warning("[street] 切街完成 type4 失败: {}".format(_e))
     # ★ 切街区后刷新追踪标点（否则标点留在旧街区，玩家找不到下一步）
     _refresh_trace_on_street_change(st, new_id, syncs)
-    _log.info("[street] %s -> %s" % (old, new_id))
+    _log.info("[street] {} -> {}".format(old, new_id))
     return syncs
 
 def _update_street_pos(params, uid=None):

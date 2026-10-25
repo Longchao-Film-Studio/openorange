@@ -85,7 +85,7 @@ def _task_fetch(rid, params, uid=None):
     st = state(uid)
     syncs.extend(_task_sync_frames(st, tasks.start_task(st, tid)))
     st.save()
-    _log.info("[task] 接任务 %s" % tid)
+    _log.info("[task] 接任务 {}".format(tid))
     return respond_after_sync(rid, syncs)
 
 def _task_done(rid, params, uid=None):
@@ -111,9 +111,9 @@ def _task_done(rid, params, uid=None):
         if _extra:
             syncs.extend(_story_frames(st, _extra))
     except Exception as e:
-        _log.warning("[task] 剧情重扫失败: %s" % e)
+        _log.warning("[task] 剧情重扫失败: {}".format(e))
     st.save()
-    _log.info("[task] 完成任务 %s" % tid)
+    _log.info("[task] 完成任务 {}".format(tid))
     return respond_after_sync(rid, syncs)
 
 def _task_done_type(rid, params, uid=None):
@@ -135,9 +135,9 @@ def _task_done_type(rid, params, uid=None):
         if _extra:
             syncs.extend(_story_frames(st, _extra))
     except Exception as e:
-        _log.warning("[task] 剧情重扫失败: %s" % e)
+        _log.warning("[task] 剧情重扫失败: {}".format(e))
     st.save()
-    _log.info("[task] 完成类型 %s 的全部任务" % ttype)
+    _log.info("[task] 完成类型 {} 的全部任务".format(ttype))
     return respond_after_sync(rid, syncs)
 
 
@@ -152,7 +152,7 @@ def _grant_awards(st, cfg):
         from ..dungeon.reward import _grant_battle_items
         return _grant_battle_items(st, awards)
     except Exception as e:
-        _log.warning("[task] 发奖失败: %s" % e)
+        _log.warning("[task] 发奖失败: {}".format(e))
         return [], []
 
 
@@ -185,22 +185,21 @@ def _done_title_task(rid, params, uid=None):
             continue
         cfg = gamedata.task(tid) or {}
         if cfg.get("TaskType") != 10:
-            _log.warning("[task] 拒绝领奖 %s：不是头衔挑战任务" % tid)
+            _log.warning("[task] 拒绝领奖 {}：不是头衔挑战任务".format(tid))
             continue
         if tasks.task_state(st.props, tid) != tasks.TASK_STATE_WAIT_DONE:
-            print("[task] 拒绝领奖 %s：状态不是 WaitDone（当前 %s）"
-                  % (tid, tasks.task_state(st.props, tid)), flush=True)
+            print("[task] 拒绝领奖 {}：状态不是 WaitDone（当前 {}）".format(tid, tasks.task_state(st.props, tid)), flush=True)
             continue
         _af, _rl = _grant_awards(st, cfg)
         ch.extend(_af)
         ch.extend(tasks.claim_task(st, tid))
         got.append(tid)
         if _rl:
-            _log.info("[task] 领奖 %s -> %s" % (tid, _rl))
+            _log.info("[task] 领奖 {} -> {}".format(tid, _rl))
     if ch:
         syncs.extend(_task_sync_frames(st, ch))
     st.save()
-    _log.info("[task] 头衔领奖：%s（titel_vit=%s）" % (got, vit))
+    _log.info("[task] 头衔领奖：{}（titel_vit={}）".format(got, vit))
     return respond_after_sync(rid, syncs)
 
 
@@ -258,6 +257,6 @@ def _refresh_title_daily_task(rid, params, uid=None):
     if ch:
         syncs.extend(_task_sync_frames(st, ch))
     st.save()
-    print("[task] 刷新头衔日常 DailyType=%s -> 重置 %s" % (daily_type, reset),
+    print("[task] 刷新头衔日常 DailyType={} -> 重置 {}".format(daily_type, reset),
           flush=True)
     return respond_after_sync(rid, syncs)

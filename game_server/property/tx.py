@@ -83,7 +83,7 @@ class Tx:
 
     def __init__(self, props):
         if not isinstance(props, dict):
-            raise TxError("Tx 需要 props dict，收到 %r" % (type(props),))
+            raise TxError("Tx 需要 props dict，收到 {!r}".format(type(props)))
         self.props = props
         self.ops = []
         self._touched_roots = []
@@ -106,12 +106,12 @@ class Tx:
         if len(path) == 1:
             return self.props, root, 0, (sp.type if sp else None)
         if root not in self.props:
-            raise TxError("根属性 %r 不存在，先 set 它" % (root,))
+            raise TxError("根属性 {!r} 不存在，先 set 它".format(root))
         cur = self.props[root]
         cur_pid = cur.get("__id__") if isinstance(cur, dict) else None
         cur_type = sp.type if sp else None
         if not isinstance(cur_pid, int):
-            raise TxError("根属性 %r 没有 __id__，不能改它的子项" % (root,))
+            raise TxError("根属性 {!r} 没有 __id__，不能改它的子项".format(root))
         for i, key in enumerate(path[1:-1], start=1):
             if not isinstance(cur, dict):
                 raise TxError("路径 %r 第 %d 段 %r 的父不是 dict" % (path, i, key))
@@ -159,7 +159,7 @@ class Tx:
             # 根属性：客户端一定已经有这个根（initDict 下发过），所以是 CHANGE
             sp = self._root_spec(key)
             if sp is not None and sp.is_server_only:
-                raise TxError("根属性 %r 是 ServerOnly，不该推给客户端" % (key,))
+                raise TxError("根属性 {!r} 是 ServerOnly，不该推给客户端".format(key))
             self._ensure_id(value)
             parent[key] = value
             self._touch(key)
@@ -167,7 +167,7 @@ class Tx:
             return value
 
         if not isinstance(parent, dict):
-            raise TxError("路径 %r 的父不是 dict" % (path,))
+            raise TxError("路径 {!r} 的父不是 dict".format(path))
         # ★ 区分「结构体字段」和「容器键」：
         #   - 结构体字段：客户端从 initDict 就带着全部字段 -> 永远是 CHANGE
         #   - 容器键：可能是新键 -> OP_ADD
@@ -204,12 +204,12 @@ class Tx:
         path = tuple(path)
         parent, key, pid, ptype = self._walk(path)
         if not isinstance(parent, dict):
-            raise TxError("路径 %r 的父不是 dict" % (path,))
+            raise TxError("路径 {!r} 的父不是 dict".format(path))
         fields = _spec.struct_fields(ptype) if ptype else {}
         if key in fields:
-            raise TxError("不能删除结构体字段 %r（客户端会 assert 崩）" % (path,))
+            raise TxError("不能删除结构体字段 {!r}（客户端会 assert 崩）".format(path))
         if key not in parent:
-            raise TxError("路径 %r 的键不存在，不能删除" % (path,))
+            raise TxError("路径 {!r} 的键不存在，不能删除".format(path))
         kind = _spec.key_kind(ptype) if ptype else None
         optype = OP_REMOVE if kind == "list" else OP_DEL
         del parent[key]
@@ -256,7 +256,7 @@ class Tx:
             path = tuple(path)
         container = self.get(path)
         if not isinstance(container, dict):
-            raise TxError("路径 %r 的容器不是 dict" % (path,))
+            raise TxError("路径 {!r} 的容器不是 dict".format(path))
         keys = _normalize_list_keys(container)
         return self.insert(path, len(keys) + 1, value)
 
@@ -289,10 +289,9 @@ class Tx:
             path = tuple(path)
         container, _k, pid, ctype = self._walk(path + (index,))
         if not isinstance(container, dict):
-            raise TxError("路径 %r 的容器不是 dict" % (path,))
+            raise TxError("路径 {!r} 的容器不是 dict".format(path))
         if _spec.key_kind(ctype) != "list":
-            raise TxError("路径 %r 的类型 %r 不是 list（list 操作要用 set/insert）"
-                          % (path, ctype))
+            raise TxError("路径 {!r} 的类型 {!r} 不是 list（list 操作要用 set/insert）".format(path, ctype))
         return path, container, pid, ctype
 
     def _covered_by_added(self, path):
@@ -352,11 +351,11 @@ class Tx:
 def _as_index(index, where):
     """把位置参数转成 1-based 整数，非法直接抛（不要静默变 0）。"""
     if isinstance(index, bool):
-        raise TxError("%s 的位置不能是 bool" % (where,))
+        raise TxError("{} 的位置不能是 bool".format(where))
     try:
         return int(index)
     except Exception:
-        raise TxError("%s 的位置 %r 不是整数" % (where, index))
+        raise TxError("{} 的位置 {!r} 不是整数".format(where, index))
 
 
 def _normalize_list_keys(container):

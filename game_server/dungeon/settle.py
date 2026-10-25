@@ -203,8 +203,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
         _sl = story_mod.mark_story_line_finished(st, _copy)
         if _sl:
             out.extend(_sl)
-            print("[dungeon] 章节线 %s 完成（copyId=%s）"
-                  % ((story_mod.story_line_of_copy(_copy) or {}).get("id"),
+            print("[dungeon] 章节线 {} 完成（copyId={}）".format((story_mod.story_line_of_copy(_copy) or {}).get("id"),
                      _copy), flush=True)
     # ★ P0-D：链式任务也走事件总线。这里用 tick() 而不是 apply_event()，
     #   因为刚完成的任务可能让链式任务的前置条件满足了。
@@ -216,7 +215,7 @@ def _advance_story_on_finish(st, info=None, uid=None):
         cleared[lv_key] = 1
         st.set("_oo_cleared_levels", cleared)
     if hits:
-        print("[dungeon] 结算推进剧情 %s（事件参数 %s）" % (hits, ev),
+        print("[dungeon] 结算推进剧情 {}（事件参数 {}）".format(hits, ev),
               flush=True)
     return out
 
@@ -296,5 +295,5 @@ def _storyline_finish_game(rid, params, uid=None):
             SYNC_SELF, sf.get("__id__") or 0,
             msmod.OP_ADD if is_new else msmod.OP_CHANGE,
             str(sid), True))
-    _log.info("[dungeon] 剧情段落 %s 完成" % sid)
+    _log.info("[dungeon] 剧情段落 {} 完成".format(sid))
     return respond_after_sync(rid, syncs)

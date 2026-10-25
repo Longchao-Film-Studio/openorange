@@ -81,7 +81,7 @@ class GameEvent:
         self.event_id = event_id
 
     def __repr__(self):
-        return "GameEvent(%s, %r, src=%s, id=%s)" % (
+        return "GameEvent({}, {!r}, src={}, id={})".format(
             self.type, self.params, self.source, self.event_id)
 
     def to_dict(self):
@@ -128,7 +128,7 @@ class EventResult:
         return list(self.hits) + list(self.chain_hits)
 
     def __repr__(self):
-        return "EventResult(hits=%r, chain=%r, deduped=%r)" % (
+        return "EventResult(hits={!r}, chain={!r}, deduped={!r})".format(
             self.hits, self.chain_hits, self.deduped)
 
 
@@ -184,7 +184,7 @@ def apply_event(st, event, now=None):
     try:
         hits, _ = _story.evaluate_event(st, event.type, event.params, now)
     except Exception as e:
-        _log.warning("[story] 事件求值失败 %s: %s" % (event.type, e))
+        _log.warning("[story] 事件求值失败 {}: {}".format(event.type, e))
         hits = []
     _mark_seen(st, event.event_id, now)
 
@@ -193,7 +193,7 @@ def apply_event(st, event, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        _log.warning("[story] 链式检查失败: %s" % e)
+        _log.warning("[story] 链式检查失败: {}".format(e))
         chain = []
 
     # 4) 通用任务（TaskData 那套，P1 阶段 N-a3）
@@ -215,7 +215,7 @@ def apply_event(st, event, now=None):
             else:
                 task_sync.extend(_tasks.finish_task(st, _tid, now))
     except Exception as e:
-        _log.warning("[task] 通用任务事件推进失败 %s: %s" % (event.type, e))
+        _log.warning("[task] 通用任务事件推进失败 {}: {}".format(event.type, e))
         task_hits, task_sync = [], []
 
     # 5) 系统解锁重算（roadmap 队列第 2 项）
@@ -226,7 +226,7 @@ def apply_event(st, event, now=None):
         from .rpc import _recalc_system_unlocks
         unlock_frames = _recalc_system_unlocks(st)
     except Exception as e:
-        _log.warning("[story] 系统解锁重算失败: %s" % e)
+        _log.warning("[story] 系统解锁重算失败: {}".format(e))
 
     return EventResult(hits=hits, chain_hits=chain, event=event,
                        task_hits=task_hits, task_sync=task_sync,
@@ -243,7 +243,7 @@ def tick(st, now=None):
     try:
         chain, _ = _story.check_chain_tasks(st, now)
     except Exception as e:
-        _log.warning("[story] tick 链式检查失败: %s" % e)
+        _log.warning("[story] tick 链式检查失败: {}".format(e))
         chain = []
     return EventResult(chain_hits=chain)
 
@@ -404,5 +404,5 @@ def ev_char_data(level=None, ascend=None, char_id=None, source="internal"):
     if char_id is not None:
         p["charId"] = int(char_id)
     return GameEvent(EV_CHAR_DATA, p, source=source,
-                     event_id="CharData:%s" % ("/".join(
-                         "%s=%s" % (k, p[k]) for k in sorted(p))))
+                     event_id="CharData:{}".format("/".join(
+                         "{}={}".format(k, p[k]) for k in sorted(p))))
