@@ -56,7 +56,7 @@ POST_SMS_BY_TASK = {
 SMS_ONLY_CHAT_TYPES = (1,)
 
 # 未映射告警去重（进程内；每次登录重启清零是可接受的，日志还有 tsv 全量）
-_UNMAPPED_SEEN = set()
+_UNMAPPED_SEEN: set[int] = set()
 
 
 def _unmapped_tsv_path():

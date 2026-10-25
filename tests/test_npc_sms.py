@@ -22,8 +22,6 @@ from game_server import player_state as pstate  # noqa: E402
 from game_server import rpc_index  # noqa: E402
 from game_server import gamedata  # noqa: E402
 from game_server.story import npc_sms  # noqa: E402
-from game_server.property.tx import OP_ADD, OP_CHANGE, OP_INSERT, OP_REMOVE  # noqa: E402
-from tests.frame_guard import guarded_handle  # noqa: E402
 
 passed, failed = [], []
 _TAG = ""

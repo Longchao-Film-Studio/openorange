@@ -71,7 +71,7 @@ def run():
     u2, st2 = fresh("h2")
     story.start_story_task(st2, 1042, NOW)
     before = str(st2.props.get("npc_chat_prop"))
-    f2 = _finish_story_tasks(st2, [1042], param=None)
+    _finish_story_tasks(st2, [1042], param=None)
     check("1042 完成、1048 推进", story.story_state(st2.props, 1048) == 3,
           story.story_state(st2.props, 1048))
     check("无映射 -> 短信属性完全没动", str(st2.props.get("npc_chat_prop")) == before)

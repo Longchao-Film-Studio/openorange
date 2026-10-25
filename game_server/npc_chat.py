@@ -43,7 +43,7 @@ def _update_npc_chat_info(rid, params, uid=None):
         _log.warning("[sms] Update_NpcChat_Info_CS 参数不足: %r", vals)
         return respond_after_sync(rid, syncs)
     try:
-        chat_type = int(vals[0])
+        int(vals[0])              # chat_type：契约第 1 参，服务端不消费但必须能解析
         chat_id = int(vals[1])
         topic_id = int(vals[2])
         info_id = int(vals[3])
