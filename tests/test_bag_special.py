@@ -137,6 +137,35 @@ def run():
         except ImportError as e:
             print(f"  (跳过 E2E：{e})")
 
+    print("\n[6] 通行证经验（BpExp / BpExpSeason）：镜像 bpinfo.lua add_bp_exp")
+    st6 = fresh("bp1")
+    bp_item = (gamedata.item(3) or {})
+    season_item = (gamedata.item(7) or {})
+    check("找到 BpExp 道具", (bp_item.get("useParam") or {}).get("BpExp") is not None, bp_item.get("itemId"))
+    if bp_item.get("useParam"):
+        add = int(bp_item["useParam"].get("BpExp") or 0)
+        info0 = st6.props["bp_info"]
+        b0, a0, w0 = (int(info0.get(k) or 0) for k in ("bp_exp", "all_bp_exp", "week_bp_exp"))
+        out6 = grants.grant(st6.props, 3, 1, tx=Tx(st6.props), source="test")
+        info1 = st6.props["bp_info"]
+        check("发放成功", out6.ok, out6)
+        check("bp_exp 增加", int(info1["bp_exp"]) == b0 + add, (b0, info1.get("bp_exp")))
+        check("all_bp_exp 增加", int(info1["all_bp_exp"]) == a0 + add, (a0, info1.get("all_bp_exp")))
+        check("week_bp_exp 增加（非赛季经验）", int(info1["week_bp_exp"]) == w0 + add, (w0, info1.get("week_bp_exp")))
+        check("bp_exp_time 刷新", int(info1.get("bp_exp_time") or 0) > 0, info1.get("bp_exp_time"))
+
+    if season_item.get("useParam"):
+        add7 = int(season_item["useParam"].get("BpExpSeason") or 0)
+        info2 = st6.props["bp_info"]
+        # 注意：info2 是 props 里的同一份 dict，必须先取数值再发放
+        b2 = int(info2.get("bp_exp") or 0)
+        w1 = int(info2.get("week_bp_exp") or 0)
+        out7 = grants.grant(st6.props, 7, 1, tx=Tx(st6.props), source="test")
+        info3 = st6.props["bp_info"]
+        check("赛季经验发放成功", out7.ok, out7)
+        check("bp_exp 再增加", int(info3["bp_exp"]) == b2 + add7, (b2, info3.get("bp_exp")))
+        check("赛季经验**不**加 week_bp_exp", int(info3["week_bp_exp"]) == w1, (w1, info3.get("week_bp_exp")))
+
     print("\n" + "=" * 56)
     print(f"通过 {len(passed)} 项，失败 {len(failed)} 项")
     if failed:

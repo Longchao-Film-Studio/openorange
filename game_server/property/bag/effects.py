@@ -67,14 +67,18 @@ EFFECTS: dict[str, Callable[..., list[Op]]] = {}
 #: 计划内、但还没实现的效果（P2/P4 落地）。命中时同样返回 15009 + 不扣道具，
 #: 但语义是「已排期」而不是「依赖未实现系统」—— 数据驱动测试据此区分。
 PENDING_USE_TYPES: dict[str, str] = {
-    "amassbattlepass_1": "P4：通行证变体",
-    "roguebattlepass": "P4：通行证变体",
-    "readybattlepass_1": "P4：通行证变体",
-    "readybattlepass_2": "P4：通行证变体",
-    "backbattlepass": "P4：通行证变体",
 }
 
 UNSUPPORTED_USE_TYPES: dict[str, str] = {
+    # ★ 2026-10-27：VIP/通行证解锁类。它们在官方是**商店购买 -> 服务端发货**的流程，
+    #   道具本身没有可执行效果（数据里只有 vip 等级 / activityId 这类支付参数）。
+    #   背包只做"发到手"，解锁逻辑属于商店/支付系统（未实现）。
+    "battlepass": "商店购买的通行证 VIP（vip 2/3），解锁走支付/发货流程",
+    "amassbattlepass_1": "活动通行证 VIP（activityId + Amassvip），解锁走活动支付流程",
+    "roguebattlepass": "肉鸽通行证 VIP（roguevip），解锁走肉鸽系统/支付流程",
+    "readybattlepass_1": "预创建通行证 VIP 1（readyvip_1），解锁走对应系统",
+    "readybattlepass_2": "预创建通行证 VIP 2（readyvip_2），解锁走对应系统",
+    "backbattlepass": "回归通行证 VIP（backvip），解锁走回归活动系统",
     "char": "角色发放链路未实现",
     "charSkin": "皮肤系统未实现",
     "selectChar": "自选角色（依赖角色系统）",
@@ -84,7 +88,6 @@ UNSUPPORTED_USE_TYPES: dict[str, str] = {
     "SigilAttr": "圣遗物系统未实现",
     "FashionEquipmentExp": "时装装备实例经验未实现",
     "monthlypass": "月卡/付费链路未实现",
-    "battlepass": "通行证付费档未实现",
 }
 
 

@@ -12,6 +12,7 @@
 ★ 这解决了 2026-10-26 之前的老毛病：老的 _use_item 是「先扣数量、再试效果」，
   效果不支持时返回空列表 —— 道具被吃掉、什么都没有。
 """
+import time
 from typing import Any, Protocol
 
 from shared.log_tee import get_logger
@@ -70,6 +71,48 @@ def _key_list(cfg: dict[str, Any]) -> list[str]:
     return [str(k) for k in kl] if isinstance(kl, list) else []
 
 
+#: 通行证经验键（avatarAttr 的一种）：镜像 bpinfo.lua:50-57 的 add_bp_exp
+#:   BpExp        is_season_exp=0 -> bp_exp / all_bp_exp / week_bp_exp，并刷 bp_exp_time
+#:   BpExpSeason  is_season_exp=1 -> 只加 bp_exp / all_bp_exp
+#: ★ 等级（bp_level）由官方服务端算，BDD 里没有等级阈值表（BattlePassData 只有 10 个赛季行），
+#:   所以这里只累加经验，等级提升留待拿到阈值表（见 ROADMAP 补7 待定项）。
+_BP_EXP_KEYS: dict[str, bool] = {"BpExp": True, "BpExpSeason": False}
+
+
+def _apply_bp_exp(props: dict[str, Any], key: str, add: int) -> list[bytes]:
+    from ... import ms as msmod
+    from ...rpc_common import SYNC_SELF, sync_frame
+
+    info = props.get("bp_info")
+    if not isinstance(info, dict):
+        report.note("bp", key, "bp_info 不存在")
+        return []
+    pid = info.get("__id__") or 0
+    frames: list[bytes] = []
+
+    def bump(field: str, delta: int) -> None:
+        cur = info.get(field)
+        base = int(cur) if isinstance(cur, (int, float)) and not isinstance(cur, bool) else 0
+        info[field] = base + int(delta)
+        frames.append(sync_frame(SYNC_SELF, pid, msmod.OP_CHANGE, field, info[field]))
+
+    bump("bp_exp", add)
+    bump("all_bp_exp", add)
+    if _BP_EXP_KEYS[key]:
+        bump("week_bp_exp", add)
+    bump("bp_exp_time", int(time.time()))
+    return frames
+
+
+def _bp_exp_op(key: str, value: int) -> CustomOp:
+    """把 (键, 数值) 固定成 CustomOp（用命名函数而不是带默认参数的 lambda）。"""
+
+    def _fn(props: dict[str, Any]) -> list[bytes]:
+        return _apply_bp_exp(props, key, value)
+
+    return CustomOp(_fn)
+
+
 @effects.register("avatarAttr")
 def _avatar_attr(_props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: dict[str, Any]) -> list[Op]:
     """装饰解锁 + 简单计数器。未登记的键一律报错（不允许静默跳过）。"""
@@ -80,7 +123,11 @@ def _avatar_attr(_props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: 
             v = int(params.get(k) or 0) * int(count)
         except (TypeError, ValueError):
             raise BagError(BAG_INVALID_EXT_PARAMS, f"useParam[{k}] 不是数字") from None
-        if k in DECO_BAGS:
+        if k in _BP_EXP_KEYS:
+            # 通行证经验：写 bp_info 子字段（不是根属性），用 CustomOp
+            if v:
+                ops.append(_bp_exp_op(k, v))
+        elif k in DECO_BAGS:
             if v <= 0:
                 raise BagError(BAG_INVALID_EXT_PARAMS, f"{k} 的装饰 id 非法")
             ops.append(BagAddOp(DECO_BAGS[k], v, {"id": v, "expiration_time": 0}))
