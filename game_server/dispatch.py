@@ -362,7 +362,7 @@ def _drain_pending_chain(uid=None):
       之后直接跳过 _state()+pop。
     """
     try:
-        from .. import player_state as pstate
+        from . import player_state as pstate
     except Exception:
         pstate = None
     if pstate is not None and pstate.drain_done(uid):

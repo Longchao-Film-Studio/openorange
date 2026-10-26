@@ -11,9 +11,7 @@ LOGIN_WINDOW = 600
 LOGIN_MAX_FAIL = 5
 
 _lock = threading.Lock()
-_fails = {}
-
-
+_fails: dict[str, list[float]] = {}
 def blocked(username):
     """该账号现在是否处于「失败过多，暂时拒绝」状态。"""
     now = time.time()
@@ -37,7 +35,7 @@ def note_ok(username):
 # ★ 雷6（2026-10-23）：游戏内指令通道（/api/chat/command）按账号限流。
 #   票据不是一次性的（客户端会话内一直复用），所以用「窗口内次数」挡滥用：
 #   既保留"一条票据可执行多条命令"的现有行为，又限制被泄露票据的破坏速度。
-_RATE = {}
+_RATE: dict[str, list[float]] = {}
 _RATE_LOCK = threading.Lock()
 
 CHAT_WINDOW = 60      # 秒

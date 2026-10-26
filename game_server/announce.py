@@ -25,6 +25,7 @@
 """
 import threading
 import time
+from typing import Any
 
 from shared.log_tee import get_logger
 
@@ -42,7 +43,7 @@ KINDS = {
 MAX_HISTORY = 50
 
 _LOCK = threading.Lock()
-_HISTORY = []          # 最近的公告记录（新的在后）
+_HISTORY: list[dict[str, Any]] = []          # 最近的公告记录（新的在后）
 
 
 def build_frame(kind, text):

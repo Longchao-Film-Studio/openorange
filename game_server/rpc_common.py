@@ -25,7 +25,7 @@ EVENT_MAX_DEPTH = 8
 
 # 位置上报很频繁（每次移动都发），不能每次都写盘。
 # 同一个 uid 每 5 秒最多落盘一次；正常退出/切场景时 force 写。
-LAST_SAVE = {}
+LAST_SAVE: dict[str, int] = {}
 _SAVE_INTERVAL = 5.0
 
 

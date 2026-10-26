@@ -24,6 +24,7 @@ BDD 表不在仓库里（65 MB，来自游戏安装目录）。默认按
 import json
 import os
 import threading
+from typing import Any
 
 from shared.log_tee import get_logger
 
@@ -32,10 +33,8 @@ from . import config
 _log = get_logger(__name__)
 
 _LOCK = threading.RLock()
-_CACHE = {}
-_WARNED = set()
-
-
+_CACHE: dict[str, Any] = {}
+_WARNED: set[str] = set()
 def _path(name):
     return os.path.join(config.BDD_DIR, f"TableData.CommonData.{name}.json")
 

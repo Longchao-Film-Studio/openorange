@@ -219,9 +219,7 @@ def _dangling_task_data_ids():
     return sorted(out)
 
 
-_WARNED = set()
-
-
+_WARNED: set[str] = set()
 def _warn_once(key, msg):
     if key in _WARNED:
         return

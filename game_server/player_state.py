@@ -23,6 +23,7 @@ import json
 import os
 import shutil
 import threading
+from typing import Any
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 # 默认 work/player_state；设 OO_STATE_DIR 可换目录。
@@ -41,8 +42,7 @@ _STATE_DIR = _cfg.STATE_DIR
 _LOCK = threading.RLock()
 # 每个账号一份状态：uid -> PlayerState。
 # 以前只有一个 _CURRENT，多开时所有客户端会共用同一份数据。
-STATES = {}
-
+STATES: dict[str, "PlayerState"] = {}
 # ★ 登录后首条 RPC 的剧情补完标记（P0-D / 2026-10-23 优化）：
 #   live_init_dict 每次登录把 _oo_pending_chain 记进状态，dispatch 在
 #   第一条 RPC 里 drain 补完。以前**每条 RPC 都跑** _state()+pop，虽然幂等
@@ -55,9 +55,7 @@ STATES = {}
 #
 #   用法：在**入口**（dispatch.handle / 心跳 / 登录初始化 / 管理接口）加锁，
 #   锁内只改状态、构造帧，不要做 socket I/O（避免慢客户端把同号连接串行化）。
-_UID_LOCKS = {}
-
-
+_UID_LOCKS: dict[str, Any] = {}
 def lock_for(uid=None):
     """取某个账号的可重入锁（首次调用时创建）。"""
     key = uid or DEFAULT_UID
@@ -75,9 +73,7 @@ def clear_uid_locks():
         _UID_LOCKS.clear()
 
 
-_DRAINED = set()
-
-
+_DRAINED: set[str] = set()
 def drain_done(uid=None):
     with _LOCK:
         return (uid or "") in _DRAINED

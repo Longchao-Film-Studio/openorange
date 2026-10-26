@@ -29,7 +29,7 @@ INFO = logging.INFO
 WARNING = logging.WARNING
 ERROR = logging.ERROR
 
-_channel_handlers = {}
+_channel_handlers: dict[str, logging.Handler] = {}
 _install_lock = threading.Lock()
 _intercepted = False
 

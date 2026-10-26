@@ -10,6 +10,7 @@
 import contextlib
 import threading
 import time
+from types import ModuleType
 
 from shared.log_tee import get_logger
 
@@ -18,6 +19,8 @@ from ..config import FALLBACK_UID as DEFAULT_UID
 
 _log = get_logger(__name__)
 
+# 先声明类型再导入：except 分支要赋 None，否则 mypy 推断成 Module 后赋值 None 会报错
+shared_db: ModuleType | None
 try:
     from shared import db as shared_db
 except Exception:
@@ -25,8 +28,8 @@ except Exception:
 
 _LOCK = threading.Lock()
 _UID_LOCK = threading.Lock()   # _gate_uid 自己的锁（读改写要和 _pending 分开）
-_pending = []          # [(ts, username)]
-_gate_uid = {}         # cid -> username（= 游戏内 uid）
+_pending: list[tuple[float, str]] = []          # [(ts, username)]
+_gate_uid: dict[int, str] = {}         # cid -> username（= 游戏内 uid）
 USERNAME_MATCH_WINDOW = 30       # 秒
 
 

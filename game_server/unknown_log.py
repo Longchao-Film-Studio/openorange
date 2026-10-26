@@ -18,12 +18,13 @@
 import os
 import threading
 import time
+from typing import Any
 
 from . import config
 
 _LOCK = threading.RLock()
-_STATS = {}                 # (kind, key) -> {kind,key,count,first,last,sample}
-_LAST_RAW = {}              # (kind, key) -> 上次写原始行的时间
+_STATS: dict[tuple[str, str], dict[str, Any]] = {}                 # (kind, key) -> {kind,key,count,first,last,sample}
+_LAST_RAW: dict[tuple[str, str], float] = {}              # (kind, key) -> 上次写原始行的时间
 _RAW_INTERVAL = 5.0         # 同 key 原始行最小间隔（秒）
 _MAX_BYTES = 8 * 1024 * 1024
 

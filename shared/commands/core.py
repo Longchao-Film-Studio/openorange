@@ -96,10 +96,8 @@ class Command:
         self.group = group
 
 
-COMMANDS = {}
-ALIASES = {}
-
-
+COMMANDS: dict[str, Command] = {}
+ALIASES: dict[str, str] = {}
 def register(name, aliases=(), args="", desc="", perm=PERM_PLAYER,
              needs_target=False, implemented=True, group="其它"):
     def deco(fn):

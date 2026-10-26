@@ -14,6 +14,7 @@
 import contextlib
 import struct
 import time
+from types import ModuleType
 
 from shared.log_tee import get_logger
 
@@ -26,6 +27,8 @@ from .net import maybe_hexdump
 
 _log = get_logger(__name__)
 
+# 先声明类型再导入：except 分支要赋 None，否则 mypy 推断成 Module 后赋值 None 会报错
+shared_db: ModuleType | None
 try:
     from shared import db as shared_db
 except Exception:

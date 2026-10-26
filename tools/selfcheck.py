@@ -7,6 +7,7 @@
 
 检查项（对应 2026-10-26 收口清单）：
   1. ruff                    代码规范
+  2. mypy                    类型检查（产品代码严格清单见 pyproject.toml）
   2. 单元测试                tests/ 全部套件
   3. 登录演练                每个存档造一次真实登录快照，结构必须合法
                              （防「点登录被踢回登录界面」这类客户端崩溃）
@@ -53,6 +54,21 @@ def step_ruff():
     rc, out = _run([sys.executable, "-m", "ruff", "check", "."])
     if rc == 0:
         return OK, "All checks passed"
+    return FAIL, _tail(out)
+
+
+def step_mypy():
+    """类型检查（只查产品代码；tests/tools 是脚本，暂不在范围内）。
+
+    目标：game_server / shared / web。新背包模块在 pyproject.toml 里配了严格模式。
+    """
+    rc, out = _run([sys.executable, "-m", "mypy", "game_server", "shared", "web"], timeout=900)
+    if rc == 0:
+        line = ""
+        for l in out.splitlines():
+            if "Success" in l or "no issues" in l:
+                line = l.strip()
+        return OK, line or "类型检查通过"
     return FAIL, _tail(out)
 
 
@@ -170,6 +186,7 @@ def main():
 
     steps = [
         ("ruff", "ruff 检查", step_ruff),
+        ("mypy", "mypy 类型检查", step_mypy),
         ("tests", "单元测试", step_tests),
         ("login", "登录演练", step_login_drill),
         ("spec", "属性声明自检", step_spec),

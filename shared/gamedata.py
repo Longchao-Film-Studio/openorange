@@ -16,6 +16,7 @@ token 规则:
 """
 import json
 import os
+from typing import Any
 
 from shared.log_tee import get_logger
 
@@ -26,10 +27,10 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 _items = None
 _chars = None
-item_by_id = {}
-_item_by_name = {}
-_char_by_id = {}
-_char_by_name = {}
+item_by_id: dict[Any, dict] = {}
+_item_by_name: dict[str, dict] = {}
+_char_by_id: dict[Any, dict] = {}
+_char_by_name: dict[str, dict] = {}
 
 # 命令系统用到的附加表（同样是 BDD 来的真数据）
 currencies = None
@@ -38,15 +39,15 @@ _tasks = None
 _maps = None
 _gachas = None
 _stories = None
-_currency_by_id = {}
-_activity_by_id = {}
-_activity_by_name = {}
-_task_by_id = {}
-_map_by_id = {}
-_map_by_name = {}
-_gacha_by_id = {}
-_gacha_by_name = {}
-_story_by_id = {}
+_currency_by_id: dict[Any, dict] = {}
+_activity_by_id: dict[Any, dict] = {}
+_activity_by_name: dict[str, dict] = {}
+_task_by_id: dict[Any, dict] = {}
+_map_by_id: dict[Any, dict] = {}
+_map_by_name: dict[str, dict] = {}
+_gacha_by_id: dict[Any, dict] = {}
+_gacha_by_name: dict[str, dict] = {}
+_story_by_id: dict[Any, dict] = {}
 
 
 def _load(name, list_key):

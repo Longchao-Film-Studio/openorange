@@ -36,11 +36,9 @@ _log = get_logger(__name__)
 _LOCK = threading.Lock()
 
 # cid -> _Conn
-_ENTRIES = {}
+_ENTRIES: dict[int, "_Conn"] = {}
 # uid -> {cid, ...}（同一个账号可能有多条连接：顶号前的旧连接、多开）
-_BY_UID = {}
-
-
+_BY_UID: dict[str, set[int]] = {}
 class _Conn:
     """一条在线连接的登记项。"""
 
