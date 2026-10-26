@@ -114,6 +114,21 @@ def reconcile(props, warn=True):
     if not isinstance(cur, int) or cur < real_max:
         props[_OO_NEXT_ID] = real_max
         fixed = True
+    # ★ 2026-10-26：缺 __id__ 和「撞号」是两类不同的坏法。
+    #   撞号只是缓存覆盖；缺 id 会让客户端 ClientAvatar:init 直接断言失败（整号登不上）。
+    #   以前没人查，只能靠客户端日志挖。读档时扫一遍，服务端日志直接指路。
+    try:
+        from . import validate as _validate
+        missing = _validate.find_missing_ids(props, limit=5)
+        if missing and warn:
+            _log.warning("[ids] ⚠ 存档里有 %d+ 处自定义类型节点缺 __id__（客户端登录会崩）：",
+                         len(missing))
+            for _p, _t in missing:
+                _log.warning("[ids]    %s -> %s", _p, _t)
+            _log.warning("[ids]    修法：tools/fix_missing_ids.py（或按声明树手动补 id）")
+    except Exception as _e:          # 校验本身不该拖垮登录
+        _log.warning("[ids] 结构校验跳过：%s", _e)
+
     ok, dup = verify_unique(props)
     if warn and not ok:
         _log.info("[ids] ⚠ 存档里有重复 __id__：{}".format(", ".join(f"{k}:{v}" for k, v in list(dup.items())[:5])))

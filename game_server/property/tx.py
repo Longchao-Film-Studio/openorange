@@ -40,6 +40,7 @@ handler 只描述**意图**（tx.set(path, value)），Tx 负责
 """
 from . import ids as _ids
 from . import spec as _spec
+from . import validate as _validate
 
 OP_REMOVE = 5
 
@@ -139,6 +140,26 @@ class Tx:
             value["__id__"] = _ids.alloc_id(self.props)
         return value
 
+    def _check_value_ids(self, value, type_name, path):
+        """结构校验：值子树里自定义类型节点必须带 __id__。
+
+        ★ 为什么放在写入时（2026-10-26 两次「整号登不上」都在这里失守）：
+          客户端 CustomDict/CustomList 的 roinit 是**无条件** assert(id ~= nil)。
+          Tx._ensure_id 只给直接传给 set() 的顶层对象补 id，嵌套子对象要靠调用方。
+          一次 set 塞多层新对象 -> 内层没 id -> 落盘 -> 客户端登录崩。
+          放在这里，bug 在测试里当场红，而不是等玩家登录。
+        """
+        if type_name is None:
+            return
+        missing = []
+        _validate.check_value(value, type_name, tuple(path), missing)
+        if missing:
+            first = "，".join(f"{p} ({t})" for p, t in missing[:3])
+            raise TxError(
+                f"路径 {path!r} 写入的对象缺 __id__：{first}；"
+                "嵌套新建的自定义对象必须自己分配 id（property.ids.alloc_id）——"
+                "客户端 CustomDict 会断言失败，导致 ClientAvatar:init 崩溃（整号登不上）")
+
     def _root_spec(self, root):
         return _spec.get(root)
 
@@ -160,6 +181,7 @@ class Tx:
             if sp is not None and sp.is_server_only:
                 raise TxError(f"根属性 {key!r} 是 ServerOnly，不该推给客户端")
             self._ensure_id(value)
+            self._check_value_ids(value, sp.type if sp else None, path)
             parent[key] = value
             self._touch(key)
             self.ops.append(Op(0, OP_CHANGE, str(key), value, path))
@@ -179,6 +201,15 @@ class Tx:
         is_new = key not in parent          # ★ 必须在赋值之前判断
         if isinstance(value, dict):
             self._ensure_id(value)
+        # ★ 写入即校验：值子树里凡是声明为自定义类型的节点都必须带 __id__。
+        #   Tx 只给传进来的顶层对象补 id，嵌套子对象由调用方负责（契约边界）。
+        vtype = None
+        if is_struct_field:
+            fdecl = fields.get(key)
+            vtype = fdecl[0] if isinstance(fdecl, (list, tuple)) else fdecl
+        elif parent_type:
+            vtype = _spec.value_type(parent_type)
+        self._check_value_ids(value, vtype, path)
         parent[key] = value
         optype = OP_CHANGE if (is_struct_field or not is_new) else OP_ADD
         if optype == OP_ADD and self._covered_by_added(path):
@@ -238,6 +269,7 @@ class Tx:
             raise TxError(f'insert 位置 {idx} 越界（当前 {n} 个元素，合法范围 1..{n + 1}）')
         if isinstance(value, dict):
             self._ensure_id(value)
+        self._check_value_ids(value, _spec.value_type(_ctype), path + (idx,))
         # 从后往前挪，避免覆盖
         for i in range(n, idx - 1, -1):
             container[i + 1] = container.pop(i)
