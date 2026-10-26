@@ -1,0 +1,200 @@
+"""使用道具（**唯一入口**）。
+
+流程（顺序固定，缺一不可）：
+
+    ① 定位格子（ext["id"] 优先，itemId 兜底——唯一实例必须按格子定位）
+    ② 校验数量 / ext
+    ③ 查效果 handler：没有 -> Bag_SystemNotUnlocked，**此刻还没扣任何东西**
+    ④ handler 算 ops（不落 props）
+    ⑤ 提交：扣数量 + materialize(ops)，同一个 Tx
+    ⑥ save + frames
+
+★ 这解决了 2026-10-26 之前的老毛病：老的 _use_item 是「先扣数量、再试效果」，
+  效果不支持时返回空列表 —— 道具被吃掉、什么都没有。
+"""
+from typing import Any, Protocol
+
+from shared.log_tee import get_logger
+
+from ... import gamedata
+from ..tx import Tx
+from . import effects, grants
+from .effects import BagAddOp, GrantOp, Op, PropOp
+from .errors import (
+    BAG_INVALID_EXT_PARAMS,
+    BAG_INVALID_ID,
+    BAG_INVALID_ITEM_ID,
+    BAG_INVALID_NUM,
+    BAG_SYSTEM_NOT_UNLOCKED,
+    BagError,
+)
+
+_log = get_logger(__name__)
+
+#: avatarAttr 的装饰键 -> 客户端 FashionBag 属性名
+#: 依据 avataruserdatacomp.lua:493-532 的 isXxxUnlock 一一对应
+DECO_BAGS: dict[str, str] = {
+    "Portrait": "portrait_bag",
+    "PortraitFrame": "portrait_frame_bag",
+    "Card": "player_card_bag",
+    "Background": "background_bag",
+    "Title": "player_title_bag",
+    "Bubble": "chat_bubble_bag",
+    "StickerId": "emoji_bag",
+}
+
+#: avatarAttr 的计数器键 -> 属性名（其余键是通行证/好感等，P4 处理）
+COUNTER_PROPS: dict[str, str] = {
+    "Exp": "exp",
+    "Crystal": "crystal",
+    "TowerRewardKeys": "tower_reward_keys",
+}
+
+
+class StateLike(Protocol):
+    """player_state.PlayerState 的最小接口（避免 bag 包反向依赖）。"""
+
+    props: dict[str, Any]
+
+    def save(self) -> object: ...
+
+
+def _params(cfg: dict[str, Any]) -> dict[str, Any]:
+    p = cfg.get("useParam")
+    return p if isinstance(p, dict) else {}
+
+
+def _key_list(cfg: dict[str, Any]) -> list[str]:
+    kl = _params(cfg).get("KeyList")
+    return [str(k) for k in kl] if isinstance(kl, list) else []
+
+
+@effects.register("avatarAttr")
+def _avatar_attr(_props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: dict[str, Any]) -> list[Op]:
+    """装饰解锁 + 简单计数器。未登记的键一律报错（不允许静默跳过）。"""
+    params = _params(cfg)
+    ops: list[Op] = []
+    for k in _key_list(cfg):
+        try:
+            v = int(params.get(k) or 0) * int(count)
+        except (TypeError, ValueError):
+            raise BagError(BAG_INVALID_EXT_PARAMS, f"useParam[{k}] 不是数字") from None
+        if k in DECO_BAGS:
+            if v <= 0:
+                raise BagError(BAG_INVALID_EXT_PARAMS, f"{k} 的装饰 id 非法")
+            ops.append(BagAddOp(DECO_BAGS[k], v, {"id": v, "expiration_time": 0}))
+        elif k in COUNTER_PROPS:
+            if v:
+                ops.append(PropOp(COUNTER_PROPS[k], v))
+        else:
+            raise BagError(BAG_SYSTEM_NOT_UNLOCKED, f"avatarAttr 键 {k} 暂未支持")
+    return ops
+
+
+@effects.register("item")
+def _item_effect(_props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: dict[str, Any]) -> list[Op]:
+    """使用后直接发放列出的道具（礼包/咒典全本这类）。"""
+    params = _params(cfg)
+    ops: list[Op] = []
+    for k in _key_list(cfg):
+        try:
+            n = int(params.get(k) or 0) * int(count)
+        except (TypeError, ValueError):
+            raise BagError(BAG_INVALID_EXT_PARAMS, f"useParam[{k}] 不是数字") from None
+        if n > 0:
+            ops.append(GrantOp(int(k), n))
+    if not ops:
+        raise BagError(BAG_SYSTEM_NOT_UNLOCKED, "item 效果没有可发放内容")
+    return ops
+
+
+@effects.register("selectItem")
+def _select_item(_props: dict[str, Any], cfg: dict[str, Any], count: int, ext: dict[str, Any]) -> list[Op]:
+    """自选道具：客户端在 ext.itemId 里带选择（genchooseitempanel.lua:171-176）。"""
+    chosen = ext.get("itemId")
+    if chosen is None:
+        raise BagError(BAG_INVALID_EXT_PARAMS, "selectItem 缺少 ext.itemId")
+    try:
+        chosen = int(chosen)
+    except (TypeError, ValueError):
+        raise BagError(BAG_INVALID_EXT_PARAMS, "ext.itemId 不是数字") from None
+    if chosen not in {int(k) for k in _key_list(cfg)}:
+        raise BagError(BAG_INVALID_EXT_PARAMS, "ext.itemId 不在可选列表里")
+    return [GrantOp(chosen, int(count))]
+
+
+def materialize(props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "", depth: int = 0) -> None:
+    """把 handler 算出的 ops 落到 props（同一个 Tx，保证原子）。"""
+    for op in ops:
+        if isinstance(op, PropOp):
+            cur = props.get(op.name)
+            base = cur if isinstance(cur, (int, float)) and not isinstance(cur, bool) else 0
+            tx.set((op.name,), base + op.value)
+        elif isinstance(op, GrantOp):
+            grants.grant(props, op.item_id, op.count, tx=tx, source=source, depth=depth + 1)
+        elif isinstance(op, BagAddOp):
+            tx.set((op.bag, op.key), dict(op.value))
+
+
+def _grid_of(props: dict[str, Any], item_id: int, ext: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """定位格子：ext.id 优先（唯一实例必须按格子定位），否则按 itemId 找第一个。"""
+    bag = props.get("item_bag")
+    if not isinstance(bag, dict):
+        raise BagError(BAG_INVALID_ITEM_ID, "item_bag 不存在")
+    grid_id = ext.get("id")
+    if grid_id is not None:
+        key = str(grid_id)
+        grid = bag.get(key)
+        if not isinstance(grid, dict):
+            raise BagError(BAG_INVALID_ID, f"格子 {key} 不存在")
+        if int(grid.get("itemId") or 0) != int(item_id):
+            raise BagError(BAG_INVALID_ID, f"格子 {key} 的道具 id 是 {grid.get('itemId')}")
+        return key, grid
+    for key, grid in bag.items():
+        if isinstance(grid, dict) and int(grid.get("itemId") or 0) == int(item_id):
+            return str(key), grid
+    raise BagError(BAG_INVALID_ITEM_ID, "背包里没有该道具")
+
+
+def apply(st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = None) -> tuple[list[bytes], BagError | None]:
+    """使用道具。成功返回 (frames, None)；失败返回 ([], BagError) 且**不改任何状态**。"""
+    props: dict[str, Any] = st.props
+    ext = ext if isinstance(ext, dict) else {}
+    try:
+        item_id = int(item_id)
+        count = int(count)
+    except (TypeError, ValueError):
+        return [], BagError(BAG_INVALID_NUM, "参数非法")
+    if count <= 0:
+        return [], BagError(BAG_INVALID_NUM, "数量必须为正")
+
+    cfg = gamedata.item(item_id)
+    if not isinstance(cfg, dict) or not cfg:
+        return [], BagError(BAG_INVALID_ITEM_ID, "ItemData 里没有这个道具")
+
+    try:
+        key, grid = _grid_of(props, item_id, ext)
+        num = int(grid.get("num") or 0)
+        if num < count:
+            raise BagError(BAG_INVALID_NUM, f"格子数量 {num} 不足 {count}")
+
+        use_type = gamedata.item_use_type(item_id)
+        handler = effects.handler_for(use_type)
+        if handler is None:
+            reason = effects.UNSUPPORTED_USE_TYPES.get(use_type, "未登记的 useType")
+            raise BagError(BAG_SYSTEM_NOT_UNLOCKED, f"{use_type}：{reason}")
+
+        ops = handler(props, cfg, count, ext)          # ④ 只算不写
+
+        tx = Tx(props)
+        if num == count:
+            tx.delete(("item_bag", key))
+        else:
+            tx.set(("item_bag", key, "num"), num - count)
+        materialize(props, ops, tx=tx, source=f"use:{item_id}")
+        st.save()
+        _log.info("[bag] 使用 %s x%s（%s）-> %s 个 ops", item_id, count, use_type, len(ops))
+        return tx.frames(), None
+    except BagError as e:
+        _log.info("[bag] 使用 %s 失败：%s", item_id, e)
+        return [], e
