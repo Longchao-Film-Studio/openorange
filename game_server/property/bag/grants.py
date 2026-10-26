@@ -190,8 +190,14 @@ def grant(
                 grids.append(key)
 
     # ---- 再开新格 ----
+    # notStack（唯一实例）每份独占一格且 num=1 —— 客户端按格子当独立实例处理，
+    # 塞多份到一个格子会让实例语义错乱（附魔/强化都挂在格子上）。
+    not_stack = not _is_stackable(cfg)
     while remaining > 0:
-        put = remaining if limit is None else min(limit, remaining)
+        if not_stack:
+            put = 1
+        else:
+            put = remaining if limit is None else min(limit, remaining)
         grid = _new_grid(props, item_id, put, cfg)
         key = str(grid["id"])
         tx.set(("item_bag", key), grid)

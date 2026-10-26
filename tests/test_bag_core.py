@@ -112,6 +112,21 @@ def run():
     gs = [g for g in st4.props["item_bag"].values()
           if isinstance(g, dict) and int(g.get("itemId") or 0) == int(not_stack["itemId"])]
     check("notStack 开两格", len(gs) == 2, len(gs))
+
+    # ★ 不变量：notStack 且**没配 maxNum** 时，每份仍必须独占一格（num=1）。
+    #   反例：之前 notStack 走「没配 maxNum = 不限」的路径，3 份塞进 1 格 ->
+    #   客户端按格子当独立实例（附魔/强化挂格子），实例语义就乱了。
+    _ns2 = next((it for it in items if it.get("notStack") and not it.get("autoUse")
+                 and not it.get("maxNum")), None)
+    if _ns2:
+        st4b = fresh("bag4b")
+        for _ in range(3):
+            grants.grant(st4b.props, int(_ns2["itemId"]), 1, tx=Tx(st4b.props), source="test")
+        _gs = [g for g in st4b.props["item_bag"].values()
+               if isinstance(g, dict) and int(g.get("itemId") or 0) == int(_ns2["itemId"])]
+        check("notStack 无 maxNum：3 份仍是 3 格", len(_gs) == 3, len(_gs))
+        check("notStack 无 maxNum：每格 num=1", all(int(g["num"]) == 1 for g in _gs),
+              [g["num"] for g in _gs])
     check("两格 __id__ 不同", gs[0]["__id__"] != gs[1]["__id__"])
     check("两格 id 与键一致",
           all(st4.props["item_bag"][g["id"]] is g for g in gs) if gs else False)

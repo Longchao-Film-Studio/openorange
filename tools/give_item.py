@@ -10,8 +10,9 @@
 ----
 - 有存档就基于存档改；存档不存在或损坏（属性 < 10 条）就从
   game_server/avatar_init.json 起一份；
-- 会自动分配新的格子键（"3"、"4"…）和全局唯一的 __id__；
-- 写回 work/player_state/<uid>.json。
+- **发放走 property.bag.grants 唯一入口**（堆叠 / maxNum / notStack / 钥匙规范 /
+  ext / 过期时间 / autoUse 全在这里），本工具不再自己拼格子；
+- 写回 work/player_state/<uid>.json；
 - **需要重新登录游戏才生效**（服务端只在登录时读存档）。
 
 为什么不用 /give 聊天指令
@@ -20,7 +21,6 @@
 离线改存档是当前最可靠的方式。
 """
 import argparse
-import contextlib
 import json
 import os
 import sys
@@ -31,6 +31,9 @@ sys.path.insert(0, _ROOT)
 
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
+from game_server.property import ids as _ids  # noqa: E402
+from game_server.property.bag import grants  # noqa: E402
+from game_server.property.tx import Tx  # noqa: E402
 
 INIT_JSON = os.path.join(_ROOT, "game_server", "avatar_init.json")
 
@@ -56,56 +59,30 @@ def load_props(uid):
     return props, src
 
 
-# ★ 2026-10-21 审计：这里原本自带一份 max_id + 自己发 __id__，
-#   不更新 props 的 _oo_next_id -> 发完道具重登后第一次分配就撞号。
-#   现在统一走 property.ids.alloc_id（全项目唯一发号入口）。
-from game_server.property import ids as _ids  # noqa: E402
-
-
 def max_id(obj, cur=0):
     """兼容旧调用：委托给 property.ids.max_id。"""
     return _ids.max_id(obj, cur)
 
 
-def give(props, item_id, num, grid_key=None):
-    """往 item_bag 里加 num 个 item_id，返回实际写入的格子键。"""
-    bag = props.get("item_bag")
-    if not isinstance(bag, dict):
-        raise SystemExit("item_bag 属性不存在")
+def give(props, item_id, num):
+    """发 num 个 item_id（走 grants 唯一入口），返回 (格子键, 当前数量, 说明)。
 
-    # 已经有这个道具就叠加数量
-    for k, grid in bag.items():
-        if k in ("__tp__", "__id__"):
-            continue
-        if isinstance(grid, dict) and grid.get("itemId") == item_id:
-            grid["num"] = int(grid.get("num") or 0) + int(num)
-            return k, int(grid["num"]), "叠加"
-
-    # 新开一格
-    used = set()
-    for k in bag:
-        if k in ("__tp__", "__id__"):
-            continue
-        with contextlib.suppress(Exception):
-            used.add(int(k))
-    nk = grid_key
-    if nk is None:
-        nk = 1
-        while nk in used:
-            nk += 1
-    nk = str(nk)
-
-    grid = {
-        "__id__": _ids.alloc_id(props),
-        "id": nk,
-        "itemId": int(item_id),
-        "num": int(num),
-        "expireTime": 0.0,
-        "getTime": 0.0,
-        "ext": {"__id__": _ids.alloc_id(props)},
-    }
-    bag[nk] = grid
-    return nk, int(num), "新格子"
+    · 叠加/新格/堆叠上限由 grants 决定；
+    · autoUse 道具会被立即使用（没有格子）——返回空键 + "自动使用"；
+    · 失败（id 不在 ItemData 等）抛 RuntimeError，调用方不写盘。
+    """
+    tx = Tx(props)
+    outcome = grants.grant(props, int(item_id), int(num), tx=tx, source="tool:give_item")
+    if not outcome.ok:
+        raise RuntimeError(str(outcome.error))
+    if not outcome.grids:
+        return "", 0, "自动使用"
+    key = str(outcome.grids[-1])
+    bag = props.get("item_bag") or {}
+    grid = bag.get(key)
+    total = int(grid.get("num") or 0) if isinstance(grid, dict) else 0
+    how = "新格子" if outcome.new_grids else "叠加"
+    return key, total, how
 
 
 def main():
@@ -113,7 +90,6 @@ def main():
     ap.add_argument("--uid", default="OO00000001")
     ap.add_argument("--item", type=int, required=True, help="道具 id")
     ap.add_argument("--num", type=int, default=1, help="数量")
-    ap.add_argument("--grid", default=None, help="指定格子键（默认自动分配）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -121,10 +97,17 @@ def main():
         raise SystemExit("--num 必须 > 0")
 
     props, src = load_props(args.uid)
-    print(f'来源: {src}（属性 {len(props)} 条）')
+    print(f"来源: {src}（属性 {len(props)} 条）")
 
-    key, total, how = give(props, args.item, args.num, args.grid)
-    print(f'道具 {args.item}：{how} -> 格子 "{key}"，当前数量 {total}')
+    try:
+        key, total, how = give(props, args.item, args.num)
+    except RuntimeError as e:
+        # 发放失败要把原因原样告诉用户（例如 15002 ItemData 里没有这个道具）
+        raise SystemExit(f"发放失败: {e}") from e
+    if key:
+        print(f'道具 {args.item}：{how} -> 格子 "{key}"，当前数量 {total}')
+    else:
+        print(f"道具 {args.item}：{how}（autoUse 道具发放即消耗，没有格子）")
 
     if args.dry_run:
         print("--dry-run，不写盘")
