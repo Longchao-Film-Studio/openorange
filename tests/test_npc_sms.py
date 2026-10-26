@@ -159,6 +159,12 @@ def run():
     check("每条话题条目（NpcChatInfo）都有 __id__",
           all(isinstance(i.get("__id__"), int) and i["__id__"] > 0 for _, _, i in infos),
           [i.get("__id__") for _, _, i in infos])
+    check("group_npc_ids 是 IntDictKeyInt，必须带 __id__",
+          all(isinstance(i.get("group_npc_ids", {}).get("__id__"), int) for _, _, i in infos),
+          [i.get("group_npc_ids") for _, _, i in infos])
+    check("topic_infos 是 IntDictKeyInt，必须带 __id__",
+          all(isinstance(i.get("topic_infos", {}).get("__id__"), int) for _, _, i in infos),
+          [i.get("topic_infos") for _, _, i in infos])
     check("各条目 __id__ 互不相同",
           len({i.get("__id__") for _, _, i in infos}) == len(infos),
           [i.get("__id__") for _, _, i in infos])

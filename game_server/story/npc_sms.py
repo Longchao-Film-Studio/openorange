@@ -135,10 +135,13 @@ def _entry(chat_type, npc_id, now, props):
         "__id__": _ids.alloc_id(props),
         "chat_type": int(chat_type),
         "npc_id": int(npc_id),
-        "group_npc_ids": {},
+        # ★ group_npc_ids / topic_infos 声明是 IntDictKeyInt，客户端把它当 CustomDict
+        #   （intdictkeyint.lua: class.Class("IntDictKeyInt", CustomDict)）—— 同样需要 __id__。
+        #   2026-10-26 第二轮：只修了条目本身，客户端接着在 group_npc_ids 上断言失败。
+        "group_npc_ids": {"__id__": _ids.alloc_id(props)},
         "is_over": 0,
         "update_time": int(now),
-        "topic_infos": {},
+        "topic_infos": {"__id__": _ids.alloc_id(props)},
     }
 
 
