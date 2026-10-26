@@ -18,6 +18,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from game_server import gamedata  # noqa: E402
+from game_server.property import bag  # noqa: E402,F401  (import 包 = 触发 handler 注册)
 from game_server.property.bag import effects  # noqa: E402
 
 passed, failed = [], []

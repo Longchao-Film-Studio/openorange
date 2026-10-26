@@ -24,6 +24,7 @@ from .errors import (
     BAG_INVALID_EXT_PARAMS,
     BAG_INVALID_ID,
     BAG_INVALID_ITEM_ID,
+    BAG_INVALID_ITEM_LIST,
     BAG_INVALID_NUM,
     BAG_SYSTEM_NOT_UNLOCKED,
     BagError,
@@ -122,6 +123,30 @@ def _select_item(_props: dict[str, Any], cfg: dict[str, Any], count: int, ext: d
         raise BagError(BAG_INVALID_EXT_PARAMS, "ext.itemId 不在可选列表里")
     return [GrantOp(chosen, int(count))]
 
+
+@effects.register("randomItem")
+def _random_item(props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: dict[str, Any]) -> list[Op]:
+    """随机池：useParam.KeyList 是 **PoolId**（不是道具 id）。
+
+    抽 `count` 次；结果里能入包的道具转成 GrantOp。
+    若整池都抽不到可入包的道具（池里全是装备/时装等未实现系统的东西），
+    直接报 15007 且**不消耗盲盒** —— 宁可让玩家打不开，也不能吞掉。
+    """
+    from . import pools
+
+    kl = _key_list(cfg)
+    if len(kl) != 1:
+        raise BagError(BAG_INVALID_EXT_PARAMS, f"randomItem 的 KeyList 应为 1 个池 id，实际 {kl}")
+    try:
+        pool_id = int(kl[0])
+    except (TypeError, ValueError):
+        raise BagError(BAG_INVALID_EXT_PARAMS, "池 id 不是数字") from None
+    drawn = pools.draw(props, pool_id, count)
+    ops: list[Op] = [GrantOp(iid, n) for iid, n in drawn.items if n > 0]
+    if not ops:
+        raise BagError(BAG_INVALID_ITEM_LIST,
+                       f"池 {pool_id} 的奖励都不是道具（等装备/时装系统），本次不消耗")
+    return ops
 
 def materialize(props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "", depth: int = 0) -> None:
     """把 handler 算出的 ops 落到 props（同一个 Tx，保证原子）。"""

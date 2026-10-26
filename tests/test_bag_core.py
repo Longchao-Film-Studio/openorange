@@ -58,9 +58,10 @@ def run():
     check("ItemData 可读", len(items) > 2000, len(items))
 
     # ---- 数据驱动的样本 ----
-    stackable = pick(lambda it: not it.get("notStack") and int(it.get("maxNum") or 0) >= 5,
-                     "可叠加且 maxNum>=5")
-    not_stack = pick(lambda it: it.get("notStack"), "notStack 唯一实例")
+    stackable = pick(lambda it: not it.get("notStack") and not it.get("autoUse")
+                     and int(it.get("maxNum") or 0) >= 5, "可叠加且 maxNum>=5 且非 autoUse")
+    not_stack = pick(lambda it: it.get("notStack") and not it.get("autoUse"),
+                     "notStack 唯一实例且非 autoUse")
     deco = pick(lambda it: it.get("useType") == "avatarAttr"
                 and "Portrait" in ((it.get("useParam") or {}).get("KeyList") or []), "装饰类道具")
     counter = pick(lambda it: it.get("useType") == "avatarAttr"
@@ -165,6 +166,48 @@ def run():
         check("道具还在", len(still) == 1, len(still))
     else:
         print("  (数据里没有 selectItem 道具，跳过)")
+
+    print("\n[10] 盲盒（randomItem）：使用 -> 盒子里出道具，盒子被扣")
+    from random import Random
+
+    from game_server.property.bag import pools
+    pools.RNG = Random(2026)              # 固定随机源，测试可重复
+    box = None
+    pid = 0
+    for _it in items:
+        if _it.get("useType") != "randomItem":
+            continue
+        _kl = (_it.get("useParam") or {}).get("KeyList") or []
+        if len(_kl) != 1:
+            continue
+        try:
+            _d = pools.draw(None, int(_kl[0]), 1, rng=Random(2026))
+        except Exception:                  # noqa: BLE001 — 池缺失的道具跳过
+            continue
+        if _d.items:                       # 选一个真能出道具的盲盒
+            box, pid = _it, int(_kl[0])
+            break
+    if box:
+        st10 = fresh("use5")
+        before_items = {g.get("itemId") for g in st10.props["item_bag"].values() if isinstance(g, dict)}
+        if box.get("autoUse"):
+            # autoUse 盲盒：发放即开，不留格子（正确的语义）
+            out10 = grants.grant(st10.props, int(box["itemId"]), 1, tx=Tx(st10.props), source="test")
+            check("盲盒发放成功", out10.ok, out10)
+        else:
+            grants.grant(st10.props, int(box["itemId"]), 1, tx=Tx(st10.props), source="test")
+            before_items = {g.get("itemId") for g in st10.props["item_bag"].values() if isinstance(g, dict)}
+            _f10, err10 = item_use.apply(st10, int(box["itemId"]), 1, {})
+            check("盲盒使用成功", err10 is None, err10)
+        after_items = {g.get("itemId") for g in st10.props["item_bag"].values() if isinstance(g, dict)}
+        gained = after_items - before_items - {int(box["itemId"])}
+        check("盒子里出了东西", bool(gained), sorted(gained)[:5])
+        check("盲盒没有留在包里",
+              not any(isinstance(g, dict) and int(g.get("itemId") or 0) == int(box["itemId"])
+                      for g in st10.props["item_bag"].values()))
+        check("池 id 与数据一致", pools.draw(None, pid, 1, rng=Random(1)) is not None, pid)
+    else:
+        print("  (数据里没有 randomItem 道具，跳过)")
 
     print("\n[9] E2E：服务端产出的结构必须能被客户端 Lua 解析")
     try:

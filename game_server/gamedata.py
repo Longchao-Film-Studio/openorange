@@ -72,6 +72,42 @@ def _plain(entry, key, default=None):
     return default if v is None else v
 
 
+def random_item_pool(pool_id):
+    """RandomItem 表里 PoolId = pool_id 的所有条目（{autoId: entry}）。
+
+    表是两层结构：{PoolId: {autoId: row}}（BDD 导出的对象形态），
+    这里统一摊平成 {int(autoId): row}，并按 PoolId 分组缓存。
+    """
+    pools = _random_pools()
+    return pools.get(int(pool_id)) or {}
+
+
+_RANDOM_POOLS = None
+
+
+def _random_pools():
+    """{PoolId: {autoId: row}}，首次调用构建并缓存。"""
+    global _RANDOM_POOLS
+    if _RANDOM_POOLS is not None:
+        return _RANDOM_POOLS
+    out = {}
+    raw = table("RandomItem")
+    for entries in raw.values():
+        if not isinstance(entries, dict):
+            continue
+        for row in entries.values():
+            if not isinstance(row, dict):
+                continue
+            try:
+                pid = int(row.get("PoolId"))
+                auto = int(row.get("autoId"))
+            except (TypeError, ValueError):
+                continue
+            out.setdefault(pid, {})[auto] = row
+    _RANDOM_POOLS = out
+    return out
+
+
 def item(item_id):
     """ItemData[item_id]。"""
     d = table("ItemData")
