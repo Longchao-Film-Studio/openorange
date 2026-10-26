@@ -17,9 +17,11 @@ Set* 类 RPC 只能回一个假的 status=true，等于假成功。
 落到 work/player_state/<uid>.json，重启不丢。写入用「临时文件 + 替换」，
 避免写一半断电把存档写坏。
 """
+import contextlib
 import copy
 import json
 import os
+import shutil
 import threading
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -190,6 +192,13 @@ class PlayerState:
             tmp = p + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(d, f, ensure_ascii=False, indent=1)
+            # ★ 覆盖前保留上一版（2026-10-26 事故教训）：
+            #   那天存档被写坏（缺 __id__），整个号登不上，只能手动从备份改回来。
+            #   当时那份"备份"是我手拷的，不是系统行为 —— 现在让它成为机制。
+            #   只留 1 份：足够回滚一次误写，又不会把磁盘堆满。
+            if os.path.exists(p):
+                with contextlib.suppress(OSError):
+                    shutil.copyfile(p, p + ".bak")
             os.replace(tmp, p)
             return True
         except Exception:
