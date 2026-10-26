@@ -255,6 +255,12 @@ def load(uid=DEFAULT_UID):
         _ids.reconcile(st.props)
         # ★ 旧存档的 item_bag 整数键迁移成字符串键（审计 P0-5）
         _migrate_item_bag_keys(st.props)
+        # ★ 再迁移成规范钥匙 g<n>（keys.migrate 幂等）：
+        #   旧键 max+1 会复用，唯一实例会串号；规范化后永不复用。
+        from .property.bag import keys as _bag_keys
+        moved = _bag_keys.migrate(st.props)
+        if moved:
+            _log.info("[state] item_bag 钥匙规范化为 g<n>：%d 个", moved)
         return st
     except Exception:
         return None

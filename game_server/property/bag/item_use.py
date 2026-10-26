@@ -18,7 +18,7 @@ from shared.log_tee import get_logger
 
 from ... import gamedata
 from ..tx import Tx
-from . import effects, grants
+from . import effects, grants, report
 from .effects import BagAddOp, GrantOp, Op, PropOp
 from .errors import (
     BAG_INVALID_EXT_PARAMS,
@@ -128,8 +128,11 @@ def materialize(props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "
     for op in ops:
         if isinstance(op, PropOp):
             cur = props.get(op.name)
-            base = cur if isinstance(cur, (int, float)) and not isinstance(cur, bool) else 0
-            tx.set((op.name,), base + op.value)
+            if not isinstance(cur, (int, float)) or isinstance(cur, bool):
+                # 属性不存在：跳过而不是凭空建一个（老实现也是这样；真实存档都有这些属性）
+                _log.warning("[bag] 属性 %s 不存在，效果 %s 未生效", op.name, op.value)
+                continue
+            tx.set((op.name,), cur + op.value)
         elif isinstance(op, GrantOp):
             grants.grant(props, op.item_id, op.count, tx=tx, source=source, depth=depth + 1)
         elif isinstance(op, BagAddOp):
@@ -181,7 +184,10 @@ def apply(st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = 
         use_type = gamedata.item_use_type(item_id)
         handler = effects.handler_for(use_type)
         if handler is None:
-            reason = effects.UNSUPPORTED_USE_TYPES.get(use_type, "未登记的 useType")
+            reason = (effects.UNSUPPORTED_USE_TYPES.get(use_type)
+                      or effects.PENDING_USE_TYPES.get(use_type)
+                      or "未登记的 useType")
+            report.note("effect", use_type, reason)
             raise BagError(BAG_SYSTEM_NOT_UNLOCKED, f"{use_type}：{reason}")
 
         ops = handler(props, cfg, count, ext)          # ④ 只算不写
@@ -190,7 +196,9 @@ def apply(st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = 
         if num == count:
             tx.delete(("item_bag", key))
         else:
-            tx.set(("item_bag", key, "num"), num - count)
+            # ★ 整格 set：与客户端 _changeSubProperty 的契约一致（见 grants 注释）
+            grid["num"] = num - count
+            tx.set(("item_bag", key), grid)
         materialize(props, ops, tx=tx, source=f"use:{item_id}")
         st.save()
         _log.info("[bag] 使用 %s x%s（%s）-> %s 个 ops", item_id, count, use_type, len(ops))

@@ -220,24 +220,32 @@ def _grant_player(uid, items=None, level=None, level_add=None):
     level: 直接设为该等级（>=1）
     level_add: 在现有等级上加（>=1）
     """
-    from . import story as _story
     st = _ensure_player_state(uid)
     granted = []
     if items:
-        bag = st.props.get("item_bag")
-        if isinstance(bag, dict):
-            for k, v in (items or {}).items():
-                try:
-                    iid = int(k)
-                    cnt = int(v)
-                except (TypeError, ValueError):
-                    continue
-                if cnt <= 0:
-                    continue
-                got = _story.add_item(st.props, iid, cnt)
-                if got:
-                    granted.append({"item_id": iid, "count": cnt,
-                                    "now": got[0]})
+        items_map = {}
+        for k, v in (items or {}).items():
+            try:
+                iid = int(k)
+                cnt = int(v)
+            except (TypeError, ValueError):
+                continue
+            if cnt > 0:
+                items_map[iid] = items_map.get(iid, 0) + cnt
+        if items_map:
+            # ★ 2026-10-26：管理接口也走唯一发放入口（堆叠/maxNum/ext/autoUse 全在 grants）
+            from .property.bag import grants as _bag_grants
+            _tx, outcomes = _bag_grants.grant_many(st.props, items_map, source="admin")
+            for oc in outcomes:
+                if oc.ok:
+                    key = oc.grids[-1] if oc.grids else ""
+                    grid = (st.props.get("item_bag") or {}).get(key) if key else None
+                    now = int(grid.get("num") or 0) if isinstance(grid, dict) else 0
+                    granted.append({"item_id": oc.item_id, "count": oc.count,
+                                    "now": now})
+                else:
+                    granted.append({"item_id": oc.item_id, "count": oc.count,
+                                    "error": str(oc.error)})
     if level:
         try:
             lv = int(level)

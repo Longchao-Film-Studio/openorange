@@ -230,7 +230,13 @@ def run():
     check("初始第 1 格存在", isinstance(first, dict), first)
     first_item = first.get("itemId")
     pre = msmod.live_init_dict("txopt_e")
-    got = story.add_item(st6.props, 12345, 3)
+    from game_server import gamedata as _gd
+    _present = {g.get("itemId") for g in (st6.props.get("item_bag") or {}).values()
+                if isinstance(g, dict)}
+    _pick = next((it["itemId"] for it in _gd.table("ItemData").values()
+                  if isinstance(it, dict) and it.get("itemId") not in _present
+                  and not it.get("autoUse") and not it.get("notStack")), 103)
+    got = story.add_item(st6.props, _pick, 3)
     check("add_item 返回新格子", bool(got), got)
     _num, gkey, is_new = got
     check("新格子是新建的", is_new is True, is_new)

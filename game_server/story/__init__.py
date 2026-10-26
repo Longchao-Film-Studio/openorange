@@ -46,7 +46,6 @@
 from shared.log_tee import get_logger
 
 from .. import gamedata
-from ..property import ids as _ids
 from .state_machine import (  # noqa: F401  (re-export：业务模块继续用 story.TASK_STATE_*)
     TASK_STATE_CLOSED,
     TASK_STATE_DOING,
@@ -720,41 +719,25 @@ def check_chain_tasks(st, now=None):
     return hits, []
 
 def add_item(props, item_id, count):
-    """往 item_bag 加道具（有则叠加，无则新建格子）。
+    """往 item_bag 加道具 —— **统一走 property.bag.grants**（唯一发放入口）。
 
-    返回 (新数量, 格子键, 是否新建)。是否新建决定同步用 OP_ADD 还是 OP_CHANGE。
+    返回 (新数量, 格子键, 是否新建)；失败返回 None（调用方按旧语义跳过）。
+
+    ★ 2026-10-26 收敛：以前这个函数自己拼格子 —— 无 ext、忽略 notStack/maxNum、
+      钥匙用 max+1（删除后会复用）。现在堆叠/上限/钥匙/ext/过期/autoUse 全在 grants：
+      剧情发奖 / 宝箱 / 副本结算 / GM / 管理接口 都通过这里受益。
     """
-    bag = props.get("item_bag")
-    if not isinstance(bag, dict):
-        return None
-    for key, grid in bag.items():
-        if not isinstance(grid, dict) or grid.get("itemId") != item_id:
-            continue
-        old = int(grid.get("num") or 0)
-        grid["num"] = old + int(count)
-        return grid["num"], key, False
-    # ★ 新建格子用**字符串键**。
-    #   依据：ItemBag 的 __IntTypeKey__ = false（config.lua Custom.ItemBag），
-    #   客户端 avatarbagcomp.lua:223 是 item_bag[gridId] 字符串查询。
-    #   之前用整数键 -> 同步时 str(gkey) 把客户端已有的 "1" 原地覆盖，
-    #   发奖把背包第 1 格顶掉；重登后新道具用字符串键查不到，等于消失。
-    #   （审计实锤：剧情发奖 / 宝箱 / 副本结算三条路径全部走这里）
-    used = {int(k) for k in bag if isinstance(k, int)}
-    used |= {int(k[1:]) for k in bag
-             if isinstance(k, str) and k.startswith("#") and k[1:].isdigit()}
-    used |= {int(k) for k in bag if isinstance(k, str) and k.isdigit()}
-    n = (max(used) + 1) if used else 1
-    while str(n) in bag:
-        n += 1
-    new_key = str(n)
-    bag[new_key] = {
-        "__id__": _ids.alloc_id(props),
-        "id": new_key,
-        "itemId": int(item_id),
-        "num": int(count),
-        "expireTime": 0.0,
-        "getTime": 0.0,
-    }
-    return int(count), new_key, True   # new_key 现在是字符串
+    from ..property.bag import grants
+    from ..property.tx import Tx
 
+    tx = Tx(props)
+    outcome = grants.grant(props, item_id, count, tx=tx, source="story")
+    if not outcome.ok or outcome.error is not None:
+        _log.warning("[story] 发道具失败 %s x%s：%s", item_id, count, outcome.error)
+        return None
+    key = outcome.grids[-1] if outcome.grids else ""
+    bag = props.get("item_bag")
+    grid = bag.get(key) if isinstance(bag, dict) and key else None
+    num = int(grid.get("num") or 0) if isinstance(grid, dict) else 0
+    return num, key, outcome.new_grids > 0
 

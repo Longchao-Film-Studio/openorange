@@ -12,10 +12,9 @@
 """
 from shared.log_tee import get_logger
 
-from .. import gamedata, story
-from .. import ms as msmod
+from .. import gamedata
 from ..property import ids as _ids
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..rpc_common import decode_params, respond_after_sync, state
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
 
@@ -29,8 +28,8 @@ def _grant_treasure_reward(st, tid):
       AwardItemList = {道具id: 数量}      —— 38/44 条有
       AwardAttr     = {street_id, prestige_exp}  —— 30/44 条有（都是 +6 声望经验）
 
-    之前只把 treasure_box_info[tid] 标成 1，**奖励一个没发** ——
-    玩家点开箱子只看到开箱动画，没道具也没声望，就是这个原因。
+    ★ 2026-10-26 收敛：道具发放走 property.bag.grants（堆叠/maxNum/钥匙/ext/autoUse），
+      同步帧由 grants.sync_frames 统一生成。
     """
     frames = []
     cfg = gamedata.street_treasure(tid)
@@ -38,8 +37,8 @@ def _grant_treasure_reward(st, tid):
         return frames
     # 1) 道具奖励
     items = cfg.get("AwardItemList") or {}
-    bag = st.props.get("item_bag")
-    if isinstance(items, dict) and isinstance(bag, dict):
+    if isinstance(items, dict):
+        items_map = {}
         for k, v in items.items():
             if k in ("KeyList", "__bdd_metatype__"):
                 continue
@@ -48,19 +47,17 @@ def _grant_treasure_reward(st, tid):
                 cnt = int(v)
             except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                 continue
-            if cnt <= 0:
-                continue
-            got = story.add_item(st.props, iid, cnt)
-            if not got:
-                continue
-            num, gkey, is_new = got
-            grid = bag.get(gkey)
-            if isinstance(grid, dict):
-                frames.append(sync_frame(
-                    SYNC_SELF, bag.get("__id__") or 0,
-                    msmod.OP_ADD if is_new else msmod.OP_CHANGE,
-                    str(gkey), grid))
-            _log.info(f"[street] 宝箱 {tid} 发道具 {iid} x{cnt} -> 现在 {num}")
+            if cnt > 0:
+                items_map[iid] = items_map.get(iid, 0) + cnt
+        if items_map:
+            from ..property.bag import grants
+            _tx, outcomes = grants.grant_many(st.props, items_map, source="treasure")
+            frames.extend(grants.sync_frames(st.props, outcomes))
+            for oc in outcomes:
+                if oc.ok:
+                    _log.info("[street] 宝箱 %s 发道具 %s x%s", tid, oc.item_id, oc.count)
+                else:
+                    _log.warning("[street] 宝箱 %s 发道具失败 %s：%s", tid, oc.item_id, oc.error)
     # 2) 声望经验（AwardAttr.prestige_exp）
     aa = cfg.get("AwardAttr") or {}
     exp = 0

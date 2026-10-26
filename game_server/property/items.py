@@ -34,96 +34,41 @@ def _use_failed(rid, syncs, errorcode=None):
 
 
 def _use_item(rid, params, uid=None):
-    """1-2 使用道具：扣数量 + 推 item_bag 的子属性同步。
+    """UseItem_CS —— 统一走 property.bag.item_use（唯一使用入口）。
 
-    客户端 entities/avatarcomponent/avatarbagcomp.lua:340-346：
-      UseItem_CS(itemID, itemCount, ext, callback)
-        -> serverRpc("UseItem_CS", {itemID, itemCount, ext}, ...)
-
-    同步方式：item_bag 是 CustomDict（initDict 里 __id__ = 1324，
-    格子形如 {"1": {__id__: 1357, id: "1", itemId: 101, num: 1000}}）。
-    改某个格子的数量属于「改子属性」：
-      propertyId = item_bag 的 __id__，name = 格子键，value = 整个格子。
-    客户端 _changeSubProperty 里会比对 __id__，命中就原地 rochange。
+    旧实现的两个问题在这里消失：
+      1. 先扣数量再试效果（效果不支持时道具被吃掉）；
+      2. 效果只认 avatarAttr 的三个键。
+    现在 bag.item_use.apply 负责：ext 定位格子 -> 校验 -> handler 算 ops ->
+    扣减 + 提交同一 Tx；失败返回错误码且**不改任何状态**。
     """
-    syncs = []
     vals = decode_params(params)
     if not (isinstance(vals, list) and len(vals) >= 2):
-        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
+        return _use_failed(rid, [], BAG_INVALID_ITEM_ID)
     item_id = vals[0]
+    ext = vals[2] if len(vals) >= 3 and isinstance(vals[2], dict) else {}
     try:
         count = int(vals[1])
-    except Exception:
-        return _use_failed(rid, syncs, BAG_INVALID_NUM)
-    if count <= 0:
-        return _use_failed(rid, syncs, BAG_INVALID_NUM)
-    st = state(uid)
-    bag = st.get("item_bag")
-    if not isinstance(bag, dict):
-        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
-    bag_id = bag.get("__id__") or 0
-    grid_key = None
-    grid = None
-    for key, g in list(bag.items()):
-        if key in ("__tp__", "__id__"):
-            continue
-        if isinstance(g, dict) and g.get("itemId") == item_id:
-            grid_key, grid = key, g
-            break
-    if grid is None:
-        # ★ 审计 T2：背包没有此道具回 Bag_InvaildItemId（原来回成功——撒谎）
-        return _use_failed(rid, syncs, BAG_INVALID_ITEM_ID)
+    except (TypeError, ValueError):
+        return _use_failed(rid, [], BAG_INVALID_NUM)
 
-    old_num = grid.get("num") or 0
-    if old_num < count:
-        return _use_failed(rid, syncs, BAG_INVALID_NUM)
+    from .bag import item_use
 
-    # unlockedSystem 门槛：只留痕不拦截（2026-10-24 复盘后去掉硬检查）
-    #   客户端有 Bag_SystemNotUnlocked 分支，官服会拦；但私服没有经济动机拦
-    #   「提前使用」，而判断依据是服务端 unlocked_system（任务驱动解锁链）——
-    #   链路有偏差时会误判，把「任务没推进」放大成「道具坏了」（第二层故障）。
-    #   将来要做「系统未开放」提示时，这里是现成挂点。
-    it_cfg = gamedata.item(item_id) or {}
-    need_sys = it_cfg.get("unlockedSystem")
-    if need_sys:
-        sysp = st.get("system_p")
-        unlocked = (sysp or {}).get("unlocked_system") if isinstance(sysp, dict) else None
-        try:
-            is_unlocked = isinstance(unlocked, dict) and bool(unlocked.get(int(need_sys)))
-        except (TypeError, ValueError):
-            is_unlocked = True
-        if not is_unlocked:
-            _log.info(f"[bag] 道具 {item_id} 需要 system {need_sys}（未解锁，放行留痕）")
+    frames, err = item_use.apply(state(uid), item_id, count, ext)
+    if err is not None:
+        return _use_failed(rid, [], err.code)
+    return respond_after_sync(rid, frames)
 
-    # ---- 1) 扣数量 ----
-    grid["num"] = old_num - count
-    st.set("item_bag", bag)
 
-    # ---- 2) 应用道具效果 ----
-    # 规则全在 ItemData：useType + useParam。
-    # 例：时砂之盒(110) = {useType:"avatarAttr", useParam:{TowerRewardKeys:60}}
-    changed_props = _apply_item_effect(st, item_id, count)
-
-    st.save()
-
-    # ---- 3) 推同步 ----
-    syncs.append(sync_frame(
-        # ★ name 必须是字符串（ms.pb_bytes_field 里对 int 会 len() 抛 TypeError）
-        #   审计 P0-5：旧存档的整数键会让这条 RPC 无应答 -> 客户端弱网转圈。
-        SYNC_SELF, bag_id, msmod.OP_CHANGE, str(grid_key), grid))
-    for prop, value in changed_props:
-        syncs.append(sync_frame(
-            SYNC_SELF, 0, msmod.OP_CHANGE, prop, value))
-    return respond_after_sync(rid, syncs)
-
-# useParam 的键（PascalCase）-> 属性名（snake_case）。
-# 只列「简单计数器」类的；Portrait/StickerId/Card/Background/Title/
-# PortraitFrame/Bubble 这些是往各自的 bag 里加条目，需要 bag 结构，暂未实现。
+# 兼容旧引用（dispatch.py re-export 用）。**权威映射已迁到**
+# property/bag/item_use.py 的 COUNTER_PROPS —— 这个常量与 _apply_item_effect
+# 都是历史残留，P5 清理时一并删除。
 _USE_PARAM_PROP = {
     "TowerRewardKeys": "tower_reward_keys",
     "Crystal": "crystal",
     "Exp": "exp",
 }
+
 
 def _apply_item_effect(st, item_id, count):
     """应用 ItemData 里声明的道具效果，返回 [(属性名, 新值)]。

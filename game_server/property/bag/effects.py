@@ -53,6 +53,19 @@ Op = PropOp | GrantOp | BagAddOp
 EFFECTS: dict[str, Callable[..., list[Op]]] = {}
 
 #: 明确「暂不支持」的 useType（依赖未实现的系统）。显式列出，便于数据驱动测试。
+#: 计划内、但还没实现的效果（P2/P4 落地）。命中时同样返回 15009 + 不扣道具，
+#: 但语义是「已排期」而不是「依赖未实现系统」—— 数据驱动测试据此区分。
+PENDING_USE_TYPES: dict[str, str] = {
+    "randomItem": "P2：随机池（735 池，randType 语义待实测）",
+    "charFavorSpace": "P4：角色好感",
+    "streetPrestige": "P4：街头声望",
+    "amassbattlepass_1": "P4：通行证变体",
+    "roguebattlepass": "P4：通行证变体",
+    "readybattlepass_1": "P4：通行证变体",
+    "readybattlepass_2": "P4：通行证变体",
+    "backbattlepass": "P4：通行证变体",
+}
+
 UNSUPPORTED_USE_TYPES: dict[str, str] = {
     "char": "角色发放链路未实现",
     "charSkin": "皮肤系统未实现",
