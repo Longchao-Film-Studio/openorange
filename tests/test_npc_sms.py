@@ -136,6 +136,53 @@ def run():
           str(st6.props.get("npc_chat_prop")) == before6)
 
     print()
+    print("[7] INV-SMS-9：新建条目自带 __id__（回归：2026-10-26 整号登不上事故）")
+    # 事故：首次解锁走"容器不存在"分支，一次 set 塞了两层（NpcChatRecord + NpcChatInfo），
+    # Tx._ensure_id 只给外层补 __id__，内层没有 -> 客户端 CustomDict 断言失败 -> 登录死循环。
+    _u7, st7 = fresh("sms7")
+    npc_sms.unlock_topic(st7, 100103, 1014, source="test", allow_unmapped=True)
+    npc_sms.unlock_topic(st7, 100133, 50019, source="test", allow_unmapped=True)
+
+    rec7 = st7.props["npc_chat_prop"]["address_list"][100103]
+    check("会话记录（NpcChatRecord）有 __id__",
+          isinstance(rec7.get("__id__"), int) and rec7["__id__"] > 0, rec7.get("__id__"))
+
+    infos = []
+    for chat_id, rec in st7.props["npc_chat_prop"]["address_list"].items():
+        if chat_id == "__id__" or not isinstance(rec, dict):
+            continue
+        for tid, info in rec.items():
+            if tid == "__id__" or not isinstance(info, dict):
+                continue
+            infos.append((chat_id, tid, info))
+    check("两条话题条目都在", len(infos) == 2, [f"{a}[{b}]" for a, b, _ in infos])
+    check("每条话题条目（NpcChatInfo）都有 __id__",
+          all(isinstance(i.get("__id__"), int) and i["__id__"] > 0 for _, _, i in infos),
+          [i.get("__id__") for _, _, i in infos])
+    check("各条目 __id__ 互不相同",
+          len({i.get("__id__") for _, _, i in infos}) == len(infos),
+          [i.get("__id__") for _, _, i in infos])
+
+    # 客户端会查重复 __id__（重复 -> 打 "id repeated!" 并覆盖缓存，之后同步打到旧对象上）
+    seen7, dup7 = set(), []
+
+    def _scan(v):
+        if isinstance(v, dict):
+            i = v.get("__id__")
+            if isinstance(i, int):
+                if i in seen7:
+                    dup7.append(i)
+                seen7.add(i)
+            for x in v.values():
+                _scan(x)
+        elif isinstance(v, list):
+            for x in v:
+                _scan(x)
+
+    _scan(st7.props)
+    check("存档内 __id__ 无重复", not dup7, dup7[:5])
+
+    print()
     print("=" * 56)
     print(f'通过 {len(passed)} 项，失败 {len(failed)} 项')
     return 0 if not failed else 1

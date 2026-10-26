@@ -30,6 +30,8 @@
   INV-SMS-6  未解锁话题收到进度上报 -> 忽略
   INV-SMS-7  is_over=1 后话题必须离开未读队列
   INV-SMS-8  建条目必须带非 0 update_time
+  INV-SMS-9  新建条目必须自带 __id__（嵌套对象不能指望 Tx 递归补，
+             否则客户端 CustomDict 断言失败 -> 整号登不上）
 """
 import os
 import time
@@ -37,6 +39,7 @@ import time
 from shared.log_tee import get_logger
 
 from .. import gamedata
+from ..property import ids as _ids
 from ..property.tx import Tx
 
 _log = get_logger(__name__)
@@ -115,11 +118,21 @@ def _chat_id_of(cfg):
         return 0
 
 
-def _entry(chat_type, npc_id, now):
+def _entry(chat_type, npc_id, now, props):
     """一条 NpcChatInfo。形状 = config.lua:4925-4962 + npcchatprop.lua:5-14，
     并补上客户端模板漏写的 is_over/update_time（客户端会话列表按 update_time 排序）。
+
+    ★ __id__ 必须在这里显式分配（2026-10-26 事故，123tst 整号登不上）：
+      Tx._ensure_id 只给「直接传给 set() 的那个对象」补 id，**不递归子对象**。
+      而"首次解锁"分支一次 set 塞了「会话记录 + 话题条目」两层 ——
+      外层记录由 Tx 补了 id，内层 NpcChatInfo 没有。落盘后客户端每次登录
+      重建 NpcChatProp，CustomDict 的 assert(id ~= nil) 失败 ->
+      ClientAvatar:init 抛异常 -> 回登录界面（可复现的登录死循环）。
+      嵌套新建的自定义对象（NpcChatRecord/NpcChatInfo 都继承 CustomDict）
+      必须自己带 __id__，这是 Tx 的契约边界。
     """
     return {
+        "__id__": _ids.alloc_id(props),
         "chat_type": int(chat_type),
         "npc_id": int(npc_id),
         "group_npc_ids": {},
@@ -171,10 +184,10 @@ def unlock_topic(st, chat_id, topic_id, source="", allow_unmapped=False):
     if not isinstance(al, dict) or real_chat not in al:
         # 会话容器不存在：整条会话（含话题条目）一次建出，Tx 自动发 OP_ADD
         tx.set(("npc_chat_prop", "address_list", real_chat),
-               {topic_id: _entry(chat_type, real_chat, now)})
+               {topic_id: _entry(chat_type, real_chat, now, st.props)})
     else:
         tx.set(("npc_chat_prop", "address_list", real_chat, topic_id),
-               _entry(chat_type, real_chat, now))
+               _entry(chat_type, real_chat, now, st.props))
     # 未读队列（IntList；Tx.append 发 OP_INSERT）
     try:
         tx.append(("npc_chat_prop", "resident_topic_ids"), topic_id)
