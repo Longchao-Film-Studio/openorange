@@ -233,21 +233,20 @@ def mark_topic_progress(st, chat_id, topic_id, info_id, info_val, is_over):
     if not is_unlocked(st, chat_id, topic_id):
         _log.warning("[sms] 进度上报：话题 %s 未解锁，忽略（chat=%s）", topic_id, chat_id)
         return []
-    now = int(__import__("time").time())
+    now = int(time.time())
     tx = Tx(st.props)
     conv = st.props["npc_chat_prop"]["address_list"][chat_id]
     entry = conv[topic_id]
-    infos = entry.get("topic_infos")
-    if not isinstance(infos, dict):
-        infos = {}
+    infos = dict(entry.get("topic_infos") or {})
     infos[int(info_id)] = int(info_val)
-    entry["topic_infos"] = infos
-    entry["is_over"] = int(is_over)
-    entry["update_time"] = now
-    conv[topic_id] = entry
-    tx.set(("npc_chat_prop", "address_list", chat_id, "topic_infos"), infos)
-    tx.set(("npc_chat_prop", "address_list", chat_id, "is_over"), int(is_over))
-    tx.set(("npc_chat_prop", "address_list", chat_id, "update_time"), now)
+    # ★ 必须写到 [chat_id][topic_id] 这一层（NpcChatInfo 的字段）。
+    #   2026-10-26：以前少了 topic_id 一层，客户端把 is_over / topic_infos 当成
+    #   "新的话题条目"去构造 NpcChatInfo（值是 int 或重复的 __id__），
+    #   打 "NpcChatInfo attach to cache, id repeated!"，并把脏键写进存档 ——
+    #   下次登录时客户端在 ClientAvatar:init 崩（整号登不上）。
+    tx.set(("npc_chat_prop", "address_list", chat_id, topic_id, "topic_infos"), infos)
+    tx.set(("npc_chat_prop", "address_list", chat_id, topic_id, "is_over"), int(is_over))
+    tx.set(("npc_chat_prop", "address_list", chat_id, topic_id, "update_time"), now)
     if int(is_over) == 1:
         _remove_unread(tx, st, topic_id)
     st.save()

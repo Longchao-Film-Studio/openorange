@@ -22,6 +22,7 @@ from game_server import (
 )
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
+from game_server.property import validate  # noqa: E402
 from game_server.story import npc_sms  # noqa: E402
 
 passed, failed = [], []
@@ -187,6 +188,26 @@ def run():
 
     _scan(st7.props)
     check("存档内 __id__ 无重复", not dup7, dup7[:5])
+
+    print()
+    print("[8] 结构完整性：进度写入必须落在 [chat][topic] 层（2026-10-26 二次事故）")
+    # 事故：mark_topic_progress 把 is_over/update_time/topic_infos 写到
+    # address_list[chat]（少一层 topic_id），客户端把 int 当成 NpcChatInfo 构造 ->
+    # "NpcChatInfo attach to cache, id repeated!"，并把脏键写进存档 -> 下次登录崩。
+    _u8, st8 = fresh("sms8")
+    npc_sms.unlock_topic(st8, 100103, 1014, source="test", allow_unmapped=True)
+    f8 = npc_sms.mark_topic_progress(st8, 100103, 1014, 10491, 1, 1)
+    rec8 = st8.props["npc_chat_prop"]["address_list"][100103]
+    info8 = rec8[1014]
+    check("进度上报有帧", len(f8) > 0, len(f8))
+    check("记录层只允许 __id__ 和话题 id",
+          set(rec8.keys()) <= {"__id__", 1014}, sorted(map(str, rec8.keys())))
+    check("info 层 is_over 落库", int(info8["is_over"]) == 1, info8.get("is_over"))
+    check("info 层 topic_infos 落库", info8["topic_infos"].get(10491) == 1,
+          info8.get("topic_infos"))
+    check("info 层 update_time 非 0", int(info8["update_time"]) > 0, info8.get("update_time"))
+    check("整棵属性树无缺 __id__ 节点", validate.find_missing_ids(st8.props) == [],
+          validate.find_missing_ids(st8.props))
 
     print()
     print("=" * 56)
