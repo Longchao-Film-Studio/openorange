@@ -148,8 +148,14 @@ def _random_item(props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: d
                        f"池 {pool_id} 的奖励都不是道具（等装备/时装系统），本次不消耗")
     return ops
 
-def materialize(props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "", depth: int = 0) -> None:
-    """把 handler 算出的 ops 落到 props（同一个 Tx，保证原子）。"""
+def materialize(
+    props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "", depth: int = 0,
+) -> list[tuple[int, int, list[str]]]:
+    """把 handler 算出的 ops 落到 props（同一个 Tx，保证原子）。
+
+    返回**发放明细** [(item_id, count, grid_keys)] —— 供 Avatar_Reward_SC 展示用。
+    """
+    granted: list[tuple[int, int, list[str]]] = []
     for op in ops:
         if isinstance(op, PropOp):
             cur = props.get(op.name)
@@ -159,9 +165,12 @@ def materialize(props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "
                 continue
             tx.set((op.name,), cur + op.value)
         elif isinstance(op, GrantOp):
-            grants.grant(props, op.item_id, op.count, tx=tx, source=source, depth=depth + 1)
+            oc = grants.grant(props, op.item_id, op.count, tx=tx, source=source, depth=depth + 1)
+            if oc.ok:
+                granted.append((op.item_id, oc.stored or op.count, oc.grids))
         elif isinstance(op, BagAddOp):
             tx.set((op.bag, op.key), dict(op.value))
+    return granted
 
 
 def _grid_of(props: dict[str, Any], item_id: int, ext: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -184,21 +193,28 @@ def _grid_of(props: dict[str, Any], item_id: int, ext: dict[str, Any]) -> tuple[
     raise BagError(BAG_INVALID_ITEM_ID, "背包里没有该道具")
 
 
-def apply(st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = None) -> tuple[list[bytes], BagError | None]:
-    """使用道具。成功返回 (frames, None)；失败返回 ([], BagError) 且**不改任何状态**。"""
+def apply(
+    st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = None,
+) -> tuple[list[bytes], BagError | None, list[bytes]]:
+    """使用道具。
+
+    返回 (同步帧, 错误, 推送帧)。
+      · 成功：frames=属性同步，err=None，tail=Avatar_Reward_SC 展示帧
+      · 失败：frames=[]，err=BagError，tail=[]，且**不改任何状态**
+    """
     props: dict[str, Any] = st.props
     ext = ext if isinstance(ext, dict) else {}
     try:
         item_id = int(item_id)
         count = int(count)
     except (TypeError, ValueError):
-        return [], BagError(BAG_INVALID_NUM, "参数非法")
+        return [], BagError(BAG_INVALID_NUM, "参数非法"), []
     if count <= 0:
-        return [], BagError(BAG_INVALID_NUM, "数量必须为正")
+        return [], BagError(BAG_INVALID_NUM, "数量必须为正"), []
 
     cfg = gamedata.item(item_id)
     if not isinstance(cfg, dict) or not cfg:
-        return [], BagError(BAG_INVALID_ITEM_ID, "ItemData 里没有这个道具")
+        return [], BagError(BAG_INVALID_ITEM_ID, "ItemData 里没有这个道具"), []
 
     try:
         key, grid = _grid_of(props, item_id, ext)
@@ -224,10 +240,11 @@ def apply(st: StateLike, item_id: int, count: int, ext: dict[str, Any] | None = 
             # ★ 整格 set：与客户端 _changeSubProperty 的契约一致（见 grants 注释）
             grid["num"] = num - count
             tx.set(("item_bag", key), grid)
-        materialize(props, ops, tx=tx, source=f"use:{item_id}")
+        granted = materialize(props, ops, tx=tx, source=f"use:{item_id}")
         st.save()
         _log.info("[bag] 使用 %s x%s（%s）-> %s 个 ops", item_id, count, use_type, len(ops))
-        return tx.frames(), None
+        from . import feedback
+        return tx.frames(), None, feedback.reward_frames(granted)
     except BagError as e:
         _log.info("[bag] 使用 %s 失败：%s", item_id, e)
-        return [], e
+        return [], e, []

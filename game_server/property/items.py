@@ -54,10 +54,11 @@ def _use_item(rid, params, uid=None):
 
     from .bag import item_use
 
-    frames, err = item_use.apply(state(uid), item_id, count, ext)
+    frames, err, tail = item_use.apply(state(uid), item_id, count, ext)
     if err is not None:
         return _use_failed(rid, [], err.code)
-    return respond_after_sync(rid, frames)
+    # tail：Avatar_Reward_SC 展示帧（应答之后推，客户端当事件处理）
+    return respond_after_sync(rid, frames, tail=tail)
 
 
 # 兼容旧引用（dispatch.py re-export 用）。**权威映射已迁到**

@@ -126,7 +126,7 @@ def run():
     grants.grant(st5.props, int(unsupported["itemId"]), 1, tx=Tx(st5.props), source="test")
     before = sum(int(g.get("num") or 0) for g in st5.props["item_bag"].values()
                  if isinstance(g, dict) and int(g.get("itemId") or 0) == int(unsupported["itemId"]))
-    frames, err = item_use.apply(st5, int(unsupported["itemId"]), 1, {})
+    frames, err, _tail = item_use.apply(st5, int(unsupported["itemId"]), 1, {})
     after = sum(int(g.get("num") or 0) for g in st5.props["item_bag"].values()
                 if isinstance(g, dict) and int(g.get("itemId") or 0) == int(unsupported["itemId"]))
     check("返回错误码 15009", err is not None and err.code == 15009, err)
@@ -159,7 +159,7 @@ def run():
     if sel:
         st8 = fresh("use4")
         grants.grant(st8.props, int(sel["itemId"]), 1, tx=Tx(st8.props), source="test")
-        _f8, err8 = item_use.apply(st8, int(sel["itemId"]), 1, {})
+        _f8, err8, _t8 = item_use.apply(st8, int(sel["itemId"]), 1, {})
         check("返回 15006", err8 is not None and err8.code == 15006, err8)
         still = [g for g in st8.props["item_bag"].values()
                  if isinstance(g, dict) and int(g.get("itemId") or 0) == int(sel["itemId"])]
@@ -197,7 +197,7 @@ def run():
         else:
             grants.grant(st10.props, int(box["itemId"]), 1, tx=Tx(st10.props), source="test")
             before_items = {g.get("itemId") for g in st10.props["item_bag"].values() if isinstance(g, dict)}
-            _f10, err10 = item_use.apply(st10, int(box["itemId"]), 1, {})
+            _f10, err10, _t10 = item_use.apply(st10, int(box["itemId"]), 1, {})
             check("盲盒使用成功", err10 is None, err10)
         after_items = {g.get("itemId") for g in st10.props["item_bag"].values() if isinstance(g, dict)}
         gained = after_items - before_items - {int(box["itemId"])}

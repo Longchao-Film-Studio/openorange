@@ -211,6 +211,11 @@ def _stage_boot(uid=None):
         #   让本轮登录的**首条 RPC** 重新 drain 一次 _oo_pending_chain。
         #   （旧实现不重置，靠重复跑撑正确性；现在按登录粒度精确触发。）
         pstate.reset_drain(uid)
+        # ★ 2026-10-27：登录先清过期（道具格子 + 装饰），过期内容不进初始快照。
+        #   客户端自己不会删（只有定时器），服务端不扫就会一直留在包里。
+        from ..property.bag import expiry as _bag_expiry
+        if _bag_expiry.sweep(st.props):
+            st.save()
     except Exception:
         return None   # 由调用方回落到 DEFAULT_INIT_DICT
     # 账号 uid 写进状态本身（多账号时每个账号用自己的 uid）

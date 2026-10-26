@@ -237,6 +237,20 @@ from .street.treasure import (  # noqa: F401  (re-export)
 
 _log = get_logger(__name__)
 
+def _query_expired_items(rid, _params, uid=None):
+    """QueryExpiredItems_CS：返回最近过期的道具（storepanel.lua:83-96 读 response.expired_items）。"""
+    from .property.bag import expiry
+    st = state(uid)
+    return _respond_after_sync(rid, [], resp={"expired_items": expiry.expired_items(st.props)})
+
+
+def _query_expired_fashions(rid, _params, uid=None):
+    """RpcQueryExpiredFashions：返回已过期装饰 {type: {id: 时间}}。"""
+    from .property.bag import expiry
+    st = state(uid)
+    return _respond_after_sync(rid, [], resp={"expired_fashions": expiry.expired_fashions(st.props)})
+
+
 HANDLERS = {
     msmod.RPC_INDEX_SET_SIGNATURE_CS: _set_signature,
     msmod.RPC_INDEX_USE_ITEM_CS: _use_item,
@@ -309,6 +323,9 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("Cmd_Avatar_FinishGame_CS", _dungeon_finish),
                    ("SingleStartMatch_CS", _single_start_match),
                    ("BattleTeach_Activate_CS", _battle_teach_activate),
+                   # ★ 2026-10-27：过期清单（storepanel / 个人信息页读 response.expired_*）
+                   ("QueryExpiredItems_CS", _query_expired_items),
+                   ("RpcQueryExpiredFashions", _query_expired_fashions),
                    ("RecordItemObtain_CS", _record_item_obtain)):
     if _name in RPC_INDEX:
         HANDLERS[RPC_INDEX[_name]] = _fn
