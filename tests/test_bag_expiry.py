@@ -76,6 +76,12 @@ def run():
     check("永久装饰保留", 601 in props["portrait_bag"])
     ef = expiry.expired_fashions(props)
     check("记进 FashionType=1（portrait）", ef.get(1, {}).get(513) == NOW, ef)
+    _raw = props["expired_fashions"]
+    check("内层是自定义字典（客户端 roinit 要 __id__）",
+          isinstance(_raw.get(1), dict) and bool(_raw[1].get("__id__")), _raw.get(1))
+    from game_server.property import validate as _validate
+    _missing = _validate.find_missing_ids(props)
+    check("过期记录写入后没有缺 __id__", not _missing, _missing[:3])
 
     print("\n[4] 登录路径（live_init_dict）会真的清理过期")
     from game_server import player_state as pstate
