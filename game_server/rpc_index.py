@@ -73,6 +73,8 @@ RPC_INDEX = {
     "RpcGetEdenChatHistory": 1469599847,
     # --- 街景声望（3 条） ---
     "RequestAddPrestigeExp_CS": 685191554,
+    # 送礼（好感度）：client avatarfavorspacecomp.lua:230；索引取自客户端 rpc_list.tsv
+    "AddCharFavorExp_CS": 949853662,
     "RequestGetPrestigeAward_CS": 980877859,
     "RequestGetPrestigeTaskAward_CS": 285611839,
     # --- 街景派遣（3 条） ---

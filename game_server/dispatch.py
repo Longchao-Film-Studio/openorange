@@ -237,6 +237,54 @@ from .street.treasure import (  # noqa: F401  (re-export)
 
 _log = get_logger(__name__)
 
+def _add_char_favor_exp(rid, params, uid=None):
+    """AddCharFavorExp_CS(char, {itemId: count}) —— 送礼（好感度）。
+
+    客户端：avatarfavorspacecomp.lua:229-235 -> node_pop_send_giftsgroup.lua:170。
+    应答带 {favor_exp, popularity}（客户端 :234 读这两个值刷 UI）。
+    """
+    from . import gamedata as _gd
+    from .property.bag import consume as _consume
+    from .property.bag import special as _special
+    from .property.tx import Tx as _Tx
+
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and len(vals) >= 2) or not isinstance(vals[1], dict):
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
+    try:
+        char_id = int(vals[0])
+    except (TypeError, ValueError):
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
+    st = state(uid)
+    tx = _Tx(st.props)
+    exp = pop = 0
+    try:
+        for k, v in vals[1].items():
+            try:
+                iid, cnt = int(k), int(v)
+            except (TypeError, ValueError):
+                continue
+            if cnt <= 0:
+                continue
+            if _gd.item_use_type(iid) != "charFavorSpace":
+                continue
+            _consume.consume(st.props, iid, cnt, tx=tx)
+            p = _gd.item_use_param(iid) or {}
+            exp += int(p.get("CharFavorExp") or 0) * cnt
+            pop += int(p.get("CharPopularity") or 0) * cnt
+    except Exception as e:              # noqa: BLE001 — 数量不足等：整单失败，不落变更
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": str(e)})
+
+    frames = list(tx.frames())
+    frames.extend(_special.add_char_favor(st.props, char_id, exp, pop))
+    st.save()
+    fm = st.props.get("favor_exp_map") or {}
+    pm = st.props.get("popularity_map") or {}
+    resp = {"favor_exp": int(fm.get(char_id) or 0) if isinstance(fm, dict) else 0,
+            "popularity": int(pm.get(char_id) or 0) if isinstance(pm, dict) else 0}
+    return _respond_after_sync(rid, frames, resp=resp)
+
+
 def _query_expired_items(rid, _params, uid=None):
     """QueryExpiredItems_CS：返回最近过期的道具（storepanel.lua:83-96 读 response.expired_items）。"""
     from .property.bag import expiry
@@ -326,6 +374,7 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    # ★ 2026-10-27：过期清单（storepanel / 个人信息页读 response.expired_*）
                    ("QueryExpiredItems_CS", _query_expired_items),
                    ("RpcQueryExpiredFashions", _query_expired_fashions),
+                   ("AddCharFavorExp_CS", _add_char_favor_exp),
                    ("RecordItemObtain_CS", _record_item_obtain)):
     if _name in RPC_INDEX:
         HANDLERS[RPC_INDEX[_name]] = _fn

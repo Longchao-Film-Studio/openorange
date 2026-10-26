@@ -19,7 +19,7 @@ from shared.log_tee import get_logger
 from ... import gamedata
 from ..tx import Tx
 from . import effects, grants, report
-from .effects import BagAddOp, GrantOp, Op, PropOp
+from .effects import BagAddOp, CustomOp, GrantOp, Op, PropOp
 from .errors import (
     BAG_INVALID_EXT_PARAMS,
     BAG_INVALID_ID,
@@ -148,14 +148,54 @@ def _random_item(props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: d
                        f"池 {pool_id} 的奖励都不是道具（等装备/时装系统），本次不消耗")
     return ops
 
+@effects.register("streetPrestige")
+def _street_prestige(_props: dict[str, Any], cfg: dict[str, Any], count: int, _ext: dict[str, Any]) -> list[Op]:
+    """街头声望：useParam {streetId, prestigeExp}（时砂之外的第二类"街区内生效"道具）。"""
+    from . import special
+
+    params = _params(cfg)
+    try:
+        street_id = int(params.get("streetId") or 0)
+        exp = int(params.get("prestigeExp") or 0) * int(count)
+    except (TypeError, ValueError):
+        raise BagError(BAG_INVALID_EXT_PARAMS, "streetPrestige 参数非法") from None
+    if street_id <= 0 or exp == 0:
+        raise BagError(BAG_INVALID_EXT_PARAMS, "streetPrestige 缺少 streetId/prestigeExp")
+    return [CustomOp(lambda p: special.add_prestige_exp(p, street_id, exp))]
+
+
+@effects.register("charFavorSpace")
+def _char_favor_space(_props: dict[str, Any], cfg: dict[str, Any], count: int, ext: dict[str, Any]) -> list[Op]:
+    """送礼（好感度）：必须带 ext.charId —— 客户端送礼面板走 AddCharFavorExp_CS，
+    但背包直接使用也要能生效，所以这里同样要求 charId。
+    """
+    from . import special
+
+    char_id = ext.get("charId")
+    if char_id is None:
+        raise BagError(BAG_INVALID_EXT_PARAMS, "charFavorSpace 缺少 ext.charId（送礼对象）")
+    try:
+        char_id = int(char_id)
+    except (TypeError, ValueError):
+        raise BagError(BAG_INVALID_EXT_PARAMS, "ext.charId 不是数字") from None
+    params = _params(cfg)
+    try:
+        exp = int(params.get("CharFavorExp") or 0) * int(count)
+        pop = int(params.get("CharPopularity") or 0) * int(count)
+    except (TypeError, ValueError):
+        raise BagError(BAG_INVALID_EXT_PARAMS, "charFavorSpace 参数非法") from None
+    return [CustomOp(lambda p: special.add_char_favor(p, char_id, exp, pop))]
+
+
 def materialize(
     props: dict[str, Any], ops: list[Op], *, tx: Tx, source: str = "", depth: int = 0,
-) -> list[tuple[int, int, list[str]]]:
+) -> tuple[list[tuple[int, int, list[str]]], list[bytes]]:
     """把 handler 算出的 ops 落到 props（同一个 Tx，保证原子）。
 
     返回**发放明细** [(item_id, count, grid_keys)] —— 供 Avatar_Reward_SC 展示用。
     """
     granted: list[tuple[int, int, list[str]]] = []
+    extra: list[bytes] = []
     for op in ops:
         if isinstance(op, PropOp):
             cur = props.get(op.name)
@@ -170,7 +210,9 @@ def materialize(
                 granted.append((op.item_id, oc.stored or op.count, oc.grids))
         elif isinstance(op, BagAddOp):
             tx.set((op.bag, op.key), dict(op.value))
-    return granted
+        elif isinstance(op, CustomOp):
+            extra.extend(op.fn(props))
+    return granted, extra
 
 
 def _grid_of(props: dict[str, Any], item_id: int, ext: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -240,11 +282,11 @@ def apply(
             # ★ 整格 set：与客户端 _changeSubProperty 的契约一致（见 grants 注释）
             grid["num"] = num - count
             tx.set(("item_bag", key), grid)
-        granted = materialize(props, ops, tx=tx, source=f"use:{item_id}")
+        granted, extra = materialize(props, ops, tx=tx, source=f"use:{item_id}")
         st.save()
         _log.info("[bag] 使用 %s x%s（%s）-> %s 个 ops", item_id, count, use_type, len(ops))
         from . import feedback
-        return tx.frames(), None, feedback.reward_frames(granted)
+        return tx.frames() + extra, None, feedback.reward_frames(granted)
     except BagError as e:
         _log.info("[bag] 使用 %s 失败：%s", item_id, e)
         return [], e, []

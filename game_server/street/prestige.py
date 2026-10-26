@@ -101,6 +101,11 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
     frames.extend(_prestige_push(st, si, street_id, entry, is_new))
     return frames
 
+# 公开入口（供背包效果等其它领域调用；内部实现仍是 _apply_prestige_exp/_prestige_info）
+apply_prestige_exp = _apply_prestige_exp
+prestige_info_of = _prestige_info
+
+
 def _add_prestige_exp(rid, params, uid=None):
     """RequestAddPrestigeExp_CS {exp} —— 加声望经验，够了就升级。"""
     vals = decode_params(params)

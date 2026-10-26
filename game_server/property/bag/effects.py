@@ -47,7 +47,18 @@ class BagAddOp:
     value: dict[str, Any] = field(default_factory=dict)
 
 
-Op = PropOp | GrantOp | BagAddOp
+@dataclass
+class CustomOp:
+    """自定义效果：直接改 props / 走其它领域模块，并返回自己的同步帧。
+
+    用在「目标不在背包里」的效果上（街头声望在 street_info、好感在 favor_exp_map），
+    fn 拿 props 干活并返回 frames；item_use 会把这些帧插在应答之前。
+    """
+
+    fn: Callable[[dict[str, Any]], list[bytes]]
+
+
+Op = PropOp | GrantOp | BagAddOp | CustomOp
 
 #: useType -> handler(props, cfg, count, ext) -> list[Op]
 EFFECTS: dict[str, Callable[..., list[Op]]] = {}
@@ -56,8 +67,6 @@ EFFECTS: dict[str, Callable[..., list[Op]]] = {}
 #: 计划内、但还没实现的效果（P2/P4 落地）。命中时同样返回 15009 + 不扣道具，
 #: 但语义是「已排期」而不是「依赖未实现系统」—— 数据驱动测试据此区分。
 PENDING_USE_TYPES: dict[str, str] = {
-    "charFavorSpace": "P4：角色好感",
-    "streetPrestige": "P4：街头声望",
     "amassbattlepass_1": "P4：通行证变体",
     "roguebattlepass": "P4：通行证变体",
     "readybattlepass_1": "P4：通行证变体",
