@@ -136,6 +136,9 @@ def run():
     _ib4d = _pst4d.props.setdefault("item_bag", {})
     _ib4d["995"] = {"__id__": 990015, "id": "995", "itemId": 201, "num": 2}
     _pst4d.set("item_bag", _ib4d)
+    # ★ 新号没有角色：升级用例先创建男主角
+    from game_server import protagonist as _prot4d
+    _prot4d.ensure(_pst4d, 1)
     frames5 = guarded_handle(msmod.RPC_INDEX_UPGRADE_CHARACTER_CS,
                              msmod.mp_arr([9001, {"201": 2}]), 21, uid="psync_4d")
     check("多帧（应答+材料+bag）", len(frames5) >= 3, len(frames5))

@@ -67,6 +67,9 @@ def resp_of(ret):
 def t1():
     print("T1 UpgradeCharacter_CS: sendItems 必须被扣（客户端视角 {charId, sendItems}）")
     st = fresh("t1")
+    # ★ 新号没有角色：先创建男主角（唯一入口 protagonist.ensure）
+    from game_server import protagonist as _prot_t1
+    _prot_t1.ensure(st, 1)
     bag = st.get("characterBag") or {}
     cid = None
     for k in bag:

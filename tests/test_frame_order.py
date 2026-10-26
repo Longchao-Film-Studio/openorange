@@ -77,6 +77,9 @@ def run():
     _ibF2["989"] = {"__id__": 990009, "id": "989", "itemId": 201, "num": 2}
     _ibF2["988"] = {"__id__": 990008, "id": "988", "itemId": 103, "num": 100000}
     _stF.set("item_bag", _ibF2)
+    # ★ 新号没有角色：升级用例需要主角存在
+    from game_server import protagonist as _protF
+    _protF.ensure(_stF, 1)
     cases = [
         ("SetCharacterList_CS", [1, [9001, 9002, 0]], True),
         ("SetCharacterListName_CS", [1, "\u9635\u5217"], True),

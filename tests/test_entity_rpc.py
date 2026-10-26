@@ -104,6 +104,9 @@ def run():
     _ib = _st4.props.setdefault("item_bag", {})
     _ib["990"] = {"__id__": 990010, "id": "990", "itemId": 201, "num": 5}
     _st4.set("item_bag", _ib)
+    # ★ 新号没有角色：升级用例先按性别创建主角（唯一入口 protagonist.ensure）
+    from game_server import protagonist as _prot4
+    _prot4.ensure(_st4, 1)
     _fr7 = guarded_handle(732022161, msmod.mp_arr([9001, {"201": 1}]), 7, uid="rpc_t1")
     pkt = next((f for f in _fr7 if isinstance(f, (bytes, bytearray))
                 and b"__rpc_response__" in f), _fr7[0] if _fr7 else b"")

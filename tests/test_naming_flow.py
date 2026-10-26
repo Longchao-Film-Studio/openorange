@@ -172,31 +172,35 @@ def run():
     check("★ 新号不能直接进街区", ok7 is False, parts7)
 
 
-    print("\n[8] P1-2：取名按性别设主角（男9001/女9002 + 补 characterBag 9002）")
+    print("\n[8] 取名按性别创建**唯一**主角（互斥，不是「加一个」）")
     st8, u8 = fresh("p12girl")
     guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
                    msmod.mp_arr(["\u963f\u5f71", 2]), 8, uid=u8)
     cb8 = st8.props.get("characterBag") or {}
+    ids8 = sorted(k for k in cb8 if isinstance(k, int))
     check("★ 女导 -> character_choosen_char=9002",
           st8.props.get("character_choosen_char") == 9002,
           st8.props.get("character_choosen_char"))
-    check("★ characterBag 补了 9002（女主）", 9002 in cb8, sorted(k for k in cb8 if isinstance(k, int)))
+    check("★ characterBag 只有女主角 9002", ids8 == [9002], ids8)
+    check("★ 9001（男导）已被删掉（不再并存）", 9001 not in cb8)
     check("★ 9002 的 useSkinId=900201（女主默认皮肤）",
           cb8.get(9002, {}).get("useSkinId") == 900201, cb8.get(9002, {}).get("useSkinId"))
-    check("★ 9002 的 __id__ 不与 9001 撞号",
-          cb8.get(9002, {}).get("__id__") != cb8.get(9001, {}).get("__id__"))
-    check("★ 9001 仍保留（没被顶掉）", 9001 in cb8)
+    _team8 = (st8.props.get("character_list") or {}).get(1) or (st8.props.get("character_list") or {}).get("1")
+    _slots8 = (_team8 or {}).get("value") or {}
+    check("★ 编队第 1 队 = [9002,0,0]",
+          [_slots8.get(1), _slots8.get(2), _slots8.get(3)] == [9002, 0, 0],
+          [_slots8.get(1), _slots8.get(2), _slots8.get(3)])
 
     st8b, u8b = fresh("p12boy")
     guarded_handle(rpc_index.RPC_INDEX["RpcCommitNameGender"],
                    msmod.mp_arr(["\u963f\u5149", 1]), 9, uid=u8b)
     cb8b = st8b.props.get("characterBag") or {}
-    check("★ 男导 -> 保持 9001",
+    ids8b = sorted(k for k in cb8b if isinstance(k, int))
+    check("★ 男导 -> 只有男主角 9001", ids8b == [9001], ids8b)
+    check("★ 9002（女导）不在包里", 9002 not in cb8b)
+    check("★ 男导 choosen=9001",
           st8b.props.get("character_choosen_char") == 9001,
           st8b.props.get("character_choosen_char"))
-    check("★ 男导不补 9002（bag 只有 9001）",
-          9002 not in cb8b, sorted(k for k in cb8b if isinstance(k, int)))
-
     print("\n[9] P1-7：FriendService.fetchFriends 返回空好友列表")
     _params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
     _dec = msmod.mp_decode(_params)[0]

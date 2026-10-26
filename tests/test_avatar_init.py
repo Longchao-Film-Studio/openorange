@@ -57,10 +57,11 @@ def run():
     cb = props["characterBag"]
     check("characterBag 是 CharacterPersistentDict",
           cb["__tp__"] == "CharacterPersistentDict", cb["__tp__"])
-    check("预置男主角色 9001", "#9001" in cb, [k for k in cb if not k.startswith("__")])
-    check("9001 useSkinId = 900101", cb["#9001"]["useSkinId"] == 900101,
-          cb["#9001"].get("useSkinId"))
-    check("9001 有 CharacterInfo 的字段（skins）", "skins" in cb["#9001"])
+    # ★ 2026-10-27：新号**不给任何角色**（以前预置 9001，导致选女时出现男女两个导演）。
+    # 主角由 game_server/protagonist.py 在取名时按性别创建；这里只校验结构合法。
+    check("新号没有任何角色（主角在取名时创建）",
+          [k for k in cb if not k.startswith("__")] == [],
+          [k for k in cb if not k.startswith("__")])
 
     print("\n[4] 1-2 背包与货币")
     ib = props["item_bag"]
@@ -111,7 +112,7 @@ def run():
     check("有第 1 队", isinstance(cl, dict) and "#1" in cl)
     team = (cl or {}).get("#1") or {}
     check("第 1 队有 value 列表", isinstance(team.get("value"), dict))
-    check("第 1 队出战角色是 9001", team.get("value", {}).get("#1") == 9001, team.get("value"))
+    check("第 1 队出战角色是 0（主角取名时填入）", team.get("value", {}).get("#1") == 0, team.get("value"))
     # ★ 编队是 3 个格子，空位必须是 0，不能缺。
     # streetv2panel.lua:1324-1331 initFormation:
     #   for i = 1, 3 do local charId = formation.value[i] ...
@@ -123,9 +124,11 @@ def run():
     check("choosen_index = 1", props.get("choosen_index") == 1, props.get("choosen_index"))
     # streetplayerrolemgr.lua:17 -> return GlobalData.Avatar.character_choosen_char
     # loadstepstreet.lua:129 -> if data[curCharId] then 才会 loadActorView 加载玩家模型
-    # 给 0 的话 data[0] 是 nil，直接跳过模型加载：场景在、人不在。
-    check("character_choosen_char = 9001", props.get("character_choosen_char") == 9001,
-          props.get("character_choosen_char"))
+    # ★ 2026-10-27：initDict 里是 0（还没取名/没有主角），取名时 protagonist.ensure
+    #   会把它设成唯一主角；进街区的前置条件本来就要求「已取名 + 有主角」，
+    #   所以 0 不会走到 loadstepstreet 的「场景有人没人」分支。
+    check("character_choosen_char = 0（取名时设成主角）",
+          props.get("character_choosen_char") == 0, props.get("character_choosen_char"))
 
     print("\n[5c] avatar_init.json 里**不应**含脚手架")
     # ★ 架构决定：系统解锁 / 任务全完成 / 等级拉高 这些脚手架是**运行时可开关的
@@ -190,7 +193,9 @@ def run():
     back, used = msmod.mp_decode(raw)
     check("解码消耗完整个缓冲区", used == len(raw), (used, len(raw)))
     check("解码后 story_finished 是空 dict", isinstance(back["story_finished"], dict))
-    check("解码后 characterBag 有整数键 9001", 9001 in back["characterBag"])
+    check("解码后 characterBag 是空容器（新号无角色）",
+          [k for k in back["characterBag"] if not str(k).startswith("__")] == [],
+          list(back["characterBag"]))
 
     print("\n[8] 阶段 1 三个组件的属性覆盖（config.lua PropertyCallbacks 反查）")
     # 这三个列表由 work/oo_analysis/check_p1_coverage.py 从

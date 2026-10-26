@@ -194,118 +194,22 @@ def _change_nickname(rid, params, uid=None):
 
 
 
-# ★ P1-2（2026-10-23 实机实锤）：按性别设「街区/战斗主角」。
+# 主角（导演）管理：唯一入口是 game_server/protagonist.py。
 #
-# 根因：取名时只写了 player_name / gender / player_card_id，
-#   而客户端街区主角读 `character_choosen_char`
-#   （system/streetsystem/manager/streetplayerrolemgr.lua:17、
-#    streetactorbase.lua:237）。initDict 里它是 9001（男主），
-#   取名选女（gender=2）后没切到 9002，也没有 characterBag[9002]，
-#   于是「选女主却显示男导演」（存档实锤 nvdaoces）。
+# 语义（2026-10-27 重构）：
+#   · 新号没有角色（avatar_init 不再预置 9001）；
+#   · 取名提交时按 gender 创建**唯一**主角，并同步 characterBag / 编队 / choosen；
+#   · 登录时做互斥自愈：只保留与 gender 一致的那个（双主角存档会被清理）。
 #
 # 证据：
-#   TableData.CommonData.CommonConstData
-#     male_player_char   = 9001
-#     female_player_char = 9002
-#   TableData.CommonData.CharData
-#     9001 -> DefaultSkin 900101 / 9002 -> DefaultSkin 900201
-#   clientavatar 主角 = character_choosen_char
-def _ensure_hero_by_gender(st, gender, syncs):
-    """取名时按性别确保主角存在并切换 character_choosen_char。
+#   CommonConstData.male_player_char / female_player_char（BDD 9001 / 9002）
+#   CharData[9001].DefaultSkin=900101 / CharData[9002].DefaultSkin=900201
+#   streetstage.lua:167-182：进街区要求「已取名 + gender!=0 + 至少一个主角存在」
+def _ensure_hero_by_gender(st, gender, syncs=None):
+    """兼容旧名：按性别确保唯一主角（真正实现在 protagonist.ensure）。"""
+    from . import protagonist
 
-    gender=1 -> 男主 9001（initDict 已给，无需改）
-    gender=2 -> 女主 9002（按客户端 CharacterInfo 声明新建，皮肤取
-                CharData[9002].DefaultSkin）
-    返回是否改动（好让调用方决定 save）。
-    """
-    try:
-        g = int(gender)
-    except Exception:
-        return False
-    if g not in (1, 2):
-        return False
-    want = 9002 if g == 2 else 9001
-    cb = st.props.get("characterBag")
-    if not isinstance(cb, dict):
-        return False
-    changed = False
-    if want not in cb:
-        # ★ 2026-10-23：不再「深拷贝另一个角色再改皮肤号」。
-        #   深拷贝会把源角色的装备/皮肤/养成进度一起复制（9001 玩过之后再建
-        #   9002 就会继承），而且 193 个角色不可能逐个特例。
-        #   现在按客户端声明的 CharacterInfo 建干净实例，useSkinId 取
-        #   CharData[want].DefaultSkin（9001 -> 900101 / 9002 -> 900201）。
-        from .property import factory as _factory
-        cb[want] = _factory.make_character(st.props, want)
-        changed = True
-        _log.info("[avatar] 按 CharacterInfo 声明建角色 {}（useSkinId={}）".format(want, cb[want].get("useSkinId")))
-    cur = st.props.get("character_choosen_char")
-    if int(cur or 0) != want:
-        st.props["character_choosen_char"] = want
-        changed = True
-        try:
-            syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                    "character_choosen_char", want))
-        except Exception as e:
-            _log.warning(f"[avatar] 主角同步失败: {e}")
-        _log.info(f"[avatar] 主角切换 gender={g} -> character_choosen_char={want}")
-    if changed:
-        st.set("characterBag", cb)
-    # ★ 2026-10-23 实机反馈：街区右下角队伍切换头像还是男主。
-    #   客户端 StreetV2Panel:initFormation（streetv2panel.lua:1311-1341）
-    #   用 formation.value[i] 当 charId 给队员设头像，而编队（character_list）
-    #   里第一队还是 initDict 的 [9001,0,0]（男主）。这里把「另一性别的导演」
-    #   换成主角 want。
-    _set_formation_hero(st, want, syncs)
-
-    return changed
-
-
-def _set_formation_hero(st, want, syncs):
-    """把编队（character_list）里「另一性别的导演」换成 want，并下发同步。
-
-    依据 game_server/property/setters.py::_set_character_list 的同步方式：
-      propertyId = character_list.__id__，name = 队伍下标，value = 整队对象。
-
-    为什么：客户端 StreetV2Panel:initFormation 用 formation.value[i] 当 charId
-    给每个队员设头像（streetv2panel.lua:1311-1341），编队里若还是 9001
-    （男主），街区右下角队伍切换就会显示男主头像。
-    """
-    cl = st.props.get("character_list")
-    if not isinstance(cl, dict):
-        return
-    other = 9001 if want == 9002 else 9002
-    changed_teams = []
-    for idx, team in list(cl.items()):
-        if str(idx).startswith("__") or not isinstance(team, dict):
-            continue
-        lst = team.get("value")
-        if not isinstance(lst, dict):
-            continue
-        hit = False
-        for k, v in list(lst.items()):
-            if str(k).startswith("__"):
-                continue
-            try:
-                if int(v) == other:
-                    lst[k] = want
-                    hit = True
-            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
-                continue
-        if hit:
-            changed_teams.append((idx, team))
-    if not changed_teams:
-        return
-    st.set("character_list", cl)
-    st.save()
-    for idx, team in changed_teams:
-        try:
-            if syncs is not None:
-                syncs.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
-                                         msmod.OP_CHANGE, str(idx), team))
-        except Exception as e:
-            _log.warning(f"[avatar] 编队同步失败: {e}")
-    _log.info(f'[avatar] 编队主角切换 -> {want}（{len(changed_teams)} 队）')
+    return protagonist.ensure(st, gender, syncs)
 
 
 def _set_default_card(st, gender, syncs):
@@ -364,7 +268,7 @@ def _commit_name_gender(rid, params, uid=None):
         _log.info(f"[avatar] 取名 {old!r} -> {name!r} gender={gender}")
     # P0-7b：按性别设默认名片（男2/女1，见 _set_default_card 的说明）
     _set_default_card(st, gender, syncs)
-    # P1-2：按性别设街区/战斗主角（女=9002，男=9001）
+    # 主角：按性别创建唯一主角（新号没有角色，见 protagonist.py）
     _ensure_hero_by_gender(st, gender, syncs)
     # ★ 无论名字是否变化都发 Sign：客户端可能重试同一次取名请求
     _emit_sign(st, syncs)

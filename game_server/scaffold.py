@@ -33,8 +33,12 @@
 - 任务状态：GlobalConst.TaskState.Finished = 6（globalconst.lua:77）
 - 自定义类型形状：generated/config.lua 里 StoryTaskItem / ActiveTask 的 Properties
 """
+from shared.log_tee import get_logger
+
 from . import config
 from .property import factory as _factory
+
+_log = get_logger(__name__)
 
 # ---------------------------------------------------------------- 常量表
 
@@ -170,7 +174,7 @@ def apply(props, cfg=None):
         #   1. story_finished[1]                  -- 上面刚设
         #   2. player_name 非空                    -- ★ 这里补
         #   3. gender != nil and gender != 0       -- ★ 这里补
-        #   4. characterBag[male|female] 存在      -- STARTER_CHARS 已给 9001
+        #   4. characterBag[male|female] 存在      -- 下面 protagonist.ensure_props 创建
         #
         # 不补会怎样：LoginSuccess -> doLoginSuccess -> JumpToStreetStage
         #   -> checkIsCanEnterStreet() 失败 -> returnToLogin() -> 被踢回登录页。
@@ -180,6 +184,13 @@ def apply(props, cfg=None):
         # 正常流程里这一步是 avatar.py::_set_default_card 在取名时做的；
         # 脚手架跳过了取名，所以这里等价补上。
         props["player_card_id"] = 2
+        # 主角：脚手架跳过取名，这里等价补「按性别创建唯一主角 + 编队 + choosen」
+        try:
+            from . import protagonist as _prot
+            _prot.ensure_props(props, 1)
+            changed.append("protagonist=male（取名流程的等价补写）")
+        except Exception as e:
+            _log.warning(f"[scaffold] 创建主角失败: {e}")
         changed.append(f"player_name={SCAFFOLD_PLAYER_NAME!r} gender=1 player_card_id=2（已取名，进街区用）")
 
     return changed

@@ -169,6 +169,9 @@ def run():
 
     # F3 UpgradeCharacter_CS
     st = fresh("ev_rpc_char")
+    # ★ 新号没有角色：先创建男主角（唯一入口 protagonist.ensure）
+    from game_server import protagonist as _prot_ev
+    _prot_ev.ensure(st, 1)
     activate(st, 7020)          # 事件 {level: 10}
     bag = st.props.get("characterBag") or {}
     key = next((k for k in bag if isinstance(k, int)), None)

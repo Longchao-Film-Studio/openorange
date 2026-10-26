@@ -183,7 +183,7 @@ REQUIRED = {
     "character_list": "CharacterList",
 }
 
-# 初始编队：一队，只放男主角色 9001。
+# 初始编队：一队 3 个空位（主角在取名时由 game_server/protagonist.py 创建并填入）。
 # CustomList:roinit（core/propertysync/customlist.lua:398）是
 #   for k, v in ipairs(value) do ...
 # 所以 msgpack 里要用整数键 1..n，对应生成器的 "#1" 写法。
@@ -226,7 +226,7 @@ STARTER_FORMATION = {
         #     if member and 0 < charId then   <- i=2 时 charId 是 nil -> 0 < nil 抛错
         # 只给 1 个元素的话，i=2 就是 nil，StreetV2Panel:initEx 整个被打断，
         # 于是面板建了又关、零 HUD。
-        {"name": "", "value": [9001, 0, 0]},
+        {"name": "", "value": [0, 0, 0]},
     ],
 }
 
@@ -243,7 +243,13 @@ SIMPLE_PROPS = {
     "avatarNowState": 0,
     "avatarTeamMatchState": 0,
     "battle_prop_choosen_index": 0,
-    # ★ 2026-10-20：必须是 9001，不能是 0。
+    # ★ 2026-10-27：**0**（新号还没有主角）。
+    # 以前这里写死 9001，等于新号一出生就有男导演 —— 选女号时再补 9002，
+    # 结果两个导演并存（实机 bug）。现在新号没有角色，取名时按性别创建唯一主角
+    # （game_server/protagonist.py 是唯一入口）。
+    # 注意：streetplayerrolemgr.lua:8-18 读它是为了**进街区后**加载玩家模型，
+    # 而进街区的前置条件（streetstage.lua:167-182）就要求已取名+有主角，
+    # 所以 0 不会导致「场景有了但没角色」。
     # system/streetsystem/manager/streetplayerrolemgr.lua:8-18：
     #   function StreetPlayerRoleMgr:getCurRoleId(streetId)
     #     ... 街道替换角色逻辑 ...
@@ -254,8 +260,7 @@ SIMPLE_PROPS = {
     #   ...
     #   if data[curCharId] then  <- 只有这里才会 loadActorView 加载玩家模型
     #   else 直接 loadedCallback() 结束（场景有、但没人、摄像机没目标）
-    # 实测就是黑屏之外的第二阶段症状：场景能进、看不到角色。
-    "character_choosen_char": 9001,
+    "character_choosen_char": 0,
     # 编队下标：1 = 第一队（和 STARTER_FORMATION 的那一队对应）
     "choosen_index": 1,
     "daily_active_value": 0,
@@ -323,9 +328,13 @@ SEED = {
 #   stage/streetstage.lua:167-185 checkIsCanEnterStreet() 要求：
 #     story_finished[1] 为真、player_name 非空、gender 非 0、
 #     characterBag[male_player_char] 或 characterBag[female_player_char] 存在
-# 所以给一个男主角色（gender=1 走 male_player_char=9001）。
+# ★ 2026-10-27：新号**不给任何角色**（空 characterBag）。
+# 取名时 game_server/protagonist.py 按性别创建唯一主角（男/女），
+# 并把编队、character_choosen_char 一起对齐；登录时做互斥自愈。
+# 依赖：checkIsCanEnterStreet 只要求「至少一个主角存在」，
+# 而取名提交（gender!=0 且有主角）之后才可能进街区，顺序是自洽的。
 STARTER_CHARS = {
-    "characterBag": {9001: {"useSkinId": 900101}},
+    "characterBag": {},
 }
 
 # 初始货币（1-2 背包与货币）。
