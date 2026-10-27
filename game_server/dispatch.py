@@ -139,6 +139,11 @@ from .property.items import (  # noqa: F401  (re-export)
     _submit_item,
     _use_item,
 )
+from .property.level import (  # noqa: F401  (re-export)
+    _fetch_levelup_award,
+    _fetch_titel_vit_award,
+    _upgrade_level,
+)
 from .property.setters import (  # noqa: F401  (re-export)
     _CONST_SETTERS,
     _SIMPLE_SETTERS,
@@ -385,6 +390,10 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("RequestAddPrestigeExp_CS", _add_prestige_exp),
                    # 新手引导：完成一组引导后客户端上报（以前未实现，只 compat ack）
                    ("System_Guide_Update_CS", _system_guide_update),
+                   # ★ H3 玩家等级 / 导演头衔（avatarlevelcomp.lua:47-63）
+                   ("Cmd_UpgradeLevel_CS", _upgrade_level),
+                   ("Cmd_FetchLevelupAward_CS", _fetch_levelup_award),
+                   ("Cmd_FetchTitelVitAward_CS", _fetch_titel_vit_award),
                    ("RequestGetPrestigeAward_CS", _get_prestige_award),
                    ("RequestGetPrestigeTaskAward_CS", _get_prestige_task_award),
                    ("RequestDispatchChar_CS", _dispatch_char),

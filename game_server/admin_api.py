@@ -219,7 +219,13 @@ def _grant_player(uid, items=None, level=None, level_add=None):
     items: {item_id_str: count}   —— 与结算发奖同一入口 story.add_item
     level: 直接设为该等级（>=1）
     level_add: 在现有等级上加（>=1）
+
+    ★ H3（2026-10-28）：等级改走 game_server.level.set_level —— 那里是等级的唯一
+      写入口（INV-LV-1），会做上限校验。以前这里直接 `st.props["level"] = lv`，
+      能设出 999 级这种数据里根本不存在的等级。
     """
+    from . import level as _level_mod
+
     st = _ensure_player_state(uid)
     granted = []
     if items:
@@ -246,23 +252,33 @@ def _grant_player(uid, items=None, level=None, level_add=None):
                 else:
                     granted.append({"item_id": oc.item_id, "count": oc.count,
                                     "error": str(oc.error)})
+    # ★ INV-LV-1：等级只能通过 game_server.level 写，这里不再直接改 props。
+    #   以前这两段是 `st.props["level"] = ...`，等于绕过所有校验（经验/上限/解锁）。
     if level:
         try:
             lv = int(level)
         except (TypeError, ValueError):
             lv = 0
         if lv >= 1:
-            st.props["level"] = lv
-            granted.append({"level": lv})
+            try:
+                _level_mod.set_level(st, lv)
+            except ValueError as e:
+                granted.append({"level": lv, "error": str(e)})
+            else:
+                granted.append({"level": lv})
     if level_add:
         try:
             add = int(level_add)
         except (TypeError, ValueError):
             add = 0
         if add >= 1:
-            cur = int(st.props.get("level") or 1)
-            st.props["level"] = cur + add
-            granted.append({"level": cur + add})
+            cur = _level_mod.current_level(st.props)
+            try:
+                _level_mod.set_level(st, cur + add)
+            except ValueError as e:
+                granted.append({"level": cur + add, "error": str(e)})
+            else:
+                granted.append({"level": cur + add})
     st.save()
     return {"uid": uid, "granted": granted}
 

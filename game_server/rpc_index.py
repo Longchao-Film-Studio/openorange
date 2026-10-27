@@ -92,6 +92,12 @@ RPC_INDEX = {
     # avatartaskcomp.lua:208-226：两条 SC 都只看 ret.status，服务端回成功即可
     "RequestRefreshTitleDailyTask_CS": 1068584076,
     "RequestDoneTitleTask_CS": 719776379,
+    # --- 玩家等级 / 导演头衔（3 条，H3） ---
+    # avatarlevelcomp.lua:47-63：三条 SC 都只看 ret.status，服务端是唯一裁判。
+    # 索引来自 genRpcIndex（work/rpc_list.tsv 现场生成，不是手抄）。
+    "Cmd_UpgradeLevel_CS": 928340140,
+    "Cmd_FetchLevelupAward_CS": 612725928,
+    "Cmd_FetchTitelVitAward_CS": 1579520114,
     # --- 单向消息（serverMsg / CallServer，rid=0） ---
     # 这些不带回调，服务端只改数据不回包，处理器在 ONE_WAY_HANDLERS 里。
     # 也登记进索引表，方便统计和覆盖率核对。

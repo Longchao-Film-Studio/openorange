@@ -186,6 +186,7 @@ def _live_init_dict_impl(uid=None):
     _stage_task_seed(st)
     _stage_chapter_attrs(st)
     _stage_stamina(st, uid)
+    _stage_level_selfheal(st)
     _stage_login_tick(st)
     _stage_recalc_unlocks(st)
     return _stage_public_snapshot(st)
@@ -410,6 +411,42 @@ def _stage_stamina(st, uid=None):
                     _log.info("[init] 离线恢复体力(uid={}): +{} -> {}".format(uid, _gained, st.props.get("tower_reward_keys")))
         except Exception as e:
             _log.warning(f"[init] 体力处理失败: {e}")
+
+
+def _stage_level_selfheal(st):
+    """H3 登录自愈：把 levelup_awards 补齐成客户端红点能认的形状。
+
+    ★ 为什么在登录做（而不是只在升级时做）：
+      老存档（H3 之前创建的）`levelup_awards` 是空表，
+      客户端 avatarlevelcomp.lua:36-45 判的是 `awards[i] == 0` —— nil 不亮红点。
+      只在 upgrade() 里补，老存档要等到**下一次升级**才自愈；
+      而玩家可能已经在 30 级，还要再升一级才看得见奖励红点。
+
+    ★ 为什么**不**自动升级（哪怕 exp >= expNeed）：
+      升级是玩家行为（客户端面板刷新时主动调 RPC）。
+      服务端偷偷代升会让「经验够了但我不想升」变成不可能，
+      也会让升级动画/面板回调错乱。所以只打日志提示，不替玩家决定。
+
+    幂等：补过之后 ensure_award_slots 返回 0。
+    """
+    try:
+        from .. import level as _level_mod
+    except Exception as e:                       # noqa: BLE001
+        _log.warning("[init] 等级自愈跳过（import 失败）：%s", e)
+        return
+    try:
+        n = _level_mod.ensure_award_slots(st.props)
+        if n:
+            _log.info("[init] 等级奖励红点记录补齐 %s 条（老存档自愈）", n)
+    except Exception as e:                       # noqa: BLE001
+        _log.warning("[init] 等级奖励记录补齐失败：%s", e)
+    try:
+        lv = _level_mod.current_level(st.props)
+        if _level_mod.can_upgrade(st.props):
+            _log.info("[init] 玩家 %s 级经验已够（exp=%s >= %s），等客户端触发升级（不代升）",
+                      lv, _level_mod.current_exp(st.props), _level_mod.exp_need(lv))
+    except Exception as e:                       # noqa: BLE001
+        _log.warning("[init] 等级经验检查失败：%s", e)
 
 
 def _stage_login_tick(st):
