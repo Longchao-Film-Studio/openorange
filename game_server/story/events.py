@@ -186,6 +186,15 @@ def apply_event(st, event, now=None):
         hits = []
     _mark_seen(st, event.event_id, now)
 
+    # 2.5) 事件账本（H4）：事件可能**先于任务存在**（任务因 PreTask 晚生），
+    #      把命中的 TaskEventData 记进 _oo_task_event_hits，任务播种后由
+    #      tasks.catch_up_task_events 补算 —— 否则任务 1「完成序章」永远完不成。
+    try:
+        from .. import tasks as _tasks_rec
+        _tasks_rec.record_event_hits(st, event.type, event.params)
+    except Exception as e:
+        _log.warning(f"[task] 事件账本记录失败 {event.type}: {e}")
+
     # 3) 链式任务（TaskType 6）—— 任何事件之后都重新检查一次，
     #    因为上一步可能刚完成某个前置任务
     try:
@@ -215,6 +224,15 @@ def apply_event(st, event, now=None):
     except Exception as e:
         _log.warning(f"[task] 通用任务事件推进失败 {event.type}: {e}")
         task_hits, task_sync = [], []
+
+    # 4.5) 任务完成可能让后续任务的 PreTask 满足（例：取名(10) -> 完成序章(1)），
+    #      当场补播种 + 补算，避免「必须重登一次才出现」。
+    if task_hits:
+        try:
+            from .. import tasks as _tasks_seed
+            task_sync.extend(_tasks_seed.seed_tasks(st, now))
+        except Exception as e:
+            _log.warning(f"[task] 任务完成后补播种失败: {e}")
 
     # 5) 系统解锁重算（roadmap 队列第 2 项）
     #    通用任务完成 / 等级变化都可能让某个系统入口的数据条件变真，

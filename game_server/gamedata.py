@@ -441,6 +441,32 @@ def all_system_catalogue():
     return list(d.values()) if isinstance(d, dict) else list(d)
 
 
+_TASK_EVENTS_BY_TYPE = None
+
+
+def task_events_by_type():
+    """{EventType: [(uiD, row), ...]} —— 事件记账/补算用（按类型取候选，避免每次比 1288 条）。"""
+    global _TASK_EVENTS_BY_TYPE
+    if _TASK_EVENTS_BY_TYPE is not None:
+        return _TASK_EVENTS_BY_TYPE
+    out = {}
+    for k, row in (table("TaskEventData") or {}).items():
+        if not isinstance(row, dict):
+            continue
+        try:
+            eid = int(row.get("uiD") or k)
+        except (TypeError, ValueError):
+            continue
+        et = row.get("EventType")
+        if not isinstance(et, str):
+            continue
+        out.setdefault(et, []).append((eid, row))
+    _TASK_EVENTS_BY_TYPE = out
+    return out
+
+
 def clear_cache():
+    global _TASK_EVENTS_BY_TYPE
     with _LOCK:
         _CACHE.clear()
+    _TASK_EVENTS_BY_TYPE = None

@@ -119,12 +119,19 @@ def run():
     check("进度帧过客户端影子缓存", not errs4 and not sc4.warnings,
           (errs4[:1], sc4.warnings[:1]))
 
-    print("\n[5] task 10 完成后 task 1 可播（N-a2 链式）")
-    ch5 = tasks.seed_tasks(st1, NOW)
+    print("\n[5] task 10 完成后 task 1 可播（N-a2 链式 + H4 当场补播）")
+    # ★ 2026-10-27（H4）：任务完成后 apply_event 会立即补播种，
+    #   所以 task 1 在 [4] 的那次 Sign 事件里就已经进包了（不再等下一次 seed）。
+    _seeded_in_event = any(
+        isinstance(x, tuple) and x and x[0] == "sync" and str(x[3]) == "1"
+        for x in (res4.task_sync or []))
     check("★ task 1 已进包且 Doing",
           tasks.task_state(st1.props, 1) == tasks.TASK_STATE_DOING,
           tasks.task_state(st1.props, 1))
-    check("★ 这一轮确实播了新任务", len(ch5) > 0, len(ch5))
+    check("★ 完成 task 10 的那次事件里当场播种了 task 1", _seeded_in_event,
+          len(res4.task_sync or []))
+    ch5 = tasks.seed_tasks(st1, NOW)
+    check("★ 再播一次不新增（幂等）", len(ch5) == 0, len(ch5))
 
     print("\n[6] FinishDungeon 完成 task 1 -> 40 条解锁的数据条件成立")
     sev.apply_event(st1, sev.ev_dungeon_finish(1004, 1, 1))

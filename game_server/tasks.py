@@ -52,6 +52,12 @@ OP_CHANGE = 1
 OP_ADD = 2
 OP_DEL = 3
 
+# 事件命中账本：只落盘、不同步给客户端（_oo_ 前缀约定）。
+# 用途：事件发生时任务可能还不在包里（PreTask 还没完成），账本记住"发生过什么"，
+# 任务播种后补算（H4：任务 1「完成序章」就是这种情况）。
+EVENT_HITS_KEY = "_oo_task_event_hits"
+EVENT_HITS_MAX = 4096
+
 
 def _sync(property_id, optype, name, value):
     """一条属性同步描述。entity_rpc._task_sync_frames 直接照着编帧。"""
@@ -263,18 +269,8 @@ def pre_satisfied(st, task_id):
     return task_state(st.props, pre) == TASK_STATE_FINISHED
 
 
-def seed_tasks(st, now=None, limit=400):
-    """把「前置满足 + 不在包 + 未完成」的通用任务播进 task_bag。
-
-    返回同步描述列表（格式同 start_task，交给 story/tasks.py:_task_sync_frames 编帧）。
-
-    ★ 为什么必须播种（P1 阶段 N-a2）
-      之前 task_bag 实测 0 槽位、0 任务 —— 通用任务一条都不存在，于是：
-        getSystemTaskState(任意) 恒 -1
-        -> AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口数据条件永假
-      见 docs/P1-剧情任务状态机.md 阶段 N 的 N2.1 ④。
-    """
-    now = int(now if now is not None else time.time())
+def _seed_once(st, now, limit=400):
+    """播种一轮（前置满足 + 不在包 + 未完成）。返回同步描述。"""
     out = []
     seeded = 0
     cands = []
@@ -297,7 +293,32 @@ def seed_tasks(st, now=None, limit=400):
     return out
 
 
-# ---------------------------------------------------------------- N-a3 进度推进
+def seed_tasks(st, now=None, limit=400):
+    """把「前置满足 + 不在包 + 未完成」的通用任务播进 task_bag，并做事件补算。
+
+    返回同步描述列表（格式同 start_task，交给 story/tasks.py:_task_sync_frames 编帧）。
+
+    ★ 为什么必须播种（P1 阶段 N-a2）
+      之前 task_bag 实测 0 槽位、0 任务 —— 通用任务一条都不存在，于是：
+        getSystemTaskState(任意) 恒 -1
+        -> AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口数据条件永假
+      见 docs/P1-剧情任务状态机.md 阶段 N 的 N2.1 ④。
+
+    ★ 2026-10-27（H4）：播种后补算历史事件。任务可能因为 PreTask 而「晚生」，
+      但它的触发事件早就发生过（任务 1「完成序章」就是这样），不补算永远完不成。
+      补算完成的任务可能又让别的任务 PreTask 满足 -> 最多跑 3 轮（数据无环）。
+    """
+    now = int(now if now is not None else time.time())
+    out = []
+    for _round in range(3):
+        round_ch = _seed_once(st, now, limit)
+        out.extend(round_ch)
+        cu = catch_up_task_events(st, now)
+        out.extend(cu)
+        if not round_ch and not cu:
+            break
+    return out
+
 
 def evaluate_event(st, event_type, params):
     """把一条游戏事件喂给通用任务，推进 doing_targets。
@@ -353,6 +374,207 @@ def evaluate_event(st, event_type, params):
     if syncs:
         st.set("task_bag", st.props.get("task_bag"))
     return done_ids, syncs
+
+
+# ---------------------------------------------------------------- 事件账本 / 补算（H4）
+
+def _as_int(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _events_rows(event_type):
+    """某个 EventType 下的 [(uiD, row)]（空列表表示数据表里没有这种事件）。"""
+    return gamedata.task_events_by_type().get(str(event_type or ""), [])
+
+
+def _event_hits(props):
+    raw = props.get(EVENT_HITS_KEY)
+    return raw if isinstance(raw, dict) else {}
+
+
+def record_event_hits(st, event_type, params):
+    """把本次事件命中的 TaskEventData 记进账本；返回命中条数。
+
+    ★ 记录时机：只记**未被去重**的事件（调用方在 apply_event 的去重之后调）。
+      - 有 event_id 的事件（Sign/FinishTask/StreetInteract…）由 _oo_event_seen 去重；
+      - FinishDungeon 没有 event_id（每次结算都是真事件），所以每次都会累计 ——
+        这正是 TriggerTimes 多档任务需要的语义。
+    """
+    from .story import event_matches
+
+    rows = _events_rows(event_type)
+    if not rows:
+        return 0
+    hits = _event_hits(st.props)
+    n = 0
+    for eid, row in rows:
+        if not event_matches(row, event_type, params):
+            continue
+        key = str(eid)
+        hits[key] = int(hits.get(key) or 0) + 1
+        n += 1
+    if not n:
+        return 0
+    if len(hits) > EVENT_HITS_MAX:
+        # 只可能是数据表被替换后异常膨胀：保留后面（较新）的部分
+        _log.warning("[task] 事件账本超过上限 %s，截断", EVENT_HITS_MAX)
+        hits = dict(list(hits.items())[-EVENT_HITS_MAX:])
+    st.set(EVENT_HITS_KEY, hits)
+    return n
+
+
+def _derive_sign(props, out):
+    """Sign：有名字就说明完成过取名。"""
+    if props.get("player_name"):
+        for eid, _row in _events_rows("Sign"):
+            out[str(eid)] = 1
+
+
+def _derive_finish_dungeon(props, out):
+    """FinishDungeon：从已完成的剧情任务（Type 3/7）反推它满足过的 TaskData 事件。
+
+    只在 TaskData.TriggerEventList 恰好 1 个时推导 —— 多事件是 OR 语义，
+    推导会过度完成（宁可漏补，不可错补）。
+    """
+    done_story = props.get("done_story_tasks")
+    if not isinstance(done_story, dict):
+        return
+    for k in list(done_story):
+        if str(k).startswith("__"):
+            continue
+        sid = _as_int(k)
+        if sid is None:
+            continue
+        srow = gamedata.story_task(sid) or {}
+        if _as_int(srow.get("TaskType")) not in (3, 7):
+            continue
+        for tdid in (srow.get("Parameter1") or []):
+            td = gamedata.task_data(tdid) or {}
+            evs = td.get("TriggerEventList") or []
+            if len(evs) != 1:
+                continue
+            eid = _as_int(evs[0])
+            if eid is not None:
+                out[str(eid)] = 1
+
+
+def _derive_get_char(props, out):
+    """GetChar：角色包里有的角色，说明它的 GetChar 事件发生过。"""
+    cb = props.get("characterBag")
+    if not isinstance(cb, dict):
+        return
+    chars = {c for c in (_as_int(k) for k in cb if not str(k).startswith("__")) if c}
+    if not chars:
+        return
+    for eid, row in _events_rows("GetChar"):
+        cid = _as_int((row.get("EventParam") or {}).get("charId"))
+        if cid is not None and cid in chars:
+            out[str(eid)] = 1
+
+
+def _done_task_ids(props):
+    """已完成的任务 id 集合（通用任务的 done_tasks + 剧情任务的 done_story_tasks）。"""
+    ids = set()
+    done = props.get("done_tasks")
+    if isinstance(done, dict):
+        for slot in done.values():
+            if not isinstance(slot, dict):
+                continue
+            for k in slot:
+                tid = _as_int(k)
+                if tid is not None:
+                    ids.add(tid)
+    done_story = props.get("done_story_tasks")
+    if isinstance(done_story, dict):
+        for k in done_story:
+            sid = _as_int(k)
+            if sid is not None:
+                ids.add(sid)
+    return ids
+
+
+def _derive_finish_task(props, out):
+    """FinishTask：已完成的任务对应的 FinishTask 事件。"""
+    done_ids = _done_task_ids(props)
+    if not done_ids:
+        return
+    for eid, row in _events_rows("FinishTask"):
+        tid = _as_int((row.get("EventParam") or {}).get("taskId"))
+        if tid is not None and tid in done_ids:
+            out[str(eid)] = 1
+
+
+def derivable_event_hits(st):
+    """从**当前状态**能确定推导出的历史事件 {eventId(str): 1}。
+
+    只做有确定来源的 4 类（其余靠账本，补不回的写进文档）：
+      · Sign / FinishDungeon / GetChar / FinishTask
+    """
+    out = {}
+    props = st.props
+    for fn in (_derive_sign, _derive_finish_dungeon, _derive_get_char, _derive_finish_task):
+        fn(props, out)
+    return out
+
+
+def catch_up_task_events(st, now=None):
+    """按「账本 ∪ 状态推导」补算通用任务进度；返回同步描述（幂等，不重复完成）。"""
+    now = int(now if now is not None else time.time())
+    hits = {}
+    for src in (_event_hits(st.props), derivable_event_hits(st)):
+        for k, v in src.items():
+            hits[k] = max(int(hits.get(k) or 0), _as_int(v) or 0)
+    if not hits:
+        return []
+    bag = st.props.get("task_bag")
+    if not isinstance(bag, dict):
+        return []
+
+    out = []
+    touched = False
+    for tt, slot in list(bag.items()):
+        if not isinstance(tt, int) or not isinstance(slot, dict):
+            continue
+        for tid, item in list(slot.items()):
+            if not isinstance(tid, int) or not isinstance(item, dict):
+                continue
+            if int(item.get("state") or 0) != TASK_STATE_DOING:
+                continue
+            cfg = gamedata.task(tid) or {}
+            evs = [_as_int(e) for e in (cfg.get("TriggerEventList") or [])]
+            evs = [e for e in evs if e is not None]
+            if not evs:
+                continue
+            need = _as_int((cfg.get("TriggerTimes") or [1])[0]) or 1
+            dt = item.get("doing_targets")
+            if not isinstance(dt, dict):
+                dt = {"__id__": st.next_property_id()}
+                item["doing_targets"] = dt
+            changed = False
+            for eid in evs:
+                have = int(hits.get(str(eid)) or 0)
+                if have <= 0:
+                    continue
+                target = min(have, need)
+                if target > int(dt.get(eid) or 0):
+                    dt[eid] = target
+                    changed = True
+            if not changed:
+                continue
+            touched = True
+            total = sum(int(v) for k, v in dt.items() if isinstance(k, int))
+            out.append(_sync(slot.get("__id__"), OP_CHANGE, tid, item))
+            if total >= need:
+                out.extend(finish_task(st, tid, now))
+    if touched:
+        st.set("task_bag", st.props.get("task_bag"))
+    if out:
+        _log.info("[task] 事件补算：%s 条同步描述（账本 %s 条 / 状态推导 %s 条）",
+                  len(out), len(_event_hits(st.props)), len(derivable_event_hits(st)))
+    return out
 
 
 # ---------------------------------------------------------------- N-c 领奖流程
