@@ -13,17 +13,18 @@
 取名面板调用点：`ui/panel/creatingrolepanel/creatingrolepanel.lua:95`
 → `GlobalData.Avatar:CommitNameGender(self.signName, self.gender, cb)`
 
-★ 为什么必须实现（P1 阶段 N-a1，2026-10-22 取证发现）
+★ 历史背景：这 3 个 RPC 曾经全缺（P1 阶段 N-a1 于 2026-10-22 取证并实现）
 
-这 3 个 RPC 之前**全缺**，造成一条完整断链：
+保留这条链路只为解释「为什么取名这么小的功能会牵动全局解锁」——
+**以下描述的是修复前的旧行为，不是现状**。现在本文件实现了这 3 条，
+取名会写 `player_name`/`gender` 并发 Sign 事件：
 
 ```
-取名面板 -> RpcCommitNameGender（未实现，静默失败）
+取名面板 -> RpcCommitNameGender（曾经：未实现，静默失败）
   -> player_name 永远是默认值 "未具名导演"
   -> TaskEventData[1000] 的 Sign 事件从不发出
   -> TaskData[10]「完成取名」永不完成（TriggerEventList=[1000]）
   -> TaskData[1]「完成序章」永不进包（PreTask=10）
-  -> task_bag[1][1] 永不存在
   -> getSystemTaskState(1) 恒返回 -1
   -> AllSystemCatalogueData 里 40 条 unlockType=1 的系统入口数据条件永假
 ```

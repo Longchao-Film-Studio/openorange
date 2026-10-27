@@ -110,14 +110,35 @@ def load_hashes():
 
 
 def load_implemented():
-    """我们服务端 entity_rpc.RPC_INDEX 里已经实现的 RPC 名。"""
+    """**真有处理器的** RPC 名（dispatch.HANDLERS ∪ dispatch.ONE_WAY_HANDLERS）。
+
+    以前这里读的是 entity_rpc.RPC_INDEX（登记表），把「登记了索引」当成「已实现」。
+    两者不等：RPC_INDEX 里有 17 条只在原生层登记名字、dispatch 里没有处理器，
+    文档因此多报了 17 条「已实现」。判「实现没实现」只能看处理器表。
+    """
     sys.path.insert(0, _ROOT)
     try:
-        from game_server import entity_rpc
-        return set(entity_rpc.RPC_INDEX.keys())
+        from game_server import dispatch, rpc_catalog
     except Exception as e:
-        print(f"[warn] 读不到 entity_rpc.RPC_INDEX: {e}")
+        print(f"[warn] 读不到 game_server.dispatch: {e}")
         return set()
+    names = set()
+    for key in list(dispatch.HANDLERS) + list(dispatch.ONE_WAY_HANDLERS):
+        name = rpc_catalog.name_of(key) if isinstance(key, int) else key
+        if name:
+            names.add(name)
+    return names
+
+
+def load_registered():
+    """只在 RPC_INDEX 里登记、但 dispatch 里没有处理器的 RPC 名。"""
+    sys.path.insert(0, _ROOT)
+    try:
+        from game_server import rpc_index
+    except Exception as e:
+        print(f"[warn] 读不到 game_server.rpc_index: {e}")
+        return set()
+    return set(rpc_index.RPC_INDEX)
 
 
 def main():
@@ -132,11 +153,13 @@ def main():
     sites = scan_client_calls()
     hashes = load_hashes()
     implemented = load_implemented()
+    registered_only = load_registered() - implemented
 
     print(f'服务端->客户端（ServerOnlyMsg）: {len(sonly)} 条')
     print(f'客户端->服务端（serverRpc/serverMsg）: {len(sites)} 条')
     print(f'genRpcIndex 已算好: {len(hashes)} 个名字')
-    print(f'我们已实现: {len(implemented)} 条')
+    print(f'有处理器的（已实现）: {len(implemented)} 条')
+    print(f'只登记索引、无处理器: {len(registered_only)} 条')
     miss = [n for n in list(sonly) + list(sites) if n not in hashes]
     print(f'还没算索引的: {len(miss)} 条')
 
@@ -224,12 +247,26 @@ def main():
     lines.append("")
     lines.append("## 统计")
     lines.append("")
-    lines.append("| 方向 | 条数 | 我们已实现 |")
+    lines.append("> 「已实现」口径 = **dispatch 里有处理器**（HANDLERS ∪ ONE_WAY_HANDLERS）。")
+    lines.append("> 只登记在 rpc_index.RPC_INDEX、dispatch 里没有处理器的，单独列在下方。")
+    lines.append("> 口径定义写在 tools/gen_rpc_list.py 的 load_implemented() 里，不在这里重复。")
+    lines.append("")
+    lines.append("| 方向 | 条数 | 有处理器（已实现） |")
     lines.append("|---|---|---|")
     c2s_impl = len([n for n in sites if n in implemented])
     s2c_impl = len([n for n in sonly if n in implemented])
     lines.append(f'| 客户端 → 服务端 | {len(sites)} | {c2s_impl} |')
     lines.append(f'| 服务端 → 客户端 | {len(sonly)} | {s2c_impl} |')
+    lines.append("")
+    lines.append("S2C 在服务端没有「处理器」概念（是我们主动发），上表 S2C 的 0 不代表没人发。")
+    lines.append("实际会发的 S2C 登记在 game_server/announce.py 的 KINDS，由 tools/selfcheck.py 逐条核对索引。")
+    lines.append("")
+    lines.append(f"仅登记索引、dispatch 里没有处理器的 {len(registered_only)} 条：")
+    lines.append("")
+    lines.append("| RPC | 索引 |")
+    lines.append("|---|---|")
+    for name in sorted(registered_only):
+        lines.append(f"| {name} | {hashes.get(name, '?')} |")
     lines.append("")
     lines.append("## 服务端 → 客户端（ServerOnlyMsg 声明，带参数类型）")
     lines.append("")

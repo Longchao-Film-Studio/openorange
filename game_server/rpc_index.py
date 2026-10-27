@@ -25,9 +25,10 @@ RPC_INDEX = {
     "SetChoosenChar_CS": 524477307,
     "SetCharacterList_CS": 811745113,
     "SetCharacterListName_CS": 414235078,
-    # ★ P1 阶段 N-a1：取名链路（namecomp.lua:7-36）。之前 3 个都缺，
-    #   导致 player_name 永远是默认值 -> Sign 事件不发 -> TaskData[10] 永不完成
-    #   -> TaskData[1] 永不进包 -> 40 条 unlockType=1 的系统入口数据条件永假。
+    # ★ P1 阶段 N-a1：取名链路（namecomp.lua:7-36）。
+    #   历史：这 3 个曾经都缺，导致 player_name 永远是默认值 -> Sign 事件不发
+    #   -> TaskData[10] 永不完成 -> TaskData[1] 永不进包
+    #   -> 40 条 unlockType=1 的系统入口数据条件永假。2026-10-22 已补齐，勿删。
     "RpcCheckNickName": 586398124,
     "RpcChangeNickName": 1344002661,
     "RpcCommitNameGender": 288358305,

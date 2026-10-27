@@ -2,13 +2,14 @@
 """P1 阶段 N-a1：取名链路（RpcCheckNickName / RpcChangeNickName / RpcCommitNameGender）。
 
 ★ 为什么有这个测试
-  这 3 个 RPC 之前全缺，player_name 永远是默认值 "未具名导演"，导致：
+  这 3 个 RPC 曾经全缺（历史，修复前），player_name 永远是默认值 "未具名导演"，导致：
     Sign 事件（TaskEventData[1000]）从不发出
     -> TaskData[10]「完成取名」永不完成
     -> TaskData[1]「完成序章」永不进包（PreTask=10）
     -> task_bag[1][1] 永不存在 -> getSystemTaskState(1) 恒 -1
     -> 40 条 unlockType=1 的系统入口数据条件永假
-  见 docs/P1-剧情任务状态机.md 阶段 N 的 N2.1 ⑦⑧。
+  链路依据见 docs/P1-剧情任务状态机.md 阶段 N 的 N2.1 ⑦⑧。
+  本测试是这条链路的回归守卫：把它改回「不写 player_name」会立刻红。
 
 用法: python tests/test_avatar_name.py
 """
