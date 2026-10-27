@@ -66,10 +66,15 @@ def drain_event_task_sync(st, res):
     story/events.py 第 4 段），所以这里的描述既含进度变化也含完成动作。
     """
     ch = getattr(res, "task_sync", None) or []
+    # ★ 2026-10-27 修复：系统解锁帧（EventResult.frames）与通用任务同步是**两件事**。
+    #   以前这里「没有任务同步就直接 return []」，把解锁帧一起丢了 ——
+    #   实测症状：解锁了系统但客户端要重启才看到按钮（服务端日志有「解锁系统 [2,4,55]」，
+    #   客户端 Player.log 没有任何 on_unlocked_system_changed）。
+    _frames = list(getattr(res, "frames", None) or [])
     if not ch:
-        return []
+        return _frames
     # 通用任务的进度/完成同步 + 系统解锁重算的现成帧
-    return _task_sync_frames(st, ch) + list(getattr(res, "frames", None) or [])
+    return _task_sync_frames(st, ch) + _frames
 
 
 def _task_fetch(rid, params, uid=None):

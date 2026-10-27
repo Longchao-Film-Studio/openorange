@@ -53,7 +53,7 @@ def _grant_battle_items(st, battle_items):
     #   （审计 P0-2：客户端只对 6 个 firstObtainNotice 道具发 RPC，
     #    剧情任务要的道具服务端必须自己发事件）
     for _iid, _cnt in granted:
-        _hits = _emit_get_item(st, _iid, _cnt)
+        _hits = _emit_get_item(st, _iid, _cnt, frames=frames)
         if _hits:
             frames.extend(finish_story_tasks(st, _hits, source="event"))
     return frames, reward_list

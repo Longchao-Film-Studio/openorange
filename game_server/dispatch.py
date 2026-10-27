@@ -65,6 +65,7 @@ from .rpc_common import (  # noqa: F401  (re-export)  # noqa: F401  (re-export -
     _SAVE_INTERVAL,
     EVENT_MAX_DEPTH,
     LAST_SAVE,
+    SYNC_SELF,
     decode_params,
     state,
     sync_frame,
@@ -285,6 +286,43 @@ def _add_char_favor_exp(rid, params, uid=None):
     return _respond_after_sync(rid, frames, resp=resp)
 
 
+def _system_guide_update(rid, params, uid=None):
+    """System_Guide_Update_CS {guideId, true} —— 记录一组新手引导已完成。
+
+    客户端 avatarsystemguidecomp.lua:371-378：
+      System_Guide_Update_CS(guideId) -> serverRpc({guideId, true})
+      System_Guide_Update_SC(guideId, ret) 只检查 ret.status（不读别的）
+    服务端语义：把 guideId 记进 system_guide_records（IntDictKeyInt，int -> int），
+    客户端 entryAdded 回调 onChangedGuideRecords 会把 key 收进 _guideRecords，
+    从而不会在下次登录后重播已完成的引导。
+
+    ★ 以前这条 RPC 未登记：客户端每次引导完成都发，服务端 compat ack，
+      进度不落盘 -> 重登后引导重播（H5）。
+    """
+    from . import ms as _ms
+
+    vals = decode_params(params)
+    if not (isinstance(vals, list) and vals):
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
+    try:
+        guide_id = int(vals[0])
+    except (TypeError, ValueError):
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
+    st = state(uid)
+    rec = st.props.get("system_guide_records")
+    if not isinstance(rec, dict):
+        return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
+    frames = []
+    if guide_id not in rec:
+        rec[guide_id] = 1
+        st.set("system_guide_records", rec)
+        frames.append(sync_frame(SYNC_SELF, rec.get("__id__") or 0,
+                                 _ms.OP_ADD, str(guide_id), rec[guide_id]))
+        _log.info("[guide] 新手引导 %s 完成（已记录）", guide_id)
+    st.save()
+    return _respond_after_sync(rid, frames)
+
+
 def _query_expired_items(rid, _params, uid=None):
     """QueryExpiredItems_CS：返回最近过期的道具（storepanel.lua:83-96 读 response.expired_items）。"""
     from .property.bag import expiry
@@ -345,6 +383,8 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("GmRpcOpenNpcChatTopic", _gm_open_npc_chat_topic),
                    ("RpcGetEdenChatHistory", _eden_chat_history),
                    ("RequestAddPrestigeExp_CS", _add_prestige_exp),
+                   # 新手引导：完成一组引导后客户端上报（以前未实现，只 compat ack）
+                   ("System_Guide_Update_CS", _system_guide_update),
                    ("RequestGetPrestigeAward_CS", _get_prestige_award),
                    ("RequestGetPrestigeTaskAward_CS", _get_prestige_task_award),
                    ("RequestDispatchChar_CS", _dispatch_char),

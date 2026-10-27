@@ -207,7 +207,7 @@ def recalc_system_unlocks(st):
 _recalc_story_unlocks = recalc_system_unlocks
 
 
-def _emit_get_item(st, item_id, count):
+def _emit_get_item(st, item_id, count, frames=None):
     """发一条 GetItem 事件（覆盖 4 条剧情任务）。
 
     ★ 审计 P0-2：不能依赖客户端 RecordItemObtain_CS ——
@@ -243,6 +243,10 @@ def _emit_get_item(st, item_id, count):
         ev.params["itemSubType"] = sub_type
     try:
         res = _events.apply_event(st, ev)
+        # ★ 2026-10-27 修复：事件可能顺带推进通用任务/解锁系统，这些帧必须带回，
+        #   否则调用方只看到 hits，解锁状态要等下次登录才可见（实机 bug）。
+        if frames is not None:
+            frames.extend(drain_event_task_sync(st, res))
         return list(res.hits) + list(res.chain_hits)
     except Exception as e:
         _log.warning(f"[story] GetItem 事件失败 {item_id}: {e}")
@@ -358,7 +362,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
             #   客户端只在 6 个 firstObtainNotice 道具首次获取时才发
             #   RecordItemObtain_CS，任务要的 701/118 永远等不到 RPC，
             #   所以必须服务端自己发）
-            _get_hits = _emit_get_item(st, _item_id, _cnt)
+            _get_hits = _emit_get_item(st, _item_id, _cnt, frames=frames)
             if _get_hits and depth < EVENT_MAX_DEPTH:
                 frames.extend(finish_story_tasks(st, _get_hits, depth + 1))
             bag = st.props.get("item_bag")
