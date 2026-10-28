@@ -178,10 +178,41 @@ def step_rpc_index():
     return OK, f"{len(rows)} 条客户端 RPC，核对 {checked} 条（C2S + 已登记 S2C），索引一致"
 
 
+
+
+
+
+def step_prop_sync():
+    """属性同步一致性：客户端回放帧后的状态必须等于服务端状态（INV-SYNC-3）。
+
+    为什么单独成门：
+        实机 bug（点「领取」经验不涨、要重新登录才看到）的根因是
+        「服务端改了属性却没发同步帧」。单元测试守的是已知路径，
+        这一道守的是所有已实现 RPC回放后都对得上。
+
+    做法：跑每一条 RPC，收帧，用同源 Lua的客户端解析器回放，
+        再比对客户端状态与服务端 props。
+    """
+    rc, out = _run([sys.executable, "-u", "tools/prop_sync_audit.py", "--json"], timeout=900)
+    start_at = out.find("{")
+    end_at = out.rfind("}") +1
+    payload = out[start_at:end_at] if start_at >=0 and end_at > start_at else None
+    if payload is None:
+        return FAIL, _tail(out,8)
+    try:
+        import json
+
+        data = json.loads(payload)
+    except ValueError as e:
+        return FAIL, f"审计输出解析失败: {e}"
+    if rc !=0 or data.get("bad"):
+        return FAIL, "\n ".join(str(b) for b in data.get("bad", [])[:8])
+    return OK, f'审计 {data.get("targets",0)}条 RPC，回放后两端状态一致'
+
 def main():
     ap = argparse.ArgumentParser(description="一站式自检")
     ap.add_argument("--fast", action="store_true", help="跳过单元测试")
-    ap.add_argument("--only", help="只跑某一项：ruff/tests/login/spec/rpc")
+    ap.add_argument("--only", help="只跑某一项：ruff/tests/login/spec/rpc/sync")
     args = ap.parse_args()
 
     steps = [
@@ -191,6 +222,7 @@ def main():
         ("login", "登录演练", step_login_drill),
         ("spec", "属性声明自检", step_spec),
         ("rpc", "RPC 索引一致性", step_rpc_index),
+        ("sync", "属性同步一致性", step_prop_sync),
     ]
     if args.fast:
         steps = [s for s in steps if s[0] != "tests"]

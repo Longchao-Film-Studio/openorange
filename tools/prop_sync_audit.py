@@ -43,6 +43,32 @@ if ROOT not in sys.path:
 #: 审计必须在临时存档目录跑，绝不碰 work/player_state 的真实存档。
 #: 审计要在临时目录里跑，不碰真实存档。
 
+#:场景参数：让 RPC真的走到「改属性」那条路。
+#:
+#:为什么需要：不传参数时大部分 handler在入口就早退（参数不足），
+#:审计只会得到「0条产生属性变化」，看起来一切正常但其实什么都没测到。
+#:实测：不加这张表时，把发奖帧改回「只发物品格」的旧写法，门禁依然是绿的。
+#:
+#:每条都是「能让 handler真正执行下去」的最小输入，取值来自各 handler的解析路径。
+SCENARIOS = {
+    "SetCanScore_CS": [],
+    "SetHasScore_CS": [],
+    "SetSignature_CS": ["audit"],
+    "SetPortrait_CS": [1],
+    "SetCharacterList_CS": [1, [9001,9002,0]],
+    "SetCharacterListName_CS": [1, "audit"],
+    "updateStreetTraceTask_CS": [1000],
+    "RequestDispatchChar_CS": [5001,9001],
+    "RequestEnterStreetSurface_CS": [1],
+    "Street_Mainline_Levelup_CS": [101],
+    "BattleTeach_Activate_CS": [101],
+    "Storyline_FinishGame": [1, True],
+    "RequestStreetTreasure_CS": [10157],
+    "RequestAddPrestigeExp_CS": [101,10],
+    "UseItem_CS": [101,1, None],
+}
+
+
 _OP_NAMES = {1: "change", 2: "add", 3: "del", 4: "insert", 5: "remove"}
 
 
@@ -141,7 +167,7 @@ def diff_states(server: dict, client: dict) -> list[str]:
     return out
 
 
-def audit_rpc(name: str, idx: int, args: list) -> dict | None:
+def audit_rpc(name: str, idx: int, args: list) -> tuple[bool, dict | None]:
     """跑一条 RPC，比对服务端状态与客户端回放状态。
 
     返回 None 表示这条 RPC 没有产生属性变化（无需比对）。
@@ -170,11 +196,11 @@ def audit_rpc(name: str, idx: int, args: list) -> dict | None:
     try:
         frames = dispatch.handle(idx, mp_arr(args), 424242, uid=uid)
     except Exception:  # noqa: BLE001
-        return None
+        return False, None
     server_after = snapshot_server(st.props)
     changed = [k for k in server_after if server_before.get(k) != server_after.get(k)]
     if not changed:
-        return None
+        return False, None
 
     parsed = []
     for f in frames:
@@ -187,13 +213,13 @@ def audit_rpc(name: str, idx: int, args: list) -> dict | None:
     try:
         replayer.apply_frames(parsed)
     except Exception as e:  # noqa: BLE001
-        return {"rpc": name, "error": f"回放失败: {e}", "changed": changed,
+        return True, {"rpc": name, "error": f"回放失败: {e}", "changed": changed,
                 "sync_frames": len(parsed)}
     client_after = replayer.snapshot()
     bad = diff_states(server_after, client_after)
     if not bad:
-        return None
-    return {
+        return True, None
+    return True, {
         "rpc": name,
         "changed": changed,
         "mismatched": bad,
@@ -235,14 +261,15 @@ def main() -> int:
     bad: list[dict] = []
     checked = 0
     for name, idx in targets:
-        res = audit_rpc(name, idx, call_args)
-        if res is None:
-            continue
-        checked += 1
-        bad.append(res)
+        changed_any, res = audit_rpc(name, idx, SCENARIOS.get(name, call_args))
+        if changed_any:
+            checked +=1
+        if res is not None:
+            bad.append(res)
 
     if args.json:
-        print(json.dumps({"checked": checked, "bad": bad}, ensure_ascii=False, indent=1))
+        print(json.dumps({"targets": len(targets), "checked": checked, "bad": bad},
+ ensure_ascii=False, indent=1))
         return 1 if bad else 0
 
     print(f"审计了 {len(targets)} 条 RPC，其中 {checked} 条产生了属性变化")

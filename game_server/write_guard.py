@@ -145,3 +145,14 @@ class GuardedProps(dict):
         if not in_guard():
             raise PropsWriteError("直接 clear属性被拒绝：属性写入必须走 Tx。")
         super().clear()
+
+    def __copy__(self):
+        #拷贝出来的是一份独立快照，不该受原对象的守卫状态影响。
+        with write_guard("copy"):
+            return GuardedProps(self)
+
+    def __deepcopy__(self, memo):
+        import copy as _copy
+
+        with write_guard("deepcopy"):
+            return GuardedProps(_copy.deepcopy(dict(self), memo))
