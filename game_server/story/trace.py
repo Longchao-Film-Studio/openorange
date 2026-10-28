@@ -36,6 +36,7 @@ from shared.log_tee import get_logger
 
 from .. import gamedata
 from ..property.tx import Tx as _Tx
+from ..write_guard import write_guard
 
 _log = get_logger(__name__)
 
@@ -213,11 +214,13 @@ def apply(st, syncs=None, reason="", street_id=None, force_zero=False,
 
 
 def note_wanted(st, task_id):
-    """记录玩家「想追踪什么」（可以是别的街区的任务：走到那里自动恢复标点）。
+    #属性写入口，在这里开守卫（追踪目标）。
+    with write_guard("note_wanted"):
+        """记录玩家「想追踪什么」（可以是别的街区的任务：走到那里自动恢复标点）。
 
-    负数（客户端取消追踪的哨兵 -1000）与非法值一律归 0。
-    """
-    tid = _as_int(task_id, 0) or 0
-    tid = max(tid, 0)
-    st.props[WANTED_KEY] = tid
-    return tid
+        负数（客户端取消追踪的哨兵 -1000）与非法值一律归 0。
+        """
+        tid = _as_int(task_id, 0) or 0
+        tid = max(tid, 0)
+        st.props[WANTED_KEY] = tid
+        return tid

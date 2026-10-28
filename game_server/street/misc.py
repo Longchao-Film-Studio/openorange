@@ -12,6 +12,7 @@ from shared.log_tee import get_logger
 
 from ..property.tx import Tx
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import write_guard
 from .info import _street_tx_begin
 
 _log = get_logger(__name__)
@@ -38,24 +39,26 @@ def _mainline_levelup(rid, params, uid=None):
     return respond_after_sync(rid, syncs)
 
 def _finish_storyline(rid, params, uid=None):
-    """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""
-    vals = decode_params(params)
-    if not (isinstance(vals, list) and vals):
+    #属性写入口，在这里开守卫（街区剧情线）。
+    with write_guard("_finish_storyline"):
+        """finishStreetStoryline_CS {eventId} —— 记录完成的街区剧情线事件。"""
+        vals = decode_params(params)
+        if not (isinstance(vals, list) and vals):
+            return respond_after_sync(rid, [])
+        try:
+            event_id = int(vals[0])
+        except Exception:
+            return respond_after_sync(rid, [])
+        st = state(uid)
+        done = st.props.get("_oo_storyline_done")
+        if not isinstance(done, list):
+            done = []
+        if event_id not in done:
+            done.append(event_id)
+        st.props["_oo_storyline_done"] = done
+        st.save()
+        _log.info(f"[street] 街区剧情线完成 event={event_id}")
         return respond_after_sync(rid, [])
-    try:
-        event_id = int(vals[0])
-    except Exception:
-        return respond_after_sync(rid, [])
-    st = state(uid)
-    done = st.props.get("_oo_storyline_done")
-    if not isinstance(done, list):
-        done = []
-    if event_id not in done:
-        done.append(event_id)
-    st.props["_oo_storyline_done"] = done
-    st.save()
-    _log.info(f"[street] 街区剧情线完成 event={event_id}")
-    return respond_after_sync(rid, [])
 
 def _street_cd_update(rid, params, uid=None):
     """Street_CD_Update_CS {street_id, street_cd_id} —— 记录当前选的 CD 并回成功。"""

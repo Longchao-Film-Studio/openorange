@@ -32,6 +32,7 @@
 import time
 
 from . import gamedata
+from .write_guard import write_guard
 
 # 属性名
 PROP_KEYS = "tower_reward_keys"
@@ -66,77 +67,83 @@ def is_full(props, level=1, is_vip=False):
 
 
 def init_new(props, level=1, is_vip=False):
-    """新号：体力拉满，两个时间戳清零（= 已满）。"""
-    props[PROP_KEYS] = max_stamina(level, is_vip)
-    props[PROP_NEXT] = 0
-    props[PROP_TOTAL] = 0
-    return props[PROP_KEYS]
+    #体力属性的唯一写入口，在这里开守卫（建号初始化）。
+    with write_guard("init_new"):
+        """新号：体力拉满，两个时间戳清零（= 已满）。"""
+        props[PROP_KEYS] = max_stamina(level, is_vip)
+        props[PROP_NEXT] = 0
+        props[PROP_TOTAL] = 0
+        return props[PROP_KEYS]
 
 
 def apply_recovery(props, level=1, is_vip=False, now=None):
-    """按离线时间补体力，返回本次补了几点。
+    #体力属性的唯一写入口，在这里开守卫（离线/在线补体力）。
+    with write_guard("apply_recovery"):
+        """按离线时间补体力，返回本次补了几点。
 
-    规则：从 next_key_recover_timestamp 起，每 KeyRefresh 秒 +1，补到上限为止。
-    补满后两个时间戳都归 0（客户端据此显示「已满」、不显示倒计时）。
-    """
-    now = int(now if now is not None else time.time())
-    mx = max_stamina(level, is_vip)
-    keys = _int(props.get(PROP_KEYS))
-    if keys >= mx:
-        changed = (keys != mx) or _int(props.get(PROP_NEXT)) != 0 or _int(props.get(PROP_TOTAL)) != 0
-        props[PROP_KEYS] = mx
-        props[PROP_NEXT] = 0
-        props[PROP_TOTAL] = 0
-        return 0, changed
+        规则：从 next_key_recover_timestamp 起，每 KeyRefresh 秒 +1，补到上限为止。
+        补满后两个时间戳都归 0（客户端据此显示「已满」、不显示倒计时）。
+        """
+        now = int(now if now is not None else time.time())
+        mx = max_stamina(level, is_vip)
+        keys = _int(props.get(PROP_KEYS))
+        if keys >= mx:
+            changed = (keys != mx) or _int(props.get(PROP_NEXT)) != 0 or _int(props.get(PROP_TOTAL)) != 0
+            props[PROP_KEYS] = mx
+            props[PROP_NEXT] = 0
+            props[PROP_TOTAL] = 0
+            return 0, changed
 
-    step = refresh_sec()
-    nxt = _int(props.get(PROP_NEXT))
-    if nxt <= 0:
-        # 时间戳丢了（老存档），从现在开始计时
-        nxt = now + step
-        props[PROP_NEXT] = nxt
-        props[PROP_TOTAL] = nxt + (mx - keys - 1) * step
-        return 0, True
-
-    gained = 0
-    if now >= nxt:
-        gained = min((now - nxt) // step + 1, mx - keys)
-        keys += gained
-        nxt += gained * step
-
-    props[PROP_KEYS] = keys
-    if keys >= mx:
-        props[PROP_NEXT] = 0
-        props[PROP_TOTAL] = 0
-    else:
-        props[PROP_NEXT] = nxt
-        props[PROP_TOTAL] = nxt + (mx - keys - 1) * step
-    return gained, True
-
-
-def add(props, amount, level=1, is_vip=False, now=None):
-    """加体力（道具效果），超过上限的部分丢弃（真实游戏会转邮件，暂未实现）。
-
-    返回 (实际加了几个, 是否被截断)。
-    """
-    now = int(now if now is not None else time.time())
-    mx = max_stamina(level, is_vip)
-    cur = _int(props.get(PROP_KEYS))
-    want = _int(amount)
-    if want <= 0:
-        return 0, False
-    newv = cur + want
-    truncated = newv > mx
-    newv = min(newv, mx)
-    props[PROP_KEYS] = newv
-    if newv >= mx:
-        props[PROP_NEXT] = 0
-        props[PROP_TOTAL] = 0
-    else:
         step = refresh_sec()
         nxt = _int(props.get(PROP_NEXT))
         if nxt <= 0:
+            # 时间戳丢了（老存档），从现在开始计时
             nxt = now + step
-        props[PROP_NEXT] = nxt
-        props[PROP_TOTAL] = nxt + (mx - newv - 1) * step
-    return newv - cur, truncated
+            props[PROP_NEXT] = nxt
+            props[PROP_TOTAL] = nxt + (mx - keys - 1) * step
+            return 0, True
+
+        gained = 0
+        if now >= nxt:
+            gained = min((now - nxt) // step + 1, mx - keys)
+            keys += gained
+            nxt += gained * step
+
+        props[PROP_KEYS] = keys
+        if keys >= mx:
+            props[PROP_NEXT] = 0
+            props[PROP_TOTAL] = 0
+        else:
+            props[PROP_NEXT] = nxt
+            props[PROP_TOTAL] = nxt + (mx - keys - 1) * step
+        return gained, True
+
+
+def add(props, amount, level=1, is_vip=False, now=None):
+    #体力属性的唯一写入口，在这里开守卫（道具加体力）。
+    with write_guard("add"):
+        """加体力（道具效果），超过上限的部分丢弃（真实游戏会转邮件，暂未实现）。
+
+        返回 (实际加了几个, 是否被截断)。
+        """
+        now = int(now if now is not None else time.time())
+        mx = max_stamina(level, is_vip)
+        cur = _int(props.get(PROP_KEYS))
+        want = _int(amount)
+        if want <= 0:
+            return 0, False
+        newv = cur + want
+        truncated = newv > mx
+        newv = min(newv, mx)
+        props[PROP_KEYS] = newv
+        if newv >= mx:
+            props[PROP_NEXT] = 0
+            props[PROP_TOTAL] = 0
+        else:
+            step = refresh_sec()
+            nxt = _int(props.get(PROP_NEXT))
+            if nxt <= 0:
+                nxt = now + step
+            props[PROP_NEXT] = nxt
+            props[PROP_TOTAL] = nxt + (mx - newv - 1) * step
+        return newv - cur, truncated

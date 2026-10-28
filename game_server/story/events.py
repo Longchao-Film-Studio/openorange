@@ -48,6 +48,7 @@ from .. import gamedata
 #   测试会 monkeypatch story.evaluate_event 来抓事件参数，
 #   绑死了函数名就抓不到（test_dungeon_events.py 有 5 项因此失败）。
 from .. import story as _story
+from ..write_guard import write_guard
 
 _log = get_logger(__name__)
 
@@ -132,11 +133,13 @@ class EventResult:
 
 # ---------------------------------------------------------------- 去重
 def _seen(st):
-    m = st.props.get(_SEEN_KEY)
-    if not isinstance(m, dict):
-        m = {}
-        st.props[_SEEN_KEY] = m
-    return m
+    #属性写入口，在这里开守卫（事件去重集）。
+    with write_guard("_seen"):
+        m = st.props.get(_SEEN_KEY)
+        if not isinstance(m, dict):
+            m = {}
+            st.props[_SEEN_KEY] = m
+        return m
 
 
 def already_seen(st, event_id):
@@ -146,21 +149,25 @@ def already_seen(st, event_id):
 
 
 def _mark_seen(st, event_id, now):
-    if not event_id:
-        return
-    m = _seen(st)
-    m[event_id] = int(now)
-    if len(m) > _SEEN_MAX:
-        keep = sorted(m.items(), key=lambda kv: kv[1])[-_SEEN_MAX:]
-        st.props[_SEEN_KEY] = dict(keep)
+    #属性写入口，在这里开守卫（事件去重集）。
+    with write_guard("_mark_seen"):
+        if not event_id:
+            return
+        m = _seen(st)
+        m[event_id] = int(now)
+        if len(m) > _SEEN_MAX:
+            keep = sorted(m.items(), key=lambda kv: kv[1])[-_SEEN_MAX:]
+            st.props[_SEEN_KEY] = dict(keep)
 
 
 def clear_seen(st):
-    """测试用：清空去重记录。"""
-    st.props.pop(_SEEN_KEY, None)
+    #属性写入口，在这里开守卫（事件去重集）。
+    with write_guard("clear_seen"):
+        """测试用：清空去重记录。"""
+        st.props.pop(_SEEN_KEY, None)
 
 
-# ---------------------------------------------------------------- 核心
+    # ---------------------------------------------------------------- 核心
 def apply_event(st, event, now=None):
     """把一条事件喂进剧情系统，返回 EventResult。
 

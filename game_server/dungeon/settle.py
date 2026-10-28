@@ -25,6 +25,7 @@ from ..rpc_common import decode_params, respond_after_sync, state
 from ..story import events as _events
 from ..story.rpc import finish_story_tasks
 from ..story.tasks import drain_event_task_sync
+from ..write_guard import write_guard
 from .context import _STORY_TYPE_MAINSTORY
 from .reward import _grant_battle_items
 
@@ -219,47 +220,49 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
     return out
 
 def _dungeon_finish(rid, params, uid=None):
-    """Cmd_Avatar_FinishGame_CS / Cmd_OfflineSpace_Finish_CS —— 副本结算。
+    #属性写入口，在这里开守卫（副本结算）。
+    with write_guard("_dungeon_finish"):
+        """Cmd_Avatar_FinishGame_CS / Cmd_OfflineSpace_Finish_CS —— 副本结算。
 
-    1. 从 finishInfo[uid].battle_items 算奖励并发进背包
-    2. 下发 AvatarSpace_SpaceFinish_SC（客户端靠它弹结算面板 + 回街区）
-    3. 用 _oo_cur_match 推进剧情
-    """
-    vals = decode_params(params)
-    info = vals[0] if (isinstance(vals, list) and vals
-                      and isinstance(vals[0], dict)) else {}
-    if not isinstance(info, dict):
-        info = {}
-    st = state(uid)
-    me = _finish_info_of(info, uid)
-    item_frames, reward_list = _grant_battle_items(
-        st, me.get("battle_items") or {})
-    syncs = list(item_frames)
-    settle = _settlement_table(st, uid, info, reward_list)
-    # ★ SpaceFinish_SC 是 s2c 主动推送、不是属性同步，必须留在应答【之后】。
-    #   客户端日志实测顺序：sendFinishInfo -> sendFinishInfoCallback(应答)
-    #   -> AvatarSettlementComp OnReceiveEndMsg(推送)。
-    #   所以它走 respond_after_sync 的 tail，而不是塞进 syncs。
-    pushes = [msmod.build_entity_message(
-        "", "AvatarSpace_SpaceFinish_SC", RPC_AVATAR_SPACE_FINISH_SC,
-        msmod.mp_arr([settle]))]
-    try:
-        to_street = int(settle.get("toStreetId") or 0)
-    except Exception:
-        to_street = 0
-    if to_street and to_street != int(st.props.get("street_id") or 0):
-        _tx_st = _Tx(st.props)
-        _tx_st.set(("street_id",), to_street)
-        syncs.extend(_tx_st.frames())
-    syncs.extend(_advance_story_on_finish(st, info, uid))
-    st.props.pop("_oo_cur_copy", None)
-    st.props.pop("_oo_cur_match", None)
-    st.props.pop("_oo_cur_level", None)
-    st.props.pop("_oo_cur_area", None)
-    st.props.pop("_oo_cur_teach", None)
-    st.save()
-    _log.info('[dungeon] 结算完成：奖励 {} 项，回街区 {} 位置 {}'.format(len(reward_list), settle.get("toStreetId"), settle.get("toStreetPosId")))
-    return respond_after_sync(rid, syncs, tail=pushes)
+        1. 从 finishInfo[uid].battle_items 算奖励并发进背包
+        2. 下发 AvatarSpace_SpaceFinish_SC（客户端靠它弹结算面板 + 回街区）
+        3. 用 _oo_cur_match 推进剧情
+        """
+        vals = decode_params(params)
+        info = vals[0] if (isinstance(vals, list) and vals
+                          and isinstance(vals[0], dict)) else {}
+        if not isinstance(info, dict):
+            info = {}
+        st = state(uid)
+        me = _finish_info_of(info, uid)
+        item_frames, reward_list = _grant_battle_items(
+            st, me.get("battle_items") or {})
+        syncs = list(item_frames)
+        settle = _settlement_table(st, uid, info, reward_list)
+        # ★ SpaceFinish_SC 是 s2c 主动推送、不是属性同步，必须留在应答【之后】。
+        #   客户端日志实测顺序：sendFinishInfo -> sendFinishInfoCallback(应答)
+        #   -> AvatarSettlementComp OnReceiveEndMsg(推送)。
+        #   所以它走 respond_after_sync 的 tail，而不是塞进 syncs。
+        pushes = [msmod.build_entity_message(
+            "", "AvatarSpace_SpaceFinish_SC", RPC_AVATAR_SPACE_FINISH_SC,
+            msmod.mp_arr([settle]))]
+        try:
+            to_street = int(settle.get("toStreetId") or 0)
+        except Exception:
+            to_street = 0
+        if to_street and to_street != int(st.props.get("street_id") or 0):
+            _tx_st = _Tx(st.props)
+            _tx_st.set(("street_id",), to_street)
+            syncs.extend(_tx_st.frames())
+        syncs.extend(_advance_story_on_finish(st, info, uid))
+        st.props.pop("_oo_cur_copy", None)
+        st.props.pop("_oo_cur_match", None)
+        st.props.pop("_oo_cur_level", None)
+        st.props.pop("_oo_cur_area", None)
+        st.props.pop("_oo_cur_teach", None)
+        st.save()
+        _log.info('[dungeon] 结算完成：奖励 {} 项，回街区 {} 位置 {}'.format(len(reward_list), settle.get("toStreetId"), settle.get("toStreetPosId")))
+        return respond_after_sync(rid, syncs, tail=pushes)
 
 def _storyline_finish_game(rid, params, uid=None):
     """Storyline_FinishGame {storyID, passed, useTime} —— 标记剧情段落完成。"""

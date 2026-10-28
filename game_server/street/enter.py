@@ -18,6 +18,7 @@ from shared.log_tee import get_logger
 
 from ..property import tx as _tx
 from ..rpc_common import decode_params, respond_after_sync, state, throttled_save
+from ..write_guard import write_guard
 from .info import _make_street_info_entry
 
 _log = get_logger(__name__)
@@ -93,33 +94,35 @@ def _apply_street_change(new_id, uid):
     return syncs
 
 def _update_street_pos(params, uid=None):
-    """RequestUpdateStreetPos_CS {street_id, pos_info} —— 客户端移动时上报位置。
+    #属性写入口，在这里开守卫（街区坐标）。
+    with write_guard("_update_street_pos"):
+        """RequestUpdateStreetPos_CS {street_id, pos_info} —— 客户端移动时上报位置。
 
-    逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:130-135：
-      function AvatarStreetComp:updatePlayerPos_CS(pos_info)
-        self:serverMsg("RequestUpdateStreetPos_CS", {self.street_id, pos_info})
-      end
-    调用点：streetplayeractormovesystem.lua:120 / streetmovecomponent.lua:309 /
-            streetactorbase.lua:381
+        逆向依据 entities/avatarcomponent/avatarstreetcomp.lua:130-135：
+          function AvatarStreetComp:updatePlayerPos_CS(pos_info)
+            self:serverMsg("RequestUpdateStreetPos_CS", {self.street_id, pos_info})
+          end
+        调用点：streetplayeractormovesystem.lua:120 / streetmovecomponent.lua:309 /
+                streetactorbase.lua:381
 
-    pos_info 形如 {x=, y=, z=, dir=}（streetsystemmgrbase.lua:561-566 读它恢复位置）。
-    服务端存下来，下次登录通过 street_pos_info 下发即可回到原位。
-    """
-    vals = decode_params(params)
-    if not (isinstance(vals, list) and len(vals) >= 2):
-        return
-    street_id = vals[0]
-    pos = vals[1]
-    if not isinstance(pos, dict):
-        return
-    st = state(uid)
-    if int(st.props.get("street_id") or 0) != int(street_id or 0):
-        return
-    saved = {
-        "x": float(pos.get("x") or 0),
-        "y": float(pos.get("y") or 0),
-        "z": float(pos.get("z") or 0),
-        "dir": float(pos.get("dir") or 0),
-    }
-    st.props["_oo_street_pos"] = saved
-    throttled_save(st, uid, force=True)
+        pos_info 形如 {x=, y=, z=, dir=}（streetsystemmgrbase.lua:561-566 读它恢复位置）。
+        服务端存下来，下次登录通过 street_pos_info 下发即可回到原位。
+        """
+        vals = decode_params(params)
+        if not (isinstance(vals, list) and len(vals) >= 2):
+            return
+        street_id = vals[0]
+        pos = vals[1]
+        if not isinstance(pos, dict):
+            return
+        st = state(uid)
+        if int(st.props.get("street_id") or 0) != int(street_id or 0):
+            return
+        saved = {
+            "x": float(pos.get("x") or 0),
+            "y": float(pos.get("y") or 0),
+            "z": float(pos.get("z") or 0),
+            "dir": float(pos.get("dir") or 0),
+        }
+        st.props["_oo_street_pos"] = saved
+        throttled_save(st, uid, force=True)

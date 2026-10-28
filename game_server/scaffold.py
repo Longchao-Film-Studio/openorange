@@ -37,6 +37,7 @@ from shared.log_tee import get_logger
 
 from . import config
 from .property import factory as _factory
+from .write_guard import write_guard
 
 _log = get_logger(__name__)
 
@@ -92,105 +93,107 @@ TASK_STATE_FINISHED = 6
 # ---------------------------------------------------------------- 应用
 
 def apply(props, cfg=None):
-    """把脚手架覆盖到 props 上（原地修改）。
+    #属性写入口，在这里开守卫（建号脚手架）。
+    with write_guard("apply"):
+        """把脚手架覆盖到 props 上（原地修改）。
 
-    props 必须已经是 conv_int_keys 之后的形态 —— 所以这里一律用**整数键**，
-    不能再写 "#1"（那是 JSON 里的写法，转换之后就变成 1 了）。
-    返回实际改动了哪些项，便于日志。
-    """
-    cfg = cfg or config.SCAFFOLD
-    changed = []
+        props 必须已经是 conv_int_keys 之后的形态 —— 所以这里一律用**整数键**，
+        不能再写 "#1"（那是 JSON 里的写法，转换之后就变成 1 了）。
+        返回实际改动了哪些项，便于日志。
+        """
+        cfg = cfg or config.SCAFFOLD
+        changed = []
 
-    if cfg.level is not None:
-        props["level"] = cfg.level
-        changed.append(f"level={cfg.level}")
+        if cfg.level is not None:
+            props["level"] = cfg.level
+            changed.append(f"level={cfg.level}")
 
-    if cfg.unlock_all:
-        sysp = props.get("system_p")
-        if isinstance(sysp, dict):
-            us = sysp.get("unlocked_system")
-            if isinstance(us, dict):
-                for sid in SYSTEM_UNLOCKS:
-                    us[sid] = True
-                changed.append(f'系统解锁 {len(SYSTEM_UNLOCKS)} 项')
+        if cfg.unlock_all:
+            sysp = props.get("system_p")
+            if isinstance(sysp, dict):
+                us = sysp.get("unlocked_system")
+                if isinstance(us, dict):
+                    for sid in SYSTEM_UNLOCKS:
+                        us[sid] = True
+                    changed.append(f'系统解锁 {len(SYSTEM_UNLOCKS)} 项')
 
-    if cfg.all_tasks_done:
-        # task_bag：getSystemTaskState 会先看 task_bag[taskType] 是否存在，
-        # 为空就直接返回 -1，根本走不到 done_tasks 的判断。
-        tb = props.get("task_bag")
-        if isinstance(tb, dict):
-            for tt in DONE_TASK_TYPES:
-                if tb.get(tt) is None:
-                    # ★ 嵌套的自定义值**只能带 __id__，不能带 __tp__**。
-                    #   类型由父容器的 __ValueType__ 决定（TaskTypeBag -> TaskBag）。
-                    #   带 __tp__ 会让客户端 CustomDict 解析走错分支，
-                    #   实测表现为 initProperty 提前中断 -> item_bag 没建出来 ->
-                    #   AvatarBagComp:refreshLocalBagData 里 pairs(nil) 报错 ->
-                    #   ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页的死循环。
-                    tb[tt] = _factory.new_container(props)
-            changed.append(f"task_bag 槽位 {DONE_TASK_TYPES}")
+        if cfg.all_tasks_done:
+            # task_bag：getSystemTaskState 会先看 task_bag[taskType] 是否存在，
+            # 为空就直接返回 -1，根本走不到 done_tasks 的判断。
+            tb = props.get("task_bag")
+            if isinstance(tb, dict):
+                for tt in DONE_TASK_TYPES:
+                    if tb.get(tt) is None:
+                        # ★ 嵌套的自定义值**只能带 __id__，不能带 __tp__**。
+                        #   类型由父容器的 __ValueType__ 决定（TaskTypeBag -> TaskBag）。
+                        #   带 __tp__ 会让客户端 CustomDict 解析走错分支，
+                        #   实测表现为 initProperty 提前中断 -> item_bag 没建出来 ->
+                        #   AvatarBagComp:refreshLocalBagData 里 pairs(nil) 报错 ->
+                        #   ClientAvatar:init 返回非布尔 -> 进游戏被踢回登录页的死循环。
+                        tb[tt] = _factory.new_container(props)
+                changed.append(f"task_bag 槽位 {DONE_TASK_TYPES}")
 
-        # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt
-        dt = props.get("done_tasks")
-        if isinstance(dt, dict):
-            for tt in DONE_TASK_TYPES:
-                slot = dt.get(tt)
-                if not isinstance(slot, dict):
-                    slot = _factory.new_container(props)
-                    dt[tt] = slot
-                for tid in DONE_TASK_IDS:
-                    slot[tid] = 1
-            changed.append(f"done_tasks 任务 {DONE_TASK_IDS}")
+            # done_tasks：DoneTaskTypeBag 的 __ValueType__ 是 IntDictKeyInt
+            dt = props.get("done_tasks")
+            if isinstance(dt, dict):
+                for tt in DONE_TASK_TYPES:
+                    slot = dt.get(tt)
+                    if not isinstance(slot, dict):
+                        slot = _factory.new_container(props)
+                        dt[tt] = slot
+                    for tid in DONE_TASK_IDS:
+                        slot[tid] = 1
+                changed.append(f"done_tasks 任务 {DONE_TASK_IDS}")
 
-        # done_story_tasks：StoryTaskBag 的 __ValueType__ 是 StoryTaskItem 对象，
-        # 不能直接塞 true（roinit 会拿 true 去建对象然后失败）。
-        dst = props.get("done_story_tasks")
-        if isinstance(dst, dict):
-            for tid in DONE_STORY_TASK_IDS:
-                item = _factory.new_instance(props, "StoryTaskItem")
-                item["id"] = tid
-                item["state"] = TASK_STATE_FINISHED
-                dst[tid] = item
-            changed.append(f'done_story_tasks {len(DONE_STORY_TASK_IDS)} 条')
+            # done_story_tasks：StoryTaskBag 的 __ValueType__ 是 StoryTaskItem 对象，
+            # 不能直接塞 true（roinit 会拿 true 去建对象然后失败）。
+            dst = props.get("done_story_tasks")
+            if isinstance(dst, dict):
+                for tid in DONE_STORY_TASK_IDS:
+                    item = _factory.new_instance(props, "StoryTaskItem")
+                    item["id"] = tid
+                    item["state"] = TASK_STATE_FINISHED
+                    dst[tid] = item
+                changed.append(f'done_story_tasks {len(DONE_STORY_TASK_IDS)} 条')
 
-        # story_finished：BooleanDictKeyInt（int 键 + bool 值）。
-        # 置 1 表示「序章已过」，客户端 entities/clientavatar.lua:180 的
-        #   if not self.story_finished[1] then <走序章> else <LoginSuccess> end
-        # 就会跳过序章直接进街区。
-        #
-        # ★ 为什么必须加：脚手架模式下 ms.py:464 会跳过 init_new_player
-        #   （`if not ooconf.SCAFFOLD.all_tasks_done`），但 story_finished
-        #   仍然是空的 —— 结果客户端照样进序章，而序章里没有活动剧情任务，
-        #   形成「进得去但打完什么也不推进」的怪状态。
-        #   脚手架语义就是「老号全解锁」，所以这里直接标序章已完成。
-        sf = props.get("story_finished")
-        if isinstance(sf, dict):
-            sf[1] = True
-            changed.append("story_finished[1]=true（跳过序章）")
+            # story_finished：BooleanDictKeyInt（int 键 + bool 值）。
+            # 置 1 表示「序章已过」，客户端 entities/clientavatar.lua:180 的
+            #   if not self.story_finished[1] then <走序章> else <LoginSuccess> end
+            # 就会跳过序章直接进街区。
+            #
+            # ★ 为什么必须加：脚手架模式下 ms.py:464 会跳过 init_new_player
+            #   （`if not ooconf.SCAFFOLD.all_tasks_done`），但 story_finished
+            #   仍然是空的 —— 结果客户端照样进序章，而序章里没有活动剧情任务，
+            #   形成「进得去但打完什么也不推进」的怪状态。
+            #   脚手架语义就是「老号全解锁」，所以这里直接标序章已完成。
+            sf = props.get("story_finished")
+            if isinstance(sf, dict):
+                sf[1] = True
+                changed.append("story_finished[1]=true（跳过序章）")
 
-        # ★ P0-3：补齐「已取名」状态（见 SCAFFOLD_PLAYER_NAME 的说明）。
-        #
-        # checkIsCanEnterStreet() 的四个条件：
-        #   1. story_finished[1]                  -- 上面刚设
-        #   2. player_name 非空                    -- ★ 这里补
-        #   3. gender != nil and gender != 0       -- ★ 这里补
-        #   4. characterBag[male|female] 存在      -- 下面 protagonist.ensure_props 创建
-        #
-        # 不补会怎样：LoginSuccess -> doLoginSuccess -> JumpToStreetStage
-        #   -> checkIsCanEnterStreet() 失败 -> returnToLogin() -> 被踢回登录页。
-        props["player_name"] = SCAFFOLD_PLAYER_NAME
-        props["gender"] = 1
-        # 名片跟性别走（男=2，见 CommonConstData.male_player_card）。
-        # 正常流程里这一步是 avatar.py::_set_default_card 在取名时做的；
-        # 脚手架跳过了取名，所以这里等价补上。
-        props["player_card_id"] = 2
-        # 主角：脚手架跳过取名，这里等价补「按性别创建唯一主角 + 编队 + choosen」
-        try:
-            from . import protagonist as _prot
-            _prot.ensure_props(props, 1)
-            changed.append("protagonist=male（取名流程的等价补写）")
-        except Exception as e:
-            _log.warning(f"[scaffold] 创建主角失败: {e}")
-        changed.append(f"player_name={SCAFFOLD_PLAYER_NAME!r} gender=1 player_card_id=2（已取名，进街区用）")
+            # ★ P0-3：补齐「已取名」状态（见 SCAFFOLD_PLAYER_NAME 的说明）。
+            #
+            # checkIsCanEnterStreet() 的四个条件：
+            #   1. story_finished[1]                  -- 上面刚设
+            #   2. player_name 非空                    -- ★ 这里补
+            #   3. gender != nil and gender != 0       -- ★ 这里补
+            #   4. characterBag[male|female] 存在      -- 下面 protagonist.ensure_props 创建
+            #
+            # 不补会怎样：LoginSuccess -> doLoginSuccess -> JumpToStreetStage
+            #   -> checkIsCanEnterStreet() 失败 -> returnToLogin() -> 被踢回登录页。
+            props["player_name"] = SCAFFOLD_PLAYER_NAME
+            props["gender"] = 1
+            # 名片跟性别走（男=2，见 CommonConstData.male_player_card）。
+            # 正常流程里这一步是 avatar.py::_set_default_card 在取名时做的；
+            # 脚手架跳过了取名，所以这里等价补上。
+            props["player_card_id"] = 2
+            # 主角：脚手架跳过取名，这里等价补「按性别创建唯一主角 + 编队 + choosen」
+            try:
+                from . import protagonist as _prot
+                _prot.ensure_props(props, 1)
+                changed.append("protagonist=male（取名流程的等价补写）")
+            except Exception as e:
+                _log.warning(f"[scaffold] 创建主角失败: {e}")
+            changed.append(f"player_name={SCAFFOLD_PLAYER_NAME!r} gender=1 player_card_id=2（已取名，进街区用）")
 
-    return changed
+        return changed

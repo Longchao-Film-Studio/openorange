@@ -33,6 +33,7 @@ from shared import admin_token as _admin_token
 from shared.log_tee import get_logger
 
 from . import runtime
+from .write_guard import write_guard
 
 _log = get_logger(__name__)
 
@@ -162,37 +163,39 @@ def _player_dungeon(uid):
 
 
 def _set_player_force_level(uid, level):
-    """设置某个账号的副本关卡覆盖。level=0 表示取消。
+    #属性写入口，在这里开守卫（GM强制等级）。
+    with write_guard("_set_player_force_level"):
+        """设置某个账号的副本关卡覆盖。level=0 表示取消。
 
-    ★ 按账号存，不是全局。存在玩家存档的 _oo_ 私有字段里：
-      - _oo_ 前缀在 ms.live_init_dict 里会被过滤，客户端看不到
-      - 重启游戏服不丢
-      - 多开/换号互不影响
-    """
-    from . import ms as msmod
-    from . import player_state
-    try:
-        v = int(level or 0)
-    except (TypeError, ValueError):
-        v = 0
-    v = v if v > 0 else 0
-    # 没有存档就先建一份完整的（别留空壳，否则会毁掉新号初始化）
-    st = player_state.peek(uid)
-    if st is None or not isinstance(st.props.get("story_task_bag"), dict):
-        player_state.reset_state(
-            msmod.conv_int_keys(
-                msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
-            uid=uid)
-        player_state.peek(uid).is_new = True
-        msmod.live_init_dict(uid)
-    st = player_state.get_state(uid=uid)
-    if v:
-        st.props["_oo_dungeon_force_level"] = v
-    else:
-        st.props.pop("_oo_dungeon_force_level", None)
-    st.save()
-    _log.info("[admin] {} 的副本关卡覆盖设为 {}".format(uid, v or "无"))
-    return v
+        ★ 按账号存，不是全局。存在玩家存档的 _oo_ 私有字段里：
+          - _oo_ 前缀在 ms.live_init_dict 里会被过滤，客户端看不到
+          - 重启游戏服不丢
+          - 多开/换号互不影响
+        """
+        from . import ms as msmod
+        from . import player_state
+        try:
+            v = int(level or 0)
+        except (TypeError, ValueError):
+            v = 0
+        v = v if v > 0 else 0
+        # 没有存档就先建一份完整的（别留空壳，否则会毁掉新号初始化）
+        st = player_state.peek(uid)
+        if st is None or not isinstance(st.props.get("story_task_bag"), dict):
+            player_state.reset_state(
+                msmod.conv_int_keys(
+                    msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+                uid=uid)
+            player_state.peek(uid).is_new = True
+            msmod.live_init_dict(uid)
+        st = player_state.get_state(uid=uid)
+        if v:
+            st.props["_oo_dungeon_force_level"] = v
+        else:
+            st.props.pop("_oo_dungeon_force_level", None)
+        st.save()
+        _log.info("[admin] {} 的副本关卡覆盖设为 {}".format(uid, v or "无"))
+        return v
 
 
 def _ensure_player_state(uid):
@@ -211,80 +214,82 @@ def _ensure_player_state(uid):
 
 
 def _grant_player(uid, items=None, level=None, level_add=None):
-    """GM 命令的真写入入口：发物品 / 设等级。
+    #属性写入口，在这里开守卫（GM发道具）。
+    with write_guard("_grant_player"):
+        """GM 命令的真写入入口：发物品 / 设等级。
 
-    ★ 诚实化（2026-10-23）：/give /lv /money 不再「解析+预览+未生效」，
-      走这里真改玩家存档，返回实际结果。
+        ★ 诚实化（2026-10-23）：/give /lv /money 不再「解析+预览+未生效」，
+          走这里真改玩家存档，返回实际结果。
 
-    items: {item_id_str: count}   —— 与结算发奖同一入口 story.add_item
-    level: 直接设为该等级（>=1）
-    level_add: 在现有等级上加（>=1）
+        items: {item_id_str: count}   —— 与结算发奖同一入口 story.add_item
+        level: 直接设为该等级（>=1）
+        level_add: 在现有等级上加（>=1）
 
-    ★ H3（2026-10-28）：等级改走 game_server.level.set_level —— 那里是等级的唯一
-      写入口（INV-LV-1），会做上限校验。以前这里直接 `st.props["level"] = lv`，
-      能设出 999 级这种数据里根本不存在的等级。
-    """
-    from . import level as _level_mod
+        ★ H3（2026-10-28）：等级改走 game_server.level.set_level —— 那里是等级的唯一
+          写入口（INV-LV-1），会做上限校验。以前这里直接 `st.props["level"] = lv`，
+          能设出 999 级这种数据里根本不存在的等级。
+        """
+        from . import level as _level_mod
 
-    st = _ensure_player_state(uid)
-    granted = []
-    if items:
-        items_map = {}
-        for k, v in (items or {}).items():
+        st = _ensure_player_state(uid)
+        granted = []
+        if items:
+            items_map = {}
+            for k, v in (items or {}).items():
+                try:
+                    iid = int(k)
+                    cnt = int(v)
+                except (TypeError, ValueError):
+                    continue
+                if cnt > 0:
+                    items_map[iid] = items_map.get(iid, 0) + cnt
+            if items_map:
+                # ★ 2026-10-26：管理接口也走唯一发放入口（堆叠/maxNum/ext/autoUse 全在 grants）
+                from .property.bag import grants as _bag_grants
+                _tx, outcomes = _bag_grants.grant_many(st.props, items_map, source="admin")
+                for oc in outcomes:
+                    if oc.ok:
+                        key = oc.grids[-1] if oc.grids else ""
+                        grid = (st.props.get("item_bag") or {}).get(key) if key else None
+                        now = int(grid.get("num") or 0) if isinstance(grid, dict) else 0
+                        granted.append({"item_id": oc.item_id, "count": oc.count,
+                                        "now": now})
+                    else:
+                        granted.append({"item_id": oc.item_id, "count": oc.count,
+                                        "error": str(oc.error)})
+        # ★ INV-LV-1：等级只能通过 game_server.level 写，这里不再直接改 props。
+        #   以前这两段是 `st.props["level"] = ...`，等于绕过所有校验（经验/上限/解锁）。
+        if level:
             try:
-                iid = int(k)
-                cnt = int(v)
+                lv = int(level)
             except (TypeError, ValueError):
-                continue
-            if cnt > 0:
-                items_map[iid] = items_map.get(iid, 0) + cnt
-        if items_map:
-            # ★ 2026-10-26：管理接口也走唯一发放入口（堆叠/maxNum/ext/autoUse 全在 grants）
-            from .property.bag import grants as _bag_grants
-            _tx, outcomes = _bag_grants.grant_many(st.props, items_map, source="admin")
-            for oc in outcomes:
-                if oc.ok:
-                    key = oc.grids[-1] if oc.grids else ""
-                    grid = (st.props.get("item_bag") or {}).get(key) if key else None
-                    now = int(grid.get("num") or 0) if isinstance(grid, dict) else 0
-                    granted.append({"item_id": oc.item_id, "count": oc.count,
-                                    "now": now})
+                lv = 0
+            if lv >= 1:
+                try:
+                    _level_mod.set_level(st, lv)
+                except ValueError as e:
+                    granted.append({"level": lv, "error": str(e)})
                 else:
-                    granted.append({"item_id": oc.item_id, "count": oc.count,
-                                    "error": str(oc.error)})
-    # ★ INV-LV-1：等级只能通过 game_server.level 写，这里不再直接改 props。
-    #   以前这两段是 `st.props["level"] = ...`，等于绕过所有校验（经验/上限/解锁）。
-    if level:
-        try:
-            lv = int(level)
-        except (TypeError, ValueError):
-            lv = 0
-        if lv >= 1:
+                    granted.append({"level": lv})
+        if level_add:
             try:
-                _level_mod.set_level(st, lv)
-            except ValueError as e:
-                granted.append({"level": lv, "error": str(e)})
-            else:
-                granted.append({"level": lv})
-    if level_add:
-        try:
-            add = int(level_add)
-        except (TypeError, ValueError):
-            add = 0
-        if add >= 1:
-            cur = _level_mod.current_level(st.props)
-            try:
-                _level_mod.set_level(st, cur + add)
-            except ValueError as e:
-                granted.append({"level": cur + add, "error": str(e)})
-            else:
-                granted.append({"level": cur + add})
-    st.save()
-    return {"uid": uid, "granted": granted}
+                add = int(level_add)
+            except (TypeError, ValueError):
+                add = 0
+            if add >= 1:
+                cur = _level_mod.current_level(st.props)
+                try:
+                    _level_mod.set_level(st, cur + add)
+                except ValueError as e:
+                    granted.append({"level": cur + add, "error": str(e)})
+                else:
+                    granted.append({"level": cur + add})
+        st.save()
+        return {"uid": uid, "granted": granted}
 
 
-# ---------------------------------------------------------------- HTTP 层
-# ---------------------------------------------------------------- HTTP 层
+    # ---------------------------------------------------------------- HTTP 层
+    # ---------------------------------------------------------------- HTTP 层
 class _Handler(BaseHTTPRequestHandler):
     server_version = "OOAdmin/1.0"
 

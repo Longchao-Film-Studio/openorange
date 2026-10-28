@@ -42,6 +42,7 @@ from .story.state_machine import (
     TASK_STATE_WAIT_DONE,
     can_transition,
 )
+from .write_guard import write_guard
 
 _log = get_logger(__name__)
 
@@ -651,49 +652,51 @@ def day_of(now):
 
 
 def daily_reset(st, now=None):
-    """跨天重置：清空每日任务类型的进行中与已完成记录，然后重新播种。
+    #属性写入口，在这里开守卫（跨天重置）。
+    with write_guard("daily_reset"):
+        """跨天重置：清空每日任务类型的进行中与已完成记录，然后重新播种。
 
-    返回 (重置的类型列表, 同步描述)。
+        返回 (重置的类型列表, 同步描述)。
 
-    ★ 为什么需要
-      `DailyCycle(3)` 和 `TitleDailyRandom(9)` 语义上是「每天一次」。
-      不做重置的话：做完一次就永远完成，第二天也不会再出现。
+        ★ 为什么需要
+          `DailyCycle(3)` 和 `TitleDailyRandom(9)` 语义上是「每天一次」。
+          不做重置的话：做完一次就永远完成，第二天也不会再出现。
 
-    ★ 只在「天序号变了」时才动，所以同一天多次登录是幂等的。
-      调用点在登录流程（initdict）的快照构建之前，所以重置结果直接进初始快照。
-    """
-    now = int(now if now is not None else time.time())
-    day = day_of(now)
-    if st.props.get(DAILY_RESET_KEY) == day:
-        return [], []
-    st.props[DAILY_RESET_KEY] = day
-    st.props.pop(DAILY_REFRESH_KEY, None)
-    reset_types = []
-    bag = st.props.get("task_bag")
-    done = st.props.get("done_tasks")
-    for tt in DAILY_RESET_TYPES:
-        touched = False
-        if isinstance(bag, dict):
-            slot = bag.get(tt)
-            if isinstance(slot, dict):
-                for k in [k for k in slot if isinstance(k, int)]:
-                    slot.pop(k, None)
-                    touched = True
-                if touched:
-                    st.set("task_bag", bag)
-        if isinstance(done, dict):
-            dslot = done.get(tt)
-            if isinstance(dslot, dict):
-                for k in [k for k in dslot if isinstance(k, int)]:
-                    dslot.pop(k, None)
-                    touched = True
-                if touched:
-                    st.set("done_tasks", done)
-        reset_types.append(tt)
-    ch = seed_tasks(st, now)
-    if reset_types:
-        _log.info(f'[task] 跨天重置 {list(reset_types)}，重播 {len(ch)} 条同步描述')
-    return reset_types, ch
+        ★ 只在「天序号变了」时才动，所以同一天多次登录是幂等的。
+          调用点在登录流程（initdict）的快照构建之前，所以重置结果直接进初始快照。
+        """
+        now = int(now if now is not None else time.time())
+        day = day_of(now)
+        if st.props.get(DAILY_RESET_KEY) == day:
+            return [], []
+        st.props[DAILY_RESET_KEY] = day
+        st.props.pop(DAILY_REFRESH_KEY, None)
+        reset_types = []
+        bag = st.props.get("task_bag")
+        done = st.props.get("done_tasks")
+        for tt in DAILY_RESET_TYPES:
+            touched = False
+            if isinstance(bag, dict):
+                slot = bag.get(tt)
+                if isinstance(slot, dict):
+                    for k in [k for k in slot if isinstance(k, int)]:
+                        slot.pop(k, None)
+                        touched = True
+                    if touched:
+                        st.set("task_bag", bag)
+            if isinstance(done, dict):
+                dslot = done.get(tt)
+                if isinstance(dslot, dict):
+                    for k in [k for k in dslot if isinstance(k, int)]:
+                        dslot.pop(k, None)
+                        touched = True
+                    if touched:
+                        st.set("done_tasks", done)
+            reset_types.append(tt)
+        ch = seed_tasks(st, now)
+        if reset_types:
+            _log.info(f'[task] 跨天重置 {list(reset_types)}，重播 {len(ch)} 条同步描述')
+        return reset_types, ch
 
 
 def can_refresh_daily(st, now=None):
@@ -708,11 +711,13 @@ def can_refresh_daily(st, now=None):
 
 
 def mark_daily_refreshed(st, now=None):
-    """记一次当日刷新。"""
-    now = int(now if now is not None else time.time())
-    day = day_of(now)
-    rec = st.props.get(DAILY_REFRESH_KEY)
-    if not isinstance(rec, dict) or int(rec.get("day") or -1) != day:
-        rec = {"day": day, "count": 0}
-    rec["count"] = int(rec.get("count") or 0) + 1
-    st.props[DAILY_REFRESH_KEY] = rec
+    #属性写入口，在这里开守卫（跨天刷新标记）。
+    with write_guard("mark_daily_refreshed"):
+        """记一次当日刷新。"""
+        now = int(now if now is not None else time.time())
+        day = day_of(now)
+        rec = st.props.get(DAILY_REFRESH_KEY)
+        if not isinstance(rec, dict) or int(rec.get("day") or -1) != day:
+            rec = {"day": day, "count": 0}
+        rec["count"] = int(rec.get("count") or 0) + 1
+        st.props[DAILY_REFRESH_KEY] = rec

@@ -18,6 +18,8 @@
 """
 from typing import Any
 
+from ...write_guard import write_guard
+
 _NEXT_KEY = "_oo_next_grid"
 PREFIX = "g"
 
@@ -59,10 +61,12 @@ def next_seq(props: dict[str, Any]) -> int:
 
 
 def alloc(props: dict[str, Any]) -> str:
-    """分配一个新钥匙（写 `_oo_next_grid`，保证不回收）。"""
-    n = next_seq(props)
-    props[_NEXT_KEY] = n
-    return f"{PREFIX}{n}"
+    #属性写入口，在这里开守卫（格子键分配）。
+    with write_guard("alloc"):
+        """分配一个新钥匙（写 `_oo_next_grid`，保证不回收）。"""
+        n = next_seq(props)
+        props[_NEXT_KEY] = n
+        return f"{PREFIX}{n}"
 
 
 def is_canonical(key: object) -> bool:
@@ -70,33 +74,35 @@ def is_canonical(key: object) -> bool:
 
 
 def migrate(props: dict[str, Any]) -> int:
-    """把 item_bag 的旧键（"1"/#1/整数）改成规范键，返回迁移数量。
+    #属性写入口，在这里开守卫（格子键迁移）。
+    with write_guard("migrate"):
+        """把 item_bag 的旧键（"1"/#1/整数）改成规范键，返回迁移数量。
 
-    幂等：已经规范化的键不动。迁移时重建 dict 以保持顺序（客户端按插入顺序展示）。
-    """
-    bag = props.get("item_bag")
-    if not isinstance(bag, dict):
-        return 0
-    meta: dict[Any, Any] = {}
-    entries: list[tuple[Any, Any]] = []
-    for k, v in bag.items():
-        if isinstance(k, str) and k.startswith("__"):
-            meta[k] = v
-        else:
-            entries.append((k, v))
-    changed = 0
-    new_bag: dict[Any, Any] = {}
-    for k, v in entries:
-        if is_canonical(k):
-            new_bag[k] = v
-            continue
-        key = alloc(props)
-        new_bag[key] = v
-        if isinstance(v, dict):
-            v["id"] = key
-        changed += 1
-    if not changed:
-        return 0
-    new_bag.update(meta)
-    props["item_bag"] = new_bag
-    return changed
+        幂等：已经规范化的键不动。迁移时重建 dict 以保持顺序（客户端按插入顺序展示）。
+        """
+        bag = props.get("item_bag")
+        if not isinstance(bag, dict):
+            return 0
+        meta: dict[Any, Any] = {}
+        entries: list[tuple[Any, Any]] = []
+        for k, v in bag.items():
+            if isinstance(k, str) and k.startswith("__"):
+                meta[k] = v
+            else:
+                entries.append((k, v))
+        changed = 0
+        new_bag: dict[Any, Any] = {}
+        for k, v in entries:
+            if is_canonical(k):
+                new_bag[k] = v
+                continue
+            key = alloc(props)
+            new_bag[key] = v
+            if isinstance(v, dict):
+                v["id"] = key
+            changed += 1
+        if not changed:
+            return 0
+        new_bag.update(meta)
+        props["item_bag"] = new_bag
+        return changed

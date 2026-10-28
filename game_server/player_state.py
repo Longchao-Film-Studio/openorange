@@ -34,6 +34,7 @@ from shared.log_tee import get_logger
 
 from . import config as _cfg  # noqa: E402
 from .property import ids as _ids  # noqa: E402
+from .write_guard import GuardedProps, write_guard  # noqa: E402
 
 _log = get_logger(__name__)
 
@@ -132,7 +133,7 @@ def _keys_from_json(obj):
 class PlayerState:
     def __init__(self, uid=DEFAULT_UID, props=None):
         self.uid = uid
-        self.props = props if props is not None else {}
+        self.props = GuardedProps(props) if props is not None else GuardedProps()
         self.property_seq = 0
         # 是否「本次新建」而不是从存档读出来的（见 get_state 注释）
         self.is_new = False
@@ -145,7 +146,9 @@ class PlayerState:
             return self.props.get(name, default)
 
     def set(self, name, value):
-        with _LOCK:
+        # PlayerState.set是显式写入口，它自己开守卫；真正的约束是
+        #不让业务代码绕过这里直接写 props下标。
+        with _LOCK, write_guard("PlayerState.set"):
             self.props[name] = value
             return value
 

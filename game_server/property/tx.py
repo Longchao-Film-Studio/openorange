@@ -38,6 +38,7 @@ handler 只描述**意图**（tx.set(path, value)），Tx 负责
     frames = tx.frames()      # -> [bytes]，由 sync.py 生成
     st.save()
 """
+from ..write_guard import write_guard
 from . import ids as _ids
 from . import spec as _spec
 from . import validate as _validate
@@ -182,7 +183,8 @@ class Tx:
                 raise TxError(f"根属性 {key!r} 是 ServerOnly，不该推给客户端")
             self._ensure_id(value)
             self._check_value_ids(value, sp.type if sp else None, path)
-            parent[key] = value
+            with write_guard("Tx.set"):
+                parent[key] = value
             self._touch(key)
             self.ops.append(Op(0, OP_CHANGE, str(key), value, path))
             return value
@@ -210,7 +212,8 @@ class Tx:
         elif parent_type:
             vtype = _spec.value_type(parent_type)
         self._check_value_ids(value, vtype, path)
-        parent[key] = value
+        with write_guard("Tx.set"):
+            parent[key] = value
         optype = OP_CHANGE if (is_struct_field or not is_new) else OP_ADD
         if optype == OP_ADD and self._covered_by_added(path):
             # 父容器本 Tx 里刚 OP_ADD 过，它那帧已经带着这个新对象了（活引用）

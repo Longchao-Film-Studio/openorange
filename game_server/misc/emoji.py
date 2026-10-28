@@ -15,32 +15,35 @@ import contextlib
 
 from ..rpc_common import decode_params, state
 from ..space.space import _s2c_entity
+from ..write_guard import write_guard
 
 # Avatar_Play_ActEmoji_SC 的 RPC 索引（genRpcIndex，见 rpc_hashes.tsv）
 RPC_AVATAR_PLAY_ACT_EMOJI_SC = 1376557419
 
 
 def _play_act_emoji(params, uid=None):
-    """RpcPlayActEmoji [type, emoji_id] —— 记状态 + 广播（单机=回显自己）。"""
-    vals = decode_params(params)
-    emoji_type = 0
-    emoji_id = 0
-    if isinstance(vals, list) and vals:
-        try:
-            emoji_type = int(vals[0] or 0)
-        except (TypeError, ValueError):
-            emoji_type = 0
-        if len(vals) > 1:
+    #属性写入口，在这里开守卫（表情动作）。
+    with write_guard("_play_act_emoji"):
+        """RpcPlayActEmoji [type, emoji_id] —— 记状态 + 广播（单机=回显自己）。"""
+        vals = decode_params(params)
+        emoji_type = 0
+        emoji_id = 0
+        if isinstance(vals, list) and vals:
             try:
-                emoji_id = int(vals[1] or 0)
+                emoji_type = int(vals[0] or 0)
             except (TypeError, ValueError):
-                emoji_id = 0
-    with contextlib.suppress(Exception):
-        state(uid).props["_oo_last_emoji"] = emoji_id
-    # ★ T3：下发 Avatar_Play_ActEmoji_SC(uid, type, emoji_id)
-    #   单向消息（rid=0）也能带 S2C 帧（dispatch 会把 out 列表拼进应答流）
-    if emoji_id:
-        return [_s2c_entity(
-            "Avatar_Play_ActEmoji_SC", RPC_AVATAR_PLAY_ACT_EMOJI_SC,
-            [uid or "", emoji_type, emoji_id])]
-    return []
+                emoji_type = 0
+            if len(vals) > 1:
+                try:
+                    emoji_id = int(vals[1] or 0)
+                except (TypeError, ValueError):
+                    emoji_id = 0
+        with contextlib.suppress(Exception):
+            state(uid).props["_oo_last_emoji"] = emoji_id
+        # ★ T3：下发 Avatar_Play_ActEmoji_SC(uid, type, emoji_id)
+        #   单向消息（rid=0）也能带 S2C 帧（dispatch 会把 out 列表拼进应答流）
+        if emoji_id:
+            return [_s2c_entity(
+                "Avatar_Play_ActEmoji_SC", RPC_AVATAR_PLAY_ACT_EMOJI_SC,
+                [uid or "", emoji_type, emoji_id])]
+        return []

@@ -33,6 +33,8 @@ import threading
 
 from shared.log_tee import get_logger
 
+from ..write_guard import write_guard
+
 _log = get_logger(__name__)
 
 # 「下一个可用 id」在 props 里的键名。
@@ -90,7 +92,8 @@ def alloc_id(props):
             # 首次分配：避开 initDict 里已有的 __id__
             cur = max_id(props)
         nid = cur + 1
-        props[_OO_NEXT_ID] = nid
+        with write_guard("id_alloc"):
+            props[_OO_NEXT_ID] = nid
         return nid
 
 
@@ -112,7 +115,8 @@ def reconcile(props, warn=True):
     real_max = max_id(props)
     cur = props.get(_OO_NEXT_ID)
     if not isinstance(cur, int) or cur < real_max:
-        props[_OO_NEXT_ID] = real_max
+        with write_guard("id_reconcile"):
+            props[_OO_NEXT_ID] = real_max
         fixed = True
     # ★ 2026-10-26：缺 __id__ 和「撞号」是两类不同的坏法。
     #   撞号只是缓存覆盖；缺 id 会让客户端 ClientAvatar:init 直接断言失败（整号登不上）。

@@ -30,6 +30,7 @@ from typing import Any
 from shared.log_tee import get_logger
 
 from ... import gamedata
+from ...write_guard import write_guard
 from . import report
 from .errors import BAG_INVALID_ITEM_LIST, BagError
 
@@ -59,11 +60,13 @@ def _today() -> str:
 
 
 def _limits(props: dict[str, Any]) -> dict[str, Any]:
-    d = props.get(_LIMIT_KEY)
-    if not isinstance(d, dict):
-        d = {}
-        props[_LIMIT_KEY] = d
-    return d
+    #属性写入口，在这里开守卫（卡池上限缓存）。
+    with write_guard("_limits"):
+        d = props.get(_LIMIT_KEY)
+        if not isinstance(d, dict):
+            d = {}
+            props[_LIMIT_KEY] = d
+        return d
 
 
 def _limit_ok(props: dict[str, Any] | None, auto_id: int, limit: int | None) -> bool:

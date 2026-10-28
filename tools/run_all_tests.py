@@ -17,8 +17,12 @@ os.environ.setdefault(
     "OO_UNKNOWN_LOG",
     os.path.join(tempfile.mkdtemp(prefix="oo_test_ulog_"), "unknown_requests.tsv"))
 
+#测试要「造状态再验证」，造状态本来就该能直写属性（不是在走业务路径）。
+#守卫对生产代码仍然生效 ——这个开关只在这个测试运行器里设。
+os.environ["OO_ALLOW_PROPS_WRITE"] = "1"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SUMMARY = re.compile(r"\u901a\u8fc7 (\d+) \u9879\uff0c\u5931\u8d25 (\d+) \u9879")
+SUMMARY = re.compile(r"通过\s*(\d+)\s*项，失败\s*(\d+)\s*项")
 
 
 def main():

@@ -23,6 +23,7 @@ from typing import Any
 
 from shared.log_tee import get_logger
 
+from ...write_guard import write_guard
 from .. import factory
 
 _log = get_logger(__name__)
@@ -68,67 +69,69 @@ def _expired(value: Any, now: float) -> bool:  # noqa: ANN401 — 存档字段�
 
 
 def sweep(props: dict[str, Any], now: int | None = None) -> SweepResult:
-    """清理过期道具与装饰（直接改 props）。返回清理结果。"""
-    ts = _now(now)
-    res = SweepResult()
+    #属性写入口，在这里开守卫（过期清扫）。
+    with write_guard("sweep"):
+        """清理过期道具与装饰（直接改 props）。返回清理结果。"""
+        ts = _now(now)
+        res = SweepResult()
 
-    bag = props.get("item_bag")
-    if isinstance(bag, dict):
-        for key in [k for k in bag if not str(k).startswith("__")]:
-            grid = bag.get(key)
-            if not isinstance(grid, dict):
-                continue
-            if not _expired(grid.get("expireTime"), ts):
-                continue
-            rec = {"itemId": int(grid.get("itemId") or 0),
-                   "num": int(grid.get("num") or 0)}
-            del bag[key]
-            res.items.append(rec)
-            res.removed_grids.append(str(key))
-        if res.items:
-            hist = props.get(EXPIRED_ITEMS_KEY)
-            if not isinstance(hist, list):
-                hist = []
-            hist.extend(res.items)
-            props[EXPIRED_ITEMS_KEY] = hist[-MAX_EXPIRED_RECORDS:]
+        bag = props.get("item_bag")
+        if isinstance(bag, dict):
+            for key in [k for k in bag if not str(k).startswith("__")]:
+                grid = bag.get(key)
+                if not isinstance(grid, dict):
+                    continue
+                if not _expired(grid.get("expireTime"), ts):
+                    continue
+                rec = {"itemId": int(grid.get("itemId") or 0),
+                       "num": int(grid.get("num") or 0)}
+                del bag[key]
+                res.items.append(rec)
+                res.removed_grids.append(str(key))
+            if res.items:
+                hist = props.get(EXPIRED_ITEMS_KEY)
+                if not isinstance(hist, list):
+                    hist = []
+                hist.extend(res.items)
+                props[EXPIRED_ITEMS_KEY] = hist[-MAX_EXPIRED_RECORDS:]
 
-    for bag_name, ftype in FASHION_BAGS.items():
-        fbag = props.get(bag_name)
-        if not isinstance(fbag, dict):
-            continue
-        for key in [k for k in fbag if not str(k).startswith("__")]:
-            entry = fbag.get(key)
-            if not isinstance(entry, dict):
+        for bag_name, ftype in FASHION_BAGS.items():
+            fbag = props.get(bag_name)
+            if not isinstance(fbag, dict):
                 continue
-            if not _expired(entry.get("expiration_time"), ts):
-                continue
-            del fbag[key]
-            res.fashion_ids.setdefault(ftype, []).append(int(key))
-            # 记录到 expired_fashions[type][id] = now（客户端读这个展示"已过期"）
-            #
-            # ★ 2026-10-27 实机踩坑：expired_fashions 的值类型是 IntDictKeyInt
-            #   —— 它是**自定义字典**，客户端 roinit 会 assert(__id__ ~= nil)。
-            #   之前这里直接塞了裸 dict，登录快照缺 __id__ -> 客户端 ClientAvatar:init 崩。
-            #   所以内层必须用 factory.new_instance 建（带 __tp__/__id__）。
-            ef = props.get("expired_fashions")
-            if not isinstance(ef, dict):
-                ef = factory.new_instance(props, "IntDictDictKeyInt")
-                props["expired_fashions"] = ef
-            slot = ef.get(ftype)
-            if not isinstance(slot, dict) or not slot.get("__id__"):
-                old = dict(slot) if isinstance(slot, dict) else {}
-                old.pop("__tp__", None)
-                old.pop("__id__", None)
-                slot = factory.new_instance(props, "IntDictKeyInt")
-                for k2, v2 in old.items():
-                    slot[k2] = v2
-                ef[ftype] = slot
-            slot[int(key)] = int(ts)
+            for key in [k for k in fbag if not str(k).startswith("__")]:
+                entry = fbag.get(key)
+                if not isinstance(entry, dict):
+                    continue
+                if not _expired(entry.get("expiration_time"), ts):
+                    continue
+                del fbag[key]
+                res.fashion_ids.setdefault(ftype, []).append(int(key))
+                # 记录到 expired_fashions[type][id] = now（客户端读这个展示"已过期"）
+                #
+                # ★ 2026-10-27 实机踩坑：expired_fashions 的值类型是 IntDictKeyInt
+                #   —— 它是**自定义字典**，客户端 roinit 会 assert(__id__ ~= nil)。
+                #   之前这里直接塞了裸 dict，登录快照缺 __id__ -> 客户端 ClientAvatar:init 崩。
+                #   所以内层必须用 factory.new_instance 建（带 __tp__/__id__）。
+                ef = props.get("expired_fashions")
+                if not isinstance(ef, dict):
+                    ef = factory.new_instance(props, "IntDictDictKeyInt")
+                    props["expired_fashions"] = ef
+                slot = ef.get(ftype)
+                if not isinstance(slot, dict) or not slot.get("__id__"):
+                    old = dict(slot) if isinstance(slot, dict) else {}
+                    old.pop("__tp__", None)
+                    old.pop("__id__", None)
+                    slot = factory.new_instance(props, "IntDictKeyInt")
+                    for k2, v2 in old.items():
+                        slot[k2] = v2
+                    ef[ftype] = slot
+                slot[int(key)] = int(ts)
 
-    if res:
-        _log.info("[bag] 过期清理：道具 %d 个、装饰 %d 个",
-                  len(res.items), sum(len(v) for v in res.fashion_ids.values()))
-    return res
+        if res:
+            _log.info("[bag] 过期清理：道具 %d 个、装饰 %d 个",
+                      len(res.items), sum(len(v) for v in res.fashion_ids.values()))
+        return res
 
 
 def expired_items(props: dict[str, Any]) -> list[dict[str, int]]:

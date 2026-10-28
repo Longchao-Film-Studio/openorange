@@ -13,6 +13,7 @@ from shared.log_tee import get_logger
 
 from .. import gamedata
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import write_guard
 from .tx import Tx as _Tx
 
 _log = get_logger(__name__)
@@ -72,51 +73,53 @@ _USE_PARAM_PROP = {
 
 
 def _apply_item_effect(st, item_id, count):
-    """应用 ItemData 里声明的道具效果，返回 [(属性名, 新值)]。
+    #属性写入口，在这里开守卫（道具效果）。
+    with write_guard("_apply_item_effect"):
+        """应用 ItemData 里声明的道具效果，返回 [(属性名, 新值)]。
 
-    目前只支持 useType == "avatarAttr" 的简单计数器（时砂/龙玉/经验）。
-    其它类型（randomItem / char / charSkin / item / selectItem ...）需要
-    各自的发放逻辑，属于阶段 2/3 的活。
-    """
-    try:
-        from .. import gamedata
-    except Exception:
-        return []
-    use_type = gamedata.item_use_type(item_id)
-    if use_type != "avatarAttr":
-        return []
-    params = gamedata.item_use_param(item_id) or {}
-    out = []
-    for pk, pv in params.items():
-        prop = _USE_PARAM_PROP.get(pk)
-        if prop is None:
-            continue
+        目前只支持 useType == "avatarAttr" 的简单计数器（时砂/龙玉/经验）。
+        其它类型（randomItem / char / charSkin / item / selectItem ...）需要
+        各自的发放逻辑，属于阶段 2/3 的活。
+        """
         try:
-            amount = int(pv) * int(count)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
-            continue
-        if amount <= 0:
-            continue
-        if prop == "tower_reward_keys":
-            # 体力有上限，走 stamina 模块（会同时更新两个恢复时间戳）
-            try:
-                from .. import stamina as stamina_mod
-                lv = int(st.props.get("level") or 1)
-                stamina_mod.add(st.props, amount, lv)
-                out.append((prop, st.props.get(prop)))
-                out.append((stamina_mod.PROP_NEXT, st.props.get(stamina_mod.PROP_NEXT)))
-                out.append((stamina_mod.PROP_TOTAL, st.props.get(stamina_mod.PROP_TOTAL)))
+            from .. import gamedata
+        except Exception:
+            return []
+        use_type = gamedata.item_use_type(item_id)
+        if use_type != "avatarAttr":
+            return []
+        params = gamedata.item_use_param(item_id) or {}
+        out = []
+        for pk, pv in params.items():
+            prop = _USE_PARAM_PROP.get(pk)
+            if prop is None:
                 continue
-            except Exception as e:
-                _log.warning(f"[item] 体力加算失败: {e}")
-        cur = st.props.get(prop)
-        if not isinstance(cur, (int, float)):
-            continue
-        st.props[prop] = cur + amount
-        out.append((prop, st.props[prop]))
-    return out
+            try:
+                amount = int(pv) * int(count)
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+                continue
+            if amount <= 0:
+                continue
+            if prop == "tower_reward_keys":
+                # 体力有上限，走 stamina 模块（会同时更新两个恢复时间戳）
+                try:
+                    from .. import stamina as stamina_mod
+                    lv = int(st.props.get("level") or 1)
+                    stamina_mod.add(st.props, amount, lv)
+                    out.append((prop, st.props.get(prop)))
+                    out.append((stamina_mod.PROP_NEXT, st.props.get(stamina_mod.PROP_NEXT)))
+                    out.append((stamina_mod.PROP_TOTAL, st.props.get(stamina_mod.PROP_TOTAL)))
+                    continue
+                except Exception as e:
+                    _log.warning(f"[item] 体力加算失败: {e}")
+            cur = st.props.get(prop)
+            if not isinstance(cur, (int, float)):
+                continue
+            st.props[prop] = cur + amount
+            out.append((prop, st.props[prop]))
+        return out
 
-# 索引 -> 处理函数。没列进来的走通用 ACK。
+    # 索引 -> 处理函数。没列进来的走通用 ACK。
 def _submit_item(rid, params, uid=None):
     """SubmitItem_CS —— 提交道具，发 SubmitItem 事件（覆盖 15 条剧情任务）。
 

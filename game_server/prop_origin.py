@@ -72,6 +72,8 @@ import copy
 from collections.abc import Callable
 from typing import Any
 
+from .write_guard import write_guard
+
 #: 存档结构版本。**stored 类新增属性时必须 +1。**
 #:
 #: 历史：
@@ -368,31 +370,33 @@ _RECOMPUTERS: tuple[Callable[[Any], dict], ...] = (
 
 
 def recompute(st: Any) -> dict:  # noqa: ANN401
-    """跑全部派生函数，把结果**一次性**写回 st.props，返回改动集合。
+    #属性写入口，在这里开守卫（派生重算）。
+    with write_guard("recompute"):
+        """跑全部派生函数，把结果**一次性**写回 st.props，返回改动集合。
 
-    ★ 这是 derived 属性的唯一写入口（INV-C）。
-      既有派生函数（recalc_system_unlocks / sync_story_* / protagonist.ensure）
-      的签名要 st，它们的副作用被这里收拢成统一的写回，调用点不需要知道。
+        ★ 这是 derived 属性的唯一写入口（INV-C）。
+          既有派生函数（recalc_system_unlocks / sync_story_* / protagonist.ensure）
+          的签名要 st，它们的副作用被这里收拢成统一的写回，调用点不需要知道。
 
-    幂等：跑两次，第二次返回空字典。
-    """
-    changed: dict = {}
-    for fn in _RECOMPUTERS:
-        with contextlib.suppress(Exception):
-            res = fn(st)
-            if isinstance(res, dict):
-                changed.update(res)
-    # ★ 只在「值真的变了」时才写回并上报。
-    #   不这样做的后果：_derive_levelup_awards 每次都新建一个 dict，
-    #   即使内容相同，引用也不同 -> changed 非空 -> 幂等性测试红，
-    #   而且每次登录都会多出一条「派生属性重算」日志（噪音淹没真正的变化）。
-    applied: dict = {}
-    for name, val in changed.items():
-        if st.props.get(name) == val:
-            continue
-        st.props[name] = val
-        applied[name] = val
-    return applied
+        幂等：跑两次，第二次返回空字典。
+        """
+        changed: dict = {}
+        for fn in _RECOMPUTERS:
+            with contextlib.suppress(Exception):
+                res = fn(st)
+                if isinstance(res, dict):
+                    changed.update(res)
+        # ★ 只在「值真的变了」时才写回并上报。
+        #   不这样做的后果：_derive_levelup_awards 每次都新建一个 dict，
+        #   即使内容相同，引用也不同 -> changed 非空 -> 幂等性测试红，
+        #   而且每次登录都会多出一条「派生属性重算」日志（噪音淹没真正的变化）。
+        applied: dict = {}
+        for name, val in changed.items():
+            if st.props.get(name) == val:
+                continue
+            st.props[name] = val
+            applied[name] = val
+        return applied
 
 
 def filter_for_save(props: dict) -> dict:
@@ -416,44 +420,46 @@ def filter_for_save(props: dict) -> dict:
 
 
 def migrate_schema(st: Any) -> int:  # noqa: ANN401
-    """老存档补齐 stored 类新增的 key（只加不删）。返回补了几个。
+    #属性写入口，在这里开守卫（存档迁移）。
+    with write_guard("migrate_schema"):
+        """老存档补齐 stored 类新增的 key（只加不删）。返回补了几个。
 
-    ★ 只补 stored 类: derived / ephemeral 不该在存档里，补了反而制造 INV-C 违规。
-    ★ 只加不删: 多出来的 key（下线的属性）留着无害，删了会丢数据。
+        ★ 只补 stored 类: derived / ephemeral 不该在存档里，补了反而制造 INV-C 违规。
+        ★ 只加不删: 多出来的 key（下线的属性）留着无害，删了会丢数据。
 
-    ★★ 这里有一个实测踩过的陷阱（2026-10-28，test_shadow_cache 抓到）：
-      **不能因为 `schema` 已经是当前版本就跳过补全。**
+        ★★ 这里有一个实测踩过的陷阱（2026-10-28，test_shadow_cache 抓到）：
+          **不能因为 `schema` 已经是当前版本就跳过补全。**
 
-      B 类派生属性不进存档，所以「存档里没有 levelup_awards」是**正常状态**，
-      而每次登录都需要它先在内存里有一份带 `__tp__` 的空壳，再由 recompute 填内容。
-      如果补全被 schema 挡住，重登后 `levelup_awards` 就整个不存在，
-      客户端 initProperty 读到「表但没有 __tp__」直接 assert 崩。
+          B 类派生属性不进存档，所以「存档里没有 levelup_awards」是**正常状态**，
+          而每次登录都需要它先在内存里有一份带 `__tp__` 的空壳，再由 recompute 填内容。
+          如果补全被 schema 挡住，重登后 `levelup_awards` 就整个不存在，
+          客户端 initProperty 读到「表但没有 __tp__」直接 assert 崩。
 
-      结论：**幂等性由「key 已存在就不动」保证，不由 schema 保证。**
-             schema 只用来判断「要不要打迁移日志」，不用来判断「要不要补」。
-    """
-    cur = getattr(st, "schema", 0) or 0
-    n = 0
-    for name in stored_props():
-        if name in st.props:
-            continue
-        try:
-            st.props[name] = template_value(name)
-        except KeyError:
-            continue
-        n += 1
-    # derived / ephemeral 也要有壳：它们不进存档，但**必须进内存**，
-    # 否则 recompute / materialize 没有基线可写，快照里就会出现缺属性。
-    for name in derived_props() + ephemeral_props():
-        if name in st.props:
-            continue
-        try:
-            st.props[name] = template_value(name)
-        except KeyError:
-            continue
-    if cur < SAVE_SCHEMA:
-        st.schema = SAVE_SCHEMA
-    return n
+          结论：**幂等性由「key 已存在就不动」保证，不由 schema 保证。**
+                 schema 只用来判断「要不要打迁移日志」，不用来判断「要不要补」。
+        """
+        cur = getattr(st, "schema", 0) or 0
+        n = 0
+        for name in stored_props():
+            if name in st.props:
+                continue
+            try:
+                st.props[name] = template_value(name)
+            except KeyError:
+                continue
+            n += 1
+        # derived / ephemeral 也要有壳：它们不进存档，但**必须进内存**，
+        # 否则 recompute / materialize 没有基线可写，快照里就会出现缺属性。
+        for name in derived_props() + ephemeral_props():
+            if name in st.props:
+                continue
+            try:
+                st.props[name] = template_value(name)
+            except KeyError:
+                continue
+        if cur < SAVE_SCHEMA:
+            st.schema = SAVE_SCHEMA
+        return n
 
 
 def missing_props(props: dict) -> list[str]:

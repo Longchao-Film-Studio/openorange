@@ -4,7 +4,7 @@
 ## 这个模块凭什么存在
 
 以前 `level` 和 `exp` 是**任何人都能直接写**的普通根属性：
-管理接口 `admin_api._grant_player` 直接 `st.props["level"] = lv`，
+管理接口 admin_api._grant_player直接写 level属性，
 没有任何地方管「经验够不够」「升级奖励领过没有」。
 于是「等级能升」这件事根本不存在——客户端点了没反应，服务端也没有裁判。
 

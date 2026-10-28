@@ -162,7 +162,10 @@ def live_init_dict(uid=None):
       同一账号重连竞态时和 RPC 并发会互相覆盖，所以入口统一加锁。
     """
     from .. import player_state as _pstate
-    with _pstate.lock_for(uid):
+    from ..write_guard import write_guard
+    #登录初始化是「建新号 /补派生 /跨天重置」的集中地，本来就不该发同步帧；
+    #在这里统一开守卫，而不是让每个 _stage_xxx自己去开（漏一个就是一个坑）。
+    with _pstate.lock_for(uid), write_guard("login_init"):
         return _live_init_dict_impl(uid)
 
 
