@@ -18,11 +18,9 @@
 from shared.log_tee import get_logger
 
 from .. import gamedata
-from .. import ms as msmod
 from ..property import ids as _ids
-from ..property import sync as _sync
 from ..property import tx as _tx
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..rpc_common import decode_params, respond_after_sync, state
 from .info import _street_info_of
 
 _log = get_logger(__name__)
@@ -51,28 +49,25 @@ def _prestige_info(st, street_id=None):
         entry["prestige_street_id"] = street_id
     return si, entry, street_id, is_new
 
-def _prestige_push(st, si, street_id, entry, is_new=False):
+def _prestige_push(st, street_id, entry):
     """推 StreetInfo 条目。新建的用 OP_ADD（否则客户端 oldVal nil 崩）。
 
     is_new 由 _prestige_info 显式返回（审计 P0-4：不再用 entry 上的临时字段）。
     """
+    #新建和改已有条目都走同一个 Tx：OP_ADD / OP_CHANGE由「键在不在容器里」决定。
+    #
+    #以前 is_new分支单独手工发 OP_ADD并 strip_private剥嵌套 __tp__，是为了绕开
+    #「整对象换值会把嵌套 __tp__也带过去」的问题；现在统一由 Tx处理，
+    #两条路径合并成一条，少一个会分叉的地方。
     tx = _tx.Tx(st.props)
-    if is_new:
-        # 新条目：显式 OP_ADD，值剥掉嵌套 __tp__（审计 P0-1）
-        value = _sync.strip_private(entry, is_root=False)
-        return [sync_frame(
-            SYNC_SELF, (si.get("__id__") or 0), msmod.OP_ADD, str(street_id), value)]
     tx.set(("street_info", street_id), entry)
     return tx.frames()
 
-def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
+def _apply_prestige_exp(st, si, entry, street_id, add, save=True):
     """给某街区加声望经验并处理升级，返回同步帧。
 
     宝箱奖励（StreetTreasureTaskData.AwardAttr.prestige_exp）和
     声望 RPC（RequestAddPrestigeExp_CS）共用这段逻辑。
-
-    is_new 由调用方的 _prestige_info 返回（审计 P0-4：不能靠 entry 上的临时字段，
-    因为调用方是先 save 再 push，临时字段会被写进存档）。
     """
     frames = []
     if add <= 0 or entry is None:
@@ -98,7 +93,7 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True, is_new=False):
     if save:
         st.save()
     _log.info(f"[street] 声望 +{add} -> level={lv} exp={exp}")
-    frames.extend(_prestige_push(st, si, street_id, entry, is_new))
+    frames.extend(_prestige_push(st, street_id, entry))
     return frames
 
 # 公开入口（供背包效果等其它领域调用；内部实现仍是 _apply_prestige_exp/_prestige_info）
@@ -118,11 +113,11 @@ def _add_prestige_exp(rid, params, uid=None):
     if add <= 0:
         return respond_after_sync(rid, [])
     st = state(uid)
-    si, entry, street_id, _is_new = _prestige_info(st)
+    si, entry, street_id = _prestige_info(st)[:3]
     if entry is None:
         return respond_after_sync(rid, [])
     syncs = _apply_prestige_exp(st, si, entry, street_id, add,
-                                is_new=_is_new)
+                               )
     return respond_after_sync(rid, syncs)
 
 def _get_prestige_award(rid, params, uid=None):
@@ -136,14 +131,14 @@ def _get_prestige_award(rid, params, uid=None):
     except Exception:
         return respond_after_sync(rid, [])
     st = state(uid)
-    si, entry, sid, _is_new = _prestige_info(st, street_id)
+    si, entry, sid = _prestige_info(st, street_id)[:3]
     if entry is None:
         return respond_after_sync(rid, [])
     entry["prestige_awarded"][level] = 1
     st.set("street_info", si)
     st.save()
     _log.info(f"[street] 领声望奖励 street={street_id} level={level}")
-    syncs = _prestige_push(st, si, sid, entry, _is_new)
+    syncs = _prestige_push(st, sid, entry)
     return respond_after_sync(rid, syncs)
 
 def _get_prestige_task_award(rid, params, uid=None):
@@ -157,12 +152,12 @@ def _get_prestige_task_award(rid, params, uid=None):
     except Exception:
         return respond_after_sync(rid, [])
     st = state(uid)
-    si, entry, sid, _is_new = _prestige_info(st, street_id)
+    si, entry, sid = _prestige_info(st, street_id)[:3]
     if entry is None:
         return respond_after_sync(rid, [])
     entry["prestige_tasks"][task_id] = 1
     st.set("street_info", si)
     st.save()
     _log.info(f"[street] 领声望任务奖励 street={street_id} task={task_id}")
-    syncs = _prestige_push(st, si, sid, entry, _is_new)
+    syncs = _prestige_push(st, sid, entry)
     return respond_after_sync(rid, syncs)

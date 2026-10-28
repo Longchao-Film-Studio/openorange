@@ -21,7 +21,7 @@ from shared.log_tee import get_logger
 from .. import config as ooconf
 from .. import entity_rpc as erpc
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF
+from ..property.tx import Tx
 from . import accounts, online
 from .net import maybe_hexdump
 
@@ -182,15 +182,18 @@ def _on_heartbeat(cid):
             with _pstate.lock_for(uid):
                 st = erpc.state(uid)
                 lv = int(st.props.get("level") or 1)
+                _props_ref = (stamina_mod.PROP_KEYS, stamina_mod.PROP_NEXT, stamina_mod.PROP_TOTAL)
+                #先把旧值记下来：apply_recovery是就地改 props的，改完 Tx就看不到差异了。
+                _before = {p: st.props.get(p) for p in _props_ref}
                 gained, _ = stamina_mod.apply_recovery(st.props, lv)
                 if gained:
                     st.save()
-                    for prop in (stamina_mod.PROP_KEYS, stamina_mod.PROP_NEXT,
-                                 stamina_mod.PROP_TOTAL):
-                        # ★ 走统一入口 _sync_frame（剥私有键 + name 转 str）
-                        frames.append(erpc.sync_frame(
-                            SYNC_SELF, 0, msmod.OP_CHANGE, prop,
-                            st.props.get(prop)))
+                    #帧由 Tx产生：拿旧值和新值建变更，不手工拼 sync_frame。
+                    _tx = Tx(st.props)
+                    for _p in _props_ref:
+                        if _before.get(_p) != st.props.get(_p):
+                            _tx.set((_p,), st.props.get(_p))
+                    frames.extend(_tx.frames())
                     keys_now = st.props.get(stamina_mod.PROP_KEYS)
             online.send(cid, frames)
             if gained:

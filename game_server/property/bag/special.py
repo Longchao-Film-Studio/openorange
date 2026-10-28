@@ -29,13 +29,13 @@ def add_prestige_exp(props: dict[str, Any], street_id: int, exp: int) -> list[by
     from ...street import prestige
 
     st = _shim(props)
-    si, entry, sid, is_new = prestige.prestige_info_of(st, street_id)
+    si, entry, sid = prestige.prestige_info_of(st, street_id)[:3]
     if entry is None:
         report.note("prestige", street_id, "street_info 里没有该街区")
         _log.warning("[bag] 街头 %s 不在 street_info，声望道具未生效", street_id)
         return []
     # prestige 模块还没类型注解（旧代码），这里显式收窄返回类型
-    return list(cast("list[bytes]", prestige.apply_prestige_exp(st, si, entry, sid, exp, save=False, is_new=is_new)))
+    return list(cast("list[bytes]", prestige.apply_prestige_exp(st, si, entry, sid, exp, save=False)))
 
 
 def add_char_favor(props: dict[str, Any], char_id: int, exp: int, popularity: int) -> list[bytes]:

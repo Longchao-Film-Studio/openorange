@@ -362,7 +362,7 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
             st, story.mark_story_task_finished(st, tid, now)))
         # 发奖励（新格子用 OP_ADD，已有格子用 OP_CHANGE）
         for award in story.story_award(st, tid):
-            _item_id, _cnt, grid_key, is_new = award
+            _item_id, _cnt, grid_key, _is_new = award
             # ★ P0-D：服务端发 GetItem 事件（审计 P0-2：
             #   客户端只在 6 个 firstObtainNotice 道具首次获取时才发
             #   RecordItemObtain_CS，任务要的 701/118 永远等不到 RPC，
@@ -375,9 +375,13 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
                 break
             grid = bag.get(grid_key)
             if isinstance(grid, dict):
+                # ★这里必须手工发 OP_ADD：story_award内部已经把格子写进 props，
+                # Tx此刻看到的是「键已存在」，只会发 OP_CHANGE ->客户端 oldVal nil崩。
+                # is_new是 story_award从 add_item拿到的唯一新增标记，
+                #丢了就没有别的办法区分「新增」和「修改」，所以这条路径保留手工分流。
                 frames.append(sync_frame(
                     SYNC_SELF, bag.get("__id__") or 0,
-                    msmod.OP_ADD if is_new else msmod.OP_CHANGE,
+                    msmod.OP_ADD if _is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
         frames.extend(_story_sync_frames(
             st, story.archive_story_task(st, tid, now)))

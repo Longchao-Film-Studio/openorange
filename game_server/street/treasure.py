@@ -71,10 +71,10 @@ def _grant_treasure_reward(st, tid):
             exp = 0
     if exp > 0:
         target = int(sid) if sid else int(st.props.get("street_id") or 0)
-        si2, entry2, s2, _n2 = _prestige_info(st, target)
+        si2, entry2, s2, _n2_unused = _prestige_info(st, target)
         if entry2 is not None:
             frames.extend(_apply_prestige_exp(
-                st, si2, entry2, s2, exp, save=False, is_new=_n2))
+                st, si2, entry2, s2, exp, save=False))
     return frames
 
 def _touch_treasure(params, uid=None):
