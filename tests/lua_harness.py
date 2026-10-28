@@ -83,8 +83,11 @@ _G.G = { timemgr = {
 -- 基础设施白名单自动替身：客户端会 require 一些 C 扩展（bson/cjson/socket…）。
 -- 只对白名单生效，GameCommon/Entities/Core 这些被测模块缺一个都必须报错 ——
 -- 不能因为自动替身把真正的缺失盖住。
+-- pb（protobuf 的 C 扩展）是 PuppetPropertyComponent 经 Core.Common.CommonRepo 间接要的，
+-- 客户端里它是 C 模块，测试环境没有，解包后也用不到（我们只测属性解析）。
 local AUTO_STUB = { bson = true, cjson = true, socket = true, ["UnityEngine"] = true,
-                    ["System"] = true, ["dp"] = true, ["lfs"] = true }
+                    ["System"] = true, ["dp"] = true, ["lfs"] = true,
+                    ["pb"] = true, ["protoc"] = true }
 local function _stub_table()
   return setmetatable({}, { __index = function(t, k)
     local f = function() return nil end

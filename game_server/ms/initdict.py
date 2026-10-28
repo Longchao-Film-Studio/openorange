@@ -10,7 +10,6 @@
   3. 新号的剧情起点（StoryTask 1000 设为 Doing）也在这里落，不在脚手架里 ——
      街景 NPC 的 preTask 命中 Doing(3) 才会出现。
 """
-import contextlib
 import json
 import os
 
@@ -170,25 +169,32 @@ def live_init_dict(uid=None):
 def _live_init_dict_impl(uid=None):
     """登录时的 initDict 用服务端可变状态（player_state）。
 
-    2026-10-25 拆分：原 241 行/复杂度 39 的单函数按初始化阶段拆成 13 个
-    _stage_xxx，本函数只按原顺序调用。每个阶段的函数体与原片段逐行一致，
-    顺序不变 => 行为等价（tests 全量验证）。
+    2026-10-25 拆分：原 241 行/复杂度 39 的单函数按初始化阶段拆成 _stage_xxx。
+
+    ★ 2026-10-28 收敛（A/B/C 契约，见 game_server/prop_origin.py）：
+      以前这里挂着 5 个「给老存档补东西」的 stage（street_pos / chapter_attrs /
+      level_selfheal / hero_by_gender / recalc_unlocks），每个都是补丁。
+      现在它们合并成两个：
+
+          _stage_schema    A 类迁移（老存档缺 stored key 时补）
+          _stage_derived   B 类重算（派生属性一律不存盘，每次现算）
+
+      剩下的是「生成游戏内容」和「时间逻辑」，不属于属性来源问题，保持原样。
     """
     st = _stage_boot(uid)
     if st is None:
         return DEFAULT_INIT_DICT
     _stage_scaffold(st, uid)
-    _stage_street_pos(st)
     _stage_story_seed(st)
     _stage_street_info(st)
-    _stage_hero_by_gender(st)
     _stage_daily_reset(st)
     _stage_task_seed(st)
-    _stage_chapter_attrs(st)
     _stage_stamina(st, uid)
-    _stage_level_selfheal(st)
     _stage_login_tick(st)
-    _stage_recalc_unlocks(st)
+    # ★ 顺序是判据的一部分：先补齐原始数据（A），再算派生值（B）。
+    #   反过来会让派生用旧数据算，结果下次登录才对。
+    _stage_schema(st)
+    _stage_derived(st)
     return _stage_public_snapshot(st)
 
 
@@ -247,31 +253,6 @@ def _stage_scaffold(st, uid=None):
                 _log.warning(f"[init] 脚手架应用失败: {e}")
         st.scaffold_applied = True
 
-
-def _stage_street_pos(st):
-    """位置持久化 -> street_pos_info。"""
-    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
-    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点。
-    #   数据来源是 entity_rpc 的 _update_street_pos / _client_move
-    #   存下的 _oo_street_pos。
-    # ★ 位置持久化：把上次上报的位置写回 street_pos_info。
-    #   street_pos_info 的类型是 DoubleDict（Dict<string,double>），
-    #   客户端 streetsystemmgrbase.lua:561-566 读它恢复出生点：
-    #     local posinfo = obj:getStreetPosInfo()
-    #     if posinfo and posinfo.x then remotePosInfo = copy(posinfo) end
-    #   :654 用 remotePosInfo.x/y/z 定位、.dir 定朝向。
-    _sp = st.props.get("_oo_street_pos")
-    if isinstance(_sp, dict):
-        _spi = st.props.get("street_pos_info")
-        if isinstance(_spi, dict):
-            with contextlib.suppress(Exception):
-                _spi["x"] = float(_sp.get("x") or 0)
-                _spi["y"] = float(_sp.get("y") or 0)
-                _spi["z"] = float(_sp.get("z") or 0)
-                _spi["dir"] = float(_sp.get("dir") or 0)
-                st.props["street_pos_info"] = _spi
-
-
 def _stage_story_seed(st):
     """剧情任务播种（幂等）。"""
     # ★ 剧情任务播种（每次登录都跑，幂等）。
@@ -319,21 +300,6 @@ def _stage_street_info(st):
     except Exception as e:
         _log.warning(f"[init] street_info 条目补齐失败: {e}")
 
-
-def _stage_hero_by_gender(st):
-    """登录自愈：只保留与 gender 一致的那一个主角。
-
-    · gender=1 -> 只留男主角，gender=2 -> 只留女主角；
-    · gender=0（还没取名）-> 一个主角都不留（新号语义）；
-    · 旧存档里的「男女双主角」会在这里被清理，编队/choosen 一起对齐。
-    登录阶段不需要帧：改动直接进初始快照。
-    """
-    try:
-        from .. import protagonist as _prot
-        _prot.ensure(st, st.props.get("gender"))
-    except Exception as e:
-        _log.warning(f"[init] 主角自愈失败: {e}")
-
 def _stage_daily_reset(st):
     """跨天重置（每日任务/头衔）。"""
     # ★ P1 阶段 N-d：跨天重置（每日任务 / 头衔日常）。
@@ -368,23 +334,6 @@ def _stage_task_seed(st):
     except Exception as e:
         _log.warning(f"[init] 通用任务播种失败: {e}")
 
-
-def _stage_chapter_attrs(st):
-    """章节收集数/奖励列表补全。"""
-    # ★ P1 阶段 G：章节收集数 / 奖励列表补全（登录时推一次）。
-    #   客户端 avatarstorylinecomp.lua:97-107 读这三个属性，
-    #   以前服务端从来不写 -> 章节 UI 的收集进度/奖励状态恒为空。
-    with contextlib.suppress(Exception):
-        from .. import story as _story_mod
-        try:
-            _sl = _story_mod.sync_story_max_collect_num(st)
-            _sl += _story_mod.sync_story_reward_list(st)
-            if _sl:
-                _log.info(f'[init] 章节属性补全 {len(_sl)} 项')
-        except Exception as e:
-            _log.warning(f"[init] 章节属性补全失败: {e}")
-
-
 def _stage_stamina(st, uid=None):
     """体力初始化/离线恢复。"""
     # ★ 体力：新号拉满；每次登录按离线时间补。
@@ -412,64 +361,51 @@ def _stage_stamina(st, uid=None):
         except Exception as e:
             _log.warning(f"[init] 体力处理失败: {e}")
 
+def _stage_derived(st):
+    """**全部派生属性的唯一入口**（A/B/C 契约的 B 类）。
 
-def _stage_level_selfheal(st):
-    """H3 登录自愈：把 levelup_awards 补齐成客户端红点能认的形状。
+    ★ 2026-10-28 收敛：以前这里是 4 个各自为政的补丁函数 ——
+        _stage_level_selfheal   补 levelup_awards
+        _stage_recalc_unlocks   补 system_p.unlocked_system
+        _stage_chapter_attrs    补 story_max_collect_num / story_reward_list
+        _stage_street_pos       补 street_pos_info
+        _stage_hero_by_gender   补 character_choosen_char
+      它们的形状完全一样（读存档 -> 发现缺/旧 -> 补上），只是各写了一遍。
+      现在统一走 prop_origin.recompute()，加新的派生属性只需要在
+      prop_origin 的 _RECOMPUTERS 里登记一条，不需要动本文件。
 
-    ★ 为什么在登录做（而不是只在升级时做）：
-      老存档（H3 之前创建的）`levelup_awards` 是空表，
-      客户端 avatarlevelcomp.lua:36-45 判的是 `awards[i] == 0` —— nil 不亮红点。
-      只在 upgrade() 里补，老存档要等到**下一次升级**才自愈；
-      而玩家可能已经在 30 级，还要再升一级才看得见奖励红点。
-
-    ★ 为什么**不**自动升级（哪怕 exp >= expNeed）：
-      升级是玩家行为（客户端面板刷新时主动调 RPC）。
-      服务端偷偷代升会让「经验够了但我不想升」变成不可能，
-      也会让升级动画/面板回调错乱。所以只打日志提示，不替玩家决定。
-
-    幂等：补过之后 ensure_award_slots 返回 0。
+    位置：必须在 _stage_public_snapshot 之前（结果直接进初始快照，不用推帧），
+          也在 _stage_login_tick 之后（先让事件总线推进剧情，再算解锁）。
     """
-    try:
-        from .. import level as _level_mod
-    except Exception as e:                       # noqa: BLE001
-        _log.warning("[init] 等级自愈跳过（import 失败）：%s", e)
-        return
-    try:
-        n = _level_mod.ensure_award_slots(st.props)
-        if n:
-            _log.info("[init] 等级奖励红点记录补齐 %s 条（老存档自愈）", n)
-    except Exception as e:                       # noqa: BLE001
-        _log.warning("[init] 等级奖励记录补齐失败：%s", e)
-    try:
-        lv = _level_mod.current_level(st.props)
-        if _level_mod.can_upgrade(st.props):
-            _log.info("[init] 玩家 %s 级经验已够（exp=%s >= %s），等客户端触发升级（不代升）",
-                      lv, _level_mod.current_exp(st.props), _level_mod.exp_need(lv))
-    except Exception as e:                       # noqa: BLE001
-        _log.warning("[init] 等级经验检查失败：%s", e)
+    from .. import prop_origin as _origin
+
+    changed = _origin.recompute(st)
+    if changed:
+        _log.info("[init] 派生属性重算 %d 项：%s", len(changed), "、".join(sorted(changed)))
+
+
+def _stage_schema(st):
+    """老存档补齐 stored 类新增的 key（A/B/C 契约的 A 类迁移）。
+
+    ★ 这是「加新属性后老存档也能走」的唯一入口。
+      以前每个新属性都要写一个 selfheal，现在只需要
+      prop_origin.SAVE_SCHEMA += 1。
+
+    只补 stored 类：derived / ephemeral 不该进存档，补了会制造两个产生者。
+    位置：必须在 _stage_derived 之前（先补齐原始数据，再算派生值）。
+    """
+    from .. import prop_origin as _origin
+
+    n = _origin.migrate_schema(st)
+    if n:
+        _log.info("[init] 存档升级到 schema %s：补了 %s 个属性（老存档迁移）",
+                  _origin.SAVE_SCHEMA, n)
 
 
 def _stage_login_tick(st):
     """登录时跑一次事件总线。"""
     # ★ P0-D：登录时跑一次事件总线（服务端主动推进，不再只在副本结算时求值）
     _login_tick(st)
-
-
-def _stage_recalc_unlocks(st):
-    """全量重算系统解锁。"""
-    # ★ roadmap 队列第 2 项：登录时**全量重算系统解锁**。
-    #   为什么要在登录做：
-    #     - 玩家离线期间可能完成任务 / 升级，内存里的 unlocked_system 会落后；
-    #     - `recalc_system_unlocks` 是唯一写入口，登录补一次能自愈任何历史遗漏；
-    #     - 这里在快照构建之前，所以重算结果直接进 initDict，不需要推帧。
-    try:
-        from ..story.rpc import recalc_system_unlocks as _recalc_u
-        _uf = _recalc_u(st)
-        if _uf:
-            _log.info(f'[init] 系统解锁重算：{len(_uf)} 条（已进初始快照）')
-    except Exception as e:
-        _log.warning(f"[init] 系统解锁重算失败: {e}")
-
 
 def _stage_public_snapshot(st):
     """构建下发给客户端的 initDict（剥私有字段）。"""

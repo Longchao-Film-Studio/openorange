@@ -136,6 +136,8 @@ class PlayerState:
         self.property_seq = 0
         # 是否「本次新建」而不是从存档读出来的（见 get_state 注释）
         self.is_new = False
+        # 存档结构版本（0 = 没有版本号的老存档，见 prop_origin.migrate_schema）
+        self.schema = 0
 
     # ---- 读写 ----
     def get(self, name, default=None):
@@ -160,10 +162,25 @@ class PlayerState:
         return _ids.alloc_id(self.props)
 
     def to_dict(self):
+        """序列化成可写盘的 dict。
+
+        ★ 2026-10-28（A/B/C 契约）：写盘的 props **必须**先过 prop_origin.filter_for_save。
+          派生属性（levelup_awards / system_p / story_* / street_pos_info /
+          character_choosen_char）和临时属性（title_daily_task_cache / street_level_info）
+          **不许进存档** —— 它们每次登录现算。
+
+          为什么必须在这里过滤而不是「不往 props 里放」：
+          st.props 里本来就混着历史存档留下的旧值，只要 save 不过滤，
+          它们就会被写回去，下次登录又多一个「存档旧值」，
+          「同属性两个产生者」的问题永远治不好（INV-C）。
+        """
+        from . import prop_origin as _origin  # noqa: PLC0415
+
         with _LOCK:
             return {
                 "uid": self.uid,
-                "props": _keys_to_json(copy.deepcopy(self.props)),
+                "schema": self.schema,
+                "props": _keys_to_json(copy.deepcopy(_origin.filter_for_save(self.props))),
                 "property_seq": self.property_seq,
             }
 
@@ -174,6 +191,12 @@ class PlayerState:
             st.property_seq = int(d.get("property_seq") or 0)
         except Exception:
             st.property_seq = 0
+        # ★ 没有 schema 字段 = 这个存档早于 A/B/C 契约（2026-10-28）。
+        #   0 会让 prop_origin.migrate_schema 在登录时补全 stored 类新增的 key。
+        try:
+            st.schema = int(d.get("schema") or 0)
+        except Exception:
+            st.schema = 0
         return st
 
     # ---- 持久化 ----

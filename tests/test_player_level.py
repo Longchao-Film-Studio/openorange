@@ -256,30 +256,43 @@ def test_unlock():
 
 
 def test_selfheal():
-    print("\n[9] 登录自愈：老存档 awards 是空表也要补齐（不代升）")
-    from game_server.ms import initdict
+    print("\n[9] 登录派生：老存档 awards 是空表也要补齐（不代升）")
+    # ★ 2026-10-28 收敛：原来的 `_stage_level_selfheal` 已经删除，
+    #   所有派生属性统一走 `prop_origin.recompute()`（A/B/C 契约，
+    #   见 docs/方案-存档属性来源.md）。
+    #   这里保留**同等强度**的断言，只是换成新入口 —— 断言内容一个不少。
+    from game_server import prop_origin as origin
 
     st = fresh("lvheal")
     awards = st.props.get("levelup_awards")
     check("老存档 awards 里没有任何等级键",
           not any(isinstance(k, int) for k in (awards or {})), awards)
 
-    initdict._stage_level_selfheal(st)          # noqa: SLF001
+    # ★ 必须先把等级提到有奖励的级别，否则测的是空集合。
+    #   Lv1 在 LevelExpData 里没有 awardItem，1 级时 awards 本来就该是空的 ——
+    #   这不是「没补」，而是「没有可补的东西」。修之前这里断言 n > 0 是错的。
+    check("Lv1 本来就没有升级奖励（所以本段要先升到 Lv2）",
+          not level.award_of(1) and bool(level.award_of(2)),
+          (level.award_of(1), level.award_of(2)))
+    level.set_level(st, 2)
+    origin.recompute(st)
     awards2 = st.props.get("levelup_awards")
     n = sum(1 for k in awards2 if isinstance(k, int))
-    check("★ 自愈后补出了等级键（客户端红点判 == 0）", n > 0, n)
+    check("★ 派生后补出了等级键（客户端红点判 == 0）", n > 0, n)
     check("补的键值是 0（不是 1）",
           all(v == 0 for k, v in awards2.items() if isinstance(k, int)),
           {k: v for k, v in awards2.items() if isinstance(k, int)})
 
     n2 = level.ensure_award_slots(st.props)
-    check("自愈幂等（第二次补 0 个）", n2 == 0, n2)
+    check("派生幂等（第二次补 0 个）", n2 == 0, n2)
+    second = origin.recompute(st)
+    check("prop_origin.recompute 幂等（第二次无改动）", not second, second)
 
     # exp 够了也不许代升
     st.props["exp"] = 99999
     lv_before = st.props.get("level")
-    initdict._stage_level_selfheal(st)          # noqa: SLF001
-    check("★ 登录自愈不代玩家升级（exp 够了也不动 level）",
+    origin.recompute(st)
+    check("★ 登录派生不代玩家升级（exp 够了也不动 level）",
           st.props.get("level") == lv_before, st.props.get("level"))
 
 

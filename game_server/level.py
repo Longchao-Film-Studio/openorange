@@ -218,14 +218,14 @@ def ensure_award_slots(props: dict[str, Any]) -> int:
     if not isinstance(raw, dict):
         return 0
     added = 0
-    for lv_str in _award_levels():
+    for lv_str in award_levels():
         if lv_str not in raw:
             raw[lv_str] = 0
             added += 1
     return added
 
 
-def _award_levels() -> list[int]:
+def award_levels() -> list[int]:
     """所有「有升级奖励」的等级（LevelExpData.awardItem 非空）。"""
     table = gamedata.table("LevelExpData") or {}
     rows = table.values() if isinstance(table, dict) else table
