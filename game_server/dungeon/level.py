@@ -16,7 +16,8 @@ from shared.log_tee import get_logger
 
 from .. import gamedata
 from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..property.tx import Tx as _Tx
+from ..rpc_common import decode_params, respond_after_sync, state
 from ..rpc_index import ACK_OK
 from .context import _remember_dungeon
 
@@ -94,10 +95,9 @@ def _battle_teach_activate(rid, params, uid=None):
     # 记下本次副本激活过的教学指令 —— 结算时喂 instructionid（6 个事件需要）
     st.set("_oo_cur_teach", iid)
     if iid not in bts:
-        bts[iid] = 0
-        st.set("battle_teach_state", bts)
+        _tx = _Tx(st.props)
+        _tx.set(("battle_teach_state", iid), 0)
         st.save()
-        syncs.append(sync_frame(
-            SYNC_SELF, bts.get("__id__") or 0, msmod.OP_ADD, str(iid), 0))
+        syncs.extend(_tx.frames())
         _log.info(f"[dungeon] 激活战斗教学 {iid}")
     return respond_after_sync(rid, syncs)

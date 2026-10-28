@@ -12,8 +12,8 @@
 from shared.log_tee import get_logger
 
 from .. import gamedata
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..rpc_common import decode_params, respond_after_sync, state
+from .tx import Tx as _Tx
 
 _log = get_logger(__name__)
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
@@ -250,7 +250,6 @@ def consume_item(st, item_id, count):
     bag = st.get("item_bag")
     if not isinstance(bag, dict):
         return None
-    bag_id = bag.get("__id__") or 0
     need = int(count)
     # 先确认总量够
     owned = 0
@@ -262,6 +261,7 @@ def consume_item(st, item_id, count):
     if owned < need:
         return None
     frames = []
+    tx = _Tx(st.props)
     for gkey, grid in list(bag.items()):
         if need <= 0:
             break
@@ -275,7 +275,7 @@ def consume_item(st, item_id, count):
             continue
         grid["num"] = have - take
         need -= take
-        frames.append(sync_frame(
-            SYNC_SELF, bag_id, msmod.OP_CHANGE, str(gkey), grid))
+        tx.set(("item_bag", gkey), grid)
     st.set("item_bag", bag)
+    frames.extend(tx.frames())
     return frames

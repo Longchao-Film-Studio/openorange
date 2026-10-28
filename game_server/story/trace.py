@@ -35,8 +35,7 @@
 from shared.log_tee import get_logger
 
 from .. import gamedata
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, sync_frame
+from ..property.tx import Tx as _Tx
 
 _log = get_logger(__name__)
 
@@ -202,11 +201,11 @@ def apply(st, syncs=None, reason="", street_id=None, force_zero=False,
     old = _as_int(st.props.get(TRACE_KEY), 0) or 0
     tid = 0 if force_zero else resolve(st, street_id=street_id, mode=mode,
                                        manual_task=manual_task)
-    st.props[TRACE_KEY] = tid
-
-    # 3) 推帧（永远推）
+    # 3) 写值 + 推帧（永远推）—— 走 Tx，帧由变更集产生
+    _tx = _Tx(st.props)
+    _tx.set((TRACE_KEY,), tid)
     if syncs is not None:
-        syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE, TRACE_KEY, tid))
+        syncs.extend(_tx.frames())
 
     if old != tid or reason:
         _log.info("[trace] {}：{} -> {}（街区 {}，{}）".format(reason or "刷新", old, tid, _street_of(st, street_id), mode))

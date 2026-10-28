@@ -20,7 +20,8 @@ from shared.log_tee import get_logger
 
 from .. import ms as msmod
 from .. import story as story_mod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..property.tx import Tx as _Tx
+from ..rpc_common import decode_params, respond_after_sync, state
 from ..story import events as _events
 from ..story.rpc import finish_story_tasks
 from ..story.tasks import drain_event_task_sync
@@ -247,9 +248,9 @@ def _dungeon_finish(rid, params, uid=None):
     except Exception:
         to_street = 0
     if to_street and to_street != int(st.props.get("street_id") or 0):
-        st.props["street_id"] = to_street
-        syncs.append(sync_frame(
-            SYNC_SELF, 0, msmod.OP_CHANGE, "street_id", to_street))
+        _tx_st = _Tx(st.props)
+        _tx_st.set(("street_id",), to_street)
+        syncs.extend(_tx_st.frames())
     syncs.extend(_advance_story_on_finish(st, info, uid))
     st.props.pop("_oo_cur_copy", None)
     st.props.pop("_oo_cur_match", None)
@@ -283,13 +284,10 @@ def _storyline_finish_game(rid, params, uid=None):
         # ★ is_new 必须在赋值**之前**判断。
         #   审计发现：之前写成 `sf[sid] = True` 之后再判 `sid in sf`，
         #   恒为 True -> 新键永远发 OP_CHANGE -> 客户端 oldVal nil 报错、同步被丢。
-        is_new = sid not in sf
-        sf[sid] = True
-        st.set("story_finished", sf)
+        # OP_ADD / OP_CHANGE由 Tx判断（键在不在容器里），不再手工赋值+判 is_new
+        _tx_sf = _Tx(st.props)
+        _tx_sf.set(("story_finished", sid), True)
         st.save()
-        syncs.append(sync_frame(
-            SYNC_SELF, sf.get("__id__") or 0,
-            msmod.OP_ADD if is_new else msmod.OP_CHANGE,
-            str(sid), True))
+        syncs.extend(_tx_sf.frames())
     _log.info(f"[dungeon] 剧情段落 {sid} 完成")
     return respond_after_sync(rid, syncs)

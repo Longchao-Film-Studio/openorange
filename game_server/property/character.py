@@ -10,8 +10,8 @@ characterBag 结构（initDict 实测）：
 键在 conv_int_keys 之后是整数 9001；但 proto 的 name 字段是字符串，
 所以这里传 str(key)，客户端 _changeSubProperty 里会 tonumber 回来。
 """
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..rpc_common import decode_params, respond_after_sync, state
+from .tx import Tx as _Tx
 
 # ★ 不在这里 import story：story/__init__.py 要 import property.ids，
 #   模块级反向 import 会形成 property <-> story 双向依赖（审计 P1-1）。
@@ -193,7 +193,7 @@ def _upgrade_character(rid, params, uid=None):
     located = _upgrade_locate_bag(bag, char_id)
     if located is None:
         return _upgrade_failed(rid, syncs, errorcode=7009)  # Userdata_CharNotFound
-    bag_id, key, char = located
+    _bag_id, key, char = located
 
     max_level = _gd.char_max_level(key)
     old_level = _int_or(char.get("CharLevel") or 1, 1)
@@ -224,14 +224,16 @@ def _upgrade_character(rid, params, uid=None):
         return _upgrade_failed(rid, syncs, errorcode=15005)
     if new_level >= max_level:
         cur_exp = 0     # 满级经验清零（客户端 getCharacterCurExp 满级返回 needExp）
-    char["CharLevel"] = new_level
-    char["CharExp"] = cur_exp
-    st.set("characterBag", bag)
-
-    # ---- 5) 剧情/同步 ----
+    #新值写进副本再交给 Tx：Tx靠「新旧值是否相等」决定发不发帧，
+    #提前改 char本身会让新旧相等 ->帧丢失；但副本必须保留 __id__（否则客户端认不出是同一个角色）。
+    # char是 characterBag里的活引用，改副本不会影响它，Tx.set会把副本写回去。
+    char_new = dict(char)
+    char_new["CharLevel"] = new_level
+    char_new["CharExp"] = cur_exp
+    _tx = _Tx(st.props)
+    _tx.set(("characterBag", key), char_new)
     syncs.extend(_upgrade_emit_story(st, key, new_level, _events))
     st.save()
-    syncs.append(sync_frame(
-        SYNC_SELF, bag_id, msmod.OP_CHANGE, str(key), char))
+    syncs.extend(_tx.frames())
     return respond_after_sync(rid, syncs)
 

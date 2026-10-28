@@ -28,6 +28,7 @@ from shared.log_tee import get_logger
 
 from .. import gamedata, story
 from .. import ms as msmod
+from ..property.tx import Tx as _Tx
 from ..rpc_common import (
     EVENT_MAX_DEPTH,
     SYNC_SELF,
@@ -171,7 +172,6 @@ def recalc_system_unlocks(st):
     us = sp.get("unlocked_system")
     if not isinstance(us, dict):
         return frames
-    us_id = us.get("__id__") or 0
     added = []
     removed = []
     for row in gamedata.all_system_catalogue():
@@ -191,10 +191,15 @@ def recalc_system_unlocks(st):
             us.pop(sid, None)
             removed.append(sid)
     if added or removed:
+        #必须发 system_p.unlocked_system.<sid>这一层的子项帧，不能整体换 system_p：
+        #客户端回调注册在 config.lua:10328的 system_p.unlocked_system这个路径上，
+        #整体换根走的是 _changeRootProperty，回调不命中，客户端要重登才看到解锁。
+        # （test_unlock_sync守的就是这条）
         st.set("system_p", sp)
+        _tx = _Tx(st.props)
         for sid in added:
-            frames.append(sync_frame(
-                SYNC_SELF, us_id, msmod.OP_CHANGE, str(sid), True))
+            _tx.set(("system_p", "unlocked_system", sid), True)
+        frames.extend(_tx.frames())
         if added:
             _log.info(f"[story] 解锁系统 {added}")
         if removed:
