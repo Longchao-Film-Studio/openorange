@@ -360,25 +360,21 @@ def _stamina_frames(st: StateLike, level: int) -> list[bytes]:
     客户端 node_rogue_infogroup.lua:114-132 用两个时间戳显示「xx:xx:xx 后恢复满」；
     上限变了但时间戳不更新 => 显示的上限是旧的。
     """
-    from .rpc_common import SYNC_SELF, sync_frame
-
     props = st.props
     keys = _int_prop(props, stamina.PROP_KEYS, 0)
     cap = stamina.max_stamina(level)
-    frames: list[bytes] = []
+    tx = _tx.Tx(props)
     nxt = _int_prop(props, stamina.PROP_NEXT, 0)
     if keys >= cap:
         # 满了：两个时间戳都归 0（客户端据此显示「已满」）
         for name in (stamina.PROP_NEXT, stamina.PROP_TOTAL):
             if _int_prop(props, name, 0) != 0:
-                props[name] = 0
-                frames.append(sync_frame(SYNC_SELF, 0, _tx.OP_CHANGE, name, 0))
+                tx.set((name,), 0)
     elif nxt > 0:
         total = nxt + (cap - keys - 1) * stamina.refresh_sec()
         if _int_prop(props, stamina.PROP_TOTAL, 0) != total:
-            props[stamina.PROP_TOTAL] = total
-            frames.append(sync_frame(SYNC_SELF, 0, _tx.OP_CHANGE, stamina.PROP_TOTAL, total))
-    return frames
+            tx.set((stamina.PROP_TOTAL,), total)
+    return tx.frames()
 
 
 def grant_level_award(st: StateLike, level: int) -> AwardResult:
@@ -388,7 +384,6 @@ def grant_level_award(st: StateLike, level: int) -> AwardResult:
     已领过的重复请求**回成功但不再发道具**（客户端可能重复点）。
     """
     from .property.bag import grants as _grants
-    from .rpc_common import SYNC_SELF, sync_frame
 
     props = st.props
     try:
@@ -418,14 +413,9 @@ def grant_level_award(st: StateLike, level: int) -> AwardResult:
         else:
             _log.warning("[level] 等级 %s 奖励 %s 发放失败：%s", level, oc.item_id, oc.error)
 
-    awards = props.get(PROP_AWARDS)
-    if not isinstance(awards, dict):
-        awards = {"__id__": st.next_property_id()}
-        props[PROP_AWARDS] = awards
-    awards_id = awards.get("__id__") or 0
-    awards[level] = 1
-    st.set(PROP_AWARDS, awards)
-    frames.append(sync_frame(SYNC_SELF, awards_id, _tx.OP_CHANGE, str(level), 1))
+    tx_awards = _tx.Tx(props)
+    tx_awards.set((PROP_AWARDS, level), 1)
+    frames.extend(tx_awards.frames())
     _log.info("[level] 领取 %s 级奖励 -> %s", level, granted)
     return AwardResult(True, "", level, False, granted, frames)
 

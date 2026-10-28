@@ -40,10 +40,9 @@ def add_prestige_exp(props: dict[str, Any], street_id: int, exp: int) -> list[by
 
 def add_char_favor(props: dict[str, Any], char_id: int, exp: int, popularity: int) -> list[bytes]:
     """加角色好感/人气，返回同步帧（favor_exp_map / popularity_map 的子属性同步）。"""
-    from ... import ms as msmod
-    from ...rpc_common import SYNC_SELF, sync_frame
+    from ..tx import Tx
 
-    frames: list[bytes] = []
+    tx = Tx(props)
     for root, add in (("favor_exp_map", exp), ("popularity_map", popularity)):
         if add == 0:
             continue
@@ -53,7 +52,6 @@ def add_char_favor(props: dict[str, Any], char_id: int, exp: int, popularity: in
             continue
         cur = m.get(char_id)
         base = int(cur) if isinstance(cur, (int, float)) and not isinstance(cur, bool) else 0
-        m[char_id] = base + int(add)
-        frames.append(sync_frame(SYNC_SELF, m.get("__id__") or 0,
-                                 msmod.OP_CHANGE, str(char_id), m[char_id]))
+        tx.set((root, char_id), base + int(add))
+    frames: list[bytes] = list(tx.frames())
     return frames

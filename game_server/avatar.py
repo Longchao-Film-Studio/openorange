@@ -45,8 +45,8 @@
 """
 from shared.log_tee import get_logger
 
-from . import ms as msmod
-from .rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from .property.tx import Tx
+from .rpc_common import decode_params, respond_after_sync, state
 from .story.tasks import drain_event_task_sync
 
 _log = get_logger(__name__)
@@ -101,29 +101,20 @@ def _set_name(st, name, gender=None, syncs=None):
     syncs 为 None 时只写状态（给不关心同步的调用方/测试用）。
     """
     changed = False
+    tx = Tx(st.props)
     if st.props.get("player_name") != name:
-        st.props["player_name"] = name
+        tx.set(("player_name",), name)
         changed = True
-        if syncs is not None:
-            try:
-                syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                        "player_name", name))
-            except Exception as e:
-                _log.warning(f"[avatar] 玩家名同步失败: {e}")
     if gender is not None:
         try:
             g = int(gender)
-        except Exception:
+        except (TypeError, ValueError):
             g = None
         if g in (1, 2) and st.props.get("gender") != g:
-            st.props["gender"] = g
+            tx.set(("gender",), g)
             changed = True
-            if syncs is not None:
-                try:
-                    syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                            "gender", g))
-                except Exception as e:
-                    _log.warning(f"[avatar] 性别同步失败: {e}")
+    if syncs is not None:
+        syncs.extend(tx.frames())
     return changed
 
 
@@ -243,12 +234,9 @@ def _set_default_card(st, gender, syncs):
     card_id = 2 if g == 1 else 1
     if st.props.get("player_card_id") == card_id:
         return
-    st.props["player_card_id"] = card_id
-    try:
-        syncs.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                "player_card_id", card_id))
-    except Exception as e:
-        _log.warning(f"[avatar] 名片同步失败: {e}")
+    tx = Tx(st.props)
+    tx.set(("player_card_id",), card_id)
+    syncs.extend(tx.frames())
     _log.info(f"[avatar] 按性别设默认名片 gender={g} -> player_card_id={card_id}")
 
 

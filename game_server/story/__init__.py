@@ -227,16 +227,12 @@ def mark_story_line_finished(st, copy_id):
         return []
     if sf.get(sid) is True:
         return []
-    is_new = sid not in sf
-    sf[sid] = True
-    st.set("story_finished", sf)
-    # story_finished 是 BooleanDictKeyInt：键 int、值 bool
-    # 首次用 OP_ADD（entryAdded -> on_story_finished_added），复通用 OP_CHANGE
-    from .. import ms as _ms
-    from ..rpc_common import SYNC_SELF, sync_frame
-    return [sync_frame(SYNC_SELF, sf.get("__id__") or 0,
-                       _ms.OP_ADD if is_new else _ms.OP_CHANGE,
-                       str(sid), True)]
+    # story_finished 是 BooleanDictKeyInt：键 int、值 bool。
+    # OP_ADD / OP_CHANGE 由 Tx 判断（键在不在容器里），不要自己赋值后再发。
+    from ..property.tx import Tx as _Tx
+    tx = _Tx(st.props)
+    tx.set(("story_finished", sid), True)
+    return tx.frames()
 
 
 def story_max_collect_num_of(story_line_id):
@@ -268,9 +264,8 @@ def sync_story_max_collect_num(st):
     mc = st.props.get("story_max_collect_num")
     if not isinstance(mc, dict):
         return out
-    from .. import ms as _ms
-    from ..rpc_common import SYNC_SELF, sync_frame
-    changed = False
+    from ..property.tx import Tx as _Tx
+    tx = _Tx(st.props)
     for row in (gamedata.table("StoryLineData") or {}).values():
         if not isinstance(row, dict):
             continue
@@ -281,14 +276,8 @@ def sync_story_max_collect_num(st):
         want = story_max_collect_num_of(sid)
         if want <= 0 or mc.get(sid) == want:
             continue
-        is_new = sid not in mc
-        mc[sid] = want
-        changed = True
-        out.append(sync_frame(SYNC_SELF, mc.get("__id__") or 0,
-                              _ms.OP_ADD if is_new else _ms.OP_CHANGE,
-                              str(sid), want))
-    if changed:
-        st.set("story_max_collect_num", mc)
+        tx.set(("story_max_collect_num", sid), want)
+    out.extend(tx.frames())
     return out
 
 
@@ -304,9 +293,8 @@ def sync_story_reward_list(st):
     rl = st.props.get("story_reward_list")
     if not isinstance(rl, dict):
         return out
-    from .. import ms as _ms
-    from ..rpc_common import SYNC_SELF, sync_frame
-    changed = False
+    from ..property.tx import Tx as _Tx
+    tx = _Tx(st.props)
     for row in (gamedata.table("StoryLineData") or {}).values():
         if not isinstance(row, dict):
             continue
@@ -316,13 +304,9 @@ def sync_story_reward_list(st):
             continue
         if sid in rl:
             continue
-        # IntList 的键是 "#N"（见 story/finish_parameter 的同类处理）
-        rl[sid] = {"__id__": st.next_property_id()}
-        changed = True
-        out.append(sync_frame(SYNC_SELF, rl.get("__id__") or 0,
-                              _ms.OP_ADD, str(sid), rl[sid]))
-    if changed:
-        st.set("story_reward_list", rl)
+        tx.set(("story_reward_list", sid),
+               {"__id__": st.next_property_id()})
+    out.extend(tx.frames())
     return out
 
 

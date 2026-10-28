@@ -16,8 +16,32 @@
 
 编队（character_list）是「改子属性」不是根属性，所以单独两个函数。
 """
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..property.tx import Tx
+from ..rpc_common import decode_params, respond_after_sync, state
+
+
+def _child_frames(uid, container, key, value):  # noqa: ANN001, ANN201
+    """改容器子项产生的同步帧（走 Tx）。
+
+    propertyId 是**父容器的 __id__**、name 是子键 —— 与 _root_frames 的区别只在
+    路径深度，客户端收到后走 _changeSubProperty 而不是 _changeRootProperty。
+    """
+    st = state(uid)
+    tx = Tx(st.props)
+    tx.set((container, key), value)
+    return tx.frames()
+
+
+def _root_frames(uid, prop_name, value):  # noqa: ANN001, ANN201
+    """改根属性产生的同步帧（走 Tx，唯一出口）。
+
+    为什么不再手拼 sync_frame：手拼是「帧的第二套来源」，漏字段、漏属性时
+    只能靠事后审计发现。Tx 记录变更、tx.frames() 编帧，两者不会脱节。
+    """
+    st = state(uid)
+    tx = Tx(st.props)
+    tx.set((prop_name,), value)
+    return tx.frames()
 
 
 def _set_character_list(rid, params, uid=None):
@@ -62,8 +86,7 @@ def _set_character_list(rid, params, uid=None):
                 lst[i] = 0
     st.set("character_list", cl)
     st.save()
-    syncs.append(sync_frame(
-        SYNC_SELF, cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+    syncs.extend(_child_frames(uid, "character_list", str(idx), team))
     return respond_after_sync(rid, syncs)
 
 
@@ -86,8 +109,7 @@ def _set_character_list_name(rid, params, uid=None):
     team["name"] = name if isinstance(name, str) else ""
     st.set("character_list", cl)
     st.save()
-    syncs.append(sync_frame(
-        SYNC_SELF, cl.get("__id__") or 0, msmod.OP_CHANGE, str(idx), team))
+    syncs.extend(_child_frames(uid, "character_list", str(idx), team))
     return respond_after_sync(rid, syncs)
 
 
@@ -165,8 +187,8 @@ def _generic_setter(rid, params, spec, uid=None):
             return respond_after_sync(rid, syncs)
         new_value = vals[arg_idx]
     applied = _apply_property(prop_name, new_value, uid)
-    syncs.append(sync_frame(
-        SYNC_SELF, 0, msmod.OP_CHANGE, prop_name, applied))
+    # 帧由 Tx 产生：属性同步只有一个出口（见 docs/方案-属性同步一致性.md）。
+    syncs.extend(_root_frames(uid, prop_name, applied))
     return respond_after_sync(rid, syncs)
 
 
@@ -179,8 +201,7 @@ def _const_setter(rid, _params, spec, uid=None):
     #   真实用户的属性没改，却给他推了 value=1 的同步帧。
     #   canScore / hasScore 四个 RPC 全部中招。
     applied = _apply_property(prop_name, const_value, uid)
-    syncs.append(sync_frame(
-        SYNC_SELF, 0, msmod.OP_CHANGE, prop_name, applied))
+    syncs.extend(_root_frames(uid, prop_name, applied))
     return respond_after_sync(rid, syncs)
 
 
@@ -207,10 +228,5 @@ def _set_signature(rid, params, uid=None):
         st = state(uid)
         st.set("signature", vals[0])
         st.save()
-        # ★ propertyId = 0 表示「改根属性」，客户端会走
-        #   puppetpropertycomponent.lua:233-235 的 _changeRootProperty(k, v)。
-        #   之前传的是递增序号 1，那是「改子属性」的语义（要 _id 命中
-        #   __CustomPropertiesCache__ 里的对象），属于用错了分支。
-        syncs.append(sync_frame(
-            SYNC_SELF, 0, msmod.OP_CHANGE, "signature", vals[0]))
+        syncs.extend(_root_frames(uid, "signature", vals[0]))
     return respond_after_sync(rid, syncs)

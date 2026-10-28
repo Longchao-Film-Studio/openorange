@@ -57,6 +57,7 @@ from . import config as _ooconf
 from . import ms as msmod
 from . import rpc_catalog as _catalog
 from . import unknown_log as _ulog
+from .property.tx import Tx
 
 # 跨业务域共用的基础设施（P0-E2）：状态 / 帧构造 / 节流存档 / 参数解码
 # ★ 本块同时承担 **re-export** 职责（entity_rpc / transport 从这里取）。
@@ -304,8 +305,6 @@ def _system_guide_update(rid, params, uid=None):
     ★ 以前这条 RPC 未登记：客户端每次引导完成都发，服务端 compat ack，
       进度不落盘 -> 重登后引导重播（H5）。
     """
-    from . import ms as _ms
-
     vals = decode_params(params)
     if not (isinstance(vals, list) and vals):
         return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
@@ -319,10 +318,9 @@ def _system_guide_update(rid, params, uid=None):
         return _respond_after_sync(rid, [], ret={"status": False, "errmsg": ""})
     frames = []
     if guide_id not in rec:
-        rec[guide_id] = 1
-        st.set("system_guide_records", rec)
-        frames.append(sync_frame(SYNC_SELF, rec.get("__id__") or 0,
-                                 _ms.OP_ADD, str(guide_id), rec[guide_id]))
+        tx = Tx(st.props)
+        tx.set(("system_guide_records", guide_id), 1)
+        frames.extend(tx.frames())
         _log.info("[guide] 新手引导 %s 完成（已记录）", guide_id)
     st.save()
     return _respond_after_sync(rid, frames)

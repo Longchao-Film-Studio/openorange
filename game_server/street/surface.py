@@ -13,8 +13,8 @@ import time
 
 from shared.log_tee import get_logger
 
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, respond_after_sync, state, sync_frame
+from ..property.tx import Tx
+from ..rpc_common import respond_after_sync, state
 
 _log = get_logger(__name__)
 def _set_surface_time(st, value):
@@ -22,10 +22,9 @@ def _set_surface_time(st, value):
     si = st.props.get("street_info")
     if not isinstance(si, dict):
         return []
-    si["surface_enter_time"] = int(value)
-    st.set("street_info", si)
-    return [sync_frame(
-        SYNC_SELF, si.get("__id__") or 0, msmod.OP_CHANGE, "surface_enter_time", int(value))]
+    tx = Tx(st.props)
+    tx.set(("street_info", "surface_enter_time"), int(value))
+    return tx.frames()
 
 def _enter_surface(rid, _params, uid=None):
     """RequestEnterStreetSurface_CS {worldId} —— 进阴界 / 切昼夜。

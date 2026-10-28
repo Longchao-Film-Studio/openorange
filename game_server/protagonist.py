@@ -16,9 +16,8 @@ from typing import Any
 from shared.log_tee import get_logger
 
 from . import gamedata
-from . import ms as msmod
 from .property import factory
-from .rpc_common import SYNC_SELF, sync_frame
+from .property.tx import Tx
 
 _log = get_logger(__name__)
 
@@ -83,8 +82,12 @@ def _formation(props: dict[Any, Any]) -> dict[Any, Any] | None:
     return cl
 
 
-def _set_team_hero(props: dict[Any, Any], want: int, frames: list[bytes]) -> None:
-    """把编队第 1 队设成 [want, 0, 0]；其余位置清 0（主角只该有一个）。"""
+def _set_team_hero(tx: Any, props: dict[Any, Any], want: int) -> None:  # noqa: ANN401
+    """把编队第 1 队设成 [want, 0, 0]；其余位置清 0（主角只该有一个）。
+
+    整队换值走 tx.set：客户端对命名容器是「一个键 = 一整队」的语义
+    （_changeSubProperty 按 __id__ 命中后原地 rochange），所以不需要拆到槽位。
+    """
     cl = _formation(props)
     if cl is None:
         _log.warning("[protagonist] character_list 不存在，跳过编队")
@@ -103,9 +106,7 @@ def _set_team_hero(props: dict[Any, Any], want: int, frames: list[bytes]) -> Non
             slots[i] = v
             changed = True
     if changed:
-        props["character_list"] = cl
-        frames.append(sync_frame(SYNC_SELF, cl.get("__id__") or 0,
-                                 msmod.OP_CHANGE, str(1), team))
+        tx.set(("character_list", 1), team)
 
 
 def ensure_props(props: dict[Any, Any], gender: Any, syncs: list[bytes] | None = None) -> list[bytes]:  # noqa: ANN401
@@ -118,41 +119,39 @@ def ensure_props(props: dict[Any, Any], gender: Any, syncs: list[bytes] | None =
     want = char_id_for_gender(gender)
     bag = _character_bag(props)
 
+    # 全部写入走同一个 Tx：帧由 tx.frames() 编，不再逐条手拼。
+    tx = Tx(props)
+
     # 1) 删掉不该存在的（另一性别 / 未选性别时的全部）
     for cid in protagonist_ids():
         if want is not None and cid == want:
             continue
         if cid in bag:
-            del bag[cid]
-            frames.append(sync_frame(SYNC_SELF, bag.get("__id__") or 0,
-                                     msmod.OP_DEL, str(cid), None))
+            # 先删子项再写回容器：Tx.delete 会记成 OP_DEL（客户端 __OpDel__）
+            tx.delete(("characterBag", cid))
             _log.info("[protagonist] 删除多余主角 %s（want=%s）", cid, want)
 
     # 2) 补上正确的那个
+    # ★ 不能先 bag[want] = ... 再 tx.set：Tx 靠「键在不在父容器里」判断
+    #   OP_ADD / OP_CHANGE（tx.py 的 is_new 必须在赋值之前判断）。
+    #   先赋值会把新键判成已存在 -> 发 OP_CHANGE -> 客户端 oldVal 为 nil 崩溃
+    #   （frame_guard 当场抓到：[_changeSubProperty] CharacterPersistentDict[9002] 不存在）。
     if want is not None and want not in bag:
-        bag[want] = factory.make_character(props, want)
-        frames.append(sync_frame(SYNC_SELF, bag.get("__id__") or 0,
-                                 msmod.OP_ADD, str(want), bag[want]))
+        tx.set(("characterBag", want), factory.make_character(props, want))
         _log.info("[protagonist] 创建主角 %s", want)
 
     # 3) choosen + 编队 + 下标
     if want is not None:
         if int(props.get("character_choosen_char") or 0) != want:
-            props["character_choosen_char"] = want
-            frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                    "character_choosen_char", want))
+            tx.set(("character_choosen_char",), want)
         if int(props.get("choosen_index") or 0) != 1:
-            props["choosen_index"] = 1
-            frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                    "choosen_index", 1))
-        _set_team_hero(props, want, frames)
+            tx.set(("choosen_index",), 1)
+        _set_team_hero(tx, props, want)
     elif int(props.get("character_choosen_char") or 0) != 0:
         # 未选性别：开局状态必须是「没有角色」
-        props["character_choosen_char"] = 0
-        frames.append(sync_frame(SYNC_SELF, 0, msmod.OP_CHANGE,
-                                "character_choosen_char", 0))
+        tx.set(("character_choosen_char",), 0)
 
-    props["characterBag"] = bag
+    frames.extend(tx.frames())
     if syncs is not None:
         syncs.extend(frames)
     return frames

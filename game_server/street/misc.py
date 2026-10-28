@@ -10,8 +10,8 @@
 """
 from shared.log_tee import get_logger
 
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..property.tx import Tx
+from ..rpc_common import decode_params, respond_after_sync, state
 from .info import _street_tx_begin
 
 _log = get_logger(__name__)
@@ -30,12 +30,11 @@ def _mainline_levelup(rid, params, uid=None):
     if not isinstance(ml, dict):
         return respond_after_sync(rid, syncs)
     cur = int(ml.get(area_id) or 0)
-    ml[area_id] = cur + 1
-    st.set("mainline_level", ml)
+    tx = Tx(st.props)
+    tx.set(("mainline_level", area_id), cur + 1)
     st.save()
     _log.info(f"[street] 主线 {area_id} 等级 {cur} -> {cur + 1}")
-    syncs.append(sync_frame(
-        SYNC_SELF, ml.get("__id__") or 0, msmod.OP_CHANGE, str(area_id), cur + 1))
+    syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
 
 def _finish_storyline(rid, params, uid=None):

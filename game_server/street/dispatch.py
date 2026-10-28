@@ -15,8 +15,8 @@ import time
 
 from shared.log_tee import get_logger
 
-from .. import ms as msmod
-from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..property.tx import Tx
+from ..rpc_common import decode_params, respond_after_sync, state
 
 _log = get_logger(__name__)
 _DISPATCH_DEFAULT_DURATION = 3600
@@ -50,12 +50,12 @@ def _dispatch_char(rid, params, uid=None):
     entry["char_id"] = char_id
     entry["beg_time"] = now
     entry["end_time"] = now + _DISPATCH_DEFAULT_DURATION
-    d[dip_id] = entry
-    st.set("street_dispatch", d)
+    # 键必须由 Tx 首次写入，才能判成 OP_ADD（先赋值会变成 OP_CHANGE，客户端崩）
+    tx = Tx(st.props)
+    tx.set(("street_dispatch", dip_id), entry)
     st.save()
     _log.info(f"[street] 派遣 char={char_id} dip={dip_id}")
-    syncs.append(sync_frame(
-        SYNC_SELF, d.get("__id__") or 0, msmod.OP_ADD, str(dip_id), entry))
+    syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
 
 def _finish_dispatch(rid, params, uid=None):
@@ -74,11 +74,11 @@ def _finish_dispatch(rid, params, uid=None):
         return respond_after_sync(rid, syncs)
     entry = d[dip_id]
     entry["end_time"] = int(time.time())
-    st.set("street_dispatch", d)
+    tx = Tx(st.props)
+    tx.set(("street_dispatch", dip_id), entry)
     st.save()
     _log.info(f"[street] 完成派遣 dip={dip_id}")
-    syncs.append(sync_frame(
-        SYNC_SELF, d.get("__id__") or 0, msmod.OP_CHANGE, str(dip_id), entry))
+    syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
 
 def _cancel_dispatch(rid, params, uid=None):
@@ -95,10 +95,10 @@ def _cancel_dispatch(rid, params, uid=None):
     d = _dispatch_dict(st)
     if d is None or dip_id not in d:
         return respond_after_sync(rid, syncs)
-    del d[dip_id]
-    st.set("street_dispatch", d)
+    # ★ 不能先 del 再 tx.delete：Tx.delete 要求「键此刻还在」（它要读旧值判 OP_DEL）。
+    tx = Tx(st.props)
+    tx.delete(("street_dispatch", dip_id))
     st.save()
     _log.info(f"[street] 取消派遣 dip={dip_id}")
-    syncs.append(sync_frame(
-        SYNC_SELF, d.get("__id__") or 0, msmod.OP_DEL, str(dip_id), None))
+    syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
