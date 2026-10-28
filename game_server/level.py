@@ -409,7 +409,8 @@ def grant_level_award(st: StateLike, level: int) -> AwardResult:
 
     # 发奖走唯一发放入口（堆叠 / maxNum / notStack / ext / autoUse 全在里面）
     _tx_bag, outcomes = _grants.grant_many(props, items, source=f"level_award:{level}")
-    frames = _grants.sync_frames(props, outcomes)
+    # 帧必须走 Tx：autoUse 类奖励（如道具 2 加 exp）改的是根属性，不在物品格里。
+    frames = _tx_bag.frames()
     granted: list[tuple[int, int]] = []
     for oc in outcomes:
         if oc.ok:

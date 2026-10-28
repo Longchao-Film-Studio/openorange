@@ -20,7 +20,7 @@ from shared.log_tee import get_logger
 from ... import gamedata
 from ..tx import Tx
 from . import effects, grants, report
-from .effects import BagAddOp, CustomOp, GrantOp, Op, PropOp
+from .effects import BagAddOp, CustomOp, GrantOp, NestedPropOp, Op, PropOp
 from .errors import (
     BAG_INVALID_EXT_PARAMS,
     BAG_INVALID_ID,
@@ -79,38 +79,19 @@ def _key_list(cfg: dict[str, Any]) -> list[str]:
 _BP_EXP_KEYS: dict[str, bool] = {"BpExp": True, "BpExpSeason": False}
 
 
-def _apply_bp_exp(props: dict[str, Any], key: str, add: int) -> list[bytes]:
-    from ... import ms as msmod
-    from ...rpc_common import SYNC_SELF, sync_frame
+def _bp_exp_op(key: str, value: int) -> NestedPropOp:
+    """通行证经验 -> NestedPropOp（bp_info 的子字段增减）。
 
-    info = props.get("bp_info")
-    if not isinstance(info, dict):
-        report.note("bp", key, "bp_info 不存在")
-        return []
-    pid = info.get("__id__") or 0
-    frames: list[bytes] = []
-
-    def bump(field: str, delta: int) -> None:
-        cur = info.get(field)
-        base = int(cur) if isinstance(cur, (int, float)) and not isinstance(cur, bool) else 0
-        info[field] = base + int(delta)
-        frames.append(sync_frame(SYNC_SELF, pid, msmod.OP_CHANGE, field, info[field]))
-
-    bump("bp_exp", add)
-    bump("all_bp_exp", add)
+    增量而不是绝对值：`base + value` 由 materialize 读当前 props 算，
+    这里只声明「哪些字段加多少」和「时间戳字段设成现在」。
+    """
+    fields = {"bp_exp": value, "all_bp_exp": value}
     if _BP_EXP_KEYS[key]:
-        bump("week_bp_exp", add)
-    bump("bp_exp_time", int(time.time()))
-    return frames
-
-
-def _bp_exp_op(key: str, value: int) -> CustomOp:
-    """把 (键, 数值) 固定成 CustomOp（用命名函数而不是带默认参数的 lambda）。"""
-
-    def _fn(props: dict[str, Any]) -> list[bytes]:
-        return _apply_bp_exp(props, key, value)
-
-    return CustomOp(_fn)
+        fields["week_bp_exp"] = value
+    # bp_exp_time 是「最后一次获得经验的时间」，语义是**赋值**不是累加，
+    # 所以走 abs_fields（见 NestedPropOp 的注释）。
+    return NestedPropOp(root="bp_info", fields=fields,
+                        abs_fields={"bp_exp_time": int(time.time())})
 
 
 @effects.register("avatarAttr")
@@ -257,6 +238,20 @@ def materialize(
                 granted.append((op.item_id, oc.stored or op.count, oc.grids))
         elif isinstance(op, BagAddOp):
             tx.set((op.bag, op.key), dict(op.value))
+        elif isinstance(op, NestedPropOp):
+            # 子字段增减写进同一个 Tx：帧由 tx.frames() 产生，
+            # 不需要（也不允许）在这里手工拼帧。
+            root = props.get(op.root)
+            if not isinstance(root, dict):
+                _log.warning("[bag] 根属性 %s 不存在，效果未生效", op.root)
+                continue
+            for fname, delta in op.fields.items():
+                cur = root.get(fname)
+                base = (int(cur) if isinstance(cur, (int, float))
+                        and not isinstance(cur, bool) else 0)
+                tx.set((op.root, fname), base + int(delta))
+            for fname, value in op.abs_fields.items():
+                tx.set((op.root, fname), int(value))
         elif isinstance(op, CustomOp):
             extra.extend(op.fn(props))
     return granted, extra

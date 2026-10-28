@@ -53,12 +53,30 @@ class CustomOp:
 
     用在「目标不在背包里」的效果上（街头声望在 street_info、好感在 favor_exp_map），
     fn 拿 props 干活并返回 frames；item_use 会把这些帧插在应答之前。
+
+    ★ 这个 Op 是**帧的第二来源**，与「变更集 -> tx.frames()」并列，属于历史遗留。
+    凡是能用 NestedPropOp / PropOp 表达的，一律不用它（见 docs/方案-属性同步一致性.md）。
     """
 
     fn: Callable[[dict[str, Any]], list[bytes]]
 
 
-Op = PropOp | GrantOp | BagAddOp | CustomOp
+@dataclass
+class NestedPropOp:
+    """改某个根属性容器的子字段（写进同一个 Tx，帧由 tx.frames() 统一产生）。
+
+    通行证经验就是这种：bp_exp / all_bp_exp / week_bp_exp / bp_exp_time 都是
+    `bp_info` 的子字段，不是根属性。以前用 CustomOp 直接改 props + 手工拼帧，
+    帧在 grant 路径上被丢弃 —— 实测「通行证经验要重新登录才看到」。
+    """
+
+    root: str
+    fields: dict[str, int]
+    #: 语义是「赋这个值」而不是「累加这个值」的字段（如时间戳）。
+    abs_fields: dict[str, int] = field(default_factory=dict)
+
+
+Op = PropOp | GrantOp | BagAddOp | CustomOp | NestedPropOp
 
 #: useType -> handler(props, cfg, count, ext) -> list[Op]
 EFFECTS: dict[str, Callable[..., list[Op]]] = {}

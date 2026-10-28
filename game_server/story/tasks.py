@@ -195,8 +195,12 @@ def _done_title_task(rid, params, uid=None):
         if tasks.task_state(st.props, tid) != tasks.TASK_STATE_WAIT_DONE:
             _log.warning(f"[task] 拒绝领奖 {tid}：状态不是 WaitDone（当前 {tasks.task_state(st.props, tid)}）")
             continue
+        # ★ _grant_awards 返回的是**已编好的帧**（bytes），不是同步描述。
+        #   以前把两者混进同一个 ch 再交给 _task_sync_frames，bytes 被当成
+        #   (kind, pid, optype, name, value) 元组解析，落进未知分支被静默丢弃 ——
+        #   实测后果：领奖加了 exp，但客户端收不到 exp 帧，必须重新登录才看到。
         _af, _rl = _grant_awards(st, cfg)
-        ch.extend(_af)
+        syncs.extend(_af)
         ch.extend(tasks.claim_task(st, tid))
         got.append(tid)
         if _rl:

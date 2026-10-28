@@ -52,7 +52,8 @@ def _grant_treasure_reward(st, tid):
         if items_map:
             from ..property.bag import grants
             _tx, outcomes = grants.grant_many(st.props, items_map, source="treasure")
-            frames.extend(grants.sync_frames(st.props, outcomes))
+            # 帧走 Tx：autoUse 类道具改的是根属性（exp 等），不在物品格里。
+            frames.extend(_tx.frames())
             for oc in outcomes:
                 if oc.ok:
                     _log.info("[street] 宝箱 %s 发道具 %s x%s", tid, oc.item_id, oc.count)

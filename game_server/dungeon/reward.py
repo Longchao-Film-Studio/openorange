@@ -41,7 +41,9 @@ def _grant_battle_items(st, battle_items):
 
     from ..property.bag import grants
     _tx, outcomes = grants.grant_many(st.props, items_map, source="dungeon")
-    frames.extend(grants.sync_frames(st.props, outcomes))
+    # 帧必须走 _tx.frames()：grant_many 的变更不止物品格（autoUse 的道具会直接改
+    # 根属性，例如道具 2 改 exp），手工拼物品格的帧会把这些漏掉。
+    frames.extend(_tx.frames())
     for oc in outcomes:
         if not oc.ok:
             _log.warning("[dungeon] 结算发道具失败 %s：%s", oc.item_id, oc.error)
