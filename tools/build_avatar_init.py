@@ -50,162 +50,23 @@ CONFIG_LUA = os.path.join(_LUA_SRC, "generated", "config.lua")
 SIMPLE = {"int", "string", "double", "boolean"}
 DEF = {"int": 0, "string": "", "double": 0.0, "boolean": False}
 
-# 需要预置的属性 -> 类型。
-# 每一条的来源都写在注释里：要么来自 AvatarProperties 的权威声明，
-# 要么来自某个组件在 init/start/onBecomePlayer 里 pairs() 它而崩掉的实机日志。
-REQUIRED = {
-    # --- AvatarBagComp:refreshLocalBagData -> pairs(self.item_bag) ---
-    "item_bag": "ItemBag",
-    # --- AvatarTaskComp:initDoneAchievement / getAllDoingDailyTaskItem -> task_bag ---
-    # ★ task_bag 是**两层**的：task_bag[taskType][taskID]。
-    #   依据 generated/config.lua:10123 的回调路径 ["task_bag.*.*"]，
-    #   以及 avatartaskcomp.lua:257  getTaskState: self.task_bag[taskType][taskID]。
-    #   所以类型是 TaskTypeBag（Dict<int, TaskBag>），不是 TaskBag。
-    #   以前写成单层 TaskBag，getSystemTaskState 走 task_bag[type][id] 时
-    #   索引的是 TaskItem 对象，永远取不到，只能靠 done_tasks 兜底。
-    "task_bag": "TaskTypeBag",
-    # --- AvatarActivityComp -> pairs(cur_activity_info) ---
-    "cur_activity_info": "ActivityProp",
-    # --- AvatarAchieveComp:initDoneAchievement -> pairs(achieve_type_bag) ---
-    "achieve_type_bag": "AchieveTypeBag",
-    # --- AvatarCharacterComp -> pairs(characterBag) / characterBag[charId].xxx ---
-    # ★ 2026-10-19 修正：原来写成 CharacterList 是错的。
-    #   CharacterList 继承 CustomList（列表），而 avatarcharactercomp 是这么用的：
-    #     :79   self.characterBag[charID].biography_read
-    #     :533  self.characterBag[charId].breakAward
-    #     :811  return self.characterBag[charId].useSkinId
-    #     :822  self.characterBag[charId].skins[charAppearanceId]
-    #   这些都是 CharacterInfo 的字段；列表没法按 charId 索引。
-    #   config.lua 里 CharacterPersistentDict 才是 __ValueType__=CharacterInfo、
-    #   __IntTypeKey__=true 的字典，而且
-    #   gamecommon/customtypes/character/characterpersistentdict.lua 上就写着
-    #   HasChar(no) / GetAllSkins / CheckAddSkin，正是 characterBag 的用法。
-    "characterBag": "CharacterPersistentDict",
-    # --- AvatarStreetComp -> pairs(street_info) / pairs(street_dispatch) ---
-    "street_info": "StreetInfoDict",
-    "street_dispatch": "StreetDispatchDict",
-    # --- AvatarStorylineComp -> self.story_finished[id] or false ---
-    "story_finished": "BooleanDictKeyInt",
-    "story_max_collect_num": "IntDictKeyInt",
-    "story_reward_list": "IntListDictKeyInt",
-    # --- AvatarSystemGuideComp -> pairs(system_guide_records) ---
-    "system_guide_records": "IntDictKeyInt",
-    "battle_teach_state": "IntDictKeyInt",
-    # --- PartyGameDataModel:15 -> self.partygame_p ---
-    "partygame_p": "PartyGameProp",
-    # --- 其余来自 AvatarProperties 的遍历型属性 ---
-    "accu_charge_gacha_p": "AccuChargeGachaSetProp",
-    "bp_info": "BpInfo",
-    "card_prop": "CardDictProp",
-    "championship_data": "ChampionshipData",
-    "chat_p": "ChatProp",
-    "contribution_player_cycle": "ContributionPlayerInfoRecord",
-    "gacha_prop": "GachaProp",
-    "multitower_task_prop": "ActiveTaskBag",
-    "popup_gift_p": "PopupGiftProp",
-    "returning_player_act_p": "ReturningPlayerActProp",
-    "rogue_p": "RogueProp",
-    "street_info_2d": "StreetInfoDict2D",
-    "weekly_play_bp_p": "WeeklyPlayBPProp",
-    "soul_task_bag": "SoulTaskBag",
-    "story_task_bag": "StoryTaskBag",
-    "done_tasks": "DoneTaskTypeBag",
-    "done_story_tasks": "StoryTaskBag",
-    # --- 导演头衔面板的每日任务缓存（H3 实机崩溃修复） ---
-    # 2026-10-28 实机：点左上角等级/头衔入口 -> DirectorTitleV3Panel 打开后
-    # 立刻报错并自我关闭，用户看到的就是「点了没反应」。
-    #   ui/panel/directortitlev3panel/node_daily_task_item/node_daily_task_itemgroup.lua:86
-    #     local firstDay = GlobalData.Avatar.title_daily_task_cache.is_first_day ~= 1
-    #   <- refreshState (86) <- showTaskInfo (67) <- setData (38)
-    #   <- DirectorTitleV3Panel.lua:198 _initDailyTaskList <- :167 initTaskInfo <- :35 initEx
-    # 属性是 nil -> attempt to index a nil value。
-    #
-    # ★ 这个属性在 config.lua 里**完全不存在**（AvatarProperties 173 项里没有，
-    #   PropertyCallbacks 里也没有），但类型 TitleDailyTaskCache 是声明过的
-    #   （config.lua:7258，字段 is_first_day/fst_type_tasks/sed_type_tasks/fst_task/sed_task）。
-    #   客户端只有这一个读点、没有任何地方创建它 —— 说明官方服务端是在运行时
-    #   用 _changeRootProperty 动态建的（和 singleMatchInfo 同一类）。
-    #   我们改从 initDict 建，等价，且不需要新增协议。
-    #
-    # 安全性依据（不是猜）：core/propertysync/puppetpropertycomponent.lua:47-65
-    #   的 initProperty 遍历服务端下发的 __Properties__，只按 value.__tp__ 建对象，
-    #   **不查 AvatarProperties 声明**。所以下发一个未声明属性不会触发任何断言。
-    "title_daily_task_cache": "TitleDailyTaskCache",
-    # --- 街区等级信息（同一类：客户端读了、我们没下发） ---
-    # ui/panel/streetpanel/node_pop_achievement_reward/node_pop_achievement_rewardgroup.lua
-    # 读 GlobalData.Avatar.street_level_info；类型 StreetLevelInfo 在 config.lua 有声明。
-    "street_level_info": "StreetLevelInfo",
-    # --- 位置持久化 ---
-    # street_pos_info 只在 PropertyCallbacks 里声明（config.lua:10011），
-    # AvatarProperties 没有它，所以生成器不会自动建。
-    # 客户端 system/streetsystem/manager/streetsystemmgrbase.lua:561-566 读它恢复出生点：
-    #   local posinfo = obj:getStreetPosInfo()
-    #   if posinfo and posinfo.x then remotePosInfo = copy(posinfo) end
-    # 然后 :654 用 remotePosInfo.x/y/z 定位、remotePosInfo.dir 定朝向。
-    #
-    # 客户端没有任何类型同时带 x/y/z/dir（全表搜过），所以用 Pos（x/y/z, double）。
-    # dir 为 nil 时 setRotation(x, nil, z) 会被 xlua 转成 0 —— 位置对了，朝向取默认。
-    # ★ 用 DoubleDict（Dict<string,double>）—— 不是 Pos。
-    #   踩过的坑：用 Pos（{x,y,z} 结构体）会让客户端
-    #     ClientAvatar function init must have a boolean return value
-    #   traceback -> AvatarBagComp:refreshLocalBagData，必现。
-    #   原因：street_pos_info 在 PropertyCallbacks 里声明的是 customDict，
-    #   而 Pos 不是 dict 类型，初始化时的回调注册对不上。
-    #
-    #   DoubleDict 才是对的：core/propertysync/customdict.lua:21-30 的 __index
-    #   直接读 _properties[k]，所以客户端 streetsystemmgrbase.lua:562 的
-    #     if posinfo and posinfo.x then ...
-    #     for key, value in pairs(posinfo) do remotePosInfo[key] = value end
-    #   两处都能正常工作，而且 dir 也能带上（Pos 没有 dir 字段）。
-    "street_pos_info": "DoubleDict",
-    # ★ 2026-10-20 试过但**回滚**了：给 street_pos_info 用 Pos 类型会破坏客户端。
-    #   加了之后实机必现：
-    #     class ClientAvatar function init must have a boolean return value
-    #     traceback -> AvatarBagComp:refreshLocalBagData
-    #   去掉就恢复正常。推测是它的 PropertyCallbacks 声明是 customDict，
-    #   而 Pos 不是 dict 类型，初始化时的回调注册对不上。
-    #   位置持久化暂时不做（_oo_street_pos 仍在服务端存着，等找到对的类型再说）。
-    # --- 动态根属性：只出现在 PropertyCallbacks、AvatarProperties 里没有声明 ---
-    # 证据：generated/config.lua:6370 的 Custom.SingleMatchInfo 定义了
-    #   state(int) / match_id(string) / match_info(MatchInfo)；
-    #   entities/avatarcomponent/avatarteamcomp.lua:648 不判空直接
-    #   self.singleMatchInfo.state —— 空指针就会把 HallStage 进场打断。
-    # 真实服务端是用 _changeRootProperty 运行时建这个属性（带 __tp__），
-    # 我们改从 initDict 建，等价。
-    "singleMatchInfo": "SingleMatchInfo",
-    # --- 同样「只在 PropertyCallbacks 里声明」的属性 ---
-    # 扫描方法：从 generated/config.lua 的 PropertyCallbacks 块里抽出所有属性名，
-    # 和 initDict 对差 —— 得到 15 个缺失项。其中只有这两个在客户端有对应
-    # 自定义类型声明（config.lua:3012-3048 DungeonViewDict / EndlessCharacterList），
-    # 其余 10 个客户端连类型都没声明，塞进去会触发
-    #   puppetpropertycomponent.lua:53  assert(customType ~= nil)
-    # 直接崩，所以不能加。
-    #
-    # dungeonView 缺失的后果（实测）：按 M 打开地图时
-    #   MapV2Panel:initMap -> initAreaListRequire -> processingAreaMapTabList
-    #   -> AvatarDungeonComp:getDungeonAllCollectCoins(10101)
-    #   -> self.dungeonView[areaId]  (attempt to index a nil value)
-    #   面板被 closePanelEx 关掉，表现为「UI 闪一下又回来」。
-    "dungeonView": "DungeonViewDict",
-    "endless_character_list": "EndlessCharacterList",
-    # mainline_level：avatarstreetcomp.lua:266 的
-    #   local level = GlobalData.Avatar.mainline_level[area_id]
-    # 说明是 Dict<area_id, level(int)> —— 就是 IntDictKeyInt。
-    "mainline_level": "IntDictKeyInt",
-    # --- AvatarFormationComp 的编队数据 ---
-    # 依据 entities/avatarcomponent/avatarformationcomp.lua:32-37：
-    #   function AvatarFormationComp:getFormationInfo(index)
-    #     return self.character_list[index] or { value = {}, name = "" }
-    #   end
-    # 兜底值正好是 Custom.Character 的两个字段（config.lua:1907-1923：
-    #   name = string, value = IntList），而 CharacterList 的
-    #   __ValueType__ = "Character"（config.lua:2074-2078）。
-    # config.lua:8388 的 PropertyCallbacks 是 ["character_list.*"]，
-    # 说明它是按下标取的自定义容器。
-    # 注意：之前几轮的对差脚本漏了它，因为 key 里带 * 号，
-    # 而那个脚本的正则字符类没包含 *。
-    "character_list": "CharacterList",
-}
+# 「客户端读不到就崩、需要预置」的属性知识全部在 tools/client_contract.py：
+#   SERVER_PROPS  预置**自定义对象**的属性 -> 类型（38 条）
+#   SIMPLE_PROPS  预置**标量初值**的属性 -> 默认值
+#
+# ★ 2026-10-28 起本文件不再持有这两张表。原因（不是整理代码洁癖）：
+#   tests/test_avatar_prop_coverage.py 原本自己复制了一份豁免清单和扫描逻辑，
+#   生成器一份、测试一份 —— 两份会漂移，而漂移的后果是「测试绿了、实机崩了」。
+#   历史上这块叫 REQUIRED，38 条每条背后都是一次实机崩溃
+#   （dungeonView / title_daily_task_cache / singleMatchInfo ...），
+#   每次都是「发现缺失 -> 手工加一条」，典型的补丁驱动。
+#   现在改成：发现（扫客户端读点）-> 解析（类型从哪来）-> 生成，全部走 client_contract。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from client_contract import required_simple_props as _required_simple_props  # noqa: E402
+from client_contract import required_types as _required_types  # noqa: E402
+
+REQUIRED = _required_types()
+SIMPLE_PROPS = _required_simple_props()
 
 # 初始编队：一队 3 个空位（主角在取名时由 game_server/protagonist.py 创建并填入）。
 # CustomList:roinit（core/propertysync/customlist.lua:398）是
@@ -254,72 +115,13 @@ STARTER_FORMATION = {
     ],
 }
 
-# PropertyCallbacks 里出现、但 AvatarProperties 没有声明的"简单类型"动态根属性。
-# 表来自 work/oo_analysis/missing_props.py：它把各 Avatar*Comp 的
-# PropertyCallbacks 段和 AvatarProperties 对差，并按回调里声明的类型
-# （number/string/boolean）分类。客户端访问这些属性时基本不判空，
-# 所以 initDict 里必须先给默认值。
-SIMPLE_PROPS = {
-    # PropertyCallbacks 里声明、但客户端没给自定义类型的两个简单属性。
-    # 简单值不会触发 __tp__ 断言，加上是安全的。
-    "msAuth": "",
-    "test_soul_count": 0,
-    "avatarNowState": 0,
-    "avatarTeamMatchState": 0,
-    "battle_prop_choosen_index": 0,
-    # ★ 2026-10-27：**0**（新号还没有主角）。
-    # 以前这里写死 9001，等于新号一出生就有男导演 —— 选女号时再补 9002，
-    # 结果两个导演并存（实机 bug）。现在新号没有角色，取名时按性别创建唯一主角
-    # （game_server/protagonist.py 是唯一入口）。
-    # 注意：streetplayerrolemgr.lua:8-18 读它是为了**进街区后**加载玩家模型，
-    # 而进街区的前置条件（streetstage.lua:167-182）就要求已取名+有主角，
-    # 所以 0 不会导致「场景有了但没角色」。
-    # system/streetsystem/manager/streetplayerrolemgr.lua:8-18：
-    #   function StreetPlayerRoleMgr:getCurRoleId(streetId)
-    #     ... 街道替换角色逻辑 ...
-    #     return GlobalData.Avatar and GlobalData.Avatar.character_choosen_char
-    #   end
-    # 而 stage/loadstep/impl/loadstepstreet.lua:115-165：
-    #   local curCharId = StreetPlayerRoleMgr.GetInstance():getCurRoleId(streetId)
-    #   ...
-    #   if data[curCharId] then  <- 只有这里才会 loadActorView 加载玩家模型
-    #   else 直接 loadedCallback() 结束（场景有、但没人、摄像机没目标）
-    "character_choosen_char": 0,
-    # 编队下标：1 = 第一队（和 STARTER_FORMATION 的那一队对应）
-    "choosen_index": 1,
-    "daily_active_value": 0,
-    "endless_choosen_index": 0,
-    "four_racing_character": 0,
-    "has_seen_unlock_action": False,
-    "is_rank_mode_available": False,
-    "mvp_count": 0,
-    "normal_match_count": 0,
-    "normal_mode_win_count": 0,
-    "normal_mvp_count": 0,
-    "punishment_end_time": 0,
-    "puzzle_character": 0,
-    "rank_match_count": 0,
-    "rank_mode_win_count": 0,
-    "rank_mvp_count": 0,
-    "rank_score": 0,
-    # ★ 2026-10-19：这里必须给 101，不能给 0。
-    # 依据 entities/../manager/loginmanager.lua:118-135：
-    #   local street_id = player:getStreetID()
-    #   if player:isInEden() then ...
-    #   elseif street_id ~= nil and street_id ~= 0 then
-    #       JumpToStreetStage("StreetData", street_id)      <- 进主城街区
-    #   else
-    #       if story_finished[1] then JumpToHallStage() end <- 大厅 sc_mainstage
-    # street_id = 0 会走 JumpToHallStage()，而这一版客户端资源里没有 sc_mainstage
-    # 场景（见 ROADMAP 第 9/15/19 节，四条独立证据），于是黑屏 + 断线。
-    # CommonConstData.DefaultStreet = 101（中浦区），
-    # TableData.CommonData.StreetData[101].scene = "sc_zhpmap_01_streaming"，
-    # 而 ab_mapping 里 scenes/streaming/sc_zhpmap_01_streaming 是存在的。
-    "street_id": 101,
-    "street_trace_taskid": 0,
-    "temp_floor": 0,
-    "winNum": 0,
-}
+# 客户端要初值的简单类型属性 -> 默认值（数据在 tools/client_contract.py 的 SIMPLE_PROPS）。
+#
+# ★ 2026-10-28 起数据搬走，和 SERVER_PROPS 一个理由：生成器和守卫测试共用一份，
+#   不再各存一份。这里只剩「取值」这一步。
+#   这块历史上有一次实机 bug：character_choosen_char 写死 9001 导致新号
+#   一出生就有男导演，选女号后两个导演并存。默认值本身有语义，理由都写在
+#   client_contract.SIMPLE_PROPS 的条目上。
 
 # 需要预置的字典条目：属性名 -> {条目键: 值}。
 #
