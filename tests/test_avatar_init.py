@@ -39,7 +39,12 @@ def run():
     props = data["__Properties__"]
 
     print("\n[1] 整体规模")
-    check("属性数 218", len(props) == 218, len(props))
+    # ★ 这里刻意用 ==（不是 >=）：**少一个属性 = 客户端某个面板索引 nil 崩**。
+    #   2026-10-28 实机就是 title_daily_task_cache 少了一个 ->
+    #   点左上角等级入口，DirectorTitleV3Panel 打开即崩，表现为「点了没反应」。
+    #   所以属性数变化必须是有意的、并且同步更新这里（加属性也要留痕）。
+    #   完整的「哪些属性不能少」由 tests/test_avatar_prop_coverage.py 守。
+    check("属性数 220", len(props) == 220, len(props))
     check("每个值都是 dict 或简单类型",
           all(isinstance(v, dict) or isinstance(v, (int, float, str, bool))
               for v in props.values()))

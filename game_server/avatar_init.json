@@ -207,12 +207,12 @@
    "__tp__": "FashionBag",
    "__id__": 1033,
    "#1": {
-    "__id__": 1352,
+    "__id__": 1357,
     "id": 1,
     "expiration_time": 0
    },
    "#2": {
-    "__id__": 1353,
+    "__id__": 1358,
     "id": 2,
     "expiration_time": 0
    }
@@ -237,12 +237,12 @@
    "__tp__": "FashionBag",
    "__id__": 1038,
    "#1": {
-    "__id__": 1354,
+    "__id__": 1359,
     "id": 1,
     "expiration_time": 0
    },
    "#2": {
-    "__id__": 1355,
+    "__id__": 1360,
     "id": 2,
     "expiration_time": 0
    }
@@ -1511,25 +1511,25 @@
    "__tp__": "ItemBag",
    "__id__": 1324,
    "1": {
-    "__id__": 1348,
+    "__id__": 1353,
     "id": "1",
     "itemId": 101,
     "num": 1000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1349
+     "__id__": 1354
     }
    },
    "2": {
-    "__id__": 1350,
+    "__id__": 1355,
     "id": "2",
     "itemId": 103,
     "num": 100000,
     "expireTime": 0.0,
     "getTime": 0.0,
     "ext": {
-     "__id__": 1351
+     "__id__": 1356
     }
    }
   },
@@ -1586,17 +1586,40 @@
    "__tp__": "StoryTaskBag",
    "__id__": 1337
   },
+  "title_daily_task_cache": {
+   "__tp__": "TitleDailyTaskCache",
+   "__id__": 1338,
+   "is_first_day": 0,
+   "fst_type_tasks": {
+    "__id__": 1339
+   },
+   "sed_type_tasks": {
+    "__id__": 1340
+   },
+   "fst_task": 0,
+   "sed_task": 0
+  },
+  "street_level_info": {
+   "__tp__": "StreetLevelInfo",
+   "__id__": 1341,
+   "level_id": 0,
+   "min_use_time": 0,
+   "max_use_time": 0,
+   "finish_achieve_reward": {
+    "__id__": 1342
+   }
+  },
   "street_pos_info": {
    "__tp__": "DoubleDict",
-   "__id__": 1338
+   "__id__": 1343
   },
   "singleMatchInfo": {
    "__tp__": "SingleMatchInfo",
-   "__id__": 1339,
+   "__id__": 1344,
    "state": 0,
    "match_id": "",
    "match_info": {
-    "__id__": 1340,
+    "__id__": 1345,
     "system_type": 0,
     "match_type": 0,
     "modeId": 0,
@@ -1605,24 +1628,24 @@
   },
   "dungeonView": {
    "__tp__": "DungeonViewDict",
-   "__id__": 1341
+   "__id__": 1346
   },
   "endless_character_list": {
    "__tp__": "EndlessCharacterList",
-   "__id__": 1342
+   "__id__": 1347
   },
   "mainline_level": {
    "__tp__": "IntDictKeyInt",
-   "__id__": 1343
+   "__id__": 1348
   },
   "character_list": {
    "__tp__": "CharacterList",
-   "__id__": 1344,
+   "__id__": 1349,
    "#1": {
-    "__id__": 1345,
+    "__id__": 1350,
     "name": "",
     "value": {
-     "__id__": 1347,
+     "__id__": 1352,
      "#1": 0,
      "#2": 0,
      "#3": 0

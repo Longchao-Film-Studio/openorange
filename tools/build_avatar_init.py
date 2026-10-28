@@ -111,6 +111,30 @@ REQUIRED = {
     "story_task_bag": "StoryTaskBag",
     "done_tasks": "DoneTaskTypeBag",
     "done_story_tasks": "StoryTaskBag",
+    # --- 导演头衔面板的每日任务缓存（H3 实机崩溃修复） ---
+    # 2026-10-28 实机：点左上角等级/头衔入口 -> DirectorTitleV3Panel 打开后
+    # 立刻报错并自我关闭，用户看到的就是「点了没反应」。
+    #   ui/panel/directortitlev3panel/node_daily_task_item/node_daily_task_itemgroup.lua:86
+    #     local firstDay = GlobalData.Avatar.title_daily_task_cache.is_first_day ~= 1
+    #   <- refreshState (86) <- showTaskInfo (67) <- setData (38)
+    #   <- DirectorTitleV3Panel.lua:198 _initDailyTaskList <- :167 initTaskInfo <- :35 initEx
+    # 属性是 nil -> attempt to index a nil value。
+    #
+    # ★ 这个属性在 config.lua 里**完全不存在**（AvatarProperties 173 项里没有，
+    #   PropertyCallbacks 里也没有），但类型 TitleDailyTaskCache 是声明过的
+    #   （config.lua:7258，字段 is_first_day/fst_type_tasks/sed_type_tasks/fst_task/sed_task）。
+    #   客户端只有这一个读点、没有任何地方创建它 —— 说明官方服务端是在运行时
+    #   用 _changeRootProperty 动态建的（和 singleMatchInfo 同一类）。
+    #   我们改从 initDict 建，等价，且不需要新增协议。
+    #
+    # 安全性依据（不是猜）：core/propertysync/puppetpropertycomponent.lua:47-65
+    #   的 initProperty 遍历服务端下发的 __Properties__，只按 value.__tp__ 建对象，
+    #   **不查 AvatarProperties 声明**。所以下发一个未声明属性不会触发任何断言。
+    "title_daily_task_cache": "TitleDailyTaskCache",
+    # --- 街区等级信息（同一类：客户端读了、我们没下发） ---
+    # ui/panel/streetpanel/node_pop_achievement_reward/node_pop_achievement_rewardgroup.lua
+    # 读 GlobalData.Avatar.street_level_info；类型 StreetLevelInfo 在 config.lua 有声明。
+    "street_level_info": "StreetLevelInfo",
     # --- 位置持久化 ---
     # street_pos_info 只在 PropertyCallbacks 里声明（config.lua:10011），
     # AvatarProperties 没有它，所以生成器不会自动建。

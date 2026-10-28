@@ -40,9 +40,12 @@ def check(name, cond, detail=None):
 def run():
     print("\n[1] B1 属性声明表")
     s = spec.stats()
-    check("根属性 218 个（173 声明 + 45 initDict）",
-          s["root_props"] == 218 and s["root_props_declared"] == 173
-          and s["root_props_initdict_only"] == 45, s)
+    # ★ 同样刻意用 ==：根属性少一个就可能让某个客户端面板崩（见 test_avatar_init
+    #   同一段注释）。2026-10-28 加了 title_daily_task_cache / street_level_info，
+    #   都是「客户端读了、我们没下发」的实机崩溃点，所以 45 -> 47。
+    check("根属性 220 个（173 声明 + 47 initDict）",
+          s["root_props"] == 220 and s["root_props_declared"] == 173
+          and s["root_props_initdict_only"] == 47, s)
     check("自定义类型 345 个", s["custom_types"] == 345, s["custom_types"])
     check("简单类型 45 / 结构体 70 / int容器 53 / list 3 / str容器 2",
           s["root_prop_kinds"] == {"simple": 45, "struct": 70, "list": 3,
