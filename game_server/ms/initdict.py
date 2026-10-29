@@ -187,6 +187,7 @@ def _live_init_dict_impl(uid=None):
     st = _stage_boot(uid)
     if st is None:
         return DEFAULT_INIT_DICT
+    _stage_welcome_mail(st, uid)
     _stage_scaffold(st, uid)
     _stage_story_seed(st)
     _stage_street_info(st)
@@ -233,6 +234,31 @@ def _stage_boot(uid=None):
         st.props["uid"] = uid
 
     return st
+
+def _stage_welcome_mail(st, uid=None):
+    """新号欢迎邮件（M5 的第一个下游接入点，走 send_mail 唯一入口）。
+
+    ★ 只在**首次建号**发一封。判据只有 st.is_new 一个 ——
+      它不是「我发过没」的标记，而是「这份存档是刚建的」（player_state.get_state 设的）。
+      重登时存档已存在，is_new 自然是 False，所以不需要再额外记一个「已发」标记。
+      （实测确认：加了这个标记之后，把它删掉测试依然全绿 —— 说明它是同一个事实的
+        第二个产生者，属于多余状态。）
+
+    ★ 模板 id 来自 config.MAIL_WELCOME_TEMPLATE（默认 0 = 不发）：
+      「发哪封信」是运营决定，不该烤进代码。
+    """
+    tid = int(getattr(ooconf, "MAIL_WELCOME_TEMPLATE", 0) or 0)
+    if tid <= 0 or not getattr(st, "is_new", False):
+        return
+    from ..mail import send as _mail_send  # noqa: PLC0415  —— 避免模块级循环依赖
+    try:
+        sent = _mail_send.send_mail(st, tid)
+    except Exception as e:  # noqa: BLE001  —— 发信失败不该挡住登录
+        _log.warning(f"[init] 欢迎邮件发送失败(uid={uid}): {e}")
+        return
+    if sent:
+        _log.info(f"[init] 新号欢迎邮件已发(uid={uid}): 模板 {tid}")
+
 
 def _stage_scaffold(st, uid=None):
     """脚手架覆盖层（仅新存档一次）。"""
