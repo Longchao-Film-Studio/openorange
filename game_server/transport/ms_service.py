@@ -41,11 +41,24 @@ _NEVER_FAKE_OK_MS = frozenset((
     "MailService.unstar",
 ))
 
+# ★ 2026-10-29：整服务黑名单。逐个列方法会漏 —— 客户端一共有 11 个邮件方法，
+#   上面只列了 6 个；漏掉的 getUserMailList / getMailContent / syncGroupMail /
+#   queryNotification / readNotification 在兼容模式下会回 {"Ret":[true,0]}，
+#   而客户端收到 status=true 就继续往下走：
+#     getUserMailList 假成功 -> handleOnePageMailList 里 pairs(response.MailList) 是 nil -> Lua 报错
+#     readNotification 假成功 -> 红点假熄灭
+#   邮件这一整个服务都属于「假成功 = 静默丢东西 / 状态错」，所以按服务拒绝，不按方法列。
+_NEVER_FAKE_OK_SERVICES = frozenset((
+    "MailService",
+))
+
 
 def unknown_ms_params(service, method, uid=None, params=None):
     """未实现微服务方法的应答参数（msgpack bytes）：记日志 + 按模式决定成败。"""
     key = f"{service}.{method}"
-    fake = ooconf.unknown_fake_ok() and (key not in _NEVER_FAKE_OK_MS)
+    fake = (ooconf.unknown_fake_ok()
+            and key not in _NEVER_FAKE_OK_MS
+            and service not in _NEVER_FAKE_OK_SERVICES)
     _ulog.record("ms", key, uid=uid, params=params, fake_ok=fake,
                  reply="ack" if fake else "fail")
     if fake:
@@ -58,6 +71,86 @@ def _log_dump(payload, limit=256):
     _dump = maybe_hexdump(payload, limit=limit)
     if _dump:
         _log.debug("%s", _dump)
+
+
+# ---------------------------------------------------------------- 分派表（唯一入口）
+# ★ 2026-10-29：以前这里是一串 `if method == "query" / elif method == "batchGetAttribute" ...`，
+#   **只看 method，不看 service**。后果：`MailService.queryNotification`
+#   （avatarmailcomp.lua:527）命中了 FriendService 的分支，收到好友语义的空通知列表 ——
+#   而邮件那边把「Notification 有没有值」当成「有没有新邮件」，Lua 空表为真 ->
+#   红点逻辑直接错。同类问题只要"两个服务有同名方法"就会再犯一次。
+#
+#   现在分派键是 (service, method)。未登记的组合一律走 unknown_ms_params，
+#   新增一个服务必须显式登记，别名/同名不会再被别的服务吞掉。
+
+
+def _reply_game_load_query(fields, cid):
+    """GameLoadService.query：下发服务器列表，顺带记下账号（多账号关联要用）。"""
+    if 4 in fields:
+        try:
+            _q = msmod.mp_decode(fields[4][0])[0]
+            if isinstance(_q, dict) and _q.get("Username"):
+                accounts.remember_username(_q["Username"])
+                _log.info('[ms] #{:03d} 账号 {}'.format(cid, _q["Username"]))
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+            pass
+    return msmod.build_load_service_params(ooconf.GATE_PORT)
+
+
+def _reply_batch_get_attribute(fields, cid):
+    """UserDataService.batchGetAttribute：玩家数据主通道（avataruserdatacomp.lua:151）。"""
+    _req = []
+    if 4 in fields:
+        try:
+            _req = msmod.mp_decode(fields[4][0])[0]
+        except Exception as _e:
+            _log.warning(f'[ms] #{cid:03d} batchGetAttribute 参数解析失败: {_e}')
+            _req = []
+    params = msmod.build_userdata_batch_params(_req)
+    _log.info('[ms] #{:03d}    -> 回 {:d} 条 Results'.format(
+        cid, len(msmod.mp_decode(params)[0].get("Results", []))))
+    return params
+
+
+def _reply_fetch_friends(_fields, _cid):
+    """FriendService.fetchFriends：结算时必调，回标准空好友列表。
+
+    客户端 avatarsettlementcomp.lua:36 -> avatarfriendcomp.lua:256-264。
+    以前落进 else 回 {"Ret":[True,0]} 且无 Friends 字段：CheckFriendStatus 能过，
+    但 response.Friends 是 nil。
+    """
+    return msmod.mp_map({"Ret": [True, ""], "Friends": []})
+
+
+def _reply_friend_query_notification(_fields, _cid):
+    """FriendService.queryNotification：回空通知列表。
+
+    ★ 只服务好友。邮件的**同名方法**在 MailService 下，不在这张表里，
+      会走 unknown_ms_params —— 这正是修掉「一个分支同时服务两个服务」的地方。
+    """
+    return msmod.mp_map({"Ret": [True, ""], "Notification": []})
+
+
+#: (service, method) -> 应答参数构造函数。**唯一分派点**。
+_MS_HANDLERS = {
+    ("GameLoadService", "query"): _reply_game_load_query,
+    ("UserDataService", "batchGetAttribute"): _reply_batch_get_attribute,
+    ("FriendService", "fetchFriends"): _reply_fetch_friends,
+    ("FriendService", "queryNotification"): _reply_friend_query_notification,
+}
+
+
+def ms_reply_params(service, method, fields, cid=0):
+    """(service, method) -> MsResponse 的 msgpack 参数。
+
+    未登记的组合一律按「未实现」处理（记日志 + 按模式/黑名单决定成败）。
+    单独成函数是为了能被单测直接调用 —— 不需要起 socket 就能验分派。
+    """
+    handler = _MS_HANDLERS.get((service, method))
+    if handler is not None:
+        return handler(fields, cid)
+    return unknown_ms_params(service, method, uid=None,
+                             params=fields.get(4, [b""])[0])
 
 
 def handle_ms(conn, addr, cid):
@@ -110,58 +203,11 @@ def handle_ms(conn, addr, cid):
                        cid, mtype, seq, service, method, len(payload))
             _log_dump(payload)
 
-            # 按方法名区分负载：
-            #   syncMetadata 的 Lua 回调 onSyncMetadataCb 只读 retStatus，
-            #     给它塞 ServerList 属于多余数据，可能引起解析侧异常；
-            #   query 的 onGetServerGates 才需要 ServerList + ClusterId。
-            if method == "query":
-                # 从 query 参数里抓账号名（field 4 是 msgpack，含 Username）
-                if 4 in fields:
-                    try:
-                        _q = msmod.mp_decode(fields[4][0])[0]
-                        if isinstance(_q, dict) and _q.get("Username"):
-                            accounts.remember_username(_q["Username"])
-                            _log.info('[ms] #{:03d} 账号 {}'.format(cid, _q["Username"]))
-                    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
-                        pass
-                params = msmod.build_load_service_params(ooconf.GATE_PORT)
-            elif method == "batchGetAttribute":
-                # ★ 1-3 玩家数据的主通道（avataruserdatacomp.lua:151）
-                _req = []
-                if 4 in fields:
-                    try:
-                        _req = msmod.mp_decode(fields[4][0])[0]
-                    except Exception as _e:
-                        _log.warning(f'[ms] #{cid:03d} batchGetAttribute 参数解析失败: {_e}')
-                        _req = []
-                params = msmod.build_userdata_batch_params(_req)
-                _log.info('[ms] #{:03d}    -> 回 {:d} 条 Results'.format(cid, len(msmod.mp_decode(params)[0].get("Results", []))))
-            elif method == "fetchFriends":
-                # ★ P1-7（2026-10-23）：FriendService 最小实现。
-                #   客户端结算时必调 fetchFriends
-                #   （avatarsettlementcomp.lua:36 -> avatarfriendcomp.lua:256-264
-                #    callService("FriendService", "fetchFriends", {uid,start,limit})）。
-                #   之前落进 else 回 {"Ret":[True,0]} 且无 Friends 字段，
-                #   客户端 CheckFriendStatus 能过但 response.Friends 为空；
-                #   这里回标准空好友列表，语义完整。
-                #   响应结构见 core/microservice/msgateclientrpchandler.lua:35-49：
-                #     response=decode(parameters); ret=response.Ret;
-                #     retStatus={status=ret[1], errmsg=ret[2]}; response.Ret=nil
-                params = msmod.mp_map({"Ret": [True, ""], "Friends": []})
-            elif method == "queryNotification":
-                # ★ P1-7 补充（2026-10-23）：FriendService.queryNotification。
-                #   结算后客户端会调（avatarfriendcomp.lua:553）：
-                #      callService("FriendService", "queryNotification", {uid},
-                #                  cb, {timeout=5})
-                #   回调 FriendService_queryNotification_cb 读 response.Notification。
-                #   之前走 else 返回 {"Ret":[True,0]} 无字段 -> Notification 为 nil，
-                #   这里给空通知列表，语义完整。
-                params = msmod.mp_map({"Ret": [True, ""], "Notification": []})
-            else:
-                # ★ 雷2：未实现的微服务方法（记日志 + 模式/黑名单决定成败）
-                params = unknown_ms_params(
-                    service, method, uid=None,
-                    params=fields.get(4, [b""])[0])
+            # 分派：键是 (service, method)，未登记的组合按「未实现」处理。
+            #   syncMetadata 的 Lua 回调只读 retStatus，不需要额外字段；
+            #   query 的 onGetServerGates 才需要 ServerList + ClusterId ——
+            #   各自在 _MS_HANDLERS 里负责，不再在这里按 method 链式判断。
+            params = ms_reply_params(service, method, fields, cid)
             pkt = msmod.frame_ms_response(seq, params, service)
             try:
                 conn.sendall(pkt)
