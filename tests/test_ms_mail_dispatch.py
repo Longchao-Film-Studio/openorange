@@ -51,6 +51,7 @@ MAIL_METHODS = (
 MAIL_IMPLEMENTED = (
     "getUserMailList", "getMailContent", "syncGroupMail",
     "queryNotification", "readNotification",
+    "setMailGiftReceived",          # M2
 )
 UID = "ms_dispatch_u"
 
@@ -104,6 +105,7 @@ def main():
         "syncGroupMail": req_args(UID),
         "queryNotification": req_args(UID),
         "readNotification": req_args(UID),
+        "setMailGiftReceived": req_args(UID, [1]),   # 上面刚塞的那封
     }
 
     # ------------------------------------------------------------ INV-MS-3
@@ -144,7 +146,7 @@ def main():
     bad_key = [k for k in tbl if not (isinstance(k, tuple) and len(k) == 2)]
     check("所有键都是二元组", bad_key == [], bad_key)
     registered_mail = sorted(m for (s, m) in tbl if s == "MailService")
-    check("MailService 只登记了已实现的 5 个", registered_mail == sorted(MAIL_IMPLEMENTED),
+    check("MailService 只登记了已实现的那几个", registered_mail == sorted(MAIL_IMPLEMENTED),
           registered_mail)
     check("登记的方法都有处理器", all(callable(h) for h in tbl.values()))
 

@@ -35,10 +35,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from shared.log_tee import get_logger
+
 from .. import ms as msmod
 from .. import player_state as pstate
 from ..ms import registry
+from ..property.bag import grants as _grants
+from ..transport import online as _online
 from . import store, template
+
+_log = get_logger(__name__)
 
 #: 单页硬上限。客户端写死 100（avatarmailcomp.lua:97），这里只防"客户端要 100 万封"。
 MAX_PAGE = 200
@@ -184,3 +190,76 @@ def _read_notification(fields: dict, _cid: int) -> bytes:
     with pstate.lock_for(uid):
         store.clear_new(st.props)
     return _ok()
+
+# ------------------------------------------------------------------ M2：领奖
+@registry.register("MailService", "setMailGiftReceived")
+def _set_mail_gift_received(fields: dict, _cid: int) -> bytes:
+    """setMailGiftReceived(uid, mailIds)：发奖 -> 标记 -> 推同步 -> 才回成功。
+
+    ★★ 顺序是这个方法的全部要害。客户端 setMailGiftReceived_cb
+       （avatarmailcomp.lua:337-347）拿到 status=true 就**本地**把 Params.giftReceived
+       标成 true，不看服务端有没有发货。所以：
+         · 必须**先发货、再落盘、再回 true**；
+         · 任何一封发不出去，整批回 fail（宁可让玩家再点一次，也不能假成功）。
+
+    ★ 幂等：已领过的直接跳过（不重复发，也不报错）。多开/连点/重放同一个 mailIds 都安全。
+
+    ★ 逐封处理而不是"先全检再全发"：一封失败不影响其它封；失败那封保持未领，
+      下次点击会重试它 —— 已领过的因为幂等不会二次发放。
+    """
+    args = _args(fields)
+    uid = str(args[0]) if args else ""
+    ids = args[1] if len(args) > 1 else []
+    if not isinstance(ids, list) or not ids:
+        return _fail("bad mailIds")
+
+    st = _state(uid)
+    if st is None:
+        return _fail("unknown user")
+
+    granted: list[int] = []
+    failed: list[int] = []
+    frames: list[bytes] = []
+
+    with pstate.lock_for(uid):
+        for raw_id in ids:
+            mid = _as_int(raw_id, 0)
+            mail = store.get(st.props, mid)
+            if mail is None or mail.get(store.DELETED):
+                failed.append(mid)
+                continue
+            params = mail.get("Params")
+            if isinstance(params, dict) and params.get("giftReceived"):
+                continue                                    # 已领：幂等跳过
+
+            items = template.attachments_of(mail)
+            if items:
+                # ★ 唯一发放入口：grant_many 内部走 Tx，帧由 Tx 产生（不手工拼）
+                tx, outcomes = _grants.grant_many(st.props, items, source=f"mail:{mid}")
+                bad = [oc for oc in outcomes if not oc.ok]
+                if bad:
+                    # 该封保持"未领"，下次点击重试；已发出去的物品留在背包里（不回收）
+                    _log.error("[mail] uid=%s 邮件 %s 发奖失败 %s", uid, mid,
+                               [(oc.item_id, getattr(oc.error, "code", "")) for oc in bad])
+                    failed.append(mid)
+                    continue
+                frames.extend(tx.frames())
+
+            store.mark_param(st.props, mid, "giftReceived", True)
+            granted.append(mid)
+
+        if granted and not st.save():
+            # ★ 必须落盘：客户端已经本地标已领，服务端不存就是"重登后能再领一次"
+            _log.error("[mail] uid=%s 领奖后落盘失败（邮件 %s）", uid, granted)
+
+    if frames:
+        ok_n, fail_n = _online.send_to(uid, frames)
+        # 实体连接不在线是正常情况（玩家可能在登录界面）：数据已入库，
+        # 下次登录 initDict 会带出正确背包，奖励不会丢。这里只记一笔便于排障。
+        _log.info("[mail] uid=%s 领奖 %s 推送属性同步 %d 帧 -> 在线连接 %d/%d",
+                  uid, granted, len(frames), ok_n, fail_n)
+
+    if failed:
+        return _fail(f"mail not claimable: {failed}")
+    return _ok()
+
