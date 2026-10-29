@@ -80,7 +80,7 @@ def run():
               "gm1", "aixiaoji"):
         try:
             if not _db.get_account_by_username(u):
-                _db.register_account(u, "pw", "acc_" + u, "fp_" + u, "sk_" + u)
+                _db.register_account(u, "pw", "acc_" + u, "sk_" + u)
         except Exception as e:
             print(f"  注册账号 {u} 失败: {e}")
     srv, _th = admin_api.start(port=_TEST_PORT)

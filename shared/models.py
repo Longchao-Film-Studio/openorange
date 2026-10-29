@@ -47,19 +47,31 @@ def _display_name(username):
     return s
 
 
-def _to_uid_number(acc):
-    """把账号转成官方那样的 **纯数字** UID。
+#: 数字 UID 的基数。官方 fp_uid = 35931389584（3.59e10），
+#: 我们用 1e10 起——同一个数量级，但**能一眼区分"这是我们的号"**。
+#: 见 docs/身份与UID模型.md。
+UID_NUM_BASE = 10_000_000_000
 
-    官方 fp_uid = 35931389584 (int)。
-    我们的账号表存的是字符串, 这里用稳定哈希映射到数字区间, 保证同一账号恒定。
+
+def _to_uid_number(acc):
+    """`accounts.id` -> 官方那种**纯数字** UID（协议字段 fp_uid / fpid / channel_uid 用）。
+
+    ★ 2026-10-29 改：原来是「把字符串哈希后 mod 9e8」，那是一张**有损映射** ——
+      900,000,000 个格子装无限个账号，实测 20 万个账号撞 16 次
+      （u18058 与 u20968 都是 287017756）。而且空 dict 会固定塌成 191391806。
+
+      现在改成 `UID_NUM_BASE + accounts.id`：自增主键 → 天然双射，**结构上不可能撞**。
+      id 有空洞（删号不回收）不影响唯一性，只是数字不连续。
+
+    ★ 这个数字**只有一个用途**：填进 fp-passport 协议响应（客户端只做展示/缓存）。
+      **禁止**拿它当任何 dict key / 数据库键 / 实体 id / 存档名 ——
+      `tests/test_uid_identity.py` 的调用点白名单会拦住新增用法。
     """
-    raw = acc.get("fp_uid") or acc.get("account_id") or acc.get("username") or ""
-    raw = str(raw)
-    if raw.isdigit():
-        return int(raw)
-    h = hashlib.sha256(("oo_uid:" + raw).encode("utf-8")).hexdigest()
-    # 取 9 位十进制(1e8 ~ 1e9), 与官方的 3.5e10 同量级
-    return 100000000 + (int(h[:16], 16) % 900000000)
+    acc_id = acc.get("id")
+    if acc_id is None:
+        # 不许兜底成常数：那会让"拿不到账号"的所有路径塌成同一个号。
+        raise ValueError("账号行缺少 id，无法分配数字 UID（不要在这里做兜底）")
+    return UID_NUM_BASE + int(acc_id)
 
 
 def _stable_hex(seed, n=32):
@@ -72,10 +84,6 @@ def _stable_hex(seed, n=32):
 
 def account_id_for(username):
     return "oo_" + _stable_hex("acct:" + username, 16)
-
-
-def fp_uid_for(username):
-    return "fp_" + _stable_hex("uid:" + username, 16)
 
 
 def _b64e(raw):
@@ -137,10 +145,18 @@ def session_key_for(username, account_id=None, device_id=None):
     return _b64e(plain.encode("utf-8"))
 
 
-def ticket_for(username, account_id, channel_uid=None):
-    """按官方结构生成 ticket(64hex 前缀 + JSON 元数据, 整体 base64)。"""
-    acc = db.get_account_by_username(username) or {}
-    uid = str(channel_uid or acc.get("channel_uid") or _to_uid_number(acc))
+def ticket_for(account_id, uid_num):
+    """按官方结构生成 ticket(64hex 前缀 + JSON 元数据, 整体 base64)。
+
+    ★ 2026-10-29 UID 收敛：签名从 `(username, account_id, channel_uid=None)`
+      改成 `(account_id, uid_num)`。
+
+      原来那版的兜底是 `channel_uid or acc["channel_uid"] or _to_uid_number(acc)`：
+      中间一环取到的是 `username`（字符串），等于把账号名塞进本该是数字的字段。
+      唯一调用点碰巧显式传了参，所以从没炸 —— 「兜底逻辑是错的，只是没人走」。
+      现在直接要求调用方给 `uid_num`，票里不含 username（本来也不含）。
+    """
+    uid = str(uid_num)
     meta = {
         "app_id": APP_ID,
         "channel_id": CHANNEL_ID_PC,
@@ -186,9 +202,7 @@ def register(username, password):
         username=username,
         password=password,
         account_id=account_id_for(username),
-        fp_uid=fp_uid_for(username),
         session_key=session_key_for(username),
-        channel_uid=username,
     )
     if acc is None:
         return False, "该账号已注册", None
@@ -240,7 +254,9 @@ def account_profile(acc):
     return {
         "username": acc["username"],
         "account_id": acc["account_id"],
-        "uid": _to_uid_number(acc),
+        # ★ 「游戏内 UID」= username（和游戏里 `UID: xxx` 显示/可复制的是同一个东西）。
+        #   数字 UID 只走 fp-passport 协议，不进这个视图——否则玩家会看到两个"UID"。
+        "uid": acc["username"],
         "created": int(acc["created_ts"]),
         "last_login": int(acc["last_login_ts"] or acc["created_ts"]),
         "login_count": int(acc["login_count"] or 0),
@@ -302,7 +318,7 @@ def login(username, _channel_uid=None):
     session_key = session_key_for(username, account_id=acc["account_id"])
     db.touch_login(username, session_key=session_key)
 
-    ticket = ticket_for(username, acc["account_id"], channel_uid=fp_uid_num)
+    ticket = ticket_for(acc["account_id"], uid_num=fp_uid_num)
     db.issue_ticket(ticket, username, acc["account_id"])
 
     is_new = bool(acc["is_new"])

@@ -112,7 +112,9 @@ def run():
     check("含 登录/注册 两个页签",
           'data-tab="login"' in page and 'data-tab="reg"' in page)
     check("不含已下线的验证码界面", "验证码" not in page)
-    check("含账号中心字段", "账号 ID" in page and "玩家 UID" in page)
+    # 2026-10-29 UID 收敛：网页那栏从「玩家 UID」（数字）改成「游戏内 UID」（=账号名），
+    # 和游戏里显示的 `UID: xxx` 一致。见 docs/身份与UID模型.md。
+    check("含账号中心字段", "账号 ID" in page and "游戏内 UID" in page)
     check("输入框用浮动标签（无裸 label 堆叠）",
           'class="field"' in page and 'placeholder=" "' in page)
     check("改密 / 删号走弹窗", 'id="overlay"' in page and 'id="modalPw"' in page)
@@ -157,7 +159,8 @@ def run():
     check("/api/me 成功", r.get("ok") is True, r)
     check("回显用户名", acc.get("username") == U1, acc.get("username"))
     check("含 account_id", str(acc.get("account_id", "")).startswith("oo_"), acc.get("account_id"))
-    check("含玩家 UID", isinstance(acc.get("uid"), int) and acc["uid"] > 0, acc.get("uid"))
+    check("Uid 是账号名（与游戏内 UID 一致）", acc.get("uid") == U1, acc.get("uid"))
+    check("不再回显数字 UID", not isinstance(acc.get("uid"), int), type(acc.get("uid")))
     check("含注册时间", bool(acc.get("created_text")), acc.get("created_text"))
     check("含登录次数", acc.get("login_count", 0) >= 1, acc.get("login_count"))
     check("不泄露密码哈希", "pass_hash" not in json.dumps(acc), acc)

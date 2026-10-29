@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import shutil
 import sqlite3
 import threading
 import time
@@ -62,10 +63,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     username          TEXT    NOT NULL UNIQUE,   -- 账号名(登录标识/UID)
     pass_salt         TEXT,                      -- 密码盐(旧库可能为空)
     pass_hash         TEXT,                      -- PBKDF2 哈希
-    account_id        TEXT    NOT NULL UNIQUE,   -- fp-passport account_id
-    fp_uid            TEXT    NOT NULL,          -- FP 玩家 UID
+    account_id        TEXT    NOT NULL UNIQUE,   -- 只给客户端携带用的运输凭证（见 docs/身份与UID模型.md）
     session_key       TEXT    NOT NULL,
-    channel_uid       TEXT,
     is_formal         INTEGER NOT NULL DEFAULT 1,
     is_new            INTEGER NOT NULL DEFAULT 1,
     perm_level        INTEGER NOT NULL DEFAULT 0,  -- 0=玩家 1=GM 2=管理员
@@ -123,8 +122,41 @@ def init():
             c.execute(f"ALTER TABLE {table} RENAME COLUMN mobile TO username")
     # 早期版本的「游戏内取验证码」流程已废弃，旧库里的 codes 表一并清掉。
     c.execute("DROP TABLE IF EXISTS codes")
+    _drop_legacy_identity_columns(c)
     c.commit()
     return DB_PATH
+
+
+def _drop_legacy_identity_columns(c):
+    """删掉两个「同名字段两条命」的历史列（2026-10-29 UID 收敛）。
+
+    为什么要删（`docs/身份与UID模型.md` 的 INV-UID-1）：
+      `fp_uid`      —— 存的是 `"fp_"+sha256(...)[:16]`，**从来没有发给过客户端**；
+                       而协议响应里的 `fp_uid` 是另一个 9 位数字。同名字段不同值。
+      `channel_uid` —— 注册时填的是 `username`，永远等于账号名；
+                       而协议里的 `channel_uid` 是数字串。同名字段不同值。
+
+    两列都不是任何东西的真来源（`_to_uid_number` 现在由 `accounts.id` 派生），
+    留着只会让人误以为它们是身份。删列之前先落一份备份，出问题能整库回滚。
+
+    幂等：列不存在直接返回 []；SQLite 的 DROP COLUMN 在事务内，失败即回滚。
+    """
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(accounts)").fetchall()}
+    drop = [n for n in ("fp_uid", "channel_uid") if n in cols]
+    if not drop:
+        return []
+    backup = DB_PATH + ".pre-uid-migration"
+    if os.path.exists(DB_PATH) and not os.path.exists(backup):
+        try:
+            c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            shutil.copyfile(DB_PATH, backup)
+            _log.info(f"[db] UID 收敛前备份: {backup}")
+        except Exception as e:                      # 备份失败不阻断，但要说出来
+            _log.warning(f"[db] UID 收敛前备份失败（继续）: {e}")
+    for name in drop:
+        c.execute(f"ALTER TABLE accounts DROP COLUMN {name}")
+    _log.info(f"[db] UID 收敛：删除历史列 {', '.join(drop)}")
+    return drop
 
 
 # ---------------- 密码 ----------------
@@ -168,8 +200,13 @@ def get_account_by_username(username):
     return dict(r) if r else None
 
 
-def register_account(username, password, account_id, fp_uid, session_key, channel_uid=None, is_formal=1):
-    """网页注册。已存在则返回 None(由调用方判断)。"""
+def register_account(username, password, account_id, session_key, is_formal=1):
+    """网页注册。已存在则返回 None(由调用方判断)。
+
+    ★ 2026-10-29 UID 收敛：不再接收/写入 fp_uid 与 channel_uid。
+      账户表里只有两样东西是身份：`username`（对外，游戏内 UID）和
+      `account_id`（内部运输凭证）。数字 UID 由 `accounts.id` 现算，不落库。
+    """
     if get_account_by_username(username):
         return None
     salt, phash = hash_password(password)
@@ -177,11 +214,10 @@ def register_account(username, password, account_id, fp_uid, session_key, channe
     c = _conn()
     try:
         c.execute(
-            "INSERT INTO accounts(username,pass_salt,pass_hash,account_id,fp_uid,session_key,"
-            "channel_uid,is_formal,is_new,created_ts,last_login_ts,login_count) "
-            "VALUES(?,?,?,?,?,?,?,?,1,?,?,0)",
-            (username, salt, phash, account_id, fp_uid, session_key,
-             channel_uid or username, is_formal, now, now),
+            "INSERT INTO accounts(username,pass_salt,pass_hash,account_id,session_key,"
+            "is_formal,is_new,created_ts,last_login_ts,login_count) "
+            "VALUES(?,?,?,?,?,?,1,?,?,0)",
+            (username, salt, phash, account_id, session_key, is_formal, now, now),
         )
         c.commit()
     except sqlite3.IntegrityError:

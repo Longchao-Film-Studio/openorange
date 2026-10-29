@@ -24,6 +24,8 @@ launcher/dist/launcher_state.ini
 shared/data.db
 shared/data.db-shm
 shared/data.db-wal
+# 迁移前的整库备份（uid 收敛等一次性迁移会生成；含密码哈希，绝不入库）
+shared/data.db.*
 # 游戏服抓包目录（每次启动自动创建）
 work/
 
