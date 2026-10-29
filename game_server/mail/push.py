@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 
 from shared.log_tee import get_logger
 
+from .. import config as _ooconf
 from .. import ms as msmod
 from ..ms import frames as _frames
 from ..transport import ms_conns
@@ -50,7 +51,7 @@ def notify_new_mail(st: PlayerState, mails: list[dict]) -> bool:
       SafeCallback(func, target, unpack(parameters or {}))
     所以 parameters 必须是数组，且第一个元素就是 newMailNotice 要的 mailsInfo。
     """
-    if not mails:
+    if not mails or not _ooconf.mail_push_enabled():
         return False
     uid = str(st.props.get("uid") or "")
     if not uid:
@@ -66,7 +67,7 @@ def notify_new_mail(st: PlayerState, mails: list[dict]) -> bool:
 
 def push_to_group(uids, mails: list[dict]) -> int:
     """给一组账号推同一批邮件，返回成功推送的条数（群发用）。"""
-    if not mails or not uids:
+    if not mails or not uids or not _ooconf.mail_push_enabled():
         return 0
     params = msmod.mp_arr([list(mails)])
     ok = 0

@@ -29,6 +29,7 @@ os.environ["OO_UNKNOWN_LOG"] = os.path.join(_TMP, "unknown.tsv")
 os.environ["OO_CAPTURE_DIR"] = os.path.join(_TMP, "cap")
 os.environ["OO_STATE_DIR"] = os.path.join(_TMP, "state")
 
+from game_server import config as ooconf  # noqa: E402
 from game_server import ms as msmod  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402
 from game_server import prop_origin  # noqa: E402
@@ -241,7 +242,25 @@ def main():
     ms_conns.unregister(22)
     check("新连接断开后不再可推", ms_conns.push("dup_u", b"z") is False)
 
-    print("\n[10] unbind：主动解绑后不再推送")
+    print("\n[10] 开关 OO_MAIL_PUSH=0：不推送，但邮件照常入库（可一键回退）")
+    ms_conns.reset_for_tests()
+    s10b = FakeSock()
+    # ★ 必须绑到**同一个 uid**：否则推送本来就找不到连接，这条用例会假装通过
+    OFF_UID = "push_off"
+    ms_conns.register(31, s10b)
+    ms_conns.bind_uid(31, OFF_UID)
+    saved = ooconf.MAIL_PUSH_ENABLED
+    try:
+        ooconf.MAIL_PUSH_ENABLED = False
+        st10 = fresh(OFF_UID)
+        before10 = len(store.all_mails(st10.props))
+        mailsend.send_mail(st10, TPL)
+        check("关掉推送：socket 一帧都没收到", s10b.frames == [], len(s10b.frames))
+        check("关掉推送：邮件照样入库", len(store.all_mails(st10.props)) == before10 + 1)
+    finally:
+        ooconf.MAIL_PUSH_ENABLED = saved
+
+    print("\n[11] unbind：主动解绑后不再推送")
     ms_conns.reset_for_tests()
     s10 = FakeSock()
     ms_conns.register(30, s10)

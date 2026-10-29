@@ -60,6 +60,17 @@ CLUSTER_ID = 20000
 # 默认关是因为"发什么信"是产品决定，不是工程决定。
 MAIL_WELCOME_TEMPLATE = int(os.environ.get("OO_MAIL_WELCOME_TEMPLATE") or 0)
 
+# 邮件推送开关（M6）。默认开；出问题时设 OO_MAIL_PUSH=0 立刻关掉，不用改代码、不用回滚。
+#
+# 为什么需要这个开关：MicroPush 的字段号是按 descriptor 声明顺序推的，没有字节级复核。
+# 万一字段对不上，最坏情况是客户端解析出垃圾 epId（onPush 里有 assert(type(id)=="string")）。
+# 有关就能一键退回"打开面板才刷新"的旧行为 —— 邮件本身始终可用（推送不影响落库）。
+MAIL_PUSH_ENABLED = os.environ.get("OO_MAIL_PUSH", "1") not in ("0", "false", "no", "off")
+
+
+def mail_push_enabled():
+    return bool(MAIL_PUSH_ENABLED)
+
 
 # ---------------------------------------------------------------- 实体
 # 账号关联失败时的兜底 uid。正常路径下 uid = 登录名，不会用到它。
