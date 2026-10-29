@@ -18,6 +18,7 @@ from shared.log_tee import get_logger
 from .. import config as ooconf
 from .. import ms as msmod
 from .. import unknown_log as _ulog
+from ..ms import registry as _msreg
 from . import accounts
 from .net import CAPTURE_DIR, maybe_hexdump, recv_exact
 
@@ -84,6 +85,7 @@ def _log_dump(payload, limit=256):
 #   新增一个服务必须显式登记，别名/同名不会再被别的服务吞掉。
 
 
+@_msreg.register("GameLoadService", "query")
 def _reply_game_load_query(fields, cid):
     """GameLoadService.query：下发服务器列表，顺带记下账号（多账号关联要用）。"""
     if 4 in fields:
@@ -97,6 +99,7 @@ def _reply_game_load_query(fields, cid):
     return msmod.build_load_service_params(ooconf.GATE_PORT)
 
 
+@_msreg.register("UserDataService", "batchGetAttribute")
 def _reply_batch_get_attribute(fields, cid):
     """UserDataService.batchGetAttribute：玩家数据主通道（avataruserdatacomp.lua:151）。"""
     _req = []
@@ -112,6 +115,7 @@ def _reply_batch_get_attribute(fields, cid):
     return params
 
 
+@_msreg.register("FriendService", "fetchFriends")
 def _reply_fetch_friends(_fields, _cid):
     """FriendService.fetchFriends：结算时必调，回标准空好友列表。
 
@@ -122,6 +126,7 @@ def _reply_fetch_friends(_fields, _cid):
     return msmod.mp_map({"Ret": [True, ""], "Friends": []})
 
 
+@_msreg.register("FriendService", "queryNotification")
 def _reply_friend_query_notification(_fields, _cid):
     """FriendService.queryNotification：回空通知列表。
 
@@ -131,13 +136,23 @@ def _reply_friend_query_notification(_fields, _cid):
     return msmod.mp_map({"Ret": [True, ""], "Notification": []})
 
 
-#: (service, method) -> 应答参数构造函数。**唯一分派点**。
-_MS_HANDLERS = {
-    ("GameLoadService", "query"): _reply_game_load_query,
-    ("UserDataService", "batchGetAttribute"): _reply_batch_get_attribute,
-    ("FriendService", "fetchFriends"): _reply_fetch_friends,
-    ("FriendService", "queryNotification"): _reply_friend_query_notification,
-}
+#: 业务模块的处理器只登记一次（导入即登记）。
+_HANDLERS_LOADED = False
+
+
+def _ensure_handlers_loaded():
+    """把业务模块的微服务处理器导进来（它们用 `@registry.register` 自登记）。
+
+    为什么要"显式加载"而不是散在各处 import：
+      传输层不该知道有哪些业务，但总得有人触发那批 import。
+      放在这里、只做一次，是「唯一入口」最省事的形态。
+      新加一个服务 = 在它的模块里写 `@registry.register`，再往这里加一行 import。
+    """
+    global _HANDLERS_LOADED  # noqa: PLW0603
+    if _HANDLERS_LOADED:
+        return
+    _HANDLERS_LOADED = True
+    from ..mail import rpc as _mail_rpc  # noqa: F401, PLC0415  —— 导入即登记
 
 
 def ms_reply_params(service, method, fields, cid=0):
@@ -146,7 +161,8 @@ def ms_reply_params(service, method, fields, cid=0):
     未登记的组合一律按「未实现」处理（记日志 + 按模式/黑名单决定成败）。
     单独成函数是为了能被单测直接调用 —— 不需要起 socket 就能验分派。
     """
-    handler = _MS_HANDLERS.get((service, method))
+    _ensure_handlers_loaded()
+    handler = _msreg.resolve(service, method)
     if handler is not None:
         return handler(fields, cid)
     return unknown_ms_params(service, method, uid=None,

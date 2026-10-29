@@ -7,9 +7,10 @@
 被测的不变量：
 
     INV-MS-1  (service, method) 是分派键；未登记的组合一律按「未实现」处理
-    INV-MS-2  MailService 的任何方法都不许假成功（整服务黑名单，不是逐条列）
-    INV-MS-3  FriendService.queryNotification 的真实应答里有 Notification
-              -> 邮件那个同名方法绝不能拿到它（否则客户端把空表当"有新邮件"）
+    INV-MS-2  MailService 的任何**未实现**方法都不许假成功（整服务黑名单，不是逐条列）
+    INV-MS-3  FriendService.queryNotification 的应答里有 Notification；
+              邮件那个同名方法绝不能拿到它（否则客户端把空表当"有新邮件"）
+    INV-MS-4  登记进表的 MailService 方法必须真的能成功 —— 不许"登记了但没实现"
 
 背景（docs/方案-邮件系统-全链路复检.md §2.3）：
     以前 ms_service 是一串 `if method == "query" / elif method == "batchGetAttribute" ...`，
@@ -34,9 +35,11 @@ os.environ["OO_UNKNOWN_LOG"] = os.path.join(_TMP, "unknown.tsv")
 os.environ["OO_CAPTURE_DIR"] = os.path.join(_TMP, "cap")
 os.environ["OO_STATE_DIR"] = os.path.join(_TMP, "state")
 
-from game_server import config as ooconf  # noqa: E402
-from game_server import ms as msmod  # noqa: E402
-from game_server.transport import ms_service as svc  # noqa: E402
+from game_server import config as ooconf
+from game_server import ms as msmod
+from game_server import player_state as pstate
+from game_server.ms import registry
+from game_server.transport import ms_service as svc
 
 #: 客户端真实存在的 11 个邮件方法（avatarmailcomp.lua:388-544 逐个数的）
 MAIL_METHODS = (
@@ -44,6 +47,12 @@ MAIL_METHODS = (
     "setMailGiftReceived", "deleteMail", "star", "unstar",
     "syncGroupMail", "queryNotification", "readNotification",
 )
+#: 已经实现并登记的（其余必须仍然显式失败）
+MAIL_IMPLEMENTED = (
+    "getUserMailList", "getMailContent", "syncGroupMail",
+    "queryNotification", "readNotification",
+)
+UID = "ms_dispatch_u"
 
 passed = []
 failed = []
@@ -59,9 +68,13 @@ def check(name, cond, detail=""):
 
 
 def reply(service, method, fields=None):
-    """取 (service, method) 的应答 msgpack 解码结果。"""
     raw = svc.ms_reply_params(service, method, fields or {}, 0)
     return msmod.mp_decode(raw)[0]
+
+
+def req_args(*args):
+    """构造 field 4 = msgpack 数组的 fields（模拟客户端请求）。"""
+    return {4: [msmod.mp_arr(list(args))]}
 
 
 def is_fail(resp):
@@ -71,8 +84,27 @@ def is_fail(resp):
 
 def main():
     print("tmp =", _TMP)
+    svc._ensure_handlers_loaded()
     strict = ooconf.unknown_fake_ok()
-    print("初始模式 unknown_fake_ok =", strict)
+
+    # 给分派测试造一个真实玩家状态（否则 mail 处理器会回 "unknown user"）
+    st = pstate.get_state({}, uid=UID)
+    # 再塞一封邮件：getMailContent 对不存在的 MailId 会回失败，那是正确行为，
+    # 但这里要测的是「登记了就能成功」，所以得有一封真的。
+    # 不走 send_mail（那要 BDD 模板），直接给 store 一个最小合法实例，测试不依赖配表。
+    from game_server.mail import store as _store
+    _store.add(st.props, {
+        "Title": "t", "SrcName": "s", "CreatedTime": 1, "ExpireTime": 2 ** 31,
+        "Params": {"mailTemplateId": 0, "haveRead": False, "star": False,
+                   "giftReceived": False},
+    }, now=1)
+    ok_args = {
+        "getUserMailList": req_args(UID, 0, 100),
+        "getMailContent": req_args(UID, 1),
+        "syncGroupMail": req_args(UID),
+        "queryNotification": req_args(UID),
+        "readNotification": req_args(UID),
+    }
 
     # ------------------------------------------------------------ INV-MS-3
     print("\n[1] INV-MS-3 好友的通知方法必须还是「成功 + Notification 字段」")
@@ -84,34 +116,47 @@ def main():
         f2 = reply("FriendService", "fetchFriends")
         check(f"模式 fake_ok={mode}: fetchFriends 带 Friends 字段", "Friends" in f2, sorted(f2))
 
-    # ------------------------------------------------------------ INV-MS-1 / INV-MS-2
-    print("\n[2] INV-MS-1/2 邮件的方法名不许被好友分支吞掉，也不许假成功")
+    # ------------------------------------------------------------ INV-MS-4
+    print("\n[2] INV-MS-4 登记进表的邮件方法必须真的能成功")
     for mode in (False, True):
         ooconf.configure_unknown_fake_ok(mode)
-        for m in MAIL_METHODS:
-            r = reply("MailService", m)
+        for m in MAIL_IMPLEMENTED:
+            r = reply("MailService", m, ok_args[m])
+            check(f"fake_ok={mode} MailService.{m} 成功", not is_fail(r), r)
+
+    # ------------------------------------------------------------ INV-MS-1/2
+    print("\n[3] INV-MS-1/2 未实现的邮件方法必须显式失败（两种模式都一样）")
+    unimplemented = [m for m in MAIL_METHODS if m not in MAIL_IMPLEMENTED]
+    for mode in (False, True):
+        ooconf.configure_unknown_fake_ok(mode)
+        for m in unimplemented:
+            r = reply("MailService", m, req_args(UID))
             check(f"fake_ok={mode} MailService.{m} 失败", is_fail(r), r)
+            ret = r.get("Ret") if isinstance(r, dict) else None
+            check(f"fake_ok={mode} MailService.{m} 是 not implemented",
+                  isinstance(ret, list) and len(ret) > 1 and ret[1] == "not implemented", ret)
             check(f"fake_ok={mode} MailService.{m} 不带 Notification", "Notification" not in r, sorted(r))
 
     # ------------------------------------------------------------ INV-MS-1
-    print("\n[3] INV-MS-1 分派表本身：键必须是 (service, method)")
-    bad_key = [k for k in svc._MS_HANDLERS if not (isinstance(k, tuple) and len(k) == 2)]
-    check("所有键都是二元组", bad_key == [], bad_key)
-    check("表里没有 MailService（未实现必须是显式失败）",
-          not any(k[0] == "MailService" for k in svc._MS_HANDLERS), list(svc._MS_HANDLERS))
-
-    print("\n[4] INV-MS-1 同一方法名换一个服务，绝不能拿到原服务的应答")
+    print("\n[4] INV-MS-1 分派表：键形状 + 邮件登记集合")
     ooconf.configure_unknown_fake_ok(False)
-    for key in svc._MS_HANDLERS:
+    tbl = registry.table()
+    bad_key = [k for k in tbl if not (isinstance(k, tuple) and len(k) == 2)]
+    check("所有键都是二元组", bad_key == [], bad_key)
+    registered_mail = sorted(m for (s, m) in tbl if s == "MailService")
+    check("MailService 只登记了已实现的 5 个", registered_mail == sorted(MAIL_IMPLEMENTED),
+          registered_mail)
+    check("登记的方法都有处理器", all(callable(h) for h in tbl.values()))
+
+    print("\n[5] INV-MS-1 同一方法名换一个服务，绝不能拿到原服务的应答")
+    for key in tbl:
         service, method = key
-        own = reply(service, method)
+        own = reply(service, method, ok_args.get(method, {}))
         other = reply("__no_such_service__", method)
-        check(f"{service}.{method} 不被别家服务认领", own != other or is_fail(other),
-              (own, other))
+        check(f"{service}.{method} 不被别家服务认领", own != other or is_fail(other), (own, other))
 
     # ------------------------------------------------------------ 回归
-    print("\n[5] 回归：已实现的三个方法行为不变")
-    ooconf.configure_unknown_fake_ok(False)
+    print("\n[6] 回归：已实现的三个基础方法行为不变")
     q = reply("GameLoadService", "query")
     check("query 成功", not is_fail(q), q)
     check("query 带 ServerList", "ServerList" in q, sorted(q))
@@ -119,7 +164,7 @@ def main():
     check("batchGetAttribute 成功", not is_fail(b), b)
     check("batchGetAttribute 带 Results", "Results" in b, sorted(b))
 
-    print("\n[6] 未登记的组合一律失败（严格模式）")
+    print("\n[7] 未登记的组合一律失败（严格模式）")
     for s, m in (("NoSuchService", "noSuchMethod"), ("MailService", "nonexistent"),
                  ("ClientGate", "bind")):
         r = reply(s, m)
