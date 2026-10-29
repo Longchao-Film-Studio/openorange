@@ -173,6 +173,83 @@ def main():
     check("存档里没有 msAuth（派生不落盘）", "msAuth" not in saved)
     check("重算幂等：再跑一次没有变化", prop_origin.recompute(st3) == {})
 
+
+    # ------------------------------------------------------------ 并发与重连
+    print("\n[8] 并发写同一个 socket：回包与推送不许交错（每帧必须完整）")
+    import struct as _struct
+    import threading as _th
+    import time as _time
+
+    class RecSock:
+        """检测"同一时刻是否有两个线程在写这个 socket"。
+
+        ★ 关键在于 sendall 里 **sleep** 一下：CPython 的 GIL 会在 sleep 时释放，
+          没有 send_lock 时两个线程一定会在 active>1 处相遇。
+          只记 chunk 是测不出来的（list.append 本身原子）。
+        """
+
+        def __init__(self):
+            self.chunks = []
+            self._guard = _th.Lock()
+            self.active = 0
+            self.overlap = False
+
+        def sendall(self, data):
+            with self._guard:
+                self.active += 1
+                if self.active > 1:
+                    self.overlap = True
+            _time.sleep(0.0005)          # 让另一个线程有机会挤进来
+            with self._guard:
+                self.chunks.append(bytes(data))
+                self.active -= 1
+
+    ms_conns.reset_for_tests()
+    rs = RecSock()
+    ms_conns.register(9, rs)
+    ms_conns.bind_uid(9, "race_u")
+    frame_a = msframes.frame_ms_push("ENTITY", ["race_u"], "S", "m", msmod.mp_arr([[]]))
+    frame_b = msmod.frame_ms_response(1, msmod.mp_map({"Ret": [True, ""]}), "S")
+
+    def spam(frame):
+        for _ in range(50):
+            ms_conns.send_frame(9, frame)
+
+    ts = [_th.Thread(target=spam, args=(frame_a,)),
+          _th.Thread(target=spam, args=(frame_b,))]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    check("两线程各发 50 次都落地", len(rs.chunks) == 100, len(rs.chunks))
+    check("没有两个线程同时进入 sendall（send_lock 生效）", rs.overlap is False, rs.overlap)
+    whole = all(len(c) >= 6 and _struct.unpack("<I", c[:4])[0] == len(c) - 4 for c in rs.chunks)
+    check("每一块都是一个完整帧（没有被切开/拼接）", whole, [c[:6] for c in rs.chunks[:3]])
+
+    print("\n[9] 重连顶号：同一个 uid 的新连接接管，旧连接断开不误清")
+    ms_conns.reset_for_tests()
+    old, new = FakeSock(), FakeSock()
+    ms_conns.register(21, old)
+    ms_conns.register(22, new)
+    ms_conns.bind_uid(21, "dup_u")
+    ms_conns.bind_uid(22, "dup_u")
+    check("映射指向新连接", ms_conns.cid_of("dup_u") == 22, ms_conns.cid_of("dup_u"))
+    ms_conns.unregister(21)                      # 旧连接断开
+    check("旧连接断开后映射仍指向新连接", ms_conns.cid_of("dup_u") == 22, ms_conns.cid_of("dup_u"))
+    check("推送仍然只到新连接", ms_conns.push("dup_u", b"z") is True and new.frames == [b"z"])
+    check("旧连接一帧都没收到", old.frames == [], old.frames)
+    ms_conns.unregister(22)
+    check("新连接断开后不再可推", ms_conns.push("dup_u", b"z") is False)
+
+    print("\n[10] unbind：主动解绑后不再推送")
+    ms_conns.reset_for_tests()
+    s10 = FakeSock()
+    ms_conns.register(30, s10)
+    ms_conns.bind_uid(30, "unbind_u")
+    ms_conns.unbind_cid(30)
+    check("解绑后 push 返回 False", ms_conns.push("unbind_u", b"x") is False)
+    check("连接本身还在（还能回包）", ms_conns.count() == 1, ms_conns.count())
+
     print("\n" + "=" * 56)
     print(f"通过 {len(passed)} 项，失败 {len(failed)} 项")
     for name in failed:
