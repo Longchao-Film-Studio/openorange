@@ -47,12 +47,8 @@ MAIL_METHODS = (
     "setMailGiftReceived", "deleteMail", "star", "unstar",
     "syncGroupMail", "queryNotification", "readNotification",
 )
-#: 已经实现并登记的（其余必须仍然显式失败）
-MAIL_IMPLEMENTED = (
-    "getUserMailList", "getMailContent", "syncGroupMail",
-    "queryNotification", "readNotification",
-    "setMailGiftReceived",          # M2
-)
+#: 已经实现并登记的（M1 只读 5 个 + M2 领奖 1 个 + M3 管理 5 个 = 全部 11 个）
+MAIL_IMPLEMENTED = MAIL_METHODS
 UID = "ms_dispatch_u"
 
 passed = []
@@ -99,14 +95,33 @@ def main():
         "Params": {"mailTemplateId": 0, "haveRead": False, "star": False,
                    "giftReceived": False},
     }, now=1)
-    ok_args = {
-        "getUserMailList": req_args(UID, 0, 100),
-        "getMailContent": req_args(UID, 1),
-        "syncGroupMail": req_args(UID),
-        "queryNotification": req_args(UID),
-        "readNotification": req_args(UID),
-        "setMailGiftReceived": req_args(UID, [1]),   # 上面刚塞的那封
-    }
+    def make_mail():
+        """塞一封最小合法邮件，返回它的 MailId。"""
+        return _store.add(st.props, {
+            "Title": "t", "SrcName": "s", "CreatedTime": 1, "ExpireTime": 2 ** 31,
+            "Params": {"mailTemplateId": 0, "haveRead": False, "star": False,
+                       "giftReceived": False},
+        }, now=1)["MailId"]
+
+    def args_for(mid):
+        """每种方法用它自己能成功的最小参数。
+
+        ★ 每一轮（严格/兼容）都要**新建邮件**：这些方法都改状态，
+          共用同一封会让第二轮拿到 "mail not found"，测的就不是分派了。
+        """
+        return {
+            "getUserMailList": req_args(UID, 0, 100),
+            "getMailContent": req_args(UID, mid),
+            "syncGroupMail": req_args(UID),
+            "queryNotification": req_args(UID),
+            "readNotification": req_args(UID),
+            "setMailGiftReceived": req_args(UID, [mid]),
+            "setMailHaveRead": req_args(UID, mid),
+            "setAllMailHaveRead": req_args(UID),
+            "deleteMail": req_args(UID, [mid]),
+            "star": req_args(UID, mid),
+            "unstar": req_args(UID, mid),
+        }
 
     # ------------------------------------------------------------ INV-MS-3
     print("\n[1] INV-MS-3 好友的通知方法必须还是「成功 + Notification 字段」")
@@ -122,13 +137,19 @@ def main():
     print("\n[2] INV-MS-4 登记进表的邮件方法必须真的能成功")
     for mode in (False, True):
         ooconf.configure_unknown_fake_ok(mode)
+        # 每个方法用**各自新建**的邮件，互不影响（star 之后 delete 会找不到）
         for m in MAIL_IMPLEMENTED:
-            r = reply("MailService", m, ok_args[m])
+            need_mail = m not in ("getUserMailList", "syncGroupMail",
+                                  "queryNotification", "readNotification",
+                                  "setAllMailHaveRead")
+            mid = make_mail() if need_mail else 0
+            r = reply("MailService", m, args_for(mid)[m])
             check(f"fake_ok={mode} MailService.{m} 成功", not is_fail(r), r)
 
     # ------------------------------------------------------------ INV-MS-1/2
     print("\n[3] INV-MS-1/2 未实现的邮件方法必须显式失败（两种模式都一样）")
     unimplemented = [m for m in MAIL_METHODS if m not in MAIL_IMPLEMENTED]
+    check("M1~M3 已覆盖全部 11 个方法（没有遗漏的）", unimplemented == [], unimplemented)
     for mode in (False, True):
         ooconf.configure_unknown_fake_ok(mode)
         for m in unimplemented:
@@ -153,7 +174,8 @@ def main():
     print("\n[5] INV-MS-1 同一方法名换一个服务，绝不能拿到原服务的应答")
     for key in tbl:
         service, method = key
-        own = reply(service, method, ok_args.get(method, {}))
+        own = reply(service, method, args_for(make_mail())[method]
+                    if method in MAIL_IMPLEMENTED else {})
         other = reply("__no_such_service__", method)
         check(f"{service}.{method} 不被别家服务认领", own != other or is_fail(other), (own, other))
 

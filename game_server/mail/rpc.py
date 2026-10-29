@@ -263,3 +263,107 @@ def _set_mail_gift_received(fields: dict, _cid: int) -> bytes:
         return _fail(f"mail not claimable: {failed}")
     return _ok()
 
+# ------------------------------------------------------------------ M3：管理
+def _find(uid: str, mail_id: int):
+    """(st, mail, 失败应答)。找不到就返回现成的 fail，调用方直接 return。"""
+    st = _state(uid)
+    if st is None:
+        return None, None, _fail("unknown user")
+    mail = store.get(st.props, mail_id)
+    if mail is None or mail.get(store.DELETED):
+        return st, None, _fail("mail not found")
+    return st, mail, None
+
+
+def _set_star(fields: dict, *, value: bool) -> bytes:
+    """star / unstar 共用：设置 Params.star。"""
+    args = _args(fields)
+    uid = str(args[0]) if args else ""
+    mail_id = _as_int(args[1] if len(args) > 1 else 0, 0)
+    st, _mail, err = _find(uid, mail_id)
+    if err is not None:
+        return err
+    assert st is not None
+    with pstate.lock_for(uid):
+        store.mark_param(st.props, mail_id, "star", value)
+        st.save()
+    return _ok()
+
+
+@registry.register("MailService", "star")
+def _star(fields: dict, _cid: int) -> bytes:
+    """star(uid, mailId)：加星标（排序时星标靠前）。"""
+    return _set_star(fields, value=True)
+
+
+@registry.register("MailService", "unstar")
+def _unstar(fields: dict, _cid: int) -> bytes:
+    """unstar(uid, mailId)：取消星标。"""
+    return _set_star(fields, value=False)
+
+
+@registry.register("MailService", "setMailHaveRead")
+def _set_mail_have_read(fields: dict, _cid: int) -> bytes:
+    """setMailHaveRead(uid, mailId)：标已读。客户端打开未读邮件后必调。
+
+    ★ 已读只是邮件自己的状态，不影响任何属性，所以不需要推属性同步帧，
+      落盘即可（重登时客户端重新拉列表会看到 haveRead=true）。
+    """
+    args = _args(fields)
+    uid = str(args[0]) if args else ""
+    mail_id = _as_int(args[1] if len(args) > 1 else 0, 0)
+    st, _mail, err = _find(uid, mail_id)
+    if err is not None:
+        return err
+    assert st is not None
+    with pstate.lock_for(uid):
+        store.mark_param(st.props, mail_id, "haveRead", True)
+        st.save()
+    return _ok()
+
+
+@registry.register("MailService", "setAllMailHaveRead")
+def _set_all_mail_have_read(fields: dict, _cid: int) -> bytes:
+    """setAllMailHaveRead(uid)：全部已读 + 清掉新邮件标记。
+
+    客户端「一键领取」会先调它（getAllMailAward 第一行），语义就是"我全看过了"。
+    """
+    args = _args(fields)
+    uid = str(args[0]) if args else ""
+    st = _state(uid)
+    if st is None:
+        return _fail("unknown user")
+    with pstate.lock_for(uid):
+        for mail in store.all_mails(st.props):
+            store.mark_param(st.props, int(mail.get("MailId") or 0), "haveRead", True)
+        store.clear_new(st.props)
+        st.save()
+    return _ok()
+
+
+@registry.register("MailService", "deleteMail")
+def _delete_mail(fields: dict, _cid: int) -> bytes:
+    """deleteMail(uid, mailIds)：软删除。
+
+    幂等：已经删过 / 不存在的直接跳过，仍然回成功 —— 客户端 deleteMail_cb
+    拿到成功就从本地列表移除，回失败会让那封邮件卡在界面上。
+    """
+    args = _args(fields)
+    uid = str(args[0]) if args else ""
+    ids = args[1] if len(args) > 1 else []
+    if not isinstance(ids, list) or not ids:
+        return _fail("bad mailIds")
+    st = _state(uid)
+    if st is None:
+        return _fail("unknown user")
+    removed = 0
+    with pstate.lock_for(uid):
+        for raw_id in ids:
+            if store.delete(st.props, _as_int(raw_id, 0)):
+                removed += 1
+        if removed:
+            st.save()
+    _log.info("[mail] uid=%s 删除邮件 %s（实际删 %d 封）", uid, ids, removed)
+    return _ok()
+
+
