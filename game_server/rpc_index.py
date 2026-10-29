@@ -45,6 +45,10 @@ RPC_INDEX = {
     "Check_TopicID_CanOpen_CS": 1770853395,
     "Update_NpcChat_Info_CS": 924340932,
     "GmRpcOpenNpcChatTopic": 2096911602,
+    # ★ M4 邮件 GM 发信（avatardebugcomp.lua:98-113）。索引来自 work/rpc_hashes.tsv
+    #   （genRpcIndex 落盘的哈希表），不是抄的。
+    "GmRpcSendMailToPlayer": 542730945,
+    "GmRpcSendMailToGroup": 494893116,
     # ★ P1 阶段 J：战斗内 SpaceTask 完成上报。
     #   依据 battlecontainer/base/player.lua:416-452 ——
     #   SpaceTask 完成时客户端发 FinishSpaceTask_Directly_CS {taskId}；

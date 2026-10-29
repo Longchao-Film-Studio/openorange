@@ -124,6 +124,7 @@ from .dungeon.settle import (  # noqa: F401  (re-export)
     _settlement_table,
     _storyline_finish_game,
 )
+from .mail.gm import _gm_send_mail_to_group, _gm_send_mail_to_player  # noqa: F401
 from .misc.emoji import _play_act_emoji  # noqa: F401
 from .misc.session import _match_duration, _sunact_level, _team_info  # noqa: F401
 from .misc.unimplemented import _ack_only, _noop_one_way  # noqa: F401
@@ -384,6 +385,10 @@ for _name, _fn in (("SubmitItem_CS", _submit_item),
                    ("Check_TopicID_CanOpen_CS", _check_topic_can_open),
                    ("Update_NpcChat_Info_CS", _update_npc_chat_info),
                    ("GmRpcOpenNpcChatTopic", _gm_open_npc_chat_topic),
+                   # ★ M4 邮件 GM 发信：没有这两个入口时，"游戏里发一封测试邮件"
+                   #   这件事做不到（严格模式还回 not implemented）
+                   ("GmRpcSendMailToPlayer", _gm_send_mail_to_player),
+                   ("GmRpcSendMailToGroup", _gm_send_mail_to_group),
                    ("RpcGetEdenChatHistory", _eden_chat_history),
                    ("RequestAddPrestigeExp_CS", _add_prestige_exp),
                    # 新手引导：完成一组引导后客户端上报（以前未实现，只 compat ack）
