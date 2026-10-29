@@ -260,6 +260,37 @@ function require(name)
         LOG('loglevel: 已设为 DEBUG')
       end
     end)
+  -- (9) 推送订阅者修正：addPushEndpoint 的目标从「组件」换成 ClientAvatar
+  --
+  -- 背景（M6 推送）：客户端 bind 成功后调
+  --   serviceMgr:addPushEndpoint(self.msCallerId, self.pushHandler or self)
+  -- 其中 self 是 ClientAvatarMsCommon 组件；而 MailService_newMailNotice 是
+  -- 经 class.AddComponent 混入到 **ClientAvatar 类** 上的（core/framework/class.lua:491-531），
+  -- 组件实例上没有 -> MsServiceManager.onPush 里 target[method] == nil -> 消息被丢弃，
+  -- 日志只会出现 "onPush to <uid> for method MailService_newMailNotice not defined"。
+  --
+  -- ★ 为什么不直接 setPushHandler：那要在 bindCb 之前设置，而 bindCb 由组件自己调；
+  --   这里改注册目标更稳，也不依赖调用顺序。
+  -- ★ 为什么 rawset：class.Class 的 __newindex 对已存在成员会
+  --   error("class ... has repeat attr ...")，这正是本文件 (5)(8) 记过的坑。
+  elseif key == 'core.microservice.msservicemanager' and not pc.pushfix then
+    pc.pushfix = true
+    local orig_add = rawget(m, 'addPushEndpoint')
+    if type(orig_add) == 'function' then
+      rawset(m, 'addPushEndpoint', function(self, id, entity)
+        local ok, GD = pcall(original_require, 'Core.Client.GlobalData')
+        local av = nil
+        if ok and type(GD) == 'table' then av = GD.Avatar end
+        if av ~= nil and entity ~= av then
+          LOG('pushfix: 订阅者 ' .. tostring(id) .. ' -> ClientAvatar')
+          entity = av
+        end
+        return orig_add(self, id, entity)
+      end)
+      LOG('lua: addPushEndpoint 已挂钩（推送订阅者 -> ClientAvatar）')
+    else
+      LOG('lua: addPushEndpoint 不存在，跳过推送修正')
+    end
   end
 
   return m

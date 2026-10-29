@@ -22,6 +22,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+from . import push as _push
 from . import store, template
 
 if TYPE_CHECKING:
@@ -52,4 +53,8 @@ def send_mail(st: PlayerState, template_id: int, *, count: int = 1,
     for _ in range(max(1, int(count))):
         mail = template.build(int(template_id), created=ts)
         out.append(store.add(st.props, mail, now=ts))
+    # ★ 推送放在唯一入口里：GM 发信 / 新号欢迎 / 以后的所有下游接入都自动获得推送，
+    #   不需要每个发信方各自记得调一次（那正是"同一件事写五遍"的开端）。
+    #   不在线时返回 False，不是错误：邮件已落库，下次登录拉列表可见。
+    _push.notify_new_mail(st, out)
     return out

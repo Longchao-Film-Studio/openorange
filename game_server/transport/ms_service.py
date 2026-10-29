@@ -19,7 +19,7 @@ from .. import config as ooconf
 from .. import ms as msmod
 from .. import unknown_log as _ulog
 from ..ms import registry as _msreg
-from . import accounts
+from . import accounts, ms_conns
 from .net import CAPTURE_DIR, maybe_hexdump, recv_exact
 
 _log = get_logger(__name__)
@@ -169,11 +169,67 @@ def ms_reply_params(service, method, fields, cid=0):
                              params=fields.get(4, [b""])[0])
 
 
+# ---------------------------------------------------------------- ClientGate
+# 客户端连上 ms 网关后的握手三连（core/microservice/msproxy4client.lua）：
+#   syncMetadata(version)      连接刚建立时
+#   bind(id, auth, clusterId)  登录后，id = msCallerId = uid
+#   unbind()                   退出
+#
+# ★ bind 是**推送的前提**：客户端只有在 bind 成功后才
+#   addPushEndpoint(msCallerId, ...)（clientavatarmscommon.lua:64-69）。
+#   不 bind 就没有推送端点，MicroPush 发过去也没人收。
+
+
+@_msreg.register("ClientGate", "syncMetadata")
+def _reply_sync_metadata(_fields, _cid):
+    """syncMetadata：客户端只读 retStatus（net/msnetworkmanager.lua:83-88），回成功即可。"""
+    return msmod.mp_map({"Ret": [True, ""]})
+
+
+@_msreg.register("ClientGate", "bind")
+def _reply_client_bind(fields, cid):
+    """bind(id, auth, clusterId)：把这条 MS 连接认到某个账号上。
+
+    ★ 本服不做鉴权：auth 是客户端拿 initDict.msAuth 带来的，
+      我们只把它当成「这条连接属于谁」的声明。真正的账号可信度由
+      实体通道那条链（gate 的 auth -> account_id -> 登录名）保证，不在这里重复。
+    """
+    args = _ms_args(fields)
+    uid = str(args[0]) if args else ""
+    if not uid:
+        return msmod.mp_map({"Ret": [False, "bind: missing id"]})
+    ok = ms_conns.bind_uid(cid, uid)
+    _log.info("[ms] #%03d bind id=%s -> %s", cid, uid, "ok" if ok else "cid 不存在")
+    return msmod.mp_map({"Ret": [True, ""]})
+
+
+@_msreg.register("ClientGate", "unbind")
+def _reply_client_unbind(_fields, cid):
+    """unbind()：解除映射（断开时也会清）。"""
+    ms_conns.unbind_cid(cid)
+    return msmod.mp_map({"Ret": [True, ""]})
+
+
+def _ms_args(fields):
+    """ms 请求的 field 4 = msgpack 数组。解不出来就当空数组。"""
+    raw = fields.get(4)
+    if not raw:
+        return []
+    try:
+        val = msmod.mp_decode(raw[0])[0]
+    except Exception:  # noqa: BLE001 —— 坏包只影响这一条
+        return []
+    return val if isinstance(val, list) else []
+
 def handle_ms(conn, addr, cid):
     """微服务连接：解析请求帧并回 MsResponse。"""
     t0 = time.time()
     cap_path = os.path.join(CAPTURE_DIR, f'ms_{cid:03d}_{addr[1]}.bin')
     _log.info(f'[ms] #{cid:03d} OPEN from {addr[0]}:{addr[1]:d}')
+    # ★ 登记进 ms_conns：MicroPush 要靠它找到"这个玩家的 MS 连接"。
+    #   所有写 socket 的地方都必须走 ms_conns.send_frame（它持每条连接的 send_lock），
+    #   否则回包线程和推送线程会把字节交错。
+    ms_conns.register(cid, conn)
     f = None
     with contextlib.suppress(Exception):
         f = open(cap_path, "wb")
@@ -226,7 +282,7 @@ def handle_ms(conn, addr, cid):
             params = ms_reply_params(service, method, fields, cid)
             pkt = msmod.frame_ms_response(seq, params, service)
             try:
-                conn.sendall(pkt)
+                ms_conns.send_frame(cid, pkt)
                 _log.info(f'[ms] #{cid:03d} TX MsResponse type=3 rid={seq} service={service} method={method} ({len(pkt):d} B)')
             except Exception as e:
                 _log.warning(f'[ms] #{cid:03d} send failed: {e}')
@@ -234,6 +290,7 @@ def handle_ms(conn, addr, cid):
     except Exception as e:
         _log.warning(f'[ms] #{cid:03d} error: {e}')
     finally:
+        ms_conns.unregister(cid)
         with contextlib.suppress(Exception):
             conn.close()
         if f is not None:

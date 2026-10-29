@@ -121,6 +121,10 @@ ORIGIN: dict[str, str] = {
     # （node_daily_task_itemGroup.lua:106 判 is_first_day 决定刷新按钮显不显示），
     # **零个写点** —— 没有任何需要跨登录保留的状态。
     "title_daily_task_cache": EPHEMERAL,
+    # msAuth：微服务通道的绑定凭证。客户端 bind() 的前置是 msAuth ~= ""（
+    # clientavatarmscommon.lua:50），空串会导致**永不 bind** -> 永不注册推送端点。
+    # 它完全由 uid 决定，所以属于 derived：不存盘、每次现算。
+    "msAuth": DERIVED,
     # street_level_info：街区等级信息，同样每次登录由服务端按当前进度重算后再下发。
     # 当前实现是空模板（还没做街区等级玩法），登记成 ephemeral 保证它一定被下发。
     "street_level_info": EPHEMERAL,
@@ -341,6 +345,21 @@ def _derive_street_pos(st: Any) -> dict:  # noqa: ANN401
     return {"street_pos_info": out}
 
 
+@_produces("msAuth")
+def _derive_ms_auth(st: Any) -> dict:  # noqa: ANN401
+    """msAuth = "oo_<uid>"：给客户端一个稳定的、非空的绑定凭证。
+
+    ★ 为什么必须非空：客户端 ClientAvatarMsCommon:bind 的判据是
+        if self.msAuth ~= nil and self.msAuth ~= "" then msProxy:bind(...) end
+      空串 = 不绑定 = 不注册推送端点 = 推送永远收不到（M6 的整条链就断在这）。
+
+    ★ 为什么不存盘：它只由 uid 决定，存了就是"同一事实两个产生者"。
+    """
+    uid = st.props.get("uid")
+    want = f"oo_{uid}" if uid else ""
+    return {} if st.props.get("msAuth") == want else {"msAuth": want}
+
+
 @_produces("character_choosen_char")
 def _derive_hero(st: Any) -> dict:  # noqa: ANN401
     """character_choosen_char / characterBag / choosen_index: 按 gender 保证唯一主角。
@@ -361,6 +380,7 @@ def _derive_hero(st: Any) -> dict:  # noqa: ANN401
 #: **新增 derived 属性必须在这里登记**，否则
 #: tests/test_prop_origin.py 的「derived 必须有重算函数」会红。
 _RECOMPUTERS: tuple[Callable[[Any], dict], ...] = (
+    _derive_ms_auth,
     _derive_levelup_awards,
     _derive_unlocked_system,
     _derive_story_line,

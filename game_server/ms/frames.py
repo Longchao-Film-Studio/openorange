@@ -141,3 +141,53 @@ def build_ms_response(rid, params_bytes, service_id=""):
 def frame_ms_response(rid, params_bytes, service_id=""):
     """构造完整的 MsResponse 帧。"""
     return frame(MS_RESP_TYPE, build_ms_response(rid, params_bytes, service_id))
+
+# ============================================================================
+# 微服务层：MsPush（帧类型 4）—— 服务端主动推给客户端
+# ============================================================================
+#
+# 字段布局来自 ms_common.proto 的 FileDescriptorProto 文本
+# （archive/scans/S02_lua_dump/strings.txt 第 1446041-1446047 行，
+#  顺序即字段号：service / method / params / msg_uuid / ep_ids / org_type）。
+# 同文件 1446055-1446069 行的 EnumG2C 也印证了 MicroPush=4：
+#   ResponseEncryptToken=1, ConfirmEncryptKeyAck=2, MicroResponse=3, MicroPush=4, Heartbeat=5
+#
+# ★ 字段号是「声明顺序」推出来的，没有字节级复核。发错会污染整条 MS 连接
+#   （客户端按 index 取消息类型解析），所以只能靠实机日志确认：
+#   成功 -> "onPush <ep> received reliable msg"；失败 -> "onPush to <ep> for method ... not defined"。
+#
+# 客户端侧（core/microservice/msservicemanager.lua:138-180）：
+#   onPush(orgType, epIds, msgId, serviceName, methodName, parameters)
+#     method = serviceName == "" and methodName or (serviceName .. "_" .. methodName)
+#     func   = target[method]      -- target = 该 ep 注册的推送端点（= ClientAvatar）
+#     SafeCallback(func, target, unpack(parameters or {}))
+#
+# 所以 parameters 必须是**数组**，且第一个元素就是方法要的实参。
+# 例：邮件推送 methodName="newMailNotice"、parameters={mailsInfo}。
+
+MS_PUSH_TYPE = 4
+
+
+def build_ms_push(org_type, ep_ids, service, method, params_bytes, msg_uuid=""):
+    """构造 MsPush 的 protobuf 体。
+
+    org_type: "ENTITY"（按 ep_ids 定向）/ "CLUSTER" / "WORLD"（发给所有端点）
+    ep_ids:   目标端点 id 列表（客户端注册时用的 id，这里就是 uid）
+    msg_uuid: 可靠消息 id；空串 = 不可靠（客户端不 ack）
+    """
+    body = pb_bytes_field(1, service.encode("utf-8"))
+    body += pb_bytes_field(2, method.encode("utf-8"))
+    body += pb_bytes_field(3, params_bytes)
+    if msg_uuid:
+        body += pb_bytes_field(4, msg_uuid.encode("utf-8"))
+    for ep in ep_ids:
+        body += pb_bytes_field(5, str(ep).encode("utf-8"))
+    body += pb_bytes_field(6, org_type.encode("utf-8"))
+    return body
+
+
+def frame_ms_push(org_type, ep_ids, service, method, params_bytes, msg_uuid=""):
+    """构造完整的 MsPush 帧（帧类型 4）。"""
+    return frame(MS_PUSH_TYPE, build_ms_push(org_type, ep_ids, service, method,
+                                             params_bytes, msg_uuid))
+
