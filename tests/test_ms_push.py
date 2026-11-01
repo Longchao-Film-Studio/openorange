@@ -38,6 +38,7 @@ from game_server.mail import store, template  # noqa: E402
 from game_server.ms import frames as msframes  # noqa: E402
 from game_server.transport import ms_conns  # noqa: E402
 from game_server.transport import ms_service as svc  # noqa: E402
+from tools.xlua import read_descriptor  # noqa: E402
 
 UID = "push_u"
 TPL = 1
@@ -63,18 +64,45 @@ class FakeSock:
         self.frames.append(bytes(data))
 
 
+#: MsPush 的**真实**字段号，从解密镜像的 FileDescriptorProto 里逐字节读出来。
+#  ★ 不手写常量：2026-10-31 那次事故就是因为代码和测试共用同一份错误推断（写成 1..6，
+#    真实 2..7），推送静默失效而测试全绿。测试必须能独立拿到真相。
+#    镜像不存在时返回 None，下面的用例会跳过而不是假装通过。
+MS_PUSH_FIELDS = read_descriptor.message_fields("ms_common.proto", "MsPush")
+
+
+MS_PUSH_FIELDS_INV = ({nm: num for num, nm in MS_PUSH_FIELDS.items()}
+                      if MS_PUSH_FIELDS else {})
+
+
+def _f(name, default):
+    """按字段名取真实字段号（拿不到描述符时退回 default，仅用于让用例不至于崩）。"""
+    if MS_PUSH_FIELDS:
+        for num, nm in MS_PUSH_FIELDS.items():
+            if nm == name:
+                return num
+    return default
+
+
 def parse_push(frame):
-    """把一帧 MicroPush 解回 (org_type, ep_ids, msg_uuid, service, method, params)。"""
+    """把一帧 MicroPush 解回字段字典（用描述符里的真实字段号）。"""
     mtype = int.from_bytes(frame[4:6], "little")
     body = msmod.pb_parse(frame[6:])
+    def _s(field, default):
+        # ★ 容错解码：字段号如果错了，这里拿到的是二进制，直接 .decode() 会抛
+        #   UnicodeDecodeError —— 那样破坏性验证只会看到 traceback，看不出"字段号错了"。
+        raw = body.get(_f(field, default), [b""])[0]
+        return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+
     return {
         "type": mtype,
-        "service": body.get(1, [b""])[0].decode() if body.get(1) else "",
-        "method": body.get(2, [b""])[0].decode() if body.get(2) else "",
-        "params": body.get(3, [b""])[0] if body.get(3) else b"",
-        "msg_uuid": body.get(4, [b""])[0].decode() if body.get(4) else "",
-        "ep_ids": [b.decode() for b in body.get(5, [])],
-        "org_type": body.get(6, [b""])[0].decode() if body.get(6) else "",
+        "service": _s("service", 2),
+        "method": _s("method", 3),
+        "params": body.get(_f("params", 4), [b""])[0],
+        "msg_uuid": _s("msg_uuid", 5),
+        "ep_ids": [b.decode("utf-8", "replace") for b in body.get(_f("ep_ids", 6), [])
+                   if isinstance(b, bytes)],
+        "org_type": _s("org_type", 7),
     }
 
 
@@ -108,6 +136,45 @@ def main():
     check("msg_uuid 非空时写字段 4", parse_push(f2)["msg_uuid"] == "abc")
     check("客户端解出的参数是数组、第一个元素是邮件列表",
           msmod.mp_decode(p["params"])[0] == [[{"MailId": 1}]], msmod.mp_decode(p["params"])[0])
+
+    print("\n[1b] 对照描述符：发出的字段号必须与 ms_common.proto 完全一致")
+    if MS_PUSH_FIELDS is None:
+        print("  SKIP：读不到 xlua 镜像（tools/xlua/read_descriptor.py 的 IMAGE）")
+    else:
+        check("描述符里 MsPush 有 6 个字段", len(MS_PUSH_FIELDS) == 6, MS_PUSH_FIELDS)
+        check("字段名集合与契约一致",
+              set(MS_PUSH_FIELDS.values()) ==
+              {"service", "method", "params", "msg_uuid", "ep_ids", "org_type"},
+              MS_PUSH_FIELDS)
+        body_keys = set(msmod.pb_parse(f[6:]))
+        # 这一帧没传 msg_uuid（空串在 proto3 里不写），所以允许它缺席；其余必须全在
+        optional_empty = {MS_PUSH_FIELDS_INV["msg_uuid"]}
+        check("我们写的字段号 ⊂ 描述符里的字段号",
+              body_keys <= set(MS_PUSH_FIELDS), (sorted(body_keys), sorted(MS_PUSH_FIELDS)))
+        check("除 msg_uuid（空值不写）外，描述符里的字段一个不少",
+              set(MS_PUSH_FIELDS) - optional_empty == body_keys,
+              (sorted(body_keys), sorted(set(MS_PUSH_FIELDS) - optional_empty)))
+        f_all = msframes.frame_ms_push("ENTITY", ["u"], "S", "m", params, msg_uuid="abc")
+        check("传了 msg_uuid 时六个字段全写",
+              set(msmod.pb_parse(f_all[6:])) == set(MS_PUSH_FIELDS),
+              (sorted(msmod.pb_parse(f_all[6:])), sorted(MS_PUSH_FIELDS)))
+        # 逐个字段名再核一遍：防止"号对了但填错了位置"
+        got = parse_push(f)
+        check("service 写在描述符指定的号上",
+              got["service"] == "MailService" and
+              msmod.pb_parse(f[6:]).get(MS_PUSH_FIELDS_INV["service"]) is not None,
+              got["service"])
+        check("org_type 写在描述符指定的号上",
+              got["org_type"] == "ENTITY" and
+              MS_PUSH_FIELDS_INV["org_type"] in body_keys, got["org_type"])
+        # 帧类型 4 也对着描述符的 EnumG2C.Type 核
+        g2c = read_descriptor.enum_values("ms_common.proto", "Type", in_message="EnumG2C")
+        if g2c:
+            check("帧类型 == EnumG2C.Type.MicroPush",
+                  p["type"] == g2c.get("MicroPush"), (p["type"], g2c))
+            check("MicroResponse 也一致（回包一直是对的）",
+                  g2c.get("MicroResponse") == msframes.MS_RESP_TYPE,
+                  (g2c.get("MicroResponse"), msframes.MS_RESP_TYPE))
 
     # ------------------------------------------------------------ INV-PUSH-2
     print("\n[2] INV-PUSH-2 连接表：未 bind 推不到，bind 后推得到")

@@ -146,15 +146,25 @@ def frame_ms_response(rid, params_bytes, service_id=""):
 # 微服务层：MsPush（帧类型 4）—— 服务端主动推给客户端
 # ============================================================================
 #
-# 字段布局来自 ms_common.proto 的 FileDescriptorProto 文本
-# （archive/scans/S02_lua_dump/strings.txt 第 1446041-1446047 行，
-#  顺序即字段号：service / method / params / msg_uuid / ep_ids / org_type）。
-# 同文件 1446055-1446069 行的 EnumG2C 也印证了 MicroPush=4：
-#   ResponseEncryptToken=1, ConfirmEncryptKeyAck=2, MicroResponse=3, MicroPush=4, Heartbeat=5
+# 字段号来自 ms_common.proto 的 FileDescriptorProto，**逐字节解出来的**：
+#   F:\ghidra\out\xlua_unpacked.dll @0x5f6200（tag 0a 0f + "ms_common.proto"，共 1124 字节）
 #
-# ★ 字段号是「声明顺序」推出来的，没有字节级复核。发错会污染整条 MS 连接
-#   （客户端按 index 取消息类型解析），所以只能靠实机日志确认：
-#   成功 -> "onPush <ep> received reliable msg"；失败 -> "onPush to <ep> for method ... not defined"。
+#   message MsPush {
+#       2 = service   required string
+#       3 = method    required string
+#       4 = params    optional bytes
+#       5 = msg_uuid  optional string
+#       6 = ep_ids    repeated string
+#       7 = org_type  optional string
+#   }
+#
+# ★★ 不是 1..6。1 号位在这个 .proto 里是空的（同 MsRequest 跳过了 6 号位，
+#    都是"手写 .proto 删过字段"的痕迹）。2026-10-31 之前这里按"声明顺序从 1 开始"
+#    写了 1..6，导致发出去的推送被客户端解析成 service=newMailNotice /
+#    method=<二进制>，**静默失效**。教训：descriptor 里 number 是显式存的，不许推。
+#
+# 帧类型 4 来自 EnumG2C（同文件）：
+#   ResponseEncryptToken=1, ConfirmEncryptKeyAck=2, MicroResponse=3, MicroPush=4, Heartbeat=5
 #
 # 客户端侧（core/microservice/msservicemanager.lua:138-180）：
 #   onPush(orgType, epIds, msgId, serviceName, methodName, parameters)
@@ -167,6 +177,14 @@ def frame_ms_response(rid, params_bytes, service_id=""):
 
 MS_PUSH_TYPE = 4
 
+#: MsPush 的字段号（**来自描述符，不许改**，理由见上面的注释）
+MS_PUSH_F_SERVICE = 2
+MS_PUSH_F_METHOD = 3
+MS_PUSH_F_PARAMS = 4
+MS_PUSH_F_MSG_UUID = 5
+MS_PUSH_F_EP_IDS = 6
+MS_PUSH_F_ORG_TYPE = 7
+
 
 def build_ms_push(org_type, ep_ids, service, method, params_bytes, msg_uuid=""):
     """构造 MsPush 的 protobuf 体。
@@ -175,14 +193,14 @@ def build_ms_push(org_type, ep_ids, service, method, params_bytes, msg_uuid=""):
     ep_ids:   目标端点 id 列表（客户端注册时用的 id，这里就是 uid）
     msg_uuid: 可靠消息 id；空串 = 不可靠（客户端不 ack）
     """
-    body = pb_bytes_field(1, service.encode("utf-8"))
-    body += pb_bytes_field(2, method.encode("utf-8"))
-    body += pb_bytes_field(3, params_bytes)
+    body = pb_bytes_field(MS_PUSH_F_SERVICE, service.encode("utf-8"))
+    body += pb_bytes_field(MS_PUSH_F_METHOD, method.encode("utf-8"))
+    body += pb_bytes_field(MS_PUSH_F_PARAMS, params_bytes)
     if msg_uuid:
-        body += pb_bytes_field(4, msg_uuid.encode("utf-8"))
+        body += pb_bytes_field(MS_PUSH_F_MSG_UUID, msg_uuid.encode("utf-8"))
     for ep in ep_ids:
-        body += pb_bytes_field(5, str(ep).encode("utf-8"))
-    body += pb_bytes_field(6, org_type.encode("utf-8"))
+        body += pb_bytes_field(MS_PUSH_F_EP_IDS, str(ep).encode("utf-8"))
+    body += pb_bytes_field(MS_PUSH_F_ORG_TYPE, org_type.encode("utf-8"))
     return body
 
 
