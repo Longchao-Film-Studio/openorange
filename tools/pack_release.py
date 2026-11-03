@@ -36,9 +36,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import os
-import shutil
 import sys
-import tempfile
 import time
 import zipfile
 
@@ -132,7 +130,7 @@ def build(root: str, out: str, *, verbose: bool = True) -> dict:
 
     prefix = os.path.basename(root)
     t0 = time.time()
-    manifest = build_readme(picked, prefix)
+    manifest = build_readme(picked)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for rel, _size in picked:
             zf.write(os.path.join(root, rel), arcname=f"{prefix}/{rel}")
@@ -146,7 +144,7 @@ def build(root: str, out: str, *, verbose: bool = True) -> dict:
             "zip_bytes": size, "seconds": elapsed, "path": out}
 
 
-def build_readme(picked: list[tuple[str, int]], prefix: str) -> str:
+def build_readme(picked: list[tuple[str, int]]) -> str:
     """生成包内的 README_FIRST.txt。
 
     ★ 为什么要生成而不是手写一份塞进仓库：
@@ -255,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("===== 打包 OpenOrange 服务端 =====")
     print()
-    res = build(args.root, out)
+    build(args.root, out)
     print()
     print("已排除：")
     for d in EXCLUDE_DIRS:

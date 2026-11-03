@@ -183,14 +183,44 @@ def unlock_topic(st, chat_id, topic_id, source="", allow_unmapped=False):
     real_chat = _chat_id_of(cfg) or chat_id
     now = int(time.time())
     tx = Tx(st.props)
-    al = st.props.get("npc_chat_prop").get("address_list")
-    if not isinstance(al, dict) or real_chat not in al:
-        # 会话容器不存在：整条会话（含话题条目）一次建出，Tx 自动发 OP_ADD
-        tx.set(("npc_chat_prop", "address_list", real_chat),
-               {topic_id: _entry(chat_type, real_chat, now, st.props)})
+    npc_prop = st.props.get("npc_chat_prop")
+    al = npc_prop.get("address_list") if isinstance(npc_prop, dict) else None
+    entry = _entry(chat_type, real_chat, now, st.props)
+    if isinstance(al, dict) and real_chat in al:
+        # ---------------------------------------------------------------
+        # 会话容器已存在：必须整条重发 OP_ADD，不能只写 topic 那一层。
+        #
+        # 根因（2026-11-04，同源 Lua 实测确证）：
+        #   客户端弹手机的**唯一**触发点是 config.lua:8573-8593 里
+        #     AvatarNpcChatComp.PropertyCallbacks.entryAdded
+        #       ["npc_chat_prop.address_list.*"] = on_NpcMessageTopic_Unlock_Change
+        #   而 puppetpropertycomponent.lua:91-110 的 _getPropertyCallback 是
+        #   **按路径字符串精确查表** —— 星号不是通配符，它是
+        #   customtype.lua:263-277 对「不定键容器」生成的固定后缀。
+        #
+        #   于是同一个 OP_ADD 落在不同层级，拼出的回调路径不同：
+        #     pid=address_list.__id__, name=<chatId>   -> address_list.*   （命中）
+        #     pid=<record>.__id__,     name=<topicId>  -> address_list.*.* （不命中）
+        #
+        #   以前这里走的就是后者 —— 所以「同一个 chat 下的第一个话题能弹，
+        #   之后所有话题静默失败」。三次崩溃修复（39cee5e / 52a4cd4 / 55bfb63）
+        #   只处理了 __id__ 与脏键，从未动过这条层级。
+        #
+        # 做法：把 chatId 这个键删掉再整体塞回（值 = 旧内容 + 新话题）。
+        #   Tx 的 OP_ADD 判据是「键在不在父容器里」（tx.py set 里的 is_new），
+        #   删掉之后就被判为新增 -> OP_ADD 落在 address_list 这一层 -> 命中回调。
+        #   ★ 不能写成「先 tx.delete 再 tx.set」：那会额外发一条 OP_DEL。
+        #     这里直接在 props 上删、交给同一次 set 发帧，全程只有一条 OP_ADD。
+        #   ★ 值必须保留旧条目：客户端收到 OP_ADD 会用 createCustomObjRO
+        #     整体重建这个 NpcChatRecord，旧话题必须还在值里，否则会丢。
+        existing = al[real_chat]
+        merged = dict(existing) if isinstance(existing, dict) else {}
+        merged[topic_id] = entry
+        del al[real_chat]
+        tx.set(("npc_chat_prop", "address_list", real_chat), merged)
     else:
-        tx.set(("npc_chat_prop", "address_list", real_chat, topic_id),
-               _entry(chat_type, real_chat, now, st.props))
+        # 会话容器不存在：整条会话（含话题条目）一次建出，Tx 自动发 OP_ADD
+        tx.set(("npc_chat_prop", "address_list", real_chat), {topic_id: entry})
     # 未读队列（IntList；Tx.append 发 OP_INSERT）
     try:
         tx.append(("npc_chat_prop", "resident_topic_ids"), topic_id)
