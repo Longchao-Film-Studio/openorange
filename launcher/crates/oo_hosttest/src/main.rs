@@ -22,12 +22,28 @@ unsafe fn sym<T>(h: HMODULE, n: &str) -> Option<T> {
     Some(std::mem::transmute_copy(&p))
 }
 
+/// 默认 xlua.dll 位置。
+///
+/// ★ 2026-11-03：以前写死 F:\haowancheng\...，项目换盘符（F: -> D:）后直接失效。
+///   改成：OO_GAME_DIR 环境变量 > 相对可执行文件向上找 GuiLongchao\game。
+fn default_xlua_path() -> String {
+    let rel = r"GuiLongchao\game\GuiLongchao_Data\Plugins\x86_64\xlua.dll";
+    if let Ok(dir) = std::env::var("OO_GAME_DIR") {
+        return std::path::Path::new(&dir).join(rel).to_string_lossy().into_owned();
+    }
+    let mut cur = std::env::current_exe().ok();
+    while let Some(p) = cur {
+        let cand = p.join(rel);
+        if cand.exists() {
+            return cand.to_string_lossy().into_owned();
+        }
+        cur = p.parent().map(|x| x.to_path_buf());
+    }
+    rel.to_string()
+}
+
 fn main() {
-    let xlua_path = std::env::args().nth(1).unwrap_or_else(|| {
-        String::from(
-            r"F:\haowancheng\GuiLongchao\game\GuiLongchao_Data\Plugins\x86_64\xlua.dll",
-        )
-    });
+    let xlua_path = std::env::args().nth(1).unwrap_or_else(default_xlua_path);
     let hold_ms: u64 = std::env::args()
         .nth(2)
         .and_then(|s| s.parse().ok())

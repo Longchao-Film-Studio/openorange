@@ -226,11 +226,29 @@ fn _unused(_: HANDLE, _: c_void) {}
 //       只有运行时地址才是权威。
 // ============================================================================
 
+/// xlua.dll 的位置。
+///
+/// ★ 2026-11-03：以前 4 处都写死 F:/haowancheng/...，项目换盘符后全部 SKIP。
+///   改成：OO_GAME_DIR 环境变量 > 相对当前可执行文件向上找。
+fn xlua_dll_path() -> std::path::PathBuf {
+    let rel = r"GuiLongchao/game/GuiLongchao_Data/Plugins/x86_64/xlua.dll";
+    if let Ok(dir) = std::env::var("OO_GAME_DIR") {
+        return std::path::Path::new(&dir).join(rel);
+    }
+    let mut cur = std::env::current_exe().ok();
+    while let Some(p) = cur {
+        let cand = p.join(rel);
+        if cand.exists() {
+            return cand;
+        }
+        cur = p.parent().map(|x| x.to_path_buf());
+    }
+    std::path::PathBuf::from(rel)
+}
+
 pub fn check_hook_target() -> i32 {
     println!("\n[5] 挂钩目标预检（运行时取址）");
-    let dll = std::path::Path::new(
-        r"F:/haowancheng/GuiLongchao/game/GuiLongchao_Data/Plugins/x86_64/xlua.dll",
-    );
+    let dll = xlua_dll_path();
     if !dll.exists() {
         println!("    SKIP: xlua.dll 不在预期位置");
         return 0;
@@ -346,9 +364,7 @@ pub fn check_hook_target() -> i32 {
 // ============================================================================
 pub fn scan_hook_candidates() -> i32 {
     println!("\n[6] 挂钩候选点扫描");
-    let dll = std::path::Path::new(
-        r"F:/haowancheng/GuiLongchao/game/GuiLongchao_Data/Plugins/x86_64/xlua.dll",
-    );
+    let dll = xlua_dll_path();
     if !dll.exists() {
         println!("    SKIP");
         return 0;
@@ -463,9 +479,7 @@ pub fn scan_hook_candidates() -> i32 {
 // ============================================================================
 pub fn analyze_thunk_chain() -> i32 {
     println!("\n[7] 跳转链精确解析");
-    let dll = std::path::Path::new(
-        r"F:/haowancheng/GuiLongchao/game/GuiLongchao_Data/Plugins/x86_64/xlua.dll",
-    );
+    let dll = xlua_dll_path();
     let dir = dll.parent().unwrap();
     let oldpath = std::env::var("PATH").unwrap_or_default();
     std::env::set_var("PATH", format!("{};{}", dir.display(), oldpath));
@@ -532,9 +546,7 @@ pub fn analyze_thunk_chain() -> i32 {
 // ============================================================================
 pub fn deep_resolve() -> i32 {
     println!("\n[8] 深度解析候选入口的真实函数体");
-    let dll = std::path::Path::new(
-        r"F:/haowancheng/GuiLongchao/game/GuiLongchao_Data/Plugins/x86_64/xlua.dll",
-    );
+    let dll = xlua_dll_path();
     let dir = dll.parent().unwrap();
     let oldpath = std::env::var("PATH").unwrap_or_default();
     std::env::set_var("PATH", format!("{};{}", dir.display(), oldpath));
