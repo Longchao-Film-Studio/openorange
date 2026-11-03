@@ -1,0 +1,243 @@
+<!-- 发送邮件页面（2026-11-03）—— 照公告页的结构，长文本用小页面编辑更顺手 -->
+<style>
+  .mail-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 440px;
+               gap: 18px; align-items: start; max-width: 1420px; }
+  .mail-side { position: sticky; top: 16px; }
+  @media (max-width: 1100px){ .mail-wrap { grid-template-columns: 1fr; } }
+  .card { background: #12161c; border: 1px solid #232a35; border-radius: 10px;
+          padding: 18px 20px; margin-bottom: 16px; }
+  .card > h3 { margin: 0 0 14px; font-size: 13px; font-weight: 600; color: #9aa4b2;
+               letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+  .card > h3 .n { display: inline-flex; width: 18px; height: 18px; border-radius: 50%;
+                  background: #2b6cb0; color: #fff; font-size: 11px; align-items: center;
+                  justify-content: center; }
+  .fld { margin-bottom: 14px; }
+  .fld:last-child { margin-bottom: 0; }
+  .fld > .lbl { display: flex; justify-content: space-between; align-items: baseline;
+                font-size: 12px; color: #8b95a5; margin-bottom: 6px; }
+  .fld > .lbl .tip { font-size: 11px; color: #5b6472; }
+  .fld input[type=text], .fld textarea {
+    width: 100%; box-sizing: border-box; background: #0d1117; color: #e6e9ee;
+    border: 1px solid #2a313c; border-radius: 7px; padding: 9px 11px;
+    font: inherit; font-size: 13px; outline: none; transition: border-color .12s; }
+  .fld input:focus, .fld textarea:focus { border-color: #3f7fc4; }
+  .fld textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
+  .fld textarea.tall { min-height: 180px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tpl-list { max-height: 168px; overflow-y: auto; display: flex; flex-direction: column;
+              gap: 5px; padding-right: 4px; }
+  .tpl-list.fold { display: none; }
+  .tpl { display: flex; gap: 10px; align-items: center; padding: 9px 11px;
+         border: 1px solid #232a35; border-radius: 7px; cursor: pointer;
+         background: #0f131a; transition: border-color .12s, background .12s; }
+  .tpl:hover { border-color: #35435a; background: #131922; }
+  .tpl.on { border-color: #2b6cb0; background: #14202e; }
+  .tpl .id { font-size: 11px; color: #5b6472; flex: 0 0 46px; }
+  .tpl .tt { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; }
+  .tpl .it { font-size: 11px; color: #6c7280; flex: 0 0 auto; }
+  .items { display: flex; flex-direction: column; gap: 8px; }
+  .item-row { display: grid; grid-template-columns: 1fr 110px 30px; gap: 8px; align-items: center; }
+  .item-row input { background: #0d1117; color: #e6e9ee; border: 1px solid #2a313c;
+                    border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 13px;
+                    outline: none; box-sizing: border-box; width: 100%; }
+  .item-row input:focus { border-color: #3f7fc4; }
+  .item-row .del { background: #1c222c; border: 1px solid #2a313c; color: #8b95a5;
+                   border-radius: 6px; width: 30px; height: 34px; cursor: pointer;
+                   font-size: 15px; line-height: 1; }
+  .item-row .del:hover { background: #3a2226; color: #e2726b; border-color: #5a2b2b; }
+  .add-item { margin-top: 8px; background: #16202e; border: 1px dashed #2f4a6b;
+              color: #6fa8dc; border-radius: 6px; padding: 8px; width: 100%;
+              cursor: pointer; font-size: 12.5px; font-family: inherit; }
+  .add-item:hover { background: #1a2838; border-color: #3f7fc4; }
+  .picker { position: relative; }
+  .picker-list { position: absolute; z-index: 40; left: 0; right: 0; top: 100%;
+                 margin-top: 4px; max-height: 240px; overflow-y: auto;
+                 background: #131922; border: 1px solid #35435a; border-radius: 7px;
+                 box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none; }
+  .picker-list.on { display: block; }
+  .picker-list div { padding: 7px 11px; cursor: pointer; font-size: 12.5px; }
+  .picker-list div:hover, .picker-list div.cur { background: #1e2a3a; }
+  .picker-list div em { color: #5b6472; font-style: normal; font-size: 11px; margin-left: 6px; }
+  .pv { border: 1px solid #232a35; border-radius: 10px; background: #0b0f14; overflow: hidden; }
+  .pv .hd { padding: 14px 16px 12px; border-bottom: 1px solid #1b222c; }
+  .pv .hd .t { font-size: 15px; font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+  .pv .hd .s { font-size: 12px; color: #6c7280; }
+  .pv .bd { padding: 14px 16px; font-size: 13px; line-height: 1.75;
+            white-space: pre-wrap; word-break: break-word; min-height: 90px; color: #d3d8e0; }
+  .pv .aw { padding: 12px 16px; border-top: 1px solid #1b222c; }
+  .pv .aw .h { font-size: 11px; color: #5b6472; margin-bottom: 6px; }
+  .pv .aw .it { display: inline-flex; align-items: center; gap: 5px; background: #172030;
+                border: 1px solid #24334a; border-radius: 5px; padding: 3px 9px;
+                margin: 0 6px 6px 0; font-size: 12px; }
+  .pv .aw .it b { color: #ffd479; font-weight: 600; }
+  .pv .noicon { padding: 10px 16px; font-size: 11.5px; color: #6b5d3a;
+                background: #1a1710; border-top: 1px solid #2b2415; }
+  .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .actions-bar { position: sticky; bottom: 12px; z-index: 30;
+                 box-shadow: 0 -6px 18px rgba(0,0,0,.45); }
+  .kbd { font-size: 10.5px; color: #5b6472; border: 1px solid #2a313c;
+         border-radius: 4px; padding: 2px 6px; }
+  .mini { background: #1c222c; border: 1px solid #2a313c; color: #8b95a5;
+          border-radius: 4px; padding: 1px 7px; font-size: 10.5px; cursor: pointer;
+          font-family: inherit; margin-left: 4px; }
+  .mini:hover { background: #232b38; color: #c8cfda; }
+  .btn { background: #1c222c; border: 1px solid #2a313c; color: #c8cfda;
+         border-radius: 7px; padding: 9px 18px; cursor: pointer; font: inherit;
+         font-size: 13px; transition: background .12s; }
+  .btn:hover { background: #232b38; }
+  .btn.primary { background: #2b6cb0; border-color: #2b6cb0; color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: #3182ce; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .status { font-size: 12.5px; margin-left: auto; }
+  .status.ok { color: #58c98a; }
+  .status.err { color: #e2726b; }
+  .status.busy { color: #8b95a5; }
+  .seg { display: flex; gap: 4px; background: #0d1117; border-radius: 8px;
+         padding: 3px; margin-bottom: 12px; }
+  .seg button { flex: 1; background: transparent; border: none; color: #8b95a5;
+                padding: 7px; border-radius: 6px; cursor: pointer; font: inherit;
+                font-size: 12.5px; }
+  .seg button.on { background: #1c222c; color: #e6e9ee; }
+  .list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+  .mail { border: 1px solid #232a35; border-radius: 8px; padding: 10px 12px;
+          background: #0f131a; font-size: 13px; }
+  .mail .l1 { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .mail .l1 .tt { font-weight: 500; overflow: hidden; text-overflow: ellipsis;
+                  white-space: nowrap; }
+  .mail .l1 .mid { font-size: 11px; color: #5b6472; flex: 0 0 auto; }
+  .mail .l2 { font-size: 11.5px; color: #6c7280; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { padding: 1px 6px; border-radius: 4px; font-size: 10.5px; }
+  .tag.un { background: #2a2118; color: #d6a659; }
+  .tag.done { background: #172a1f; color: #58c98a; }
+  .tag.read { background: #1a2030; color: #6f8bb5; }
+  .empty { font-size: 12.5px; color: #5b6472; text-align: center; padding: 18px; }
+  .denied { position: fixed; inset: 0; display: flex; align-items: center;
+            justify-content: center; background: #0b0f14; z-index: 100; }
+  .denied .box { text-align: center; max-width: 380px; padding: 28px; }
+  .denied h2 { margin: 0 0 10px; font-size: 17px; }
+  .denied p { margin: 0 0 18px; font-size: 13px; color: #8b95a5; line-height: 1.8; }
+  .denied code { background: #1c222c; padding: 2px 7px; border-radius: 4px; }
+  .denied .btn { display: inline-block; text-decoration: none; }
+  .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+           background: #1c2430; border: 1px solid #35435a; color: #e6e9ee;
+           padding: 11px 22px; border-radius: 8px; font-size: 13px; z-index: 200;
+           box-shadow: 0 8px 28px rgba(0,0,0,.6); opacity: 0; transition: opacity .18s; }
+  .toast.on { opacity: 1; }
+  .toast.err { border-color: #5a2b2b; color: #f0a19a; }
+</style>
+
+<div class="shell">
+  <div class="top">
+    <div class="brand"><span class="mark">OO</span><span>发送邮件</span></div>
+    <div class="top-right">
+      <span>已登录 <b id="who">-</b></span>
+      <span class="badge player" id="perm">-</span>
+      <a class="ghost" href="/admin/command">控制台</a>
+      <a class="ghost" href="/admin/announce">公告</a>
+      <a class="ghost" href="/">返回门户</a>
+    </div>
+  </div>
+
+  <div class="body" id="body">
+    <div class="mail-wrap">
+      <div>
+        <div class="card">
+          <h3><span class="n">1</span>收件人与模板</h3>
+          <div class="row2">
+            <div class="fld">
+              <div class="lbl"><span>目标账号</span><span class="tip">游戏内 UID</span></div>
+              <input type="text" id="uid" list="uidList" placeholder="例如 123tst" autocomplete="off">
+              <datalist id="uidList"></datalist>
+            </div>
+            <div class="fld">
+              <div class="lbl"><span>数量</span><span class="tip">同样的信发几封</span></div>
+              <input type="text" id="count" value="1">
+            </div>
+          </div>
+          <div class="fld">
+            <div class="lbl">
+              <span>模板 <button class="mini" id="tplFold" onclick="toggleTpl()">收起</button></span>
+              <span class="tip" id="tplHint">点一下套用；不选 = 纯自定义</span>
+            </div>
+            <input type="text" id="tplSearch" placeholder="搜索模板标题或 ID…" autocomplete="off">
+            <div class="tpl-list" id="tplList" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><span class="n">2</span>内容</h3>
+          <div class="row2">
+            <div class="fld">
+              <div class="lbl"><span>标题</span><span class="tip">留空用模板</span></div>
+              <input type="text" id="title" placeholder="邮件标题">
+            </div>
+            <div class="fld">
+              <div class="lbl"><span>发件人</span><span class="tip">留空用模板</span></div>
+              <input type="text" id="sender" placeholder="显示在玩家面板上的名字">
+            </div>
+          </div>
+          <div class="fld">
+            <div class="lbl"><span>正文</span><span class="tip" id="lenTip">0 字</span></div>
+            <textarea id="content" class="tall" placeholder="留空则用模板正文。支持多行。"></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><span class="n">3</span>附件
+            <span style="margin-left:auto;font-size:11px;color:#5b6472;font-weight:400">
+              留空 = 用模板的；有行 = 以这里为准</span></h3>
+          <div class="items" id="items"></div>
+          <button class="add-item" onclick="addItem()">+ 添加附件</button>
+        </div>
+
+        <div class="card actions-bar">
+          <div class="actions">
+            <button class="btn primary" id="sendBtn" onclick="sendMail()">发送邮件</button>
+            <button class="btn" onclick="resetForm()">清空</button>
+            <span class="kbd">Ctrl+Enter</span>
+            <span class="status" id="status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mail-side">
+        <div class="card">
+          <h3>预览</h3>
+          <div class="pv">
+            <div class="hd">
+              <div class="t" id="pvTitle">（标题）</div>
+              <div class="s" id="pvSender">（发件人）</div>
+            </div>
+            <div class="bd" id="pvBody">（正文）</div>
+            <div class="aw" id="pvAward" style="display:none">
+              <div class="h">附件</div>
+              <div id="pvItems"></div>
+            </div>
+            <div class="noicon" id="pvNoIcon" style="display:none">
+              纯自定义邮件：客户端查不到模板，列表里没有头像、没有跳转按钮（这是正常的兜底）
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="seg">
+            <button id="tabHist" class="on" onclick="switchTab('hist')">发送记录</button>
+            <button id="tabBox" onclick="switchTab('box')">该账号邮箱</button>
+          </div>
+          <div class="list" id="paneHist"></div>
+          <div class="list" id="paneBox" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="denied" id="denied" hidden>
+    <div class="box">
+      <h2>需要先登录</h2>
+      <p id="deniedMsg">这个页面需要 GM 及以上权限。<br>
+        请让管理员执行 <code>/account 你的账号 perm 1</code>，然后重新登录。</p>
+      <a class="btn primary" href="/">去登录</a>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>

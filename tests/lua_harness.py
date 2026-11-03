@@ -29,8 +29,34 @@ import os
 
 from lupa import lua53
 
+
+def _find_lua_root():
+    """定位反编译出来的客户端 Lua 根目录。
+
+    ★ 2026-11-03：项目随磁盘换过盘符（F: -> D:），硬编码路径会让 7 个测试
+      全部报 "cannot open .../generated/config.lua"。所以改成：
+        OO_LUA_ROOT 环境变量 > 相对本仓库的 ../archive/... > 常见历史位置
+      找不到就返回最可能的那个（报错信息里能看到路径，便于排查）。
+    """
+    env = os.environ.get("OO_LUA_ROOT")
+    if env:
+        return env
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 仓库根的同级 archive/ 是标准布局（OpenOrange 与 archive 并列）
+    cand = os.path.normpath(os.path.join(here, "..", "archive", "game_data",
+                                         "LuaAll_Decompiled2"))
+    if os.path.isdir(cand):
+        return cand
+    for drive in ("D:", "F:", "E:", "C:"):
+        alt = os.path.join(drive + os.sep, "haowancheng", "archive", "game_data",
+                           "LuaAll_Decompiled2")
+        if os.path.isdir(alt):
+            return alt
+    return cand
+
+
 #: decompile 出来的客户端 Lua 根目录（可用 OO_LUA_ROOT 覆盖，便于换版本）
-LUA_ROOT = os.environ.get("OO_LUA_ROOT") or r"F:\haowancheng\archive\game_data\LuaAll_Decompiled2"
+LUA_ROOT = _find_lua_root()
 
 
 def _stub_source(now=1700000000):

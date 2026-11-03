@@ -66,10 +66,41 @@ MS_MODE = False
 
 
 def _listen(host, port):
-    """起一个监听 socket（SO_REUSEADDR，避免重启时 TIME_WAIT 卡端口）。"""
+    """起一个监听 socket。**端口已被占用时必须报错，不许静默抢占**。
+
+    ## 为什么不再用 SO_REUSEADDR（2026-11-03 实测）
+
+    原来的注释是「SO_REUSEADDR 避免重启时 TIME_WAIT 卡端口」。这个理由在
+    Linux 成立，在 Windows 上**完全相反**：
+
+        Linux   : SO_REUSEADDR 只允许绑 TIME_WAIT 的端口，正在 LISTEN 的绑不上
+        Windows : SO_REUSEADDR 允许**两个 socket 绑同一个端口，且都不报错**
+
+    实测（本机）：
+        A. 两个 socket 都开 SO_REUSEADDR      -> 第二个 bind **成功**
+        B. 第一个开 SO_EXCLUSIVEADDRUSE       -> 第二个 bind 失败 WinError 10013
+
+    后果（真实踩过）：开两个 game_server，两个都打印 "listening on 0.0.0.0:33100"，
+    日志上完全看不出异常；实际连接被 Windows 随机分给其中一个，两个进程各写同一份存档、
+    互相覆盖。表现为「剧情过了但面板不开放」「网页发的邮件游戏里收不到」。
+
+    现在改成 Windows 用 SO_EXCLUSIVEADDRUSE：第二个实例**启动即失败**，
+    而不是半死不活地跑着。
+    """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind((host, port))
+    if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+        # Windows：独占绑定，端口已被占 -> bind 抛 WinError 10013
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    else:
+        # POSIX：SO_REUSEADDR 语义安全（只能绑 TIME_WAIT），重启不被卡
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        srv.bind((host, port))
+    except OSError as e:
+        srv.close()
+        _log.error(f"[listen] 端口 {host}:{port} 绑定失败：{e}")
+        _log.error("[listen] 可能已有另一个服务在跑。先用 stop_all.ps1 收掉再启动。")
+        raise
     srv.listen(64)
     return srv
 

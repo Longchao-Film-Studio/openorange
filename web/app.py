@@ -69,6 +69,8 @@ from web.assets import (  # noqa: E402
     ANNOUNCE_SCRIPT,
     BODY,
     BRAND,
+    MAIL_BODY,
+    MAIL_SCRIPT,
     OVERLAY,
     SCRIPT,
 )
@@ -150,6 +152,77 @@ def render_announce():
     )
 
 
+def render_mail():
+    """发送邮件页面（2026-11-03）。
+
+    与公告页同一套外壳。模板清单 / 道具表 / 账号名都内嵌进页面，省请求：
+      - 模板：只放有标题或正文的，避免塞进 187 条没人用的
+      - 道具：2728 条 ItemData，附件行要能按名字选，不能让人背数字 ID
+      - 账号：只取 username —— db.list_accounts 返回**整行**（含 pass_hash/pass_salt），
+        整个塞进 HTML 就是把口令材料送到浏览器
+    """
+    rows = []
+    try:
+        from game_server import gamedata
+        from game_server.mail import template as _tpl
+        table = gamedata.table("MailData") or {}
+        for key, row in table.items():
+            if not isinstance(row, dict):
+                continue
+            title = str(row.get("title") or "")
+            content = str(row.get("content") or "")
+            items = _tpl.attachment_items(row)
+            if not title and not content:
+                continue
+            rows.append({
+                "id": int(row.get("mailId") or key),
+                "title": title,
+                "sender": str(row.get("sender") or ""),
+                "content": content,
+                "items": {str(k): v for k, v in sorted(items.items())},
+            })
+        rows.sort(key=lambda r: r["id"])
+    except Exception:  # noqa: BLE001 —— 页面不该因为数据没加载就白屏
+        rows = []
+    items = []
+    uids = []
+    try:
+        from game_server import gamedata as _gd
+        for key, row in (_gd.table("ItemData") or {}).items():
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "")
+            if not name:
+                continue
+            try:
+                items.append([int(row.get("id") or key), name])
+            except (TypeError, ValueError):
+                continue
+        items.sort()
+    except Exception:  # noqa: BLE001
+        items = []
+    try:
+        uids = [str(a.get("username") or "") for a in db.list_accounts(200)]
+        uids = [u for u in uids if u]
+    except Exception:  # noqa: BLE001
+        uids = []
+    boot = (
+        "window.__OO_MAIL_TEMPLATES__ = " + json.dumps(rows, ensure_ascii=False) + ";\n"
+        + "window.__OO_ITEMS__ = " + json.dumps(items, ensure_ascii=False) + ";\n"
+        + "window.__OO_UIDS__ = " + json.dumps(uids, ensure_ascii=False) + ";\n"
+    )
+    return (
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="dark">'
+        '<title>归橙 · 发送邮件</title>'
+        '<link rel="stylesheet" href="/static/admin.css"></head><body>'
+        + MAIL_BODY
+        # ★ ADMIN_SCRIPT 先加载：它提供 checkLogin（登录态唯一判定入口）。
+        + "<script>" + ADMIN_SCRIPT + "\n" + boot + MAIL_SCRIPT + "</script></body></html>"
+    )
+
+
 class WebHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -210,6 +283,10 @@ class WebHandler(BaseHTTPRequestHandler):
             self._send(render_announce())
             return
 
+        if path in ("/admin/mail", "/admin/mailbox"):
+            self._send(render_mail())
+            return
+
         if path in ("/admin/command", "/admin"):
             # 管理控制台页面本身不含数据，权限在前端拿到 /api/me 后再判断；
             # 真正的命令执行走 /api/admin/command，服务端会再校验一次权限。
@@ -252,6 +329,8 @@ class WebHandler(BaseHTTPRequestHandler):
         "/api/me": "_r_api_me",
         "/api/chat/command": "_r_api_chat_command",
         "/api/admin/command": "_r_api_admin_command",
+        "/api/admin/mail/send": "_r_api_admin_mail_send",
+        "/api/admin/mail/list": "_r_api_admin_mail_list",
         "/api/admin/announce": "_r_api_admin_announce",
         "/api/admin/announce/history": "_r_api_admin_announce_history",
         "/api/launcher/login": "_r_api_launcher_login",
@@ -338,6 +417,48 @@ class WebHandler(BaseHTTPRequestHandler):
             "data": res.data,
         })
         return
+
+    def _r_api_admin_mail_send(self, req):
+        """发送邮件（网页 -> 游戏服管理接口 -> 游戏服进程内 send_mail -> 推送）。
+
+        ★ 网页**不直接改存档**：那样游戏服不知道，推送永远发不出去。
+          这条边界和 /api/admin/command 的其余命令一致。
+        """
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+            return
+        if int(acc.get("perm_level") or 0) < 1:
+            self._json({"ok": False, "msg": "需要 GM 权限"})
+            return
+        body = {k: v for k, v in req.items() if k != "token"}
+        res, err = cmds.backend.admin_call("POST", "/mail/send", body)
+        if err:
+            self._json({"ok": False, "msg": err, "error": err})
+            return
+        ok = bool(res and res.get("ok"))
+        _log.info("[admin] {} 发邮件 -> {} {}".format(acc["username"], body.get("uid"), ok))
+        if ok:
+            self._json({"ok": True, "data": res})
+        else:
+            self._json({"ok": False, "msg": (res or {}).get("error") or "发送失败",
+                        "error": (res or {}).get("error")})
+
+    def _r_api_admin_mail_list(self, req):
+        """看某个账号的邮箱（网页右栏用）。"""
+        acc = models.whoami(req.get("token") or "")
+        if not acc:
+            self._json({"ok": False, "msg": "登录已失效，请重新登录"}, 401)
+            return
+        if int(acc.get("perm_level") or 0) < 1:
+            self._json({"ok": False, "msg": "需要 GM 权限"})
+            return
+        res, err = cmds.backend.admin_call("POST", "/mail/list",
+                                           {"uid": str(req.get("uid") or "")})
+        if err:
+            self._json({"ok": False, "msg": err})
+            return
+        self._json({"ok": bool(res and res.get("ok")), "data": res or {}})
 
     def _r_api_admin_announce(self, req):
         """发公告：转发给游戏服的 admin_api /announce（公告只能由游戏进程发）。

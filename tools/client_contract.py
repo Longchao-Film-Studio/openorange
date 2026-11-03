@@ -62,7 +62,30 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 #: 客户端 decompile 出来的 Lua 根目录（与 tests/lua_harness.py 同一个环境变量）
-LUA_ROOT = os.environ.get("OO_LUA_ROOT") or r"F:\haowancheng\archive\game_data\LuaAll_Decompiled2"
+def _find_lua_root():
+    """定位反编译出来的客户端 Lua 根目录（含 generated/config.lua）。
+
+    ★ 2026-11-03：项目随磁盘换过盘符（F: -> D:），硬编码路径会让所有依赖本契约的
+      测试全部跳过或报错。改成：
+        OO_LUA_ROOT 环境变量 > 相对本仓库的 ../archive/... > 常见历史位置
+    """
+    env = os.environ.get("OO_LUA_ROOT")
+    if env:
+        return env
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cand = os.path.normpath(os.path.join(here, "..", "archive", "game_data",
+                                         "LuaAll_Decompiled2"))
+    if os.path.isdir(cand):
+        return cand
+    for drive in ("D:", "F:", "E:", "C:"):
+        alt = os.path.join(drive + os.sep, "haowancheng", "archive", "game_data",
+                           "LuaAll_Decompiled2")
+        if os.path.isdir(alt):
+            return alt
+    return cand
+
+
+LUA_ROOT = _find_lua_root()
 
 #: 属性式访问：GlobalData.Avatar.<name> 后面不能紧跟 "(" 或 ":"（那是方法调用）
 PROP_RE = re.compile(r"GlobalData[.]Avatar[.]([A-Za-z_][A-Za-z0-9_]*)(?![\w:(])")

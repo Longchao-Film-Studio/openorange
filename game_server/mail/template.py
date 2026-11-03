@@ -84,45 +84,91 @@ def gift_info_json(items: dict[int, int]) -> str:
                       separators=(",", ":"), ensure_ascii=False)
 
 
-def build(template_id: int, *, created: int) -> dict[str, Any]:
-    """按模板造一封邮件实例（不含 MailId —— 由 store.add 分配）。
+def build(template_id: int, *, created: int, custom: dict | None = None) -> dict[str, Any]:
+    """造一封邮件实例（不含 MailId —— 由 store.add 分配）。
 
     返回的 dict 就是客户端契约里的形状：
         Title / SrcName / CreatedTime / ExpireTime / Params{...}
 
-    ★ 实例会**快照** Title 与 SrcName：模板以后改了，老邮件不该跟着变。
-      正文不存（客户端每封都要单独 getMailContent，那时再从 BDD 取即可），省存档空间。
+    ★ 实例会**快照** Title / SrcName / Content：模板以后改了，老邮件不该跟着变。
+
+    ## custom：自定义覆盖（2026-11-03）
+
+    这是**唯一**的造邮件入口，模板邮件和完全自定义的邮件都走它 ——
+    不新开第二条路径（否则两个地方各自拼字段，迟早不一致）。
+
+    custom 的键：
+        title    str    覆盖标题
+        sender   str    覆盖发件人
+        content  str    覆盖正文**并快照进实例**（不从模板取）
+        items    dict   {item_id: count}，覆盖附件；传 {} 表示"明确没有附件"
+        link_text / link str  覆盖链接
+
+    ★ template_id 可以是 0（纯自定义邮件）。此时客户端按 mailTemplateId=0 查
+      DataLoader:getMailData()[0] 得到 nil，走 `if not mailData then return end`
+      的兜底：没有头像、没有跳转，其余照常显示（avatarcomp/mailpanel 都验过）。
     """
-    tpl = template(template_id) or {}
+    tid = int(template_id)
+    tpl = template(tid) or {}
+    custom = custom or {}
+
+    # ---------------------------------------------------------------- 附件
+    if "items" in custom:
+        items: dict[int, int] = dict(custom.get("items") or {})
+    else:
+        items = attachment_items(tpl)
+
     params: dict[str, Any] = {
-        "mailTemplateId": int(template_id),
+        "mailTemplateId": tid,
         "haveRead": False,
         "star": False,
     }
-    items = attachment_items(tpl)
     if items:
+        # ★ 必须是 JSON 字符串（客户端 json.decode(mail.Params.giftInfo)），
+        #   且键是数字字符串 —— 展示走 pairs + tonumber(id)。
         params["giftInfo"] = gift_info_json(items)
     # 附件状态总是显式给出：客户端多处是 `not Params.giftReceived` / `== false` 判。
     params["giftReceived"] = False
-    for k in ("linkText", "link"):
-        v = tpl.get(k)
-        if isinstance(v, str) and v:
-            params[k] = v
-    return {
-        "Title": str(tpl.get("title") or ""),
-        "SrcName": str(tpl.get("sender") or ""),
+
+    # 链接：custom 优先，其次模板；空串等于没有（客户端判的是 linkText ~= nil）
+    links = {
+        "linkText": custom.get("link_text", tpl.get("linkText")),
+        "link": custom.get("link", tpl.get("link")),
+    }
+    params.update({k: v for k, v in links.items() if isinstance(v, str) and v})
+
+    content = custom.get("content")
+    mail: dict[str, Any] = {
+        "Title": str(custom.get("title") or tpl.get("title") or ""),
+        "SrcName": str(custom.get("sender") or tpl.get("sender") or ""),
         "CreatedTime": int(created),
         # 有效期统一走 DEFAULT_VALID_SECONDS（理由见模块头 U2）。
         # ★ 模板里的 validTime 现在**不参与计算** —— 单位没取证，猜错会让邮件立刻过期。
         "ExpireTime": int(created) + DEFAULT_VALID_SECONDS,
         "Params": params,
     }
+    if isinstance(content, str):
+        # ★ 自定义正文**快照进实例**：没有这一条，content_of 只能回模板取，
+        #   自定义的文案就没地方存（这是 content_of 那套"不存正文"设计的唯一例外）。
+        mail["Content"] = content
+    return mail
 
 
 def content_of(mail: dict | None) -> str:
-    """取正文：按实例里的 Params.mailTemplateId 回 BDD 拿。取不到返回空串。"""
+    """取正文。
+
+    优先级：
+      1. 实例里的 Content（自定义邮件快照）—— 有就用，绝不回模板覆盖
+      2. 按 Params.mailTemplateId 回 BDD 取（187 条内置模板走这条）
+      3. 都没有 -> 空串
+
+    ★ 第 1 条优先是必须的：自定义邮件如果还去查模板，玩家看到的就是别人的文案。
+    """
     if not isinstance(mail, dict):
         return ""
+    snap = mail.get("Content")
+    if isinstance(snap, str):
+        return snap
     params = mail.get("Params")
     tid = params.get("mailTemplateId") if isinstance(params, dict) else None
     if tid is None:

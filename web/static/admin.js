@@ -37,6 +37,21 @@ function append(cmdText, lines, ok){
   out.scrollTop = out.scrollHeight;
 }
 
+/* 登录态判定 —— 页面共用唯一入口。
+   /api/me 只挂在 do_POST 路由里（GET 会 404），返回 {ok, account:{username, perm_level}}。
+   以前每个页面各写一份，mail.js 就因为用 GET + 把 account 当字符串而误判"没有权限"。 */
+function checkLogin(onOk, onDenied){
+  if(!TOKEN){ onDenied(); return; }
+  post("/api/me", { token: TOKEN }, function(r){
+    if(!r || !r.ok){ onDenied(); return; }
+    var a = r.account || {};
+    PERM = a.perm_level || 0;
+    if(PERM < 1){ onDenied(); return; }
+    onOk(a, PERM);
+  });
+}
+window.OO_CHECK_LOGIN = checkLogin;
+
 function post(path, data, cb){
   var x = new XMLHttpRequest();
   x.open("POST", path, true);
@@ -164,4 +179,6 @@ function boot(){
   });
 }
 
-boot();
+/* ★ 只在控制台页面自动启动。admin.js 现在也被邮件页内联（为了共用 checkLogin/post），
+   邮件页没有 #cmd，直接跑 boot() 会在 renderQuick 里对 null 设 innerHTML 而中断。 */
+if($("cmd")) boot();

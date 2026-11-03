@@ -50,3 +50,7 @@ ADMIN_BODY = read_template("admin_body.html")
 # 公告 / 喊话页面（2026-10-26）
 ANNOUNCE_SCRIPT = read_static("announce.js")
 ANNOUNCE_BODY = read_template("announce_body.html")
+
+# 发送邮件页面（2026-11-03）：长文本 + 附件多行，命令行列内编辑不合适
+MAIL_SCRIPT = read_static("mail.js")
+MAIL_BODY = read_template("mail_body.html")

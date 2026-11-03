@@ -41,7 +41,31 @@ if hasattr(sys.stdout, "reconfigure"):
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
-LUA_SRC = os.environ.get("OO_LUA_SRC") or r"F:\haowancheng\archive\game_data\LuaFull\src"
+
+
+def _find_lua_src():
+    """定位客户端 Lua 源码根（含 generated/config.lua）。
+
+    ★ 2026-11-03：项目随磁盘换过盘符（F: -> D:），硬编码路径会让 --check
+      直接报「找不到 config.lua」。改成：
+        OO_LUA_SRC 环境变量 > 相对本仓库的 ../archive/... > 常见历史位置
+    """
+    env = os.environ.get("OO_LUA_SRC")
+    if env:
+        return env
+    cand = os.path.normpath(os.path.join(_ROOT, "..", "archive", "game_data",
+                                         "LuaFull", "src"))
+    if os.path.isdir(cand):
+        return cand
+    for drive in ("D:", "F:", "E:", "C:"):
+        alt = os.path.join(drive + os.sep, "haowancheng", "archive", "game_data",
+                           "LuaFull", "src")
+        if os.path.isdir(alt):
+            return alt
+    return cand
+
+
+LUA_SRC = _find_lua_src()
 CONFIG_LUA = os.path.join(LUA_SRC, "generated", "config.lua")
 OUT_JSON = os.path.join(_ROOT, "game_server", "property", "spec_data.json")
 

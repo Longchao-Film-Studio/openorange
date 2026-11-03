@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 def send_mail(st: PlayerState, template_id: int, *, count: int = 1,
-              now: int | None = None) -> list[dict]:
+              now: int | None = None, custom: dict | None = None) -> list[dict]:
     """给 st 对应的玩家发 count 封 template_id 邮件，返回实例列表。
 
     调用约定：
@@ -45,13 +45,17 @@ def send_mail(st: PlayerState, template_id: int, *, count: int = 1,
 
     _log = get_logger(__name__)
     ts = int(now if now is not None else time.time())
-    tpl = template.template(template_id)
-    if tpl is None:
-        _log.warning("[mail] 模板 %s 不存在（BDD MailData），发信跳过", template_id)
+    tid = int(template_id)
+    tpl = template.template(tid)
+    if tpl is None and not custom:
+        _log.warning("[mail] 模板 %s 不存在（BDD MailData），发信跳过", tid)
         return []
+    if tpl is None:
+        _log.info("[mail] 模板 %s 不存在，按纯自定义邮件发送（无头像/无跳转）", tid)
     out: list[dict] = []
     for _ in range(max(1, int(count))):
-        mail = template.build(int(template_id), created=ts)
+        # 自定义正文/附件都不该被多封共享同一个可变对象，build 每次都造新 dict。
+        mail = template.build(tid, created=ts, custom=custom)
         out.append(store.add(st.props, mail, now=ts))
     # ★ 推送放在唯一入口里：GM 发信 / 新号欢迎 / 以后的所有下游接入都自动获得推送，
     #   不需要每个发信方各自记得调一次（那正是"同一件事写五遍"的开端）。

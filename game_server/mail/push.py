@@ -42,6 +42,15 @@ if TYPE_CHECKING:
 _log = get_logger(__name__)
 
 
+#: 每个账号最近一次推送的结果（给管理页/命令回显用，不参与业务判断）
+_LAST: dict[str, bool] = {}
+
+
+def last_push_ok(st: PlayerState) -> bool:
+    """这个账号最近一次推送成功了吗（只用于回显，**不要**拿它做业务分支）。"""
+    return _LAST.get(str(st.props.get("uid") or ""), False)
+
+
 def notify_new_mail(st: PlayerState, mails: list[dict]) -> bool:
     """把刚入库的邮件推给玩家（不在线返回 False）。
 
@@ -60,6 +69,7 @@ def notify_new_mail(st: PlayerState, mails: list[dict]) -> bool:
     params = msmod.mp_arr([list(mails)])
     frame = _frames.frame_ms_push("ENTITY", [uid], "MailService", "newMailNotice", params)
     ok = ms_conns.push(uid, frame)
+    _LAST[uid] = ok
     if not ok:
         _log.info("[mail] uid=%s 不在 MS 在线表里，跳过推送（邮件已落库）", uid)
     return ok

@@ -59,6 +59,76 @@ def port():
 # ---------------------------------------------------------------- 业务实现
 
 
+#: _mail_custom 的三种结果之一：items 写错了（要回 400，不能悄悄忽略）
+MAIL_CUSTOM_BAD_ITEMS = object()
+
+
+def _parse_items(raw):
+    """把 "103:5,115:2" 或 {"103":5} 解析成 {int: int}。格式错返回 None。
+
+    这是 items 参数**唯一**的解析点：网页表单、命令、脚本都送同一种形状进来，
+    不在这里以外的任何地方再写一遍解析。
+    """
+    if raw is None or raw == "":
+        return {}
+    if isinstance(raw, dict):
+        pairs = raw.items()
+    elif isinstance(raw, str):
+        pairs = []
+        for chunk in raw.replace(";", ",").split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            sep = ":" if ":" in chunk else ("=" if "=" in chunk else None)
+            if sep is None:
+                return None
+            a, _, b = chunk.partition(sep)
+            pairs.append((a.strip(), b.strip()))
+    else:
+        return None
+    out = {}
+    for k, v in pairs:
+        try:
+            iid, cnt = int(k), int(v)
+        except (TypeError, ValueError):
+            return None
+        if cnt > 0:
+            out[iid] = cnt
+    return out
+
+
+def _mail_custom(payload):
+    """从请求体取出自定义字段。
+
+    返回三态（**必须**区分，否则"没给自定义"会被误判成"格式错"）：
+        1. None                  —— 没有任何自定义，走纯模板
+        2. MAIL_CUSTOM_BAD_ITEMS —— items 写错了，调用方回 400
+        3. dict                  —— 自定义字段
+
+    ★ 只认白名单里的键 —— 不让调用方往邮件实例里塞任意键，
+      否则客户端的字段契约就没边界了。
+    """
+    custom = {}
+    alias = {
+        "title": "title", "标题": "title",
+        "sender": "sender", "发件人": "sender",
+        "content": "content", "正文": "content",
+        "link_text": "link_text", "link": "link",
+    }
+    for key, field in alias.items():
+        if key not in payload:
+            continue
+        val = payload.get(key)
+        if isinstance(val, str) and val != "":
+            custom[field] = val
+    if "items" in payload:
+        items = _parse_items(payload.get("items"))
+        if items is None:
+            return MAIL_CUSTOM_BAD_ITEMS
+        custom["items"] = items  # 显式给出：空 dict = "明确没有附件"
+    return custom or None
+
+
 def _do_unlock_npc_topic(uid, topic_id):
     """管理命令 /sms 的写入端：给账号解锁一条短信话题（GM 验证用）。
 
@@ -365,6 +435,9 @@ class _Handler(BaseHTTPRequestHandler):
         "/player/skip-prologue": "_r_player_skip_prologue",
         "/player/grant": "_r_player_grant",
         "/player/level": "_r_player_level",
+        "/mail/send": "_r_mail_send",
+        "/mail/list": "_r_mail_list",
+        "/mail/clear": "_r_mail_clear",
     }
 
     def do_POST(self):
@@ -432,6 +505,129 @@ class _Handler(BaseHTTPRequestHandler):
         with _pstate.lock_for(uid):
             res = _do_skip_prologue(uid)
         return self._send(200, {"ok": True, "result": res})
+
+    def _r_mail_send(self, payload):
+        """给玩家发一封信 —— **在游戏服进程内发**，所以会触发推送。
+
+        payload:
+            uid       str  必填
+            template  int  模板 id；0 = 纯自定义邮件
+            count     int  发几封（默认 1）
+            title/sender/content/link_text/link   可选，覆盖模板
+            items     {item_id: count} 或 "103:5,115:2"  可选，覆盖附件
+
+        ★ 为什么必须走这里而不是 tools/mail_send.py：
+          那个工具是独立进程，它 send_mail 只改自己内存里的 props 再写存档，
+          游戏服根本不知道，也就不会推 MicroPush。推送只能在游戏服进程内发信时才发生。
+        """
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        raw_tpl = payload.get("template")
+        try:
+            template_id = int(raw_tpl if raw_tpl not in (None, "") else 0)
+        except (TypeError, ValueError):
+            return self._send(400, {"ok": False, "error": "template 非法"})
+        try:
+            count = max(1, int(payload.get("count") or 1))
+        except (TypeError, ValueError):
+            count = 1
+        from . import ms as msmod
+        from . import player_state as _pstate
+        from .mail import push as _mailpush
+        from .mail import send as _mailsend
+        from .mail import store as _mailstore
+        from .mail import template as _mailtpl
+
+        custom = _mail_custom(payload)
+        if custom is MAIL_CUSTOM_BAD_ITEMS:
+            return self._send(400, {"ok": False, "error": "items 格式不对（要 103:5,115:2）"})
+        if _mailtpl.template(template_id) is None and not custom:
+            return self._send(400, {"ok": False,
+                                    "error": f"模板 {template_id} 不在 BDD MailData"})
+        # 与 /player/skip-prologue 同样的前置：状态不存在就先走一遍新号初始化
+        if _pstate.peek(uid) is None:
+            _pstate.reset_state(
+                msmod.conv_int_keys(msmod.AVATAR_INIT_DICT.get("__Properties__") or {}),
+                uid=uid)
+        msmod.live_init_dict(uid)
+        st = _pstate.get_state(uid=uid)
+        with _pstate.lock_for(uid):
+            sent = _mailsend.send_mail(st, template_id, count=count, custom=custom)
+            if sent:
+                st.save()
+            online = _mailpush.last_push_ok(st)
+        if not sent:
+            return self._send(400, {"ok": False, "error": "发信失败"})
+        return self._send(200, {
+            "ok": True,
+            "uid": uid,
+            "template": template_id,
+            "title": sent[0].get("Title"),
+            "sender": sent[0].get("SrcName"),
+            "mail_ids": [m["MailId"] for m in sent],
+            "items": _mailtpl.attachments_of(sent[0]),
+            "custom": bool(custom),
+            "pushed": online,
+            "total": len(_mailstore.all_mails(st.props)),
+        })
+
+    def _r_mail_list(self, payload):
+        """看某个玩家的邮箱（本地管理页用）。payload: {uid}"""
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        from . import player_state as _pstate
+        from .mail import store as _mailstore
+        st = _pstate.peek(uid)
+        if st is None:
+            return self._send(200, {"ok": True, "uid": uid, "exists": False, "mails": []})
+        rows = []
+        for m in _mailstore.all_mails(st.props):
+            params = m.get("Params") or {}
+            rows.append({
+                "mail_id": m.get("MailId"),
+                "title": m.get("Title"),
+                "src": m.get("SrcName"),
+                "expire": m.get("ExpireTime"),
+                "have_read": bool(params.get("haveRead")),
+                "gift_received": bool(params.get("giftReceived")),
+                "has_gift": bool(params.get("giftInfo")),
+            })
+        return self._send(200, {"ok": True, "uid": uid, "exists": True, "mails": rows})
+
+    def _r_mail_clear(self, payload):
+        """清空某个账号的邮箱（运维用）。
+
+        payload: {uid: str, keep?: int}   keep>0 时保留最新 N 封
+
+        ★ 为什么需要：反复测试会在存档里堆几千封邮件（实测 4673 封），
+          而客户端 AvatarMailComp 有 maxMailLength = 1000 的上限，
+          超过之后面板行为不可预期。这是数据卫生问题，不是功能。
+        ★ 走 store 的写入口，不直接戳 props —— 存储形状由那一层负责。
+        """
+        uid = str(payload.get("uid") or "").strip()
+        if not uid:
+            return self._send(400, {"ok": False, "error": "missing uid"})
+        try:
+            keep = max(0, int(payload.get("keep") or 0))
+        except (TypeError, ValueError):
+            keep = 0
+        from . import player_state as _pstate
+        from .mail import store as _mailstore
+        st = _pstate.peek(uid)
+        if st is None:
+            return self._send(400, {"ok": False, "error": f"账号 {uid} 没有存档"})
+        with _pstate.lock_for(uid):
+            mails = _mailstore.all_mails(st.props)
+            ordered = sorted(mails, key=lambda m: int(m.get("MailId") or 0), reverse=True)
+            removed = 0
+            for m in ordered[keep:]:
+                if _mailstore.delete(st.props, int(m["MailId"])):
+                    removed += 1
+            st.save()
+            left = len(_mailstore.all_mails(st.props))
+        return self._send(200, {"ok": True, "uid": uid, "removed": removed, "left": left})
 
     def _r_player_grant(self, payload):
         # ★ GM 命令诚实化：/give /money 的真写入入口
