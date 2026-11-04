@@ -231,8 +231,12 @@ def run():
                    for f in ("doing_targets", "finish_targets", "finish_parameter")}
     check("★ P0-1 done 的嵌套容器 id 也全是新的",
           not (done_nested & (bag_nested | {bag_item_id})), done_nested)
+    # start_time 是 NOW-1（见 state_machine.make_story_task_item 的注释：
+    # 客户端用严格大于判定 curTime > start_time，置 NOW 会导致同秒内交互不出现）。
+    # 这里断言的是「归档时原样搬过去」，不是「等于 NOW」。
     check("★ done 保留了原 get_time / start_time",
-          done_item.get("get_time") == NOW and done_item.get("start_time") == NOW,
+          done_item.get("get_time") == NOW
+          and done_item.get("start_time") == NOW - 1,
           (done_item.get("get_time"), done_item.get("start_time")))
 
     print("\n[7] start_story_task：OP_ADD(Init) + OP_CHANGE(Doing) 两条")

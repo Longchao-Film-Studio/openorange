@@ -67,7 +67,20 @@ def make_story_task_item(st, task_id, state, now):
     item["id"] = int(task_id)
     item["state"] = int(state)
     item["get_time"] = int(now)
-    item["start_time"] = int(now)
+    # ★ start_time 必须**严格早于**后续的服务器时间，置 now 不够。
+    #
+    #   客户端判断交互能不能出现（streetactorbase.lua:202 / :551）：
+    #       taskSatisfy = curTime > (getStoryTaskStartTime(taskId) or 0)
+    #   是**严格大于**。服务端在同一秒里「派发任务 -> 立刻推同步帧」，
+    #   客户端拿到时 curTime 仍是同一秒，`curTime > start_time` 为 false，
+    #   交互点直接不出现 —— 而下一秒玩家也未必还站在那儿。
+    #
+    #   实测（2026-11-04）：完成 1039 派发 1040 后，
+    #   gate 当场报「start_time(1793764413) 不早于当前(1793764413)」。
+    #
+    #   往前挪 1 秒即可：时间戳只用于「是否已开始」的布尔判定，
+    #   不参与任何时长计算（get_time 才是领到时间），挪 1 秒无副作用。
+    item["start_time"] = int(now) - 1
     return item
 
 
