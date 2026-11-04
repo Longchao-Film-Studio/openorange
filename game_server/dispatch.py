@@ -283,8 +283,55 @@ def _add_char_favor_exp(rid, params, uid=None):
     except Exception as e:              # noqa: BLE001 — 数量不足等：整单失败，不落变更
         return _respond_after_sync(rid, [], ret={"status": False, "errmsg": str(e)})
 
+    # ---------------------------------------------------------------
+    # 好感等级要在 add_char_favor **之前**算一次、之后算一次。
+    # 等级不落库（props 里只有 favor_exp_map），由 special.favor_level 现算，
+    # 算法与客户端 avatarfavorspacecomp.lua:346-372 逐行一致。
+    # ---------------------------------------------------------------
+    lv_before = _special.favor_level(st.props, char_id)
+
     frames = list(tx.frames())
     frames.extend(_special.add_char_favor(st.props, char_id, exp, pop))
+    lv_after = _special.favor_level(st.props, char_id)
+
+    # ---------------------------------------------------------------
+    # 发 GiftFavor / FavorAddLevel 事件（2026-11-04）。
+    #
+    # 这条 RPC 一直能用，但从来没发过事件，导致：
+    #   TaskData 5000005「赠送1次好感度道具」（GiftFavor，每日重置）永远卡住
+    #   TaskData 5101806/5103403/5104504/5104606「好感度达到 N 级」×4 条推不动
+    #
+    # ★ GiftFavor：TaskEventData[1004] 的 EventParam 是 null，
+    #   event_matches 对空参数视为「任意都匹配」，发一次就命中。
+    # ★ FavorAddLevel：只有**真的升级**才发。任务「任意3名龙胤好感度达到8级」
+    #   TriggerTimes=[3]，靠 3 次独立升级事件累加，不能每次送礼都发。
+    # ★ 只有真的送出去道具（exp 或 pop > 0）才算一次「赠送」。
+    # ★ 整段 try 包住：事件失败绝不能影响送礼本身。
+    # ---------------------------------------------------------------
+    if exp > 0 or pop > 0:
+        try:
+            from .story import events as _events
+            from .story.rpc import finish_story_tasks
+            from .story.tasks import drain_event_task_sync
+
+            res = _events.apply_event(
+                st, _events.ev_gift_favor(char_id, 1))
+            frames.extend(drain_event_task_sync(st, res))
+            _nxt = list(res.hits) + list(res.chain_hits)
+            if _nxt:
+                frames.extend(finish_story_tasks(st, _nxt, source="event") or [])
+
+            if lv_after > lv_before:
+                res2 = _events.apply_event(
+                    st, _events.ev_favor_add_level(char_id, lv_after))
+                frames.extend(drain_event_task_sync(st, res2))
+                _nxt2 = list(res2.hits) + list(res2.chain_hits)
+                if _nxt2:
+                    frames.extend(finish_story_tasks(st, _nxt2, source="event") or [])
+                _log.info("[favor] 角色 %s 好感度 %s -> %s 级", char_id, lv_before, lv_after)
+        except Exception as _e:        # noqa: BLE001 —— 事件失败不影响送礼
+            _log.warning("[story] 送礼发好感事件失败: %s", _e)
+
     st.save()
     fm = st.props.get("favor_exp_map") or {}
     pm = st.props.get("popularity_map") or {}

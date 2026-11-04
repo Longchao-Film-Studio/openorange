@@ -337,6 +337,25 @@ def evaluate_event(st, event_type, params):
     bag = st.props.get("task_bag")
     if not isinstance(bag, dict):
         return done_ids, syncs
+    #: 本次事件的「发生量」。缺省 1（一次事件算一次）。
+    #:
+    #: ★ 为什么要这个：客户端进度显示 = sum(doing_targets) / TriggerTimes[1]
+    #:   （node_challenge_task_itemgroup.lua:76-80）。任务「消耗100中浦币」
+    #:   TriggerTimes=[100]，如果一次用掉 100 个却只 +1，玩家要再重复 99 次。
+    #:   带 amount 后「用 1 个 × 100 次」和「用 100 个 × 1 次」都能正确到 100/100。
+    #:
+    #: ★ 键名用 amount 而不是 count：count 在 TaskEventData 里是**匹配键**
+    #:   （11 条配置带它），event_matches 要求相等，拿它当累加量会同时改掉匹配。
+    #:   amount 在 1288 条 TaskEventData 里从未出现，
+    #:   由 tests/test_task_event_batch_a.py 守住院线。
+    _inc = 1
+    if isinstance(params, dict):
+        try:
+            _raw = int(params.get("amount") or 1)
+        except (TypeError, ValueError):
+            _raw = 1
+        if _raw > 1:
+            _inc = _raw
     for tt, slot in list(bag.items()):
         if not isinstance(tt, int) or not isinstance(slot, dict):
             continue
@@ -367,7 +386,7 @@ def evaluate_event(st, event_type, params):
                 dt = {"__id__": st.next_property_id()}
                 item["doing_targets"] = dt
             cur = int(dt.get(hit_eid) or 0)
-            dt[hit_eid] = cur + 1
+            dt[hit_eid] = cur + _inc
             total = sum(int(v) for k, v in dt.items() if isinstance(k, int))
             syncs.append(_sync(slot.get("__id__"), OP_CHANGE, tid, item))
             if total >= need:

@@ -55,9 +55,37 @@ def _use_item(rid, params, uid=None):
 
     from .bag import item_use
 
-    frames, err, tail = item_use.apply(state(uid), item_id, count, ext)
+    st = state(uid)
+    frames, err, tail = item_use.apply(st, item_id, count, ext)
     if err is not None:
         return _use_failed(rid, [], err.code)
+
+    # ---------------------------------------------------------------
+    # 发 Consume 事件（2026-11-04）。
+    #
+    # 这条 RPC 一直能用，但从来没发过事件 —— 头衔挑战「消耗100中浦币」
+    # （TaskData 5102605 / 5101303，TriggerTimes=[100]）因此永远推不动。
+    #
+    # 参数带 amount=本次消耗数量：客户端进度显示 = sum(doing_targets)/TriggerTimes，
+    # 「用 100 个 × 1 次」和「用 1 个 × 100 次」都要能到 100/100。
+    # tasks.evaluate_event 读 amount 决定累加多少（缺省 1）。
+    #
+    # ★ 发事件失败绝不能影响道具使用本身 —— 整段 try 包住。
+    # ---------------------------------------------------------------
+    try:
+        from ..story import events as _events
+        from ..story.rpc import finish_story_tasks
+        from ..story.tasks import drain_event_task_sync
+
+        res = _events.apply_event(st, _events.ev_consume(int(item_id), count))
+        frames.extend(drain_event_task_sync(st, res))
+        _nxt = list(res.hits) + list(res.chain_hits)
+        if _nxt:
+            frames.extend(finish_story_tasks(st, _nxt, source="event") or [])
+        st.save()
+    except Exception as _e:            # noqa: BLE001 —— 事件失败不影响使用道具
+        _log.warning("[story] 使用道具发 Consume 事件失败: %s", _e)
+
     # tail：Avatar_Reward_SC 展示帧（应答之后推，客户端当事件处理）
     return respond_after_sync(rid, frames, tail=tail)
 

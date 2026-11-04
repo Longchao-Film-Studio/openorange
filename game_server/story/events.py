@@ -64,7 +64,13 @@ EV_SUBMIT_ITEM = "SubmitItem"
 EV_AVATAR_ATTR = "AvatarAttr"
 EV_GET_ITEM = "GetItem"
 EV_CHAR_DATA = "CharData"
-EV_SIGN = "Sign"                 # 完成取名（TaskEventData[1000]，无 EventParam）
+EV_SIGN = "Sign"
+#: 道具消耗（TaskEventData 的 Consume，KeyList=["itemId"]）
+EV_CONSUME = "Consume"
+#: 赠送好感度道具（GiftFavor，EventParam 为空 -> 任意参数都命中）
+EV_GIFT_FAVOR = "GiftFavor"
+#: 好感度等级提升（FavorAddLevel，KeyList=["new_level"] 或 ["charId","new_level"]）
+EV_FAVOR_ADD_LEVEL = "FavorAddLevel"                 # 完成取名（TaskEventData[1000]，无 EventParam）
 
 # P0-D 明确要覆盖的 4 种（合计覆盖 26 条剧情任务）
 CORE_TYPES = (EV_SUBMIT_ITEM, EV_AVATAR_ATTR, EV_GET_ITEM, EV_CHAR_DATA)
@@ -428,3 +434,67 @@ def ev_char_data(level=None, ascend=None, char_id=None, source="internal"):
     return GameEvent(EV_CHAR_DATA, p, source=source,
                      event_id="CharData:{}".format("/".join(
                          f"{k}={p[k]}" for k in sorted(p))))
+
+
+# ---------------------------------------------------------------- 2026-11-04 新增
+#
+# 这三个事件补的是「服务端 RPC 已经在跑、但从来没发过事件」的缺口。
+# 依据 docs/清单-19种事件状态与依赖.md 的 A 类。
+
+
+def ev_consume(item_id, count=1, source="rpc:UseItem_CS"):
+    """消耗道具。
+
+    ★ TaskEventData 里 Consume 的 KeyList 是 ["itemId"]（小写 i 开头），
+      写成 itemId 之外的任何拼法都匹配不上。
+
+    ★ 带 amount（保留键）：进度要按**数量**累加，不是按次数。
+      任务「消耗100中浦币」的 TriggerTimes=[100]，客户端显示
+      sum(doing_targets)/TriggerTimes（node_challenge_task_itemgroup.lua:76-80），
+      一次用掉 100 个就该显示 100/100；用 100 次每次 1 个也该到 100/100。
+      tasks.evaluate_event 读 params["amount"] 决定这次加多少（缺省 1）。
+
+    ★ 为什么叫 amount 而不是 count：**count 在 TaskEventData 里是匹配键**
+      （实测 11 条配置带 count，如 AddFriend{count:10}、DragonCharm{count:5}），
+      event_matches 要求它相等，拿它当累加量会既改匹配又改计数。
+      amount 在全部 1288 条 TaskEventData 里从未出现，
+      由 tests/test_task_event_amount.py 守住院线。
+
+    ★ 不带 event_id：每次真消耗都算一次，不能去重。
+    """
+    return GameEvent(EV_CONSUME, {
+        "itemId": int(item_id),
+        "amount": max(1, int(count)),
+    }, source=source)
+
+
+def ev_gift_favor(char_id=None, count=1, source="rpc:AddCharFavorExp_CS"):
+    """赠送好感度道具（送礼）。
+
+    ★ TaskEventData[1004] 的 EventParam 是 **null** —— event_matches 对空参数
+      视为「任意参数都匹配」，所以参数给空对象即可命中。
+
+    ★ 仍然带上 charId / count 供日志与将来更细的配置用：event_matches 只校验
+      「配置里有的键必须出现且相等」，多给的键会被忽略，不影响匹配。
+    """
+    p = {"amount": max(1, int(count))}
+    if char_id is not None:
+        p["charId"] = int(char_id)
+    return GameEvent(EV_GIFT_FAVOR, p, source=source)
+
+
+def ev_favor_add_level(char_id, new_level, source="rpc:AddCharFavorExp_CS"):
+    """某个角色的好感度等级提升。
+
+    ★ TaskEventData 里 FavorAddLevel 有两种 KeyList：
+        ["new_level"]             <- 12002..12010，任意角色达到该级
+        ["charId", "new_level"]   <- 12001，指定角色达到该级
+      所以两个值都要给，让 event_matches 按配置自己取。
+
+    ★ 不带 event_id：不同角色达到同一等级是不同的事，去重会漏计数。
+      任务「任意3名龙胤好感度达到8级」的 TriggerTimes=[3]，靠三次独立事件累加。
+    """
+    return GameEvent(EV_FAVOR_ADD_LEVEL, {
+        "charId": int(char_id),
+        "new_level": int(new_level),
+    }, source=source)
