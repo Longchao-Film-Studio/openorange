@@ -39,7 +39,7 @@ from ..rpc_common import (
     sync_frame,
 )
 from . import events as _events
-from . import exp_gate, gate, npc_sms
+from . import gate, npc_sms
 
 _log = get_logger(__name__)
 
@@ -388,23 +388,6 @@ def _finish_story_tasks_inner(st, task_ids, depth, frames, now, finished_now,  #
                     SYNC_SELF, bag.get("__id__") or 0,
                     msmod.OP_ADD if _is_new else msmod.OP_CHANGE,
                     str(grid_key), grid))
-        # ---------------------------------------------------------------
-        # ★ 等级门槛前置检查（2026-11-04，InteractGate 架构级）
-        #
-        # 必须在 archive_story_task **之前**跑：archive 会把 PostTasks 直接
-        # 推进到 Doing，而客户端对「任务级 LevelOn」的判定
-        # （avatarstorytaskcomp.lua:793-806）是在任务出现那一刻做的。
-        # 先派发再补经验，等于把玩家放进一个已经被客户端拒绝的状态里。
-        #
-        # 两件事，各自独立失败互不影响：
-        #   exp_gate.ensure_for_task  等级不够 -> 补经验（发道具 2，不直接改 level）
-        #   gate.note_advance         记录「客户端会不会拒绝」（默认只警告）
-        for _nxt in (gamedata.story_task(tid) or {}).get("PostTasks") or []:
-            try:
-                frames.extend(exp_gate.ensure_for_task(
-                    st, int(_nxt), source=f"posttask:{tid}"))
-            except Exception as _e:
-                _log.warning("[exp_gate] PostTasks %s 经验补齐异常: %s", _nxt, _e)
         frames.extend(_story_sync_frames(
             st, story.archive_story_task(st, tid, now)))
         # 归档之后再观测一次：此刻 PostTasks 已经在包里了，

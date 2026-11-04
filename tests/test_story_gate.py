@@ -32,10 +32,9 @@ os.environ.setdefault("OO_UNKNOWN_LOG", os.path.join(_tmp, "unknown.tsv"))
 os.environ.setdefault("OO_CAPTURE_DIR", os.path.join(_tmp, "cap"))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game_server import gamedata  # noqa: E402
 from game_server import ms as msmod
 from game_server import player_state as ps
-from game_server.story import exp_gate, gate  # noqa: E402
+from game_server.story import gate  # noqa: E402
 
 _PASSED: list[str] = []
 _FAILED: list[str] = []
@@ -88,51 +87,6 @@ def run():
     after = repr(snapshot.get("story_task_bag"))
     check("why_not 没有增删任务", before == after, (before, after))
     check("level 没被改", snapshot.get("level") == 1, snapshot.get("level"))
-
-    print()
-    print("[3] exp_to_reach 与 LevelExpData 对得上")
-    total_1040 = sum(int((gamedata.level_exp(lv) or {}).get("expNeed") or 0)
-                     for lv in range(1, 3))
-    check("Lv1->Lv3 累计 = 表里前两级之和", exp_gate.exp_to_reach(1, 3) == total_1040,
-          (exp_gate.exp_to_reach(1, 3), total_1040))
-    check("目标 <= 当前 -> 0", exp_gate.exp_to_reach(5, 3) == 0)
-    check("Lv1->Lv1 -> 0", exp_gate.exp_to_reach(1, 1) == 0)
-    check("StoryTaskData 有 LevelOn 的行数 >= 12", len(exp_gate.audit_mainline()) >= 12,
-          len(exp_gate.audit_mainline()))
-
-    print()
-    print("[4] INV-EXP-1/2/3 补经验：只发道具2、够就停、不多发")
-    st = _fresh("t_expgate")
-    check("新号 level=1", int(st.props.get("level") or 1) == 1, st.props.get("level"))
-
-    frames = exp_gate.ensure_for_task(st, 1040, source="t")
-    check("补发有帧", len(frames) > 0, len(frames))
-    lv_now = int(st.props.get("level") or 1)
-    # ★ ensure_for_task 除了发经验，还要把经验**换成等级** ——
-    #   否则玩家 exp 够了但 level 还是 1，客户端一样拒绝
-    #   （directortitlev3panel.lua:265-270 只在打开面板时才自动升级）。
-    check("自动升到 Lv3", lv_now == 3, lv_now)
-    check("升级后 exp 已被 level.upgrade 扣掉", int(st.props.get("exp") or 0) < 250,
-          st.props.get("exp"))
-    check("全程没有绕过 level.upgrade 直接写 level",
-          int(st.props.get("all_exp") or 0) > 0, st.props.get("all_exp"))
-
-    frames2 = exp_gate.ensure_for_task(st, 1040, source="t2")
-    # ★ 这条是「重复调用会无限发经验」bug 的守卫：
-    #   等级已经够了，再调不该再发任何东西。
-    check("等级已够时重复调用不再发（防无限发）", frames2 == [], len(frames2))
-    frames3 = exp_gate.ensure_for_task(st, 1040, source="t3")
-    check("等级够了不再发（INV-EXP-2）", frames3 == [], len(frames3))
-
-    print()
-    print("[5] INV-EXP-4 异常不阻断")
-    class Boom:
-        @property
-        def props(self):
-            raise RuntimeError("boom")
-
-    out = exp_gate.ensure_for_task(Boom(), 1040, source="boom")
-    check("抛异常也返回空列表而不是炸穿", out == [], out)
 
     print()
     print(f"通过 {len(_PASSED)} 项，失败 {len(_FAILED)} 项")
