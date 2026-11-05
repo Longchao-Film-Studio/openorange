@@ -177,8 +177,24 @@ def recalc_system_unlocks(st):
     us = sp.get("unlocked_system")
     if not isinstance(us, dict):
         return frames
-    added = []
-    removed = []
+    # 2026-11-05 修复：这里**不许**在调 Tx 之前改 props。
+    #
+    # 事故：以前是 us[sid] = True 之后再 _tx.set((..., sid), True)。
+    #   Tx 的 optype 判据是 is_new = key not in parent，键已经被上一行写进去了，
+    #   于是判成 **OP_CHANGE**。而客户端 entryAdded 只声明了
+    #   system_p.unlocked_system（没有 .*，generated/config.lua:10358），
+    #   OP_CHANGE 会拿 system_p.unlocked_system.* 去查表
+    #   （customtype.lua:296-312 _traceSubNode 给容器键补 *），
+    #   查不到 -> 静默丢帧 -> 全部 83 个系统入口解锁后按钮都不出现，
+    #   必须重新登录（走全量快照，不过回调）才有效果。
+    #
+    # 修法：只挑出要变的 sid，**让 Tx 自己写值**。键还不存在 -> is_new=True
+    #   -> OP_ADD -> 查表 key 就是 system_p.unlocked_system -> 命中 entryAdded。
+    #   摘除同理走 tx.delete -> OP_DEL，但客户端对这条路径确实没有
+    #   entryDeleted 声明（config.lua:10363-10368 里没有它），所以摘除仍然
+    #   只能重登可见 —— 这是客户端契约本身的缺口，不是服务端能补的。
+    to_add = []
+    to_del = []
     for row in gamedata.all_system_catalogue():
         if not isinstance(row, dict):
             continue
@@ -190,26 +206,22 @@ def recalc_system_unlocks(st):
         if want == cur:
             continue
         if want:
-            us[sid] = True
-            added.append(sid)
+            to_add.append(sid)
         else:
-            us.pop(sid, None)
-            removed.append(sid)
-    if added or removed:
-        #必须发 system_p.unlocked_system.<sid>这一层的子项帧，不能整体换 system_p：
-        #客户端回调注册在 config.lua:10328的 system_p.unlocked_system这个路径上，
-        #整体换根走的是 _changeRootProperty，回调不命中，客户端要重登才看到解锁。
-        # （test_unlock_sync守的就是这条）
-        st.set("system_p", sp)
-        _tx = _Tx(st.props)
-        for sid in added:
-            _tx.set(("system_p", "unlocked_system", sid), True)
-        frames.extend(_tx.frames())
-        if added:
-            _log.info(f"[story] 解锁系统 {added}")
-        if removed:
-            # 客户端没有 entryDeleted 回调，只能下次登录生效
-            _log.info(f"[story] ★ 摘除系统解锁 {removed}（客户端需重登才可见）")
+            to_del.append(sid)
+    if not (to_add or to_del):
+        return frames
+    _tx = _Tx(st.props)
+    for sid in to_add:
+        _tx.set(("system_p", "unlocked_system", sid), True)
+    for sid in to_del:
+        _tx.delete(("system_p", "unlocked_system", sid))
+    frames.extend(_tx.frames())
+    if to_add:
+        _log.info(f"[story] 解锁系统 {to_add}")
+    if to_del:
+        # 客户端没有 entryDeleted 回调，只能下次登录生效（契约缺口）
+        _log.info(f"[story] ★ 摘除系统解锁 {to_del}（客户端需重登才可见）")
     return frames
 
 

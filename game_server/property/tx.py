@@ -38,12 +38,16 @@ handler 只描述**意图**（tx.set(path, value)），Tx 负责
     frames = tx.frames()      # -> [bytes]，由 sync.py 生成
     st.save()
 """
+from shared.log_tee import get_logger
+
 from ..write_guard import write_guard
 from . import ids as _ids
 from . import spec as _spec
 from . import validate as _validate
 
 OP_REMOVE = 5
+
+_log = get_logger(__name__)
 
 # optype（和客户端 puppetpropertycomponent.lua 一致）
 OP_CHANGE = 1
@@ -364,10 +368,49 @@ class Tx:
     def frames(self, strict=False):
         """把 ops 编成同步帧。延迟导入避免循环依赖。
 
-        strict=True 时校验失败直接抛异常（测试用）；生产路径用 False。
+        strict=True 时校验失败直接抛异常（测试/严格模式）；生产路径用 False。
         """
         from . import sync as _sync
-        return _sync.ops_to_frames(self.ops, strict=strict)
+        out = _sync.ops_to_frames(self.ops, strict=strict)
+        self._check_reachable(strict=strict)
+        return out
+
+    def _check_reachable(self, strict=False):
+        """每一帧都必须能在客户端 PropertyCallbacks 里找到接收方。
+
+        ★ 为什么必须有这一层（2026-11-05 导演面板事故）：
+          客户端按 optype 选回调表，再用**路径字符串精确查表**
+          （puppetpropertycomponent.lua:91-110，无通配匹配）。
+          查不到 = 静默丢弃：不报错、不重试、UI 不刷新。
+          于是"帧确实发出去了"和"客户端知道了"是两件事，
+          而只有重新登录（全量快照，逐键解析，不过回调）才能救回来。
+
+          事故现场：解锁系统时先在 props 里 us[sid]=True 再 tx.set，
+          被这里的 is_new 判成 OP_CHANGE，客户端拿 system_p.unlocked_system.*
+          查表查不到 —— 83 个系统入口全都要重登才出现按钮。
+
+        ★ 判据不手抄：路径算法和声明表都来自客户端（callback_contract.py），
+          客户端改声明，这里自动跟着变。
+        ★ 找不到客户端 config.lua 时 available() 为 False，本检查静默跳过 ——
+          不能因为部署环境缺客户端文件就把服务判红。
+        """
+        from . import callback_contract as _cb
+
+        bad = _cb.unreachable(self.ops)
+        if not bad:
+            return
+        detail = "；".join(
+            f"{_cb.OP_NAMES.get(op.optype, op.optype)}({key})" for op, key in bad[:5])
+        more = "" if len(bad) <= 5 else f" …共 {len(bad)} 条"
+        if strict:
+            raise TxError(
+                f"{len(bad)} 条帧客户端收不到（PropertyCallbacks 里没有接收方）："
+                f"{detail}{more}。"
+                "多半是「先直接改 props 再 tx.set」把 OP_ADD 判成了 OP_CHANGE —— "
+                "删掉那行直接写，让 Tx 自己写值。")
+        _log.warning(
+            "[sync] ★ %d 条帧客户端收不到，UI 不会刷新（可能需重登才可见）：%s%s",
+            len(bad), detail, more)
 
     def commit(self):
         """标记本次变更已写进 props（save 由调用方决定）。"""

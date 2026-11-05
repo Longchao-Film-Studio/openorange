@@ -107,8 +107,25 @@ def run():
                      if d.get("propertyid") == us_id and d.get("name") in ("2", "4", "55")]
     check("返回帧里带 unlocked_system 的同步（客户端不用重启）",
           bool(unlock_frames), [(d.get("name"), d.get("propertyid")) for d in syn][:8])
-    check("解锁帧 optype = 3(OP_CHANGE)、value=True",
-          all(d.get("optype") == msmod.OP_CHANGE and d.get("value") is True
+    # ★ 2026-11-05：optype 必须是 OP_ADD(2)，不是 OP_CHANGE(1)。
+    #
+    #   这条以前断言的是 OP_CHANGE —— 那是把 bug 写成了预期行为：
+    #   客户端 entryAdded 里声明的是 system_p.unlocked_system（精确路径，
+    #   没有通配，config.lua:10358），而 OP_CHANGE 的查表 key 是
+    #   system_p.unlocked_system.*（customtype.lua:296-312 给容器键补 "*"），
+    #   精确查表查不到（puppetpropertycomponent.lua:91-110 无通配匹配）。
+    #
+    #   回退机制救不了它：查不到会往上一层再查（:150-155），回退到
+    #   changed["system_p.unlocked_system"] 那行，但那里声明的类型是
+    #   customDict，实际对象是 BooleanDictKeyInt -> 类型校验不过（:146-148）
+    #   只打 error 不调用。于是 83 个系统入口解锁后按钮都不出现，
+    #   必须重登（走全量快照，不过回调）才可见。
+    #
+    #   OP_ADD 的查表 key 就是容器自身路径 system_p.unlocked_system，
+    #   精确命中 entryAdded，而且 __OpAdd__ 没有类型校验（:263-271）。
+    #   守卫：game_server/property/callback_contract.py + Tx._check_reachable。
+    check("解锁帧 optype = 2(OP_ADD)、value=True（命中 entryAdded，客户端才收到）",
+          all(d.get("optype") == msmod.OP_ADD and d.get("value") is True
               for d in unlock_frames),
           unlock_frames[:3])
 
