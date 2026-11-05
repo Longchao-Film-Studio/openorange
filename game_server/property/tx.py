@@ -249,7 +249,9 @@ class Tx:
             raise TxError(f"路径 {path!r} 的键不存在，不能删除")
         kind = _spec.key_kind(ptype) if ptype else None
         optype = OP_REMOVE if kind == "list" else OP_DEL
-        del parent[key]
+        # ★ 2026-11-06（B1）：嵌套容器已经是 GuardedDict，删除也必须开守卫。
+        with write_guard("Tx.delete"):
+            del parent[key]
         self.ops.append(Op(pid, optype, _key_str(key), None, path))
         return True
 
@@ -278,9 +280,10 @@ class Tx:
             self._ensure_id(value)
         self._check_value_ids(value, _spec.value_type(_ctype), path + (idx,))
         # 从后往前挪，避免覆盖
-        for i in range(n, idx - 1, -1):
-            container[i + 1] = container.pop(i)
-        container[idx] = value
+        with write_guard("Tx.insert"):
+            for i in range(n, idx - 1, -1):
+                container[i + 1] = container.pop(i)
+            container[idx] = value
         if not self._covered_by_added(path):
             self.ops.append(Op(pid, OP_INSERT, str(idx), value, path + (idx,)))
         return value
@@ -310,9 +313,10 @@ class Tx:
         idx = _as_index(index, "remove_at")
         if idx < 1 or idx > n:
             raise TxError(f'remove_at 位置 {idx} 越界（当前 {n} 个元素，合法范围 1..{n}）')
-        old = container.pop(idx)
-        for i in range(idx + 1, n + 1):
-            container[i - 1] = container.pop(i)
+        with write_guard("Tx.remove_at"):
+            old = container.pop(idx)
+            for i in range(idx + 1, n + 1):
+                container[i - 1] = container.pop(i)
         if not self._covered_by_added(path):
             self.ops.append(Op(pid, OP_REMOVE, str(idx), None, path + (idx,)))
         return old
@@ -444,7 +448,9 @@ def _normalize_list_keys(container):
     """
     for k in [k for k in container
               if isinstance(k, str) and k.startswith("#") and k[1:].isdigit()]:
-        container[int(k[1:])] = container.pop(k)
+        # ★ 2026-11-06（B1）：list 的位置键归一化也写容器，同样要开守卫。
+        with write_guard("Tx.normalize_list_keys"):
+            container[int(k[1:])] = container.pop(k)
     return sorted(k for k in container
                   if isinstance(k, int) and not isinstance(k, bool))
 

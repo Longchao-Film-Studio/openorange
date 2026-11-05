@@ -29,6 +29,7 @@
   avatarstorytaskcomp.lua:376-435  old.state ~= Finished and new.state == Finished -> 场记板
   avatarstorytaskcomp.lua:557-558  onStoryTaskBagInserted 是空函数（OP_ADD 不产生 UI）
 """
+from ..write_guard import write_guard
 
 TASK_STATE_IDLE = 1
 TASK_STATE_INIT = 2
@@ -164,7 +165,11 @@ def create_task(st, task_id, now):
     if done is not None and task_id in done:
         return []
     item = make_story_task_item(st, task_id, TASK_STATE_INIT, now)
-    bag[task_id] = item
+    # ★ 2026-11-06（B1）：嵌套层写入也要开守卫。
+    #   这里是建任务条目，同步描述由返回值带回、由 _story_sync_frames 编成 OP_ADD，
+    #   不是漏发帧 —— 所以是「正当的直写」，用 write_guard 显式声明。
+    with write_guard("story.create_task"):
+        bag[task_id] = item
     st.set("story_task_bag", bag)
     return [("add", "story_task_bag", task_id, item)]
 

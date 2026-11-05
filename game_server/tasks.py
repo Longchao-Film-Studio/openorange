@@ -156,11 +156,15 @@ def start_task(st, task_id, now=None):
         #   entryAdded["task_bag.*"] -> onTaskBagInserted 是空函数。
         #   所以「接任务」这个动作在客户端一点反应都没有（任务面板不刷新）。
         item = make_task_item(st, task_id, t, TASK_STATE_INIT, now)
-        slot[task_id] = item
+        # ★ 2026-11-06（B1）：嵌套层写入也要开守卫。同步描述由 out 带回、
+        #   由 _task_sync_frames 编成 OP_ADD/OP_CHANGE，不是漏发帧。
+        with write_guard("tasks.start_task"):
+            slot[task_id] = item
         st.set("task_bag", st.props.get("task_bag"))
         out.append(_sync(slot.get("__id__"), OP_ADD, task_id, item))
         # Init -> Doing：触发 onTaskItemChanged
-        item["state"] = TASK_STATE_DOING
+        with write_guard("tasks.start_task"):
+            item["state"] = TASK_STATE_DOING
         st.set("task_bag", st.props.get("task_bag"))
         out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
     else:
@@ -169,7 +173,8 @@ def start_task(st, task_id, now=None):
         cur = int(item.get("state") or 0)
         if cur not in (TASK_STATE_DOING, TASK_STATE_FINISHED) and can_transition(
                 cur, TASK_STATE_DOING):
-                item["state"] = TASK_STATE_DOING
+                with write_guard("tasks.start_task"):
+                    item["state"] = TASK_STATE_DOING
                 st.set("task_bag", st.props.get("task_bag"))
                 out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
     return out
@@ -192,10 +197,12 @@ def finish_task(st, task_id, now=None):
             item = slot[task_id]
             cur = int(item.get("state") or 0)
             if cur != TASK_STATE_FINISHED and can_transition(cur, TASK_STATE_FINISHED):
-                item["state"] = TASK_STATE_FINISHED
+                with write_guard("tasks.finish_task"):
+                    item["state"] = TASK_STATE_FINISHED
                 st.set("task_bag", bag)
                 out.append(_sync(slot.get("__id__"), OP_CHANGE, task_id, item))
-            del slot[task_id]
+            with write_guard("tasks.finish_task"):
+                del slot[task_id]
             st.set("task_bag", bag)
             out.append(_sync(slot.get("__id__"), OP_DEL, task_id, None))
     done = st.props.get("done_tasks")
@@ -204,9 +211,11 @@ def finish_task(st, task_id, now=None):
         dslot_is_new = not isinstance(dslot, dict)
         if dslot_is_new:
             dslot = {"__id__": st.next_property_id()}
-            done[t] = dslot
+            with write_guard("tasks.finish_task"):
+                done[t] = dslot
         item_is_new = task_id not in dslot
-        dslot[task_id] = now
+        with write_guard("tasks.finish_task"):
+            dslot[task_id] = now
         st.set("done_tasks", done)
         if dslot_is_new:
             out.append(_sync(done.get("__id__"), OP_ADD, t, dslot))

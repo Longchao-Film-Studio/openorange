@@ -159,6 +159,13 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
     #     instructionid  6 个事件需要（战斗教学指令 id）
     #     first_pass     6 个事件需要（首通标记）
     #     isWin          1 个事件需要
+    # ★ 2026-11-06（B2）：统一走 story.events.ev_dungeon_finish 构造器。
+    #   以前这里手拼 GameEvent(EV_FINISH_DUNGEON, ev)，而 ev_dungeon_finish
+    #   定义了却**没人调用** —— 于是构造器里的字段约定（levelId/isWin/
+    #   first_pass 的取值规则）在这条真实路径上完全没生效，两边会漂。
+    #   FinishDungeon 有 80 条任务在等，参数错一个就白推。
+    #   守卫：tests/test_event_emission.py 断言每个 ev_* 构造器都有调用点、
+    #   且业务代码不许手拼 GameEvent(EV_*)。
     ev = {"typeId": type_id, "modeId": mode_id, "level": level}
     area = st.props.get("_oo_cur_area")
     if area:
@@ -182,8 +189,16 @@ def _advance_story_on_finish(st, info=None, uid=None):  # noqa: C901  — 副本
     # ★ P0-D：走事件总线（检测入口），不再直接调 story.evaluate_event；
     #   落状态仍统一走 finish_story_tasks。
     result = _events.apply_event(
-        st, _events.GameEvent(_events.EV_FINISH_DUNGEON, ev,
-                              source="rpc:Cmd_Avatar_FinishGame_CS"))
+        st, _events.ev_dungeon_finish(
+            type_id, mode_id, level,
+            level_id=ev.get("levelId", 0),
+            is_win=bool(ev.get("isWin", 1)),
+            first_pass=bool(ev.get("first_pass")),
+            # 构造器不认识的键（areaid / instructionid）单独补上：
+            # event_matches 只看配置里有的键，多给的会被忽略。
+            extra={k: v for k, v in ev.items()
+                   if k not in ("typeId", "modeId", "level", "levelId",
+                                "isWin", "first_pass")}))
     hits = result.hits
     out = []
     out.extend(drain_event_task_sync(st, result))

@@ -209,10 +209,43 @@ def step_prop_sync():
         return FAIL, "\n ".join(str(b) for b in data.get("bad", [])[:8])
     return OK, f'审计 {data.get("targets",0)}条 RPC，回放后两端状态一致'
 
+def step_frame_reachability():
+    """帧可达性（INV-SYNC-4）：每条帧客户端都必须有接收方。
+
+    为什么和 step_prop_sync 分开成两道门：
+        INV-SYNC-3 抓「状态丢了」—— 帧没发、或发错值。
+        INV-SYNC-4 抓「状态对但 UI 不刷新」—— 帧发了、值也对，
+        但客户端按 optype 选表、用路径精确查表，查不到就静默丢弃。
+        2026-11-05 的系统解锁事故只有这一道能抓：
+        83 个系统入口解锁后按钮都不出现（要重登），而 INV-SYNC-3 全绿。
+    """
+    rc, out = _run([sys.executable, "-u", "tools/audit_frame_reachability.py", "--json"], timeout=900)
+    start_at = out.find("{")
+    end_at = out.rfind("}") + 1
+    payload = out[start_at:end_at] if start_at >= 0 and end_at > start_at else None
+    if payload is None:
+        return FAIL, _tail(out, 8)
+    try:
+        import json
+
+        data = json.loads(payload)
+    except ValueError as e:
+        return FAIL, f"审计输出解析失败: {e}"
+    summary = data.get("summary") or {}
+    bad = data.get("unreachable") or []
+    if rc != 0 or bad:
+        detail = "\n    ".join(
+            f"{b.get('optype')} {'.'.join(b.get('path') or [])} -> key={b.get('key')}"
+            for b in bad[:8])
+        return FAIL, detail or _tail(out, 8)
+    return OK, (f"{summary.get('ops', 0)} 条帧全部可达"
+                  f"（{summary.get('driven', 0)} 次驱动产生变更）")
+
+
 def main():
     ap = argparse.ArgumentParser(description="一站式自检")
     ap.add_argument("--fast", action="store_true", help="跳过单元测试")
-    ap.add_argument("--only", help="只跑某一项：ruff/tests/login/spec/rpc/sync")
+    ap.add_argument("--only", help="只跑某一项：ruff/tests/login/spec/rpc/sync/reach")
     args = ap.parse_args()
 
     steps = [
@@ -223,6 +256,7 @@ def main():
         ("spec", "属性声明自检", step_spec),
         ("rpc", "RPC 索引一致性", step_rpc_index),
         ("sync", "属性同步一致性", step_prop_sync),
+        ("reach", "帧可达性", step_frame_reachability),
     ]
     if args.fast:
         steps = [s for s in steps if s[0] != "tests"]

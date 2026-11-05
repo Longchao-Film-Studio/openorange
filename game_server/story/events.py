@@ -292,16 +292,38 @@ def pending_tasks(st):
 
 # ---------------------------------------------------------------- 便捷发射器
 def ev_dungeon_finish(type_id, mode_id=1, level=1, level_id=0, is_win=True,
-                      first_pass=False, source="rpc:Cmd_Avatar_FinishGame_CS"):
-    """副本结算。"""
-    return GameEvent(EV_FINISH_DUNGEON, {
+                      first_pass=False, extra=None,
+                      source="rpc:Cmd_Avatar_FinishGame_CS"):
+    """副本结算。
+
+    ★ 这是 FinishDungeon 的**唯一**构造入口（2026-11-06 B2）。
+      FinishDungeon 有 80 条任务在等，参数错一个就白推。此前
+      dungeon/settle.py 手拼 GameEvent，绕过了这里，两边会各自漂；
+      现在守卫（tests/test_event_emission.py）禁止业务代码手拼 GameEvent。
+
+    ★ extra：结算现场才知道的键（areaid 57 个事件要 / instructionid 6 个要）。
+      只补构造器没有的键，**不许覆盖**上面那些关键字段 —— 覆盖等于绕过
+      这条唯一入口的字段约定。
+    """
+    p = {
         "typeId": int(type_id or 0),
         "modeId": int(mode_id or 0),
         "level": int(level or 0),
         "levelId": int(level_id or 0),
         "isWin": 1 if is_win else 0,
-        "first_pass": 1 if first_pass else 0,
-    }, source=source)
+    }
+    # ★ first_pass 只在首通时**出现**这个键：
+    #   TaskEventData 里配了 first_pass 的事件就是「首通才算」的；
+    #   原来 settle.py 非首通时干脆不放这个键。构造器必须保持同样语义，
+    #   否则语义从「缺键·不匹配」变成「有键·等于0」，可能误命中。
+    #   守卫：tests/test_dungeon_events.py「首次已通关 -> 不带 first_pass」。
+    if first_pass:
+        p["first_pass"] = 1
+    if isinstance(extra, dict):
+        for k, v in extra.items():
+            if k not in p and v is not None:
+                p[k] = v
+    return GameEvent(EV_FINISH_DUNGEON, p, source=source)
 
 
 def ev_finish_task(task_id, source="internal"):
