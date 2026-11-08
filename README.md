@@ -80,8 +80,7 @@ OpenOrange/
 │
 ├── tests/                   端到端测试
 ├── ROADMAP.md               开发路线图（待办 + 实现方案）
-├── start_server.py          一键启动服务端
-└── start_server.ps1         同上（PowerShell 包装）
+└── start_all.ps1            **唯一的启动入口**（game + web，可只起一个）
 ```
 
 ---
@@ -152,26 +151,35 @@ game_exe = D:\Games\GuiLongchao\game\GuiLongchao.exe
 
 ### 4. 启动服务端
 
-```powershell
-python start_server.py
-```
-
-会开两个独立窗口并自动检查端口：
-
-```
-OO-Backend:8399      后端（账号 / 票据 / 门户）
-OO-GameServer        游戏服  33100(微服务) + 33101(网关)
-```
-
-也可以只起一半，或者手动起：
+> **只有一个入口：`start_all.ps1`。** 以前还有 `start_server.py` /
+> `start_server.ps1` / `start_game.bat` / `start_web.bat` 四份平行实现，
+> 各写死自己的盘符和 python 路径；换盘之后其中两份直接失效，
+> 「启动逻辑」有了四个版本、两个是坏的。2026-11-08 全部合并到这里。
 
 ```powershell
-python start_server.py --backend       # 只起后端
-python start_server.py --game          # 只起游戏服
-
-python -u -m web.app --port 8399       # 手动起后端
-python -u -m game_server.server --ms-ok  # 手动起游戏服
+.\start_all.ps1                      # 起全部（game + web），窗口最小化
+.\start_all.ps1 -Only game           # 只起游戏服 33100/33101/33102
+.\start_all.ps1 -Only web            # 只起后端 8399
+.\start_all.ps1 -ShowWindow          # 窗口放前台，看实时输出
+.\start_all.ps1 -NoWait              # 不等端口就绪，立刻返回
+.\stop_all.ps1                       # 停掉全部
 ```
+
+启动前会自动检查端口。为什么必须检查：旧版 `_listen()` 用 `SO_REUSEADDR`，
+Windows 上允许两个进程绑同一端口且都不报错，连接被随机分配、两份存档互相覆盖，
+表现为「剧情过了但面板不开放」。现在 `_listen()` 已改 `SO_EXCLUSIVEADDRUSE`，
+这里的检查是第二道防线，让它在启动阶段就说清楚。
+
+服务：
+
+```
+8399    后端（账号 / 票据 / 门户 / 邮件管理）
+33100   游戏服 · 微服务
+33101   游戏服 · 网关（实体 RPC + 属性同步）
+33102   管理 API（仅 127.0.0.1）
+```
+
+日志：`work\logs\last.game.log` / `work\logs\last.web.log`
 
 ### 5. 注册账号
 

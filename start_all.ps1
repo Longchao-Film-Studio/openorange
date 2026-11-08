@@ -1,8 +1,15 @@
 ﻿<#
 .SYNOPSIS
-    启动 OO 的全部服务（game_server + web）。
+    启动 OO 服务（game_server + web）—— **仓库里唯一的启动入口**。
 
 .DESCRIPTION
+    ★ 为什么只有这一个脚本（2026-11-08）：
+      以前还有 start_game.bat / start_web.bat，各自写死盘符和 python 路径。
+      换盘（F: -> D:\DiskF）之后那两个立刻失效，而本脚本还好 ——
+      于是「启动逻辑」有了三份平行实现、两份是坏的。
+      现在合并成一个：起哪个由 -Only 决定，前台还是后台由 -ShowWindow 决定。
+      那两个 .bat 已删除。要新加启动方式之前，先想清楚为什么本脚本做不到。
+
     启动前先检查端口。为什么必须检查：
       2026-11-03 实测 - 旧版 _listen() 用 SO_REUSEADDR，在 Windows 上允许
       两个进程绑同一端口且都不报错，两个实例都打印 listening，连接被随机
@@ -19,17 +26,51 @@
 .PARAMETER NoWait
     不等待启动完成自检。
 
+.PARAMETER Only
+    只启动一部分服务：all（默认）/ game / web。
+    替代已删除的 start_game.bat、start_web.bat。
+
+.PARAMETER ShowWindow
+    服务窗口显示在前台（默认最小化）。看实时输出时用。
+
 .EXAMPLE
     .\start_all.ps1
+    起全部服务，窗口最小化，等端口就绪。
+
+.EXAMPLE
+    .\start_all.ps1 -Only game -ShowWindow
+    只起游戏服，窗口放前台（替代旧的 start_game.bat）。
+
+.EXAMPLE
+    .\start_all.ps1 -Only web
+    只起 web（替代旧的 start_web.bat）。
 #>
 [CmdletBinding()]
 param(
-    [int[]]$Ports = @(33100, 33101, 33102, 8399),
+    [int[]]$Ports = @(),
     [string]$Python = "",
-    [switch]$NoWait
+    [switch]$NoWait,
+    # 只起一部分：game = 33100/33101/33102，web = 8399，all = 全部（默认）
+    [ValidateSet('all', 'game', 'web')]
+    [string]$Only = 'all',
+    # 服务窗口显示在前台还是最小化。需要看实时输出时用 -ShowWindow
+    [switch]$ShowWindow
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 按 -Only 推导要检查/等待的端口。显式传了 -Ports 就以传入的为准。
+$PN = @{
+    game = @(33100, 33101, 33102)
+    web  = @(8399)
+}
+if ($Ports.Count -eq 0) {
+    $Ports = switch ($Only) {
+        'game'  { $PN.game }
+        'web'   { $PN.web }
+        default { $PN.game + $PN.web }
+    }
+}
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Write-Head([string]$Text) {
@@ -118,15 +159,22 @@ Write-Host ("    Python  {0}" -f $py)
 Write-Host ""
 Write-Host "[启动] ..."
 
-# -NoExit：服务退出后窗口保留，方便看报错（等价于旧 .bat 的 pause）
+# -NoExit：服务退出后窗口保留，方便看报错
 $webCmd  = $py + " -u -m web.app --port 8399"
 $gameCmd = $py + " -u -m game_server.server --ms-ok --unknown-ok"
+$winStyle = if ($ShowWindow) { 'Normal' } else { 'Minimized' }
 
-Start-Process -FilePath "powershell" -ArgumentList @("-NoExit","-Command",$webCmd) -WorkingDirectory $here -WindowStyle Minimized
-Start-Sleep -Milliseconds 800
-Start-Process -FilePath "powershell" -ArgumentList @("-NoExit","-Command",$gameCmd) -WorkingDirectory $here -WindowStyle Minimized
+if ($Only -in @('all', 'web')) {
+    Start-Process -FilePath "powershell" -ArgumentList @("-NoExit","-Command",$webCmd) -WorkingDirectory $here -WindowStyle $winStyle
+    Start-Sleep -Milliseconds 800
+}
+if ($Only -in @('all', 'game')) {
+    Start-Process -FilePath "powershell" -ArgumentList @("-NoExit","-Command",$gameCmd) -WorkingDirectory $here -WindowStyle $winStyle
+}
 
-Write-Host "    两个服务窗口已启动（最小化）"
+$what = switch ($Only) { 'game' { '游戏服' } 'web' { 'web' } default { '两个服务' } }
+$how  = if ($ShowWindow) { '前台' } else { '最小化' }
+Write-Host ("    {0}窗口已启动（{1}）" -f $what, $how)
 
 if ($NoWait) {
     Write-Host "    日志：work\logs\last.*.log"
@@ -150,8 +198,13 @@ if ($ready) {
     Write-Host ("    {0} 个端口全部就绪（用时 {1} 秒）" -f $Ports.Count, $secs) -ForegroundColor Green
     Write-Host ""
     Write-Host "    服务已启动。" -ForegroundColor Green
-    Write-Host "    Web   http://127.0.0.1:8399/"
-    Write-Host "    邮件  http://127.0.0.1:8399/admin/mail"
+    if ($Only -in @('all', 'web')) {
+        Write-Host "    Web   http://127.0.0.1:8399/"
+        Write-Host "    邮件  http://127.0.0.1:8399/admin/mail"
+    }
+    if ($Only -in @('all', 'game')) {
+        Write-Host "    游戏  127.0.0.1:33100（用 launcher\dist\OO_Launcher.exe 启动客户端）"
+    }
     Write-Host "    日志  work\logs\last.game.log / last.web.log"
     return 0
 } else {
@@ -159,6 +212,6 @@ if ($ready) {
     foreach ($p in $Ports) {
         if ($null -eq (Get-PortOwner $p)) { Write-Host ("        {0,-6} 仍未监听" -f $p) -ForegroundColor Yellow }
     }
-    Write-Host "    去看最小化的服务窗口里的报错（-NoExit 会保留窗口）。" -ForegroundColor Yellow
+    Write-Host "    去看服务窗口里的报错（-NoExit 会保留窗口；窗口最小化时从任务栏点开）。" -ForegroundColor Yellow
     return 1
 }
