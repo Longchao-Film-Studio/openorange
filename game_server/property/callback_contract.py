@@ -102,27 +102,33 @@ _ROOTS: dict[str, set[str]] | None = None
 _AVAILABLE = False
 
 
-def config_lua_path() -> str:
-    """定位客户端的 generated/config.lua（可用 OO_LUA_DIR / OO_CONFIG_LUA 覆盖）。"""
-    explicit = os.environ.get("OO_CONFIG_LUA")
-    if explicit:
-        return explicit
-    env = os.environ.get("OO_LUA_DIR")
-    if env:
-        return os.path.join(env, "generated", "config.lua")
+def lua_root() -> str:
+    """客户端反编译 Lua 的根目录（OO_LUA_ROOT / OO_LUA_DIR 覆盖）。
+
+    与服务端其它「要对齐客户端」的模块共用这一个定位实现 ——
+    路径规则抄成两份就会漂移（项目随磁盘换过盘符 F: -> D:）。
+    """
+    for env_name in ("OO_LUA_ROOT", "OO_LUA_DIR"):
+        env = os.environ.get(env_name)
+        if env:
+            return env
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(os.path.dirname(here))
     for rel in (("..", "archive", "game_data", "LuaAll_Decompiled2"),
                 ("archive", "game_data", "LuaAll_Decompiled2")):
-        cand = os.path.join(root, *rel, "generated", "config.lua")
-        if os.path.exists(cand):
+        cand = os.path.join(root, *rel)
+        if os.path.isdir(cand):
             return cand
-    # 跨盘兜底：OO_LUA_ROOT 指向解包根目录
-    alt = os.environ.get("OO_LUA_ROOT")
-    if alt:
-        return os.path.join(alt, "generated", "config.lua")
     return os.path.join(root, "..", "archive", "game_data",
-                        "LuaAll_Decompiled2", "generated", "config.lua")
+                        "LuaAll_Decompiled2")
+
+
+def config_lua_path() -> str:
+    """定位客户端的 generated/config.lua（可用 OO_CONFIG_LUA 覆盖）。"""
+    explicit = os.environ.get("OO_CONFIG_LUA")
+    if explicit:
+        return explicit
+    return os.path.join(lua_root(), "generated", "config.lua")
 
 
 def _load() -> None:

@@ -27,6 +27,7 @@ __tp__ 规则（重要，踩过）
 ★ 本模块**不写 state**：剧情/任务的状态迁移仍由 story.state_machine /
   tasks 的白名单函数负责（那边有 AST 守卫测试）。工厂只造壳。
 """
+from . import empty_slots as _empty_slots
 from . import ids as _ids
 from . import spec
 
@@ -100,4 +101,8 @@ def make_character(props, char_id):
         info["useSkinId"] = int(cd.get("DefaultSkin") or 0)
     except (TypeError, ValueError):
         info["useSkinId"] = 0
+    # ★ 空槽位要写成「值为空串」的哨兵：客户端是「按键取 + 和空串比」，
+    #   键不存在会被当成「已装备」，随后拿 nil gridId 崩掉角色详情页。
+    #   依据与边界见 property/empty_slots.py。
+    _empty_slots.fill(info)
     return info

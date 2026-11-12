@@ -427,7 +427,7 @@ def _stage_schema(st):
 
     n = _origin.migrate_schema(st)
     if n:
-        _log.info("[init] 存档升级到 schema %s：补了 %s 个属性（老存档迁移）",
+        _log.info("[init] 存档升级到 schema %s：补了 %s 项（属性 + 子结构槽位，老存档迁移）",
                   _origin.SAVE_SCHEMA, n)
 
 

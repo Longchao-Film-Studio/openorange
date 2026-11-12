@@ -477,6 +477,15 @@ def migrate_schema(st: Any) -> int:  # noqa: ANN401
                 st.props[name] = template_value(name)
             except KeyError:
                 continue
+        # ★ 存档里的**子结构形状**也要收敛，不只是根属性有没有。
+        #   角色身上的空槽位必须是「值为空串」的哨兵，不能是「键不存在」——
+        #   客户端 avatarsigilcomp.lua:145 / avatarstampcomp.lua:61 是
+        #   「按键取再和空串比」，键不存在时 nil ~= "" 为真，会当成已装备，
+        #   下一步拿 nil gridId 崩（角色详情页点不进去）。
+        #   边界与依据见 property/empty_slots.py。
+        from .property import empty_slots as _empty_slots
+
+        n += _empty_slots.fill_props(st.props)
         if cur < SAVE_SCHEMA:
             st.schema = SAVE_SCHEMA
         return n
