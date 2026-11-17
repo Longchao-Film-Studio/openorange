@@ -1,104 +1,19 @@
-# OpenOrange · 归橙
+# OpenOrange
 
-> 归龙潮（GuiLongchao）私服工程
+> 某死掉的国风横版动作二次元游戏的服务器实现，未完全做完
 
-用**原版游戏客户端**跑自建服务器的完整实现：一个 Rust 启动器 + 一套 Python 服务端。
+用原版游戏客户端跑自建服务器：一个 Rust 启动器 + 一套 Python 服务端。游戏本体不需要改动。
 
-> **游戏本体一个字节都不改。** 启动器负责取票据、挂起启动、注入运行时模块；
-> 运行时模块在游戏进程内部接住 SDK 登录回调，把客户端导向我们自己的服务器。
-
-> 📋 开发计划、待办清单与实现方案见 **[ROADMAP.md](ROADMAP.md)**。
-
----
-
-## 功能状态
-
-| 模块 | 状态 | 说明 |
-| --- | --- | --- |
-| 账号注册 / 登录 | ✅ | 网页注册，网页与启动器共用同一账号 |
-| 账号中心 | ✅ | 账号信息 / 修改密码 / 删除账号 |
-| 启动器 GUI / CLI | ✅ | Win32 原生界面，无 WebView |
-| 运行时注入 | ✅ | 挂起启动 → 注入 → 放行 |
-| 服务器列表接管 | ✅ | 游戏内显示自建服务器，不再连官方 |
-| 网关握手 / 会话 | ✅ | 连接、会话号、内容类型协商 |
-| 账号绑定 / 角色绑定 | ✅ | 两步绑定均通过 |
-| 进入游戏世界 | 🚧 | 场景与实体同步开发中 |
-
----
-
-## 它由什么组成
-
-```
-┌──────────────────┐   ① 登录 (HTTP)     ┌────────────────────┐
-│  OO_Launcher.exe │ ─────────────────► │  web 后端  :8399   │
-│   Win32 原生 UI  │ ◄───────────────── │  账号 / 票据 / 门户 │
-└────────┬─────────┘   account_id       └────────────────────┘
-         │             + ticket
-         │ ② 挂起启动 → 注入 OO_Internal.dll → 放行
-         ▼
-┌───────────────────────────────────────────────┐
-│  GuiLongchao.exe   原版客户端，未做任何改动       │
-│                                               │
-│   └─ OO_Internal.dll                          │
-│        ③ 接住 SDK 登录回调，把启动器给的身份喂进去 │
-│        ④ 接管服务器列表                          │
-│        ⑤ 把网关地址指向自建游戏服                 │
-└────────┬──────────────────────────────────────┘
-         │ ⑥ 连接自建网关
-         ▼
-┌────────────────────┐
-│  game_server       │  网关 :33101 + 微服务 :33100
-└────────────────────┘
-```
-
----
-
-## 目录结构
-
-```
-OpenOrange/
-├── launcher/                Rust：启动器 + 运行时注入模块
-│   ├── crates/
-│   │   ├── oo_launcher/     启动器（GUI + --cli）
-│   │   ├── oo_internal/     注入模块（DLL）
-│   │   ├── oo_shared/       启动器与 DLL 之间的共享内存协议
-│   │   ├── oo_selfcheck/    自检工具
-│   │   ├── oo_injector/     独立注入器
-│   │   └── oo_hosttest/     宿主测试器（不开游戏验证脚本）
-│   ├── lua/oo/*.lua（由 oo_bootstrap.lua 装配清单说明，build.rs 拼接） 注入到游戏里的引导脚本
-│   └── dist/                运行目录（编译产物 + OpenOrange.ini）
-│
-├── web/                     账号门户 + 接口                   :8399
-├── game_server/             游戏服：网关 + 微服务            :33100 / :33101
-├── shared/                  数据层（SQLite + 游戏配置索引）
-│   ├── db.py                账号 / 票据 / 会话
-│   ├── gamedata.py          物品 / 角色索引查询
-│   └── data/                从客户端抽取的配置索引（JSON）
-├── tools/                   开发工具（配置表抽取等）
-├── docs/
-│   └── 配置说明.md          OpenOrange.ini 完整教程与示例
-│
-├── tests/                   端到端测试
-├── ROADMAP.md               开发路线图（待办 + 实现方案）
-└── start_all.ps1            **唯一的启动入口**（game + web，可只起一个）
-```
-
----
-
-## 环境要求
+## 需要什么
 
 | 项 | 版本 | 说明 |
 | --- | --- | --- |
 | Windows | 10 / 11 x64 | 启动器是 Win32 原生程序 |
-| Rust | nightly | `rust-toolchain.toml` 已固定，rustup 会自动装 |
-| Python | 3.10+ | 服务端**只用标准库**，无需 `pip install` |
-| 游戏客户端 | 归龙潮 PC 版 | 需自行准备，本仓库不包含 |
+| Rust | nightly | `launcher/rust-toolchain.toml` 已固定，rustup 会自动装 |
+| Python | 3.10+ | 服务端只用标准库，不需要 `pip install` |
+| 游戏客户端 | 自备 PC 版 | 本仓库不包含，需自行准备 |
 
----
-
-## 快速开始
-
-### 1. 编译启动器
+## 编译启动器
 
 ```powershell
 cd launcher
@@ -112,201 +27,56 @@ OO_Launcher.exe
 OO_Internal.dll
 ```
 
-### 2. 组装运行目录
+两个文件都拷进 `launcher/dist/`，必须放在同一目录（启动器按文件名注入）。
 
-把产物拷进 `launcher/dist/`（该目录已有配置模板）：
+## 启动服务端
 
 ```powershell
-Copy-Item target/release/OO_Launcher.exe dist/
-Copy-Item target/release/OO_Internal.dll dist/
+.\start_all.ps1          # 起全部（game + web）
+.\start_all.ps1 -Only game   # 只起游戏服
+.\stop_all.ps1           # 停掉全部
 ```
 
-拷完 `launcher/dist/` 应该是：
+用到的端口：
 
 ```
-OO_Launcher.exe
-OO_Internal.dll
-OpenOrange.ini
+8399    后端（账号 / 登录 / 门户）
+33100   游戏服 · 微服务
+33101   游戏服 · 网关
+33102   管理接口（仅 127.0.0.1）
 ```
 
-> `OO_Internal.dll` 必须和 `OO_Launcher.exe` 放在同一目录，启动器按文件名注入。
+## 注册账号
 
-### 3. 指向游戏客户端
+浏览器打开 <http://127.0.0.1:8399/>，切到「注册」页签，填账号名和密码。
 
-编辑 `launcher/dist/OpenOrange.ini` 里的 `game_exe`：
+账号名 4~20 位，字母、数字、下划线即可。网页和启动器共用同一个账号，不需要在本地文件里预先写账号。
+
+## 开始游戏
+
+**1. 指向游戏客户端**
+
+编辑 `launcher/dist/OpenOrange.ini`，把 `game_exe` 改成自己的游戏可执行文件：
 
 ```ini
 [Game]
-game_exe = D:\Games\GuiLongchao\game\GuiLongchao.exe
+game_exe = D:\Games\<游戏目录>\game\<游戏可执行文件>.exe
 ```
 
-两种写法都支持：
+留空也行 —— 会在启动器所在目录及上级目录里自动找。
 
-- **绝对路径** —— 如上。
-- **相对路径** —— 相对启动器所在目录。
-- **留空** —— 自动找启动器同目录及上级目录里的 `GuiLongchao.exe`，
-  适合把三个文件直接拷到游戏目录旁边。
-
-> `game_exe` 写了不存在的路径会直接报错并打印实际解析结果，不会悄悄去别处找。
-
-### 4. 启动服务端
-
-> **只有一个入口：`start_all.ps1`。** 以前还有 `start_server.py` /
-> `start_server.ps1` / `start_game.bat` / `start_web.bat` 四份平行实现，
-> 各写死自己的盘符和 python 路径；换盘之后其中两份直接失效，
-> 「启动逻辑」有了四个版本、两个是坏的。2026-11-08 全部合并到这里。
-
-```powershell
-.\start_all.ps1                      # 起全部（game + web），窗口最小化
-.\start_all.ps1 -Only game           # 只起游戏服 33100/33101/33102
-.\start_all.ps1 -Only web            # 只起后端 8399
-.\start_all.ps1 -ShowWindow          # 窗口放前台，看实时输出
-.\start_all.ps1 -NoWait              # 不等端口就绪，立刻返回
-.\stop_all.ps1                       # 停掉全部
-```
-
-启动前会自动检查端口。为什么必须检查：旧版 `_listen()` 用 `SO_REUSEADDR`，
-Windows 上允许两个进程绑同一端口且都不报错，连接被随机分配、两份存档互相覆盖，
-表现为「剧情过了但面板不开放」。现在 `_listen()` 已改 `SO_EXCLUSIVEADDRUSE`，
-这里的检查是第二道防线，让它在启动阶段就说清楚。
-
-服务：
-
-```
-8399    后端（账号 / 票据 / 门户 / 邮件管理）
-33100   游戏服 · 微服务
-33101   游戏服 · 网关（实体 RPC + 属性同步）
-33102   管理 API（仅 127.0.0.1）
-```
-
-日志：`work\logs\last.game.log` / `work\logs\last.web.log`
-
-### 5. 注册账号
-
-浏览器打开 <http://127.0.0.1:8399/>，切到「注册」页签，填账号名和密码即可，注册后自动登录。
-
-- 账号名 **4~20 位，可用字母、数字、下划线**，随便起，不验证真实性；
-  老式的纯数字账号（比如早期用手机号注册的）同样能登录；
-- 一个账号**网页和启动器通用**，不需要在任何文件里预先写账号；
-- 登录后进入账号中心，可以看账号 ID / 玩家 UID / 注册时间 / 登录次数，
-  也可以修改密码、删除账号。
-
-### 6. 启动游戏
+**2. 启动启动器**
 
 ```powershell
 cd launcher/dist
 .\OO_Launcher.exe
 ```
 
-在界面里填上刚才注册的账号密码，点登录。
+填上刚注册的账号密码，点登录。
 
-> **这个启动器窗口不要关** —— 关掉会连带关掉游戏。
+> 启动器窗口不要关，关掉会连带退出游戏。
 
-游戏要加载运行时模块，实测需要 **36 ~ 42 秒**，之后会自动完成登录并进入主界面，
-服务器列表里显示的就是你自己的服务器。
-
----
-
-## 配置
-
-所有服务器地址都从 `launcher/dist/OpenOrange.ini` 读，**不编译进程序**。
-改完 ini 重启启动器即可生效。
-
-最小可用配置：
-
-```ini
-[Server]
-login_url  = http://127.0.0.1:8399/api/launcher/login
-game_host  = 127.0.0.1
-game_port  = 33100
-
-[Game]
-game_exe   = D:\Games\GuiLongchao\game\GuiLongchao.exe
-```
-
-完整配置项、每种场景的写法、以及排错对照表见 **[配置说明.md](docs/配置说明.md)**。
-
----
-
-## 命令行模式
-
-不想开界面（或要自动化 / 排查问题）时用 `--cli`，步骤与 GUI 完全一致，但能看到进度：
-
-```powershell
-.\OO_Launcher.exe --cli <账号> <密码>
-```
-
-```
-[1/6] 注入模块   = ...\OO_Internal.dll
-[2/6] 游戏客户端 = ...\GuiLongchao.exe
-[3/6] 请求登录   = http://127.0.0.1:8399/api/launcher/login
-[4/6] 登录成功   account_id=... ticket_len=...
-[5/6] 游戏已挂起启动 pid=...
-      已注入 ...\OO_Internal.dll
-[6/6] 游戏已放行
-```
-
----
-
-## 日志与排障
-
-| 文件 | 内容 |
-| --- | --- |
-| `launcher/dist/work/logs/launcher.log` | 启动器日志 |
-| `launcher/dist/oo_internal.log` | 注入模块日志（最详细，看这里） |
-| 游戏服窗口 | 服务端收到的每条请求 |
-
-看注入模块日志：
-
-```powershell
-Get-Content launcher/dist/oo_internal.log -Tail 30
-```
-
-**登录成功的标志**（顺序固定）：
-
-```
-hook installed
-inject: verify -> true|function|function
-lua: account: sdk login delivered
-lua: account: EnterGame invoked
-lua: serverlist: installed
-```
-
----
-
-## 常见问题
-
-| 现象 | 原因 | 解决 |
-| --- | --- | --- |
-| `cargo build` 报 toolchain 错 | 没装 nightly | `rustup toolchain install nightly` |
-| 启动器提示找不到注入模块 | 产物没拷进 dist | 回到「快速开始」第 2 步 |
-| 启动器提示找不到游戏客户端 | `game_exe` 写错 | 按报错里打印的路径核对 |
-| 端口被占用 | 有旧的 python 进程 | `Get-NetTCPConnection -LocalPort 8399,33100,33101 -State Listen` 查 PID，按 PID 精确关掉 |
-| 等了很久游戏没进主界面 | 客户端加载慢 | 注入日志里等到 `EnterGame invoked` 为止，最长等 5 分钟 |
-| 游戏内还是官方服务器名 | 引导脚本没生效 | 检查注入日志里有没有 `serverlist:` 开头的行 |
-| 点「开始游戏」没反应 | 游戏服没起 | 看游戏服窗口是否收到 `syncMetadata` |
-| 登录报「账号或密码错误」 | 账号没注册 | 到 <http://127.0.0.1:8399/> 注册 |
-
----
-
-## 开发
-
-```powershell
-cd launcher
-cargo build --release     # 编译
-cargo test                # 单元测试
-cargo run -p oo_selfcheck # 自检（配置 / 注入模块 / 共享内存 / 引导脚本）
-```
-
-服务端没有任何第三方依赖，改完直接重启进程即可。
-
-账号系统的端到端测试（自带临时端口与临时数据库，不会动到 `shared/data.db`）：
-
-```powershell
-python tests/test_account_portal.py
-```
-
----
+游戏加载运行时模块实测需要 36~42 秒，之后自动完成登录进入主界面，服务器列表里显示的就是你自己的服务器。
 
 ## 免责声明
 

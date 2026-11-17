@@ -3,6 +3,18 @@
 #  只提交源码、文档与配置；编译产物、运行期数据、日志一律排除。
 # ============================================================
 
+# ---------- 凭据：绝不入库 ----------
+*.key
+*.pem
+*.pfx
+*.p12
+admin_token.txt
+.env
+*.env
+
+# ---------- 本地 Python 运行时（不进库） ----------
+Python/
+
 # ---------- Rust 编译产物 ----------
 launcher/target/
 
@@ -20,14 +32,39 @@ launcher/dist/*.png
 launcher/dist/*.bin
 launcher/dist/launcher_state.ini
 
-# ---------- 运行期数据 ----------
+# ---------- 运行期数据 / 数据库 ----------
 shared/data.db
 shared/data.db-shm
 shared/data.db-wal
-# 迁移前的整库备份（uid 收敛等一次性迁移会生成；含密码哈希，绝不入库）
+# 迁移前的整库备份（uid 收敛等一次性迁移会生成；含密码哈希，绝不入库存）
 shared/data.db.*
-# 游戏服抓包目录（每次启动自动创建）
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ---------- 仓库内工作目录（全部运行期产物，见 game_server/config.py） ----------
 work/
+var/
+build/
+
+# ---------- 逆向中间产物（可重建，体积大） ----------
+*.dab
+patch_dabs/
+manifests/
+captures/
+
+# ---------- 存档备份 ----------
+*.bak
+*.bak2
+*.bak-*
+*.orig
+*.rej
+
+# ---------- 日志 ----------
+*.log
+launcher/*.log
 
 # ---------- Python ----------
 __pycache__/
@@ -35,8 +72,10 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.mypy_cache/
+.ruff_cache/
 
-# ---------- 本地过程脚本（不入库）----------
+# ---------- 本地过程脚本（不入库） ----------
 archivescript/
 my_scripts/
 
@@ -49,11 +88,10 @@ my_scripts/
 .idea/
 *.swp
 Thumbs.db
+.DS_Store
 desktop.ini
 
-# ����/������־�������Ų��ã������ֿ⣩
-launcher/*.log
-
-# 玩家存档/运行时产物只允许出现在 work/ —— 根目录不允许裸的 *.json
+# 玩家存档 / 运行期产物只允许出现在 work/（拆分后为 var/）——
+# 根目录不允许裸放 *.json
 # （2026-10-25：123tst.json 被 git add -A 顺手卷进仓库，164KB 存档进了根目录）
 /*.json
