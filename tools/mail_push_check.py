@@ -84,7 +84,7 @@ def main(argv=None):
     st = pstate.load(args.uid)
     if st is None:
         print(f"\n   ✗ 没有账号 [{args.uid}] 的存档。")
-        print("     这里要填的是**账号名**（username），例如 123tst / aixiaoji / 15900159000；")
+        print("     这里要填的是**账号名**（username），例如 123tst / player1 / 15900159000；")
         print("     不是 oo_xxx（account_id），也不是那串纯数字。")
         print("     不知道填什么就跑：python -c \"import sqlite3;print([r[0] for r in sqlite3.connect(r'shared/data.db').execute('select username from accounts')])\"")
         return 2

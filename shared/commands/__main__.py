@@ -18,9 +18,9 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     db.init()
-    ctx = Context("aixiaoji", PERM_ADMIN, source="cli")
+    ctx = Context("player1", PERM_ADMIN, source="cli")
     for line in ["/help", "/who", "/server", "/search 长命锁",
-                 "/give @ 1001 1", "/account aixiaoji", "/badcmd"]:
+                 "/give @ 1001 1", "/account player1", "/badcmd"]:
         r = execute(line, ctx)
         _log.info("=" * 60)
         _log.info("> " + line)

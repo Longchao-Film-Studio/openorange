@@ -177,30 +177,31 @@ def run():
     n2 = origin.migrate_schema(st4)
     check("迁移幂等（第二次补 0 个）", n2 == 0, n2)
 
-    print("\n[6] 真实老存档样本（冻结副本，不碰真实存档目录）")
-    sample = os.path.join(ROOT, "tests", "fixtures", "old_save_bagcheck.json")
-    if not os.path.exists(sample):
-        check("老存档样本存在", False, sample)
-    else:
-        with open(sample, encoding="utf-8") as f:
-            raw = json.load(f)
-        uid5 = fresh_uid("oldsave")
-        st5 = pstate.PlayerState(uid=uid5, props={"__stub__": True})
-        st5.props = {}
-        from game_server.player_state import _keys_from_json
-        st5.props = _keys_from_json(raw.get("props") or {})
-        st5.schema = int(raw.get("schema") or 0)
-        before_missing = origin.missing_props(st5.props)
-        origin.migrate_schema(st5)
-        origin.recompute(st5)
-        for k, v in origin.materialize().items():
-            st5.props.setdefault(k, v)
-        after_missing = origin.missing_props(st5.props)
-        check("老存档迁移前确实缺属性（样本有效）", bool(before_missing), before_missing)
-        check("老存档迁移 + 重算 + 物化后不缺任何契约 key",
-              not after_missing, sorted(after_missing)[:10])
-        check("老存档补上的 title_daily_task_cache 在快照里",
-              "title_daily_task_cache" in st5.props)
+    print("\n[6] 合成老存档样本（故意摘掉 stored key，不依赖任何真实存档）")
+    # ★ 2026-11-17：原来这里读 tests/fixtures/old_save_bagcheck.json ——
+    #   那是 164KB 的真实玩家存档被误提交进仓库，公开前必须拿掉。
+    #   改成「拿当前 initDict 摘掉几个 stored key」来造老存档：
+    #   断言的东西完全一样（迁移前缺、迁移后不缺），而且不依赖玩家数据。
+    uid5 = fresh_uid("oldsave")
+    live_init_dict(uid=uid5)
+    src_props = dict(pstate.STATES[uid5].props)
+    dropped = [n for n in origin.stored_props() if n in src_props][:5]
+    for k in dropped:
+        src_props.pop(k, None)
+    st5 = pstate.PlayerState(uid=uid5, props=src_props)
+    st5.schema = 0
+    before_missing = origin.missing_props(st5.props)
+    origin.migrate_schema(st5)
+    origin.recompute(st5)
+    for k, v in origin.materialize().items():
+        st5.props.setdefault(k, v)
+    after_missing = origin.missing_props(st5.props)
+    check("摘掉的 stored key 确实被判定为缺失（样本有效）",
+          bool(before_missing), (dropped, before_missing))
+    check("老存档迁移 + 重算 + 物化后不缺任何契约 key",
+          not after_missing, sorted(after_missing)[:10])
+    check("老存档补上的 title_daily_task_cache 在快照里",
+          "title_daily_task_cache" in st5.props)
 
     print("\n[7] 派生值确实由原始数据决定")
     uid6 = fresh_uid("recalc")

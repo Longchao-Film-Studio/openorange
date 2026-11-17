@@ -77,7 +77,7 @@ def run():
     from shared import db as _db
     _db.init()
     for u in ("cmd_a", "cmd_b", "cmd_c", "cmd_d", "cmd_e", "cmd_p", "cmd_q",
-              "gm1", "aixiaoji"):
+              "gm1", "player1"):
         try:
             if not _db.get_account_by_username(u):
                 _db.register_account(u, "pw", "acc_" + u, "sk_" + u)
@@ -116,7 +116,7 @@ def run():
         check("cmd_a 恢复三关", lv3 == [50001, 50002, 50003], lv3)
 
         print("\n[6] 管理员给别的账号设：/dungeon cmd_d 50002")
-        r = cmds.execute("/dungeon cmd_d 50002", ctx(actor="aixiaoji"))
+        r = cmds.execute("/dungeon cmd_d 50002", ctx(actor="player1"))
         check("命令成功", r.ok, r.chat)
         check("设置到 cmd_d", r.data.get("uid") == "cmd_d", r.data)
         lv_d = start_levels("cmd_d")
@@ -187,15 +187,15 @@ def run():
 
         print("\n[12] Target 抽象")
         from shared.commands import resolve_target
-        c_admin = cmds.Context("aixiaoji", cmds.PERM_ADMIN)
+        c_admin = cmds.Context("player1", cmds.PERM_ADMIN)
         c_gm = cmds.Context("gm1", cmds.PERM_GM)
 
         t_self, e = resolve_target(c_admin, "@")
         check("@ 解析成自己", t_self is not None and t_self.is_self, t_self)
         check("Target 是 str 子类", isinstance(t_self, str), type(t_self))
-        check("值就是账号名", str(t_self) == "aixiaoji", str(t_self))
-        check("uid 等于账号名", t_self.uid == "aixiaoji", t_self.uid)
-        check("能和字符串直接比较", t_self == "aixiaoji")
+        check("值就是账号名", str(t_self) == "player1", str(t_self))
+        check("uid 等于账号名", t_self.uid == "player1", t_self.uid)
+        check("能和字符串直接比较", t_self == "player1")
 
         t_other, e = resolve_target(c_admin, "cmd_a")
         check("账号名解析成功", t_other is not None, e)
