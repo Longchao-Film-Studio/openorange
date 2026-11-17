@@ -18,6 +18,7 @@
 """
 from ..property.tx import Tx
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import mutable
 
 
 def _child_frames(uid, container, key, value):  # noqa: ANN001, ANN201
@@ -72,21 +73,27 @@ def _set_character_list(rid, params, uid=None):
     if not isinstance(team, dict):
         return respond_after_sync(rid, syncs)
 
-    lst = team.get("value")
+    # ★ 副本 -> Tx：team / lst 都是 props 树里的容器，直接改是裸写
+    #   （守卫会抛，gate 关连接，客户端 lose server）
+    new_team = mutable(team)
+    lst = new_team.get("value")
     if not isinstance(lst, dict):
         lst = {"__id__": st.next_property_id()}
-        team["value"] = lst
-    for k in [k for k in lst if isinstance(k, int)]:
-        del lst[k]
+    lst = {k: v for k, v in lst.items() if not isinstance(k, int)}
     if isinstance(vals[1], list):
         for i, cid in enumerate(vals[1], 1):
             try:
                 lst[i] = int(cid)
             except Exception:
                 lst[i] = 0
-    st.set("character_list", cl)
+    new_team["value"] = lst
+    # 写回 cl：键沿用原来那一份（可能是 int 也可能是字符串），别新建一个键
+    key = idx if idx in cl else str(idx)
+    new_cl = dict(cl)
+    new_cl[key] = new_team
+    st.set("character_list", new_cl)
     st.save()
-    syncs.extend(_child_frames(uid, "character_list", str(idx), team))
+    syncs.extend(_child_frames(uid, "character_list", str(idx), new_team))
     return respond_after_sync(rid, syncs)
 
 
@@ -106,10 +113,15 @@ def _set_character_list_name(rid, params, uid=None):
         team = cl.get(str(idx))
     if not isinstance(team, dict):
         return respond_after_sync(rid, syncs)
-    team["name"] = name if isinstance(name, str) else ""
-    st.set("character_list", cl)
+    # 副本 -> 写回（同上：直接改 team 是裸写）
+    new_team = mutable(team)
+    new_team["name"] = name if isinstance(name, str) else ""
+    key = idx if idx in cl else str(idx)
+    new_cl = dict(cl)
+    new_cl[key] = new_team
+    st.set("character_list", new_cl)
     st.save()
-    syncs.extend(_child_frames(uid, "character_list", str(idx), team))
+    syncs.extend(_child_frames(uid, "character_list", str(idx), new_team))
     return respond_after_sync(rid, syncs)
 
 

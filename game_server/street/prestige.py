@@ -21,6 +21,7 @@ from .. import gamedata
 from ..property import ids as _ids
 from ..property import tx as _tx
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import mutable
 from .info import _street_info_of
 
 _log = get_logger(__name__)
@@ -41,6 +42,9 @@ def _prestige_info(st, street_id=None):
     si, entry = _street_info_of(st, street_id)
     if entry is None:
         return None, None, None, False
+    # ★ 返回**纯副本**：调用方拿到后随便改，改完由 _prestige_push 的 Tx 落地。
+    #   直接改 props 里的 entry 是裸写，守卫会抛并把连接打断（2026-11-17 事故）。
+    entry = mutable(entry)
     if not isinstance(entry.get("prestige_awarded"), dict):
         entry["prestige_awarded"] = {"__id__": _ids.alloc_id(st.props)}
     if not isinstance(entry.get("prestige_tasks"), dict):
@@ -63,7 +67,7 @@ def _prestige_push(st, street_id, entry):
     tx.set(("street_info", street_id), entry)
     return tx.frames()
 
-def _apply_prestige_exp(st, si, entry, street_id, add, save=True):
+def _apply_prestige_exp(st, _si, entry, street_id, add, save=True):
     """给某街区加声望经验并处理升级，返回同步帧。
 
     宝箱奖励（StreetTreasureTaskData.AwardAttr.prestige_exp）和
@@ -89,11 +93,12 @@ def _apply_prestige_exp(st, si, entry, street_id, add, save=True):
         lv += 1
     entry["prestige_level"] = lv
     entry["prestige_exp"] = exp
-    st.set("street_info", si)
+    _log.info(f"[street] 声望 +{add} -> level={lv} exp={exp}")
+    # ★ 顺序不能反：entry 是**副本**，只有 _prestige_push 的 Tx 才把值写进 props。
+    #   先 save 会把「还没落地」的旧值存进盘（静默丢数据）。
+    frames.extend(_prestige_push(st, street_id, entry))
     if save:
         st.save()
-    _log.info(f"[street] 声望 +{add} -> level={lv} exp={exp}")
-    frames.extend(_prestige_push(st, street_id, entry))
     return frames
 
 # 公开入口（供背包效果等其它领域调用；内部实现仍是 _apply_prestige_exp/_prestige_info）
@@ -131,11 +136,10 @@ def _get_prestige_award(rid, params, uid=None):
     except Exception:
         return respond_after_sync(rid, [])
     st = state(uid)
-    si, entry, sid = _prestige_info(st, street_id)[:3]
+    _si, entry, sid = _prestige_info(st, street_id)[:3]
     if entry is None:
         return respond_after_sync(rid, [])
     entry["prestige_awarded"][level] = 1
-    st.set("street_info", si)
     st.save()
     _log.info(f"[street] 领声望奖励 street={street_id} level={level}")
     syncs = _prestige_push(st, sid, entry)
@@ -152,11 +156,10 @@ def _get_prestige_task_award(rid, params, uid=None):
     except Exception:
         return respond_after_sync(rid, [])
     st = state(uid)
-    si, entry, sid = _prestige_info(st, street_id)[:3]
+    _si, entry, sid = _prestige_info(st, street_id)[:3]
     if entry is None:
         return respond_after_sync(rid, [])
     entry["prestige_tasks"][task_id] = 1
-    st.set("street_info", si)
     st.save()
     _log.info(f"[street] 领声望任务奖励 street={street_id} task={task_id}")
     syncs = _prestige_push(st, sid, entry)

@@ -320,12 +320,18 @@ def _stage_street_info(st):
     #   重登能进是因为走登录 initDict，但 initDict 的 street_info 也是空容器。
     #   所以登录时对当前 street_id 建条目，任何到街区的路径都有数据。
     try:
+        from ..street.info import _make_street_info_entry as _mk
         from ..street.info import _street_info_of as _sio
         _sid = int(st.props.get("street_id") or 0)
         if _sid:
             _si, _entry = _sio(st, _sid)
-            if _si is not None:
-                _log.info("[init] 确保 street_info[{}] 条目存在{}".format(_sid, "（新建）" if _entry else ""))
+            if _si is not None and not isinstance(_si.get(_sid), dict):
+                # ★ _street_info_of 现在**不写 props**（只返回副本）—— 业务路径必须用 Tx。
+                #   但这里是登录初始化，整段在 write_guard("login_init") 里：
+                #   初始化不该发同步帧，结果直接进初始快照，所以直接插入是对的。
+                _si[_sid] = _mk(st)
+                st.set("street_info", _si)
+                _log.info(f"[init] 新建 street_info[{_sid}] 条目")
     except Exception as e:
         _log.warning(f"[init] street_info 条目补齐失败: {e}")
 

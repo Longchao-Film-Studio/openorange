@@ -7,6 +7,7 @@ from typing import Any
 
 from shared.log_tee import get_logger
 
+from ...write_guard import mutable as _mutable
 from ..tx import Tx
 from . import grants
 from .errors import BAG_INVALID_ITEM_ID, BAG_INVALID_NUM, BagError
@@ -32,7 +33,9 @@ def consume(props: dict[str, Any], item_id: int, count: int, *, tx: Tx) -> None:
         if num == count:
             tx.delete(("item_bag", key))
         else:
-            grid["num"] = num - count
-            tx.set(("item_bag", key), grid)
+            # 副本 -> Tx：直接改 props 里的 grid 是裸写（守卫会抛，连接被打断）
+            new_grid = _mutable(grid)
+            new_grid["num"] = num - count
+            tx.set(("item_bag", key), new_grid)
         return
     raise BagError(BAG_INVALID_ITEM_ID, f"背包里没有道具 {item_id}")

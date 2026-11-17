@@ -18,6 +18,7 @@ from shared.log_tee import get_logger
 from . import gamedata
 from .property import factory
 from .property.tx import Tx
+from .write_guard import mutable
 
 _log = get_logger(__name__)
 
@@ -96,17 +97,22 @@ def _set_team_hero(tx: Any, props: dict[Any, Any], want: int) -> None:  # noqa: 
     if not isinstance(team, dict):
         _log.warning("[protagonist] 编队 #1 不存在，跳过")
         return
-    slots = team.get("value")
+    # ★ 副本 -> Tx：team / slots 是 props 树里的容器，直接改是裸写
+    #   （守卫会抛，gate 关连接，客户端 lose server）
+    new_team = mutable(team)
+    slots = new_team.get("value")
     if not isinstance(slots, dict):
         slots = factory.new_instance(props, "IntList")
-        team["value"] = slots
+    else:
+        slots = mutable(slots)
     changed = False
     for i, v in ((1, want), (2, 0), (3, 0)):
         if int(slots.get(i) or 0) != v:
             slots[i] = v
             changed = True
     if changed:
-        tx.set(("character_list", 1), team)
+        new_team["value"] = slots
+        tx.set(("character_list", 1), new_team)
 
 
 def ensure_props(props: dict[Any, Any], gender: Any, syncs: list[bytes] | None = None) -> list[bytes]:  # noqa: ANN401

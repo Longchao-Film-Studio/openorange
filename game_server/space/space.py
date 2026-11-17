@@ -22,6 +22,7 @@ from shared.log_tee import get_logger
 
 from .. import ms as msmod
 from ..rpc_common import SYNC_SELF, decode_params, respond_after_sync, state, sync_frame
+from ..write_guard import mutable
 
 _log = get_logger(__name__)
 
@@ -73,6 +74,8 @@ def _enter_space(params, uid=None):
     if sp is None:
         return []
     old = int(sp.get("spaceno") or 0)
+    # 副本 -> st.set：直接改 props 里的 sp 是裸写（守卫会抛，连接被打断）
+    sp = mutable(sp)
     sp["spaceno"] = spaceno
     sp["seqno"] = int(sp.get("seqno") or 0) + 1
     sp["spaceid"] = spaceid
@@ -104,6 +107,7 @@ def _scene_loaded(params, uid=None):
     sp = _space_prop(st)
     if sp is None:
         return []
+    sp = mutable(sp)          # 副本 -> st.set（同上）
     sp["loading"] = False
     sp["ld_spaceno"] = spaceno
     st.set("space_p", sp)
@@ -119,6 +123,7 @@ def _leave_space_rpc(rid, _params, uid=None):
     if sp is None:
         return respond_after_sync(rid, syncs)
     old = int(sp.get("spaceno") or 0)
+    sp = mutable(sp)          # 副本 -> st.set（同上）
     sp["spaceno"] = 0
     sp["seqno"] = int(sp.get("seqno") or 0) + 1
     sp["spaceid"] = ""

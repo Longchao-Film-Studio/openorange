@@ -144,6 +144,10 @@ def run():
 
     print()
     print("[4] INV-PROPS-2：运行期插入的子对象保持原引用")
+    # ★ 这条不变量是有代价的（插入的普通 dict 子树不受守卫管辖），
+    #   代价和后续收口方案写在 game_server/write_guard.py 的 __setitem__ 注释里。
+    #   本次改造用的是另一条约束：**新代码一律 mutable() 副本 + Tx**，
+    #   由 tools/audit_props_writes.py 在真实业务路径上验证。
     p2 = GuardedProps({"done_tasks": {}})
     done = p2["done_tasks"]
     slot = {"__id__": 1}

@@ -242,10 +242,50 @@ def step_frame_reachability():
                   f"（{summary.get('driven', 0)} 次驱动产生变更）")
 
 
+def step_props_writes():
+    """属性写入口（INV-PROPS-2）：业务路径上不许有绕过 Tx 的裸写。
+
+    为什么必须单独一道门（2026-11-17 实机事故）：
+        street/interact.py 里一句 ia[actor_id] = interact_id 直接改 props，
+        被 B 组守卫拒绝 -> 异常 -> gate 关连接 -> 客户端 lose server
+        -> 交互上报全部丢失 -> 主线任务 1007 永远停在 Doing。
+        单元测试抓不到，因为测试运行器设了 OO_ALLOW_PROPS_WRITE=1 整体关掉了守卫。
+
+    本门用**严格模式**跑（不设 report、不设 bypass）：
+    驱动全部 RPC + 剧情/任务/等级/事件/背包 + 街区真实流程，
+    只要有一处裸写就会抛出来。
+    """
+    import json
+    import tempfile
+
+    # ★ 用 --json-out 落文件，不从 stdout 抠 JSON：审计驱动真实业务路径时
+    #   业务日志会混进 stdout（[sync] / [mail] …），抠出来解析会失败。
+    from pathlib import Path
+
+    fd, path = tempfile.mkstemp(prefix="oo_props_audit_", suffix=".json")
+    os.close(fd)
+    try:
+        rc, out = _run([sys.executable, "-u", "tools/audit_props_writes.py",
+                        "--strict", "--json-out", path], timeout=1200)
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        return FAIL, f"审计结果读取失败: {e}"
+    finally:
+        Path(path).unlink(missing_ok=True)
+    raised = data.get("raised") or []
+    if rc != 0 or raised:
+        detail = "\n    ".join(
+            f"{r.get('rpc')}: {r.get('error')}" for r in raised[:8])
+        return FAIL, detail or _tail(out, 8)
+    return OK, f'{data.get("driven", 0)} 次驱动，业务路径全部走 Tx'
+
+
 def main():
     ap = argparse.ArgumentParser(description="一站式自检")
     ap.add_argument("--fast", action="store_true", help="跳过单元测试")
-    ap.add_argument("--only", help="只跑某一项：ruff/tests/login/spec/rpc/sync/reach")
+    ap.add_argument("--only",
+                    help="只跑某一项：ruff/mypy/tests/login/spec/rpc/sync/reach/props")
     args = ap.parse_args()
 
     steps = [
@@ -257,6 +297,7 @@ def main():
         ("rpc", "RPC 索引一致性", step_rpc_index),
         ("sync", "属性同步一致性", step_prop_sync),
         ("reach", "帧可达性", step_frame_reachability),
+        ("props", "属性写入口", step_props_writes),
     ]
     if args.fast:
         steps = [s for s in steps if s[0] != "tests"]

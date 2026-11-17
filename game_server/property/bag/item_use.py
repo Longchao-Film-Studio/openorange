@@ -18,6 +18,7 @@ from typing import Any, Protocol
 from shared.log_tee import get_logger
 
 from ... import gamedata
+from ...write_guard import mutable as _mutable
 from ..tx import Tx
 from . import effects, grants, report
 from .effects import BagAddOp, CustomOp, GrantOp, NestedPropOp, Op, PropOp
@@ -322,8 +323,10 @@ def apply(
             tx.delete(("item_bag", key))
         else:
             # ★ 整格 set：与客户端 _changeSubProperty 的契约一致（见 grants 注释）
-            grid["num"] = num - count
-            tx.set(("item_bag", key), grid)
+            # 副本 -> Tx：直接改 props 里的 grid 是裸写（守卫会抛，连接被打断）
+            new_grid = _mutable(grid)
+            new_grid["num"] = num - count
+            tx.set(("item_bag", key), new_grid)
         granted, extra = materialize(props, ops, tx=tx, source=f"use:{item_id}")
         st.save()
         _log.info("[bag] 使用 %s x%s（%s）-> %s 个 ops", item_id, count, use_type, len(ops))

@@ -42,7 +42,7 @@ from .story.state_machine import (
     TASK_STATE_WAIT_DONE,
     can_transition,
 )
-from .write_guard import write_guard
+from .write_guard import mutable, write_guard
 
 _log = get_logger(__name__)
 
@@ -357,6 +357,7 @@ def evaluate_event(st, event_type, params):
     #:   （11 条配置带它），event_matches 要求相等，拿它当累加量会同时改掉匹配。
     #:   amount 在 1288 条 TaskEventData 里从未出现，
     #:   由 tests/test_task_event_batch_a.py 守住院线。
+    patches: list[tuple[int, int, dict]] = []
     _inc = 1
     if isinstance(params, dict):
         try:
@@ -390,18 +391,28 @@ def evaluate_event(st, event_type, params):
                     break
             if hit_eid is None:
                 continue
-            dt = item.get("doing_targets")
+            # ★ 副本 -> st.set：item 是 props 树里的容器，直接改是裸写
+            #   （守卫会抛，gate 关连接，客户端 lose server）
+            new_item = mutable(item)
+            dt = new_item.get("doing_targets")
             if not isinstance(dt, dict):
                 dt = {"__id__": st.next_property_id()}
-                item["doing_targets"] = dt
-            cur = int(dt.get(hit_eid) or 0)
-            dt[hit_eid] = cur + _inc
-            total = sum(int(v) for k, v in dt.items() if isinstance(k, int))
-            syncs.append(_sync(slot.get("__id__"), OP_CHANGE, tid, item))
+            new_dt = dict(dt)
+            cur = int(new_dt.get(hit_eid) or 0)
+            new_dt[hit_eid] = cur + _inc
+            new_item["doing_targets"] = new_dt
+            total = sum(int(v) for k, v in new_dt.items() if isinstance(k, int))
+            syncs.append(_sync(slot.get("__id__"), OP_CHANGE, tid, new_item))
+            patches.append((tt, tid, new_item))
             if total >= need:
                 done_ids.append(tid)
-    if syncs:
-        st.set("task_bag", st.props.get("task_bag"))
+    if patches:
+        new_bag = dict(bag)
+        for tt, tid, new_item in patches:
+            slot_copy = dict(new_bag.get(tt) or {})
+            slot_copy[tid] = new_item
+            new_bag[tt] = slot_copy
+        st.set("task_bag", new_bag)
     return done_ids, syncs
 
 
@@ -437,7 +448,8 @@ def record_event_hits(st, event_type, params):
     rows = _events_rows(event_type)
     if not rows:
         return 0
-    hits = _event_hits(st.props)
+    # 副本 -> st.set：hits 是 props 树里的容器，直接改是裸写
+    hits = mutable(_event_hits(st.props))
     n = 0
     for eid, row in rows:
         if not event_matches(row, event_type, params):
@@ -647,9 +659,15 @@ def move_to_wait_done(st, task_id, _now=None):
         return []
     if not can_transition(cur, TASK_STATE_WAIT_DONE):
         return []
-    item["state"] = TASK_STATE_WAIT_DONE
-    st.set("task_bag", bag)
-    return [_sync(slot.get("__id__"), OP_CHANGE, task_id, item)]
+    # 副本 -> st.set（同上：直接改 item 是裸写）
+    new_item = mutable(item)
+    new_item["state"] = TASK_STATE_WAIT_DONE
+    new_slot = dict(slot)
+    new_slot[task_id] = new_item
+    new_bag = dict(bag)
+    new_bag[cfg.get("TaskType")] = new_slot
+    st.set("task_bag", new_bag)
+    return [_sync(slot.get("__id__"), OP_CHANGE, task_id, new_item)]
 
 
 def claim_task(st, task_id, now=None):

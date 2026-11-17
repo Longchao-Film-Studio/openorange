@@ -17,6 +17,7 @@ from shared.log_tee import get_logger
 
 from ..property.tx import Tx
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import mutable
 
 _log = get_logger(__name__)
 _DISPATCH_DEFAULT_DURATION = 3600
@@ -72,7 +73,8 @@ def _finish_dispatch(rid, params, uid=None):
     d = _dispatch_dict(st)
     if d is None or not isinstance(d.get(dip_id), dict):
         return respond_after_sync(rid, syncs)
-    entry = d[dip_id]
+    # 副本 -> Tx：直接改 props 里的 entry 是裸写（守卫会抛，连接被打断）
+    entry = mutable(d[dip_id])
     entry["end_time"] = int(time.time())
     tx = Tx(st.props)
     tx.set(("street_dispatch", dip_id), entry)

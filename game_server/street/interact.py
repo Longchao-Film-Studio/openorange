@@ -20,6 +20,7 @@ from ..rpc_common import decode_params, respond_after_sync, state
 from ..story import events as _events
 from ..story.rpc import _find_story_tasks_by_param, finish_story_tasks
 from ..story.tasks import drain_event_task_sync
+from ..write_guard import mutable
 from .info import _street_info_of, _street_tx_begin
 
 _log = get_logger(__name__)
@@ -43,15 +44,22 @@ def _actor_interact(rid, params, uid=None):
     st = state(uid)
     street_id = int(st.props.get("street_id") or 0)
     # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD（审计实锤的崩溃点）
-    tx, si, entry, is_new = _street_tx_begin(st, street_id)
+    tx, _si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is not None:
-        ia = entry.get("inter_actor_info")
+        # ★★ 2026-11-17 实机事故就在这里：以前是 ia[actor_id] = interact_id
+        #   直接改 props 树里的容器 -> 守卫抛 PropsWriteError -> gate 关连接
+        #   -> 客户端 lose server -> 交互上报丢失 -> 主线 1007 永远 Doing。
+        #   现在一律「取纯副本 -> 改副本 -> Tx 落地」。
+        new_entry = mutable(entry)
+        ia = new_entry.get("inter_actor_info")
         if not isinstance(ia, dict):
             ia = {"__id__": _ids.alloc_id(st.props)}
-            entry["inter_actor_info"] = ia
+        ia = mutable(ia)
         ia[actor_id] = interact_id
-        st.set("street_info", si)
-        if not is_new:
+        new_entry["inter_actor_info"] = ia
+        if is_new:
+            tx.set(("street_info", street_id), new_entry)
+        else:
             tx.set(("street_info", street_id, "inter_actor_info"), ia)
         syncs.extend(tx.frames())
     _log.info(f"[street] NPC {actor_id} 交互 {interact_id}")
@@ -100,12 +108,12 @@ def _street_redpoint(rid, params, uid=None):
     rp = si.get("street_redpoint")
     if not isinstance(rp, dict):
         rp = {"__id__": _ids.alloc_id(st.props)}
-        si["street_redpoint"] = rp
-    rp[key] = value
-    st.set("street_info", si)
-    st.save()
+    # 副本 -> Tx 落地（裸写会让守卫抛，连接被打断）
+    new_rp = mutable(rp)
+    new_rp[key] = value
     tx = _tx.Tx(st.props)
-    tx.set(("street_info", "street_redpoint"), rp)
+    tx.set(("street_info", "street_redpoint"), new_rp)
+    st.save()
     syncs.extend(tx.frames())
     return respond_after_sync(rid, syncs)
 
@@ -154,9 +162,14 @@ def _clear_treasure_actor(params, uid=None):
     si, entry = _street_info_of(st, street_id)
     if entry is not None:
         tb = entry.get("treasure_box_info")
-        if isinstance(tb, dict):
-            for k in [k for k in tb if isinstance(k, int)]:
-                del tb[k]
-            st.set("street_info", si)
+        # ★ 只有条目真的在 props 里才落盘：_street_info_of 现在可能返回
+        #   「尚未插入的副本」，那种情况下没有东西可清（也不该凭空建条目）。
+        if isinstance(tb, dict) and isinstance(si, dict) and isinstance(si.get(street_id), dict):
+            new_tb = mutable(tb)
+            for k in [k for k in new_tb if isinstance(k, int)]:
+                del new_tb[k]
+            tx = _tx.Tx(st.props)
+            tx.set(("street_info", street_id, "treasure_box_info"), new_tb)
+            st.save()
     _log.info(f"[street] 清理街区 {street_id} 的宝箱 actor")
     return []

@@ -15,6 +15,7 @@ from shared.log_tee import get_logger
 from .. import gamedata
 from ..property import ids as _ids
 from ..rpc_common import decode_params, respond_after_sync, state
+from ..write_guard import mutable
 from .info import _street_tx_begin
 from .prestige import _apply_prestige_exp, _prestige_info
 
@@ -93,19 +94,23 @@ def _touch_treasure(params, uid=None):
     st = state(uid)
     street_id = int(st.props.get("street_id") or 0)
     # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
-    tx, si, entry, is_new = _street_tx_begin(st, street_id)
+    tx, _si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is None:
         return None
     tb = entry.get("treasure_box_info")
     if not isinstance(tb, dict):
         tb = {"__id__": _ids.alloc_id(st.props)}
-        entry["treasure_box_info"] = tb
     already = tb.get(tid) == 1
-    tb[tid] = 1
-    st.set("street_info", si)
+    # 副本 -> Tx 落地（直接改 entry / tb 是裸写，守卫会抛并把连接打断）
+    new_tb = mutable(tb)
+    new_tb[tid] = 1
+    if is_new:
+        new_entry = mutable(entry)
+        new_entry["treasure_box_info"] = new_tb
+        tx.set(("street_info", street_id), new_entry)
+    else:
+        tx.set(("street_info", street_id, "treasure_box_info"), new_tb)
     _log.info("[street] 开宝箱 {}（街区 {}）{}".format(tid, street_id, "重复开启，不再发奖" if already else ""))
-    if not is_new:
-        tx.set(("street_info", street_id, "treasure_box_info"), tb)
     frames = list(tx.frames())
     if not already:
         frames.extend(_grant_treasure_reward(st, tid))

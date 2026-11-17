@@ -12,7 +12,7 @@ from shared.log_tee import get_logger
 
 from ..property.tx import Tx
 from ..rpc_common import decode_params, respond_after_sync, state
-from ..write_guard import write_guard
+from ..write_guard import mutable, write_guard
 from .info import _street_tx_begin
 
 _log = get_logger(__name__)
@@ -73,11 +73,14 @@ def _street_cd_update(rid, params, uid=None):
         return respond_after_sync(rid, syncs)
     st = state(uid)
     # ★ 用 Tx：新建的 street_info 条目自动 OP_ADD
-    tx, si, entry, is_new = _street_tx_begin(st, street_id)
+    tx, _si, entry, is_new = _street_tx_begin(st, street_id)
     if entry is not None:
-        entry["cd_choose"] = cd_id
-        st.set("street_info", si)
-        if not is_new:
+        # 副本 -> Tx 落地：直接改 entry 是裸写（守卫会抛，连接被打断）
+        if is_new:
+            new_entry = mutable(entry)
+            new_entry["cd_choose"] = cd_id
+            tx.set(("street_info", street_id), new_entry)
+        else:
             tx.set(("street_info", street_id, "cd_choose"), cd_id)
         st.save()
         syncs.extend(tx.frames())

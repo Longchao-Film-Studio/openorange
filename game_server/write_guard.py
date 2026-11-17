@@ -77,6 +77,32 @@ def in_guard() -> bool:
     return _depth() > 0
 
 
+def mutable(value: Any) -> Any:  # noqa: ANN401
+    """取一份可自由修改的纯 dict / list 副本（脱离守卫）。
+
+    ★ 这是「要改属性」的唯一正确姿势：
+
+        new = mutable(entry)          # 纯副本，随便改
+        new["prestige_exp"] = exp
+        tx.set(("street_info", sid), new)   # 交给 Tx 负责发帧 + 落盘
+
+    为什么必须这样：props 树里的容器都是 GuardedDict，守卫外**直接改**会抛
+    PropsWriteError。而「拿引用改完再 st.set 回去」这个老写法，正是 2026-11-17
+    街区交互把连接打断、主线任务永远停在 Doing 的原因（见
+    tools/audit_props_writes.py 的模块注释）。
+
+    为什么不用 copy.deepcopy：GuardedDict.__deepcopy__ 返回的**仍然是**
+    GuardedDict，写完照样抛 —— 那是给序列化用的，不是给业务改值用的。
+
+    __id__ 原样保留（客户端靠它匹配同一个自定义对象）。
+    """
+    if isinstance(value, dict):
+        return {k: mutable(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [mutable(v) for v in value]
+    return value
+
+
 @contextlib.contextmanager
 def write_guard(reason: str = ""):
     """显式声明这段代码可以直写 props。
@@ -173,8 +199,10 @@ def _wrap(value: Any) -> Any:  # noqa: ANN401
           st.set("done_tasks", done)
 
       实测症状：done_tasks[type][1] 只剩 {'__id__': 2885}，进度凭空丢失。
-      所以 `__setitem__` 一律**存原对象**，靠静态检查
-      （tests/test_nested_props_write.py）兜住「绕过守卫直接改嵌套」的写法。
+
+    ★ 2026-11-17：仍然不 wrap，但**洞已经量出来了**（见 __setitem__ 的注释）：
+      运行期新建的子树不受控，审计里用「受控容器覆盖率」指标盯着。
+      新写的业务代码一律用 mutable() 取副本再 Tx 落地，不要拿引用改。
     """
     if isinstance(value, (GuardedDict, GuardedList)):
         return value
@@ -206,6 +234,25 @@ class GuardedDict(dict):
                 f"直接写属性 props[{key!r}] 被拒绝：属性写入必须走 Tx。"
                 "登录期初始化请用 with write_guard(理由) 显式豁免。",
             )
+        # ★★ 已知局限（2026-11-17 明确记录，别当它不存在）：
+        #    这里存的是**原对象**，所以「插入进 props 的普通 dict 及其整棵子树」
+        #    不受守卫管辖 —— 实测一句 entry["cd_choose"] = 1 完全不会被拦。
+        #
+        #    为什么不能改成 _wrap(value)（试过了，代价明确）：
+        #      wrap 会换对象，于是项目里大量「拿引用改」的写法
+        #      （mail/store.py 的 mark/delete、tasks、story 播种……
+        #       全在 with write_guard(...) 里拿引用直接改字段）
+        #      会写进孤儿对象、**静默失效**。实测换 wrap 后 15 个套件变红
+        #      （邮件 6 个、任务 6 个、剧情 2 个、tx 1 个）。
+        #      要修就得把那些模块的写路径全部改成 mutable() 副本形态。
+        #
+        #    所以当前口径：
+        #      1) 从存档加载出来的树**是**受控的（GuardedDict.__init__ 递归 wrap），
+        #         这类子树上的裸写会被守卫拦（2026-11-17 街区事故就属于这类）；
+        #      2) 运行期新建的子树不受控 —— 靠 tools/audit_props_writes.py
+        #         的「受控容器覆盖率」指标把它量化，不许它隐形；
+        #      3) 彻底收口 = 改成 _wrap + 重写邮件/任务/剧情的写路径，
+        #         是独立一轮的工作，不在本次范围。
         dict.__setitem__(self, key, value)
 
     def __delitem__(self, key: Any) -> None:  # noqa: ANN401
