@@ -83,7 +83,7 @@ def main():
     ap.add_argument("--all", action="store_true", help="演练全部存档")
     args = ap.parse_args()
 
-    src = os.environ.get("OO_STATE_DIR") or os.path.join(ROOT, "work", "player_state")
+    src = os.environ.get("OO_STATE_DIR") or os.path.join(ROOT, "var", "saves")
     if args.all:
         uids = sorted(f[:-5] for f in os.listdir(src) if f.endswith(".json"))
     elif args.uid:

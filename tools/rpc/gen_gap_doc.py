@@ -7,7 +7,7 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = r"F:\haowancheng\OpenOrange"
-TSV = os.path.join(ROOT, "work", "rpc_list.tsv")
+TSV = os.path.join(ROOT, "data", "generated", "rpc_list.tsv")
 OUT = os.path.join(ROOT, "docs", "RPC缺口分析.md")
 BT = chr(96)
 

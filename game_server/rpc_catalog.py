@@ -19,7 +19,7 @@ import os
 import threading
 
 _TSV = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "work", "rpc_list.tsv")
+                    "data", "generated", "rpc_list.tsv")
 
 _LOCK = threading.RLock()
 _BY_INDEX = None

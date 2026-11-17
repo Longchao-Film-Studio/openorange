@@ -1,0 +1,1158 @@
+{
+ "bdd_reads": {
+  "2V2BOSSLevelRegisterData": [
+   "BOSSLevelLevel",
+   "LevelContentId",
+   "MonsterInfo"
+  ],
+  "2V2BossMessageData": [
+   "BossIconPath"
+  ],
+  "2V2CycleData": [
+   "Active",
+   "Active_2",
+   "EndTime",
+   "RecommendURL",
+   "SeasonId"
+  ],
+  "2V2DifficultyData": [
+   "DifficultyTitle",
+   "RecommendationLevelText"
+  ],
+  "2V2FunTitleData": [
+   "Id",
+   "Model"
+  ],
+  "2V2ItemData": [
+   "Effect",
+   "Label"
+  ],
+  "2V2ModelData": [
+   "DayOpenTimeText",
+   "ModelText",
+   "ModelTitle",
+   "UnlockCondition",
+   "UnlockParameter",
+   "UnlockText",
+   "charId",
+   "customParam",
+   "match_type",
+   "span",
+   "system_type",
+   "type"
+  ],
+  "2V2NoticeData": [
+   "messageType"
+  ],
+  "2V2RankBaseData": [
+   "RankBigIcon",
+   "RankName",
+   "RankSmallIcon"
+  ],
+  "2V2RobotData": [
+   "RobotCard",
+   "RobotCharIcon",
+   "RobotName",
+   "RobotPortrait",
+   "RobotPortraitFrame",
+   "RobotRank",
+   "RobotTitle",
+   "cardFrameId"
+  ],
+  "2V2RunLevelRegisterData": [
+   "BGPath",
+   "IMGPath",
+   "RandomBGPath",
+   "RunLevelDescription",
+   "RunLevelDifficulty",
+   "RunLevelLevel",
+   "RunLevelName"
+  ],
+  "ActivityData": [
+   "endTime",
+   "subTitle"
+  ],
+  "ActorInteractData": [
+   "actorViewId",
+   "nodeSkillList"
+  ],
+  "ActorMonsterData": [
+   "IsNotHasLVHud"
+  ],
+  "ActorMonsterTemplateData": [
+   "tacheElement",
+   "title",
+   "weaknessElement"
+  ],
+  "ActorPetData": [
+   "drawing",
+   "streetModel"
+  ],
+  "ActorPlayerData": [
+   "aceTimeline",
+   "actorSlotInfo",
+   "actorViewId",
+   "animationConfigName",
+   "battleTag",
+   "effectSlot",
+   "listenAttName",
+   "listenAttNameIcon",
+   "nodeSkillList",
+   "specialRoleChangeSkill"
+  ],
+  "AllSystemCatalogueData": [
+   "count",
+   "customParam",
+   "desc",
+   "error",
+   "lists",
+   "match_type",
+   "panelName",
+   "pic",
+   "sysName",
+   "sysPinyin",
+   "system_type",
+   "times",
+   "totalCount"
+  ],
+  "AmusementParkData": [
+   "inlet",
+   "rewardImprove",
+   "rewardImproveText"
+  ],
+  "AmusementParkTurntableData": [
+   "ItemId",
+   "LuckyBagName",
+   "Num"
+  ],
+  "AttrDetailsData": [
+   "ColdnessValue",
+   "LightPower",
+   "SolarValue",
+   "attrIcon",
+   "attrNameCN",
+   "detailDesc"
+  ],
+  "BallData": [
+   "actorViewId",
+   "destroyEffectId",
+   "preendEffectId",
+   "startEffectId"
+  ],
+  "BattlePassData": [
+   "EndTime"
+  ],
+  "BattleTagData": [
+   "battleTagDesc",
+   "battleTagIcon",
+   "battleTagIcon2",
+   "battleTagIconDark",
+   "battleTagText",
+   "charId",
+   "order",
+   "originalCharId",
+   "posterPic"
+  ],
+  "BubbleSoundData": [
+   "event",
+   "scenario"
+  ],
+  "BuffData": [
+   "buffBackStageType",
+   "buffTags",
+   "isAddToPartParent",
+   "isEffectInheritTimeScale",
+   "isOld",
+   "isOnlyMark",
+   "lastTime",
+   "layerType",
+   "maxLayer",
+   "timeType"
+  ],
+  "BulletData": [
+   "actorViewId",
+   "destroyEffectId",
+   "isLightActor",
+   "nodeSkillList",
+   "startEffectId"
+  ],
+  "ChallengeBossActivityTarget": [
+   "ResistanceAlphaLevel",
+   "ResistanceBetaLevel",
+   "ResistanceDeltaLevel",
+   "ResistanceGammaLevel",
+   "ResistanceMuLevel",
+   "ResistanceOmegaLevel",
+   "ResistanceTuLevel"
+  ],
+  "ChallengeBossDifficulty": [
+   "levelRec",
+   "levelUnlock",
+   "name"
+  ],
+  "ChallengeBossInfo": [
+   "bossName",
+   "description",
+   "freeAward",
+   "groupId",
+   "level",
+   "maxNum"
+  ],
+  "ChallengeBossTarget": [
+   "bossDesc",
+   "bossName",
+   "infoPic",
+   "name",
+   "teamPic"
+  ],
+  "ChampionManage": [
+   "CopyIndex",
+   "Session"
+  ],
+  "ChampionshipCopyRegisterData": [
+   "CopyName",
+   "DifficultyTitle"
+  ],
+  "ChampionshipFinalsData": [
+   "BoNumberOfWins",
+   "RelativeEndTime",
+   "RelativeStartTime"
+  ],
+  "ChampionshipStageData": [
+   "BattleReportText"
+  ],
+  "CharAppearanceColorData": [
+   "HardLight",
+   "Metal",
+   "Num",
+   "Rough",
+   "charId",
+   "newColorNum"
+  ],
+  "CharAppearanceData": [
+   "ActiveIdleFree",
+   "BattleHead",
+   "BgIllustration",
+   "BigHead",
+   "ColorNum",
+   "Description",
+   "DrawingSrc",
+   "FacialDrawing",
+   "IfColorful",
+   "ListIllustration",
+   "Name",
+   "SmallHead",
+   "SpineSrc",
+   "Type",
+   "UnlockItem",
+   "appearanceGrade",
+   "bgSpineSrc",
+   "charId",
+   "colorChangeShader",
+   "commodityId",
+   "cutIn",
+   "dungeonId",
+   "energyBarColor",
+   "existedAnimState",
+   "loopTime",
+   "modelHigh",
+   "modelStreet",
+   "skinId",
+   "skinOffset",
+   "skinSourceType"
+  ],
+  "CharAppearanceScenesData": [
+   "angleConfig",
+   "heightConfig",
+   "modelHigh",
+   "zoomInConfig"
+  ],
+  "CharAttrData": [
+   "MpMax"
+  ],
+  "CharAttrSimulationData": [
+   "CharBreak",
+   "CharLevel",
+   "CharStar",
+   "SkillLevel"
+  ],
+  "CharBreakData": [
+   "Level",
+   "attrValue",
+   "costItem",
+   "playerLevel"
+  ],
+  "CharData": [
+   "DefaultSkin",
+   "FunctionShow",
+   "IsApplicable",
+   "SimulationId",
+   "availableTimeId",
+   "charGrade",
+   "charName",
+   "charType",
+   "gameCharId",
+   "isShow",
+   "point",
+   "stageConf",
+   "widget"
+  ],
+  "CharReadyLevel": [
+   "BossId",
+   "BossInfo",
+   "BossLevelID",
+   "ChallengeBossId",
+   "Level",
+   "LevelContentId",
+   "LevelMessage",
+   "MonGroupID",
+   "MonsterGroupId",
+   "PhaseNum",
+   "RecommendAttr",
+   "ReferLevel",
+   "level"
+  ],
+  "CharReadyManage": [
+   "UnlockDay"
+  ],
+  "CharRisingStarData": [
+   "liuyaoPattern",
+   "runeId"
+  ],
+  "ChargeProgressData": [
+   "score"
+  ],
+  "ChatData": [
+   "biName",
+   "coolDown",
+   "title",
+   "uID"
+  ],
+  "ChatStickerData": [
+   "resPath",
+   "stickerName"
+  ],
+  "CombineShowData": [
+   "contents"
+  ],
+  "CommodityData": [
+   "buyLimit",
+   "commodityId",
+   "costAttr",
+   "costItem",
+   "costItem2",
+   "desc",
+   "discount",
+   "icon",
+   "itemReward",
+   "name",
+   "originalPrice",
+   "originalPrice2",
+   "preId",
+   "price",
+   "price2",
+   "quality",
+   "shopId",
+   "unlockDesc"
+  ],
+  "CommodityPayData": [
+   "name",
+   "price",
+   "rewardBase",
+   "shopId"
+  ],
+  "CommodityRecommendData": [
+   "closeTime",
+   "openTime"
+  ],
+  "CommonConstData": [
+   "ChallengeBossFinalScoreRate",
+   "ChallengeBossTeamHealth1",
+   "ChallengeBossTeamHealth2",
+   "ExtremeEvasion_BuffId",
+   "ExtremeEvasion_CD",
+   "ExtremeEvasion_InvalidBulletTimes",
+   "ExtremeEvasion_MonsterScale",
+   "ExtremeEvasion_PlyaerRestore",
+   "ExtremeEvasion_Scale",
+   "ExtremeEvasion_ScaleDuration",
+   "ExtremeEvasion_Time",
+   "GachaSigilAdditionalReward",
+   "GachaSigilAdditionalRewardAmount",
+   "GridGameBeginTipTime",
+   "GridGameTipNumLimit",
+   "GridGameWinTipText",
+   "GridGameWinTipTime",
+   "NR_Gold_ItemID",
+   "NR_SkillEnhanchedRate",
+   "NR_SkillRefresh",
+   "PuzzleIdleBubbleText",
+   "PuzzleIdleBubbleTriggerTime",
+   "PuzzleQuickMessageCD",
+   "PuzzleQuickMessageExistingTime",
+   "PuzzleSettlementExitTime",
+   "PuzzleSettlementExitTimeTip",
+   "RecoverEvasion_CD",
+   "UniversalBreakEffectItemID",
+   "UniversalBreakEffectNum",
+   "UniversalBreakItemID",
+   "UniversalSkillEffectItemID",
+   "UniversalSkillEffectNum",
+   "UniversalSkillItemID"
+  ],
+  "CumulativeSourceData": [
+   "CumulativeItem1",
+   "CumulativePassId",
+   "itemId",
+   "signName"
+  ],
+  "CurrencyData": [
+   "itemId"
+  ],
+  "DiscountGiftData": [
+   "date",
+   "discount",
+   "originalPrice"
+  ],
+  "DragonCharmData": [
+   "Type",
+   "roleStage",
+   "stage"
+  ],
+  "ElementData": [
+   "desc"
+  ],
+  "EnterDungeonData": [
+   "BirthPoint",
+   "DungeonId",
+   "StageId"
+  ],
+  "EquipmentData": [
+   "level"
+  ],
+  "FesModuleData": [
+   "charId",
+   "subTitle",
+   "unlockTask"
+  ],
+  "GameplayData": [
+   "RcruitIDIndex"
+  ],
+  "GlobalConstData": [
+   "ChallengeTimerWarn1",
+   "ChallengeTimerWarn2",
+   "ParadiseCoupon_WeeklyMax",
+   "TreasureBoxMax_Distance",
+   "TreasureBoxMin_Distance",
+   "value"
+  ],
+  "GridGameData": [
+   "clickCount",
+   "gridIcon",
+   "gridSize",
+   "gridState"
+  ],
+  "HundredLevelTowerQuickProfit": [
+   "Cost"
+  ],
+  "InfiniteStageData": [
+   "BossId",
+   "MonsterGroupId",
+   "PointRatio"
+  ],
+  "InstructionData": [
+   "dungeonId",
+   "hudPop",
+   "title",
+   "type"
+  ],
+  "ItemData": [
+   "TabID",
+   "atlasName",
+   "bigIcon",
+   "bookText",
+   "desc",
+   "descLeftUp",
+   "detail",
+   "isTipsShowNum",
+   "isUnlock",
+   "itemSubType",
+   "itemType",
+   "linkId",
+   "linkName",
+   "name",
+   "quality",
+   "smallIcon",
+   "srcConfig",
+   "srcDesc",
+   "textIcon",
+   "typeDesc",
+   "unpackImage"
+  ],
+  "JumpToData": [
+   "extraParam",
+   "extraParamInt",
+   "extraParamStr",
+   "forbidInBattle",
+   "forbidInTeam",
+   "panelName",
+   "streetId",
+   "sysId",
+   "toastId",
+   "type"
+  ],
+  "LegendSkillUpgradeDesData": [
+   "Mastery",
+   "changeData",
+   "clientDes",
+   "clientValueType",
+   "skillIdList"
+  ],
+  "LevelData": [
+   "battleActorConfig",
+   "instructionId",
+   "levelData",
+   "levelId",
+   "scene"
+  ],
+  "LevelExpData": [
+   "shortDes",
+   "titleStar"
+  ],
+  "Level_CopyData": [
+   "rootLevel"
+  ],
+  "MainlineChallengeData": [
+   "activityDay",
+   "activityId",
+   "areaId",
+   "battleInfo",
+   "challengeGroup",
+   "customParam",
+   "dungeonSwitchInfo",
+   "inheritData",
+   "initStageInfo",
+   "leaveSpaceExtInfo",
+   "levelId",
+   "loading",
+   "match_info",
+   "match_type",
+   "prelevelId",
+   "spaceInfo",
+   "system_type"
+  ],
+  "MainlineData": [
+   "backStreet",
+   "backStreetSpecial",
+   "backTaskState",
+   "blockid",
+   "bornPos",
+   "collectitem",
+   "dungeonid",
+   "map",
+   "mapPic",
+   "mapPicNum",
+   "sectionname"
+  ],
+  "MainlineMapData": [
+   "mapType",
+   "referenceId",
+   "unLock"
+  ],
+  "MainlineSkillData": [
+   "itemId",
+   "type"
+  ],
+  "MainlineSlotData": [
+   "slot"
+  ],
+  "MapData": [
+   "name"
+  ],
+  "MessageData": [
+   "channel",
+   "duration",
+   "finishWhenPause"
+  ],
+  "MilkteaActivityData": [
+   "CharID",
+   "CustomerD",
+   "Description",
+   "DrinkId",
+   "FailPlotId",
+   "IceProcess",
+   "IceRequest",
+   "LevelID",
+   "LevelName",
+   "LevelTime",
+   "LevelType",
+   "MaterialID",
+   "PassPlotId",
+   "Score",
+   "SugarProcess",
+   "SugarRequest",
+   "passAward",
+   "unlockDrinkIds"
+  ],
+  "MilkteaCustomerData": [
+   "uiCtrl"
+  ],
+  "ModelData": [
+   "path"
+  ],
+  "MonsterIllustrationData": [
+   "FeatureIndex",
+   "cgGroup",
+   "monsterDesc",
+   "monsterName",
+   "subType",
+   "type"
+  ],
+  "MonthlypassData": [
+   "award",
+   "onceAward"
+  ],
+  "NoviceGuideGroupData": [
+   "guidePanelName",
+   "isBattleGuide",
+   "startGuideId",
+   "startGuideIdPC",
+   "taskFinish"
+  ],
+  "OtherSoundData": [
+   "event"
+  ],
+  "PVPBattlePropData": [
+   "skillIcon"
+  ],
+  "PartyGameCycleData": [
+   "EndTime"
+  ],
+  "PartyGameRoleData": [
+   "charName",
+   "iconsm"
+  ],
+  "PartyGameTaskData": [
+   "PreTaskList"
+  ],
+  "PerformanceData": [
+   "duration",
+   "durationAuto",
+   "loop",
+   "path"
+  ],
+  "PlayerBackgroundData": [
+   "accessWayDesc",
+   "desc",
+   "name",
+   "type"
+  ],
+  "PlayerCardData": [
+   "accessWayDesc",
+   "desc",
+   "name",
+   "type"
+  ],
+  "PlayerCardFrameData": [
+   "resPath",
+   "spine",
+   "spinePath"
+  ],
+  "PlayerChatBubbleData": [
+   "accessWayDesc",
+   "desc",
+   "itemId",
+   "name",
+   "resPath",
+   "textColor",
+   "type"
+  ],
+  "PlayerPortraitData": [
+   "accessWayDesc",
+   "desc",
+   "name",
+   "resPath",
+   "spine",
+   "spinePath",
+   "type"
+  ],
+  "PlayerPortraitFrameData": [
+   "accessWayDesc",
+   "desc",
+   "icon",
+   "name",
+   "resPath",
+   "spine",
+   "spinePath",
+   "type"
+  ],
+  "PlayerTitleData": [
+   "BigresPath",
+   "accessWayDesc",
+   "desc",
+   "icon",
+   "name",
+   "quality",
+   "resPath",
+   "spine",
+   "spineBigresPath",
+   "spineresPath"
+  ],
+  "PodcastCenterData": [
+   "Open",
+   "OpenTime",
+   "PodcastCenterCover",
+   "PodcastCenterLabel",
+   "PodcastCenterTitle"
+  ],
+  "PopupExposeData": [
+   "Itemlimit",
+   "Times",
+   "commodityId",
+   "commodityType",
+   "discount",
+   "freshtime",
+   "unlockLevel"
+  ],
+  "ProficiencyRewardData": [
+   "desc",
+   "remainTime",
+   "settleType",
+   "sourceList"
+  ],
+  "PuzzleMapData": [
+   "desc",
+   "recruitPic",
+   "smallPic",
+   "title"
+  ],
+  "PuzzlePeriodData": [
+   "PeriodName"
+  ],
+  "RogueOutSideGrowData": [
+   "NeedSkill",
+   "NeedSkillPoint"
+  ],
+  "RuneData": [
+   "desc",
+   "effectName",
+   "effectNum",
+   "level",
+   "name",
+   "runeId",
+   "showRule",
+   "skillLvAdd"
+  ],
+  "SevenDaysActivityCycle": [
+   "StageList"
+  ],
+  "SevenDaysActivityTask": [
+   "challengeTaskStage"
+  ],
+  "ShopData": [
+   "Action",
+   "bannerType",
+   "closeCallback",
+   "currency",
+   "id",
+   "name",
+   "order",
+   "originType",
+   "recId",
+   "shopId",
+   "shopType",
+   "tabIcon",
+   "tabName",
+   "type",
+   "typeId",
+   "unlockLevel",
+   "unlockTask"
+  ],
+  "SigilData": [
+   "Grade",
+   "RuneId",
+   "RuneId2",
+   "SigilId",
+   "charId"
+  ],
+  "SigilRefineData": [
+   "CostItem"
+  ],
+  "SigilSkillDesData": [
+   "clientValueType",
+   "skillDes"
+  ],
+  "SigilSkillUpgradeDesData": [
+   "changeData",
+   "clientDes",
+   "clientValueType",
+   "skillIdList"
+  ],
+  "SigilSuitData": [
+   "suitDes",
+   "suitProp"
+  ],
+  "SigilUpgradeData": [
+   "expTotal"
+  ],
+  "SkillData": [
+   "skillCDTime",
+   "skillSlot",
+   "usageCountRecover"
+  ],
+  "SkinGachaData": [
+   "comulativeDraw",
+   "drawCost1"
+  ],
+  "SpaceData": [
+   "maxSeqNo"
+  ],
+  "SpaceTaskData": [
+   "GuideActor",
+   "levelId"
+  ],
+  "StoryBubbleData": [
+   "actor",
+   "contentText",
+   "expression"
+  ],
+  "StoryData": [
+   "dialogueId",
+   "dialogueName",
+   "speechId"
+  ],
+  "StoryHeadData": [
+   "headPic",
+   "headSpine"
+  ],
+  "StoryLineData": [
+   "chapterId",
+   "id",
+   "type"
+  ],
+  "StorySoundData": [
+   "event",
+   "playId",
+   "timer"
+  ],
+  "StoryTaskData": [
+   "AwardItemList",
+   "BlockTaskType",
+   "ChapterId",
+   "Description",
+   "FinishNpc",
+   "GuideParam",
+   "GuideSceneId",
+   "GuideType",
+   "LevelOn",
+   "Location",
+   "MissionOn",
+   "Parameter1",
+   "PreNPC",
+   "PreTask",
+   "Tag",
+   "TargetNpc",
+   "TaskBgStory",
+   "TaskID",
+   "TaskName",
+   "TaskType",
+   "TriggerEventList",
+   "TriggerTimes",
+   "TriggerType",
+   "ViceChapterId",
+   "dgareaId",
+   "finish_parameter",
+   "sceneId",
+   "state"
+  ],
+  "StreetActorInfoData": [
+   "activityOn",
+   "actorId",
+   "actorType",
+   "collectionType",
+   "hideTask",
+   "icon",
+   "interactGruop",
+   "isCylinderCollider",
+   "name",
+   "preLevel",
+   "preTask",
+   "preTaskSystem",
+   "triggerArea"
+  ],
+  "StreetActorInteractData": [
+   "interactEvent",
+   "interactId",
+   "triggerType"
+  ],
+  "StreetActorInteractDictData": [
+   "times"
+  ],
+  "StreetCdData": [
+   "event"
+  ],
+  "StreetData": [
+   "actorDefault",
+   "actorShare",
+   "actorSwitch",
+   "blockId",
+   "blockName",
+   "dynamicActor",
+   "interactTransferPoint",
+   "openCondition",
+   "preTask",
+   "scene",
+   "switchWorld",
+   "transferPoint"
+  ],
+  "StreetEavesdropData": [
+   "bubbleId",
+   "cameraState",
+   "duration"
+  ],
+  "StreetEffectSwitchData": [
+   "duration",
+   "ease",
+   "finalValue",
+   "initialValue"
+  ],
+  "StreetFunctionlData": [
+   "Group",
+   "Last",
+   "customParam",
+   "match_type",
+   "system_type"
+  ],
+  "StreetLevelData": [
+   "AchieveAward_Group",
+   "AchieveAward_Type",
+   "DungeonDesc",
+   "DungeonName",
+   "passAward"
+  ],
+  "StreetPrestigeData": [
+   "desc",
+   "needExpNum",
+   "type"
+  ],
+  "StreetShowData": [
+   "icon",
+   "id",
+   "interactiveId",
+   "point",
+   "widget",
+   "wwsieEvnetIn",
+   "wwsieEvnetOut"
+  ],
+  "StreetTrackData": [
+   "behavior",
+   "discoveryRange",
+   "lostRange",
+   "npc",
+   "warningDurnation",
+   "warningPoint"
+  ],
+  "StreetTreasureTaskData": [
+   "actorsConfig",
+   "customParam",
+   "match_type",
+   "system_type"
+  ],
+  "StreetViewPointData": [
+   "desc",
+   "name",
+   "photo"
+  ],
+  "SysTextData": [
+   "Content",
+   "Title"
+  ],
+  "TaskChapterData": [
+   "ChapterId",
+   "ChapterName",
+   "ChapterType",
+   "FinishTask",
+   "StartTask",
+   "startTips"
+  ],
+  "TaskData": [
+   "ActivityGain",
+   "NewbeeLevel",
+   "PanelName",
+   "TaskType",
+   "TriggerTimes"
+  ],
+  "TaskEventData": [
+   "EventParam"
+  ],
+  "TeamPupilSkillData": [
+   "Icon",
+   "Name",
+   "Type",
+   "icon",
+   "itemId",
+   "quality",
+   "type"
+  ],
+  "TeamPupilSkillUpgradeData": [
+   "CostItem",
+   "SkillID",
+   "costItem"
+  ],
+  "TermDesData": [
+   "termDes",
+   "termName"
+  ],
+  "TextColorData": [
+   "D_Content",
+   "D_Warn"
+  ],
+  "TimeData": [
+   "day",
+   "moment",
+   "month",
+   "time",
+   "type",
+   "week",
+   "year"
+  ],
+  "TimelineData": [
+   "IsBlackScreen",
+   "bindActors",
+   "clearAllBulletBall",
+   "isCanJump",
+   "path",
+   "pauseLevelBGM",
+   "playPos",
+   "playPosType"
+  ],
+  "TriggerData": [
+   "DieAutoChangeState",
+   "IsServerTrigger",
+   "MainPlotRecordStateType"
+  ],
+  "VoiceOverData": [
+   "IsStopWhenSkillEnd",
+   "contentText",
+   "pinyin",
+   "soundId",
+   "speakerDrawing",
+   "speakerName",
+   "time"
+  ],
+  "WeekActiveDaily": [
+   "ProgressUnlock",
+   "Tab",
+   "Title"
+  ],
+  "WeekActiveData": [
+   "Time4"
+  ],
+  "WeekActiveData_2": [
+   "Tab",
+   "Title"
+  ],
+  "WeekActiveMessageData": [
+   "Description",
+   "IMGPath",
+   "Name"
+  ]
+ },
+ "gate_fields": [
+  "BOSSLevelLevel",
+  "BossLevelID",
+  "CharLevel",
+  "DayOpenTimeText",
+  "GridGameTipNumLimit",
+  "Level",
+  "LevelContentId",
+  "LevelID",
+  "LevelMessage",
+  "LevelName",
+  "LevelOn",
+  "LevelTime",
+  "LevelType",
+  "NeedSkill",
+  "NeedSkillPoint",
+  "NewbeeLevel",
+  "Open",
+  "OpenTime",
+  "PreNPC",
+  "PreTask",
+  "PreTaskList",
+  "ProgressUnlock",
+  "RecommendationLevelText",
+  "ReferLevel",
+  "ResistanceAlphaLevel",
+  "ResistanceBetaLevel",
+  "ResistanceDeltaLevel",
+  "ResistanceGammaLevel",
+  "ResistanceMuLevel",
+  "ResistanceOmegaLevel",
+  "ResistanceTuLevel",
+  "RunLevelDescription",
+  "RunLevelDifficulty",
+  "RunLevelLevel",
+  "RunLevelName",
+  "SkillLevel",
+  "UnlockCondition",
+  "UnlockDay",
+  "UnlockItem",
+  "UnlockParameter",
+  "UnlockText",
+  "buyLimit",
+  "isUnlock",
+  "levelUnlock",
+  "openCondition",
+  "pauseLevelBGM",
+  "playerLevel",
+  "preLevel",
+  "rootLevel",
+  "unlockLevel"
+ ],
+ "server_unread": [
+  "BOSSLevelLevel",
+  "BossLevelID",
+  "DayOpenTimeText",
+  "GridGameTipNumLimit",
+  "LevelContentId",
+  "LevelID",
+  "LevelMessage",
+  "LevelName",
+  "LevelTime",
+  "LevelType",
+  "NeedSkill",
+  "NeedSkillPoint",
+  "NewbeeLevel",
+  "OpenTime",
+  "PreNPC",
+  "ProgressUnlock",
+  "RecommendationLevelText",
+  "ReferLevel",
+  "ResistanceAlphaLevel",
+  "ResistanceBetaLevel",
+  "ResistanceDeltaLevel",
+  "ResistanceGammaLevel",
+  "ResistanceMuLevel",
+  "ResistanceOmegaLevel",
+  "ResistanceTuLevel",
+  "RunLevelDescription",
+  "RunLevelDifficulty",
+  "RunLevelLevel",
+  "RunLevelName",
+  "SkillLevel",
+  "UnlockCondition",
+  "UnlockDay",
+  "UnlockItem",
+  "UnlockParameter",
+  "UnlockText",
+  "buyLimit",
+  "isUnlock",
+  "levelUnlock",
+  "openCondition",
+  "pauseLevelBGM",
+  "playerLevel",
+  "preLevel",
+  "unlockLevel"
+ ]
+}

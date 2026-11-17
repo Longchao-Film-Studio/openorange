@@ -64,7 +64,7 @@ _UNMAPPED_SEEN: set[int] = set()
 
 def _unmapped_tsv_path():
     from .. import config
-    return os.path.join(getattr(config, "LOG_DIR", "work/logs"),
+    return os.path.join(getattr(config, "LOG_DIR", "var/logs"),
                         "sms_unmapped.tsv")
 
 

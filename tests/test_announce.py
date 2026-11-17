@@ -51,7 +51,7 @@ class FakeConn:
 
 def rpc_list_index(name):
     """从 work/rpc_list.tsv 现查索引（防手抄漂移）。"""
-    path = os.path.join(ROOT, "work", "rpc_list.tsv")
+    path = os.path.join(ROOT, "data", "generated", "rpc_list.tsv")
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:

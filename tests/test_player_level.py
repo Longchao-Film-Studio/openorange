@@ -298,7 +298,7 @@ def test_selfheal():
 
 def test_index():
     print("\n[8] 索引一致性（防手抄漂移）")
-    tsv = os.path.join(ROOT, "work", "rpc_list.tsv")
+    tsv = os.path.join(ROOT, "data", "generated", "rpc_list.tsv")
     rows = {}
     with open(tsv, encoding="utf-8", errors="replace") as f:
         next(f, None)

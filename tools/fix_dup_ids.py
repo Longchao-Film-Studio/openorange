@@ -105,7 +105,7 @@ def main():
     from game_server import config as _cfg
     state_dir = _cfg.STATE_DIR if hasattr(_cfg, "STATE_DIR") else None
     if state_dir is None:
-        state_dir = os.path.join(_ROOT, "work", "player_state")
+        state_dir = os.path.join(_ROOT, "var", "saves")
 
     if args.all:
         targets = [f[:-5] for f in sorted(os.listdir(state_dir))

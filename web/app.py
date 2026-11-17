@@ -612,7 +612,7 @@ def main():
         from shared.log_tee import install as _log_install
         _log_dir = os.environ.get("OO_LOG_DIR") or os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "work", "logs")
+            "var", "logs")
         _log_install("web", _log_dir)
     except Exception as _e:
         _log.warning(f"[log] 统一日志安装失败，退回控制台模式: {_e}")

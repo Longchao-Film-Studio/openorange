@@ -98,7 +98,7 @@ def main():
         ap.print_help()
         return 1
 
-    outdir = os.path.join(ROOT, "work", "manifests")
+    outdir = os.path.join(ROOT, "build", "reverse", "manifests")
     os.makedirs(outdir, exist_ok=True)
     for tag, path in TARGETS:
         if not os.path.exists(path):

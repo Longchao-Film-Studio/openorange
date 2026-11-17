@@ -208,7 +208,7 @@ def test_call_site_whitelist():
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames
                        if d not in (".git", "__pycache__", ".mypy_cache", ".ruff_cache",
-                                    "tests", "work", "node_modules", "Python")]
+                                    "var", "build", "Python")]
         for fn in filenames:
             if not fn.endswith(".py"):
                 continue

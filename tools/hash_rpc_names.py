@@ -36,7 +36,7 @@ ROOT = os.path.dirname(HERE)
 DEFAULT_LUA_SRC = os.path.join(ROOT, "..", "archive", "game_data", "LuaFull", "src")
 DEFAULT_DLL = os.path.join(
     ROOT, "..", "GuiLongchao", "game", "GuiLongchao_Data", "Plugins", "x86_64", "xlua.dll")
-OUT_TSV = os.path.join(ROOT, "work", "rpc_hashes.tsv")
+OUT_TSV = os.path.join(ROOT, "data", "generated", "rpc_hashes.tsv")
 
 LITERAL_RE = re.compile(r"""["']([A-Za-z_][A-Za-z0-9_.:]{1,80})["']""")
 METHOD_RE = re.compile(r"function\s+[A-Za-z_][\w.]*[.:]([A-Za-z_]\w{1,80})\s*\(")
@@ -101,7 +101,7 @@ def cmd_build(_argv):
     names, n_files = collect_names(lua_src)
     print(f'扫描 {n_files} 个 Lua 文件，候选名字 {len(names)} 个')
 
-    in_txt = os.path.join(ROOT, "work", "rpc_candidates.txt")
+    in_txt = os.path.join(ROOT, "build", "reverse", "rpc_candidates.txt")
     os.makedirs(os.path.dirname(in_txt), exist_ok=True)
     with open(in_txt, "w", encoding="utf-8") as f:
         f.write("\n".join(names))
@@ -157,7 +157,7 @@ def cmd_verify(_argv):
 
     lib, state = _open_lua(dll)
     lua_lines = ["local f = io.open('{}', 'w')".format(os.path.join(
-        ROOT, "work", "verify_hashes.tsv").replace("\\", "/"))]
+        ROOT, "build", "reverse", "verify_hashes.tsv").replace("\\", "/"))]
     lua_lines.append("local names = {")
     for nm in RPC_INDEX:
         lua_lines.append(f'  "{nm}",')
@@ -173,7 +173,7 @@ def cmd_verify(_argv):
     if lib.lua_pcall(state, 0, 0, 0) != 0:
         raise SystemExit("genRpcIndex 失败")
 
-    out = os.path.join(ROOT, "work", "verify_hashes.tsv")
+    out = os.path.join(ROOT, "build", "reverse", "verify_hashes.tsv")
     bad = 0
     n = 0
     for line in open(out, encoding="utf-8"):

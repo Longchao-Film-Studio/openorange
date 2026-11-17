@@ -26,7 +26,7 @@ _LOCK = threading.RLock()
 _CACHED = None
 _DEFAULT_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "work", "admin_token.txt")
+    "var", "admin_token.txt")
 _WARNED = False
 
 

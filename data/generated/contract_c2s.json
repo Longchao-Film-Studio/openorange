@@ -1,0 +1,5069 @@
+{
+ "AddCharFavorExp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "char",
+   "item_list"
+  ],
+  "variants": {
+   "char, item_list": 1
+  }
+ },
+ "Avatar2v2Battle_GetRankId_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Avatar2v2Battle_SetCharacterListName_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "index",
+   "name"
+  ],
+  "variants": {
+   "index, name": 1
+  }
+ },
+ "Avatar2v2Battle_like_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "modeId",
+   "uid"
+  ],
+  "variants": {
+   "modeId, uid": 1
+  }
+ },
+ "Avatar2v2Battle_removeCharEquipDesign_CS": {
+  "files": [
+   "entities/avatarcomponent/avatar2v2battlecomp.lua"
+  ],
+  "params": [
+   "charID",
+   "planID"
+  ],
+  "variants": {
+   "charID, planID": 1
+  }
+ },
+ "Avatar2v2Battle_setCharEquipDesignName_CS": {
+  "files": [
+   "entities/avatarcomponent/avatar2v2battlecomp.lua"
+  ],
+  "params": [
+   "charID",
+   "planID",
+   "planName"
+  ],
+  "variants": {
+   "charID, planID, planName": 1
+  }
+ },
+ "Avatar2v2Battle_setCharEquipDesign_CS": {
+  "files": [
+   "entities/avatarcomponent/avatar2v2battlecomp.lua"
+  ],
+  "params": [
+   "charID",
+   "planID",
+   "planName",
+   "suitIDList",
+   "mainEntryRecord",
+   "subEntryRecord"
+  ],
+  "variants": {
+   "charID, planID, planName, suitIDList, mainEntryRecord, subEntryRecord": 1
+  }
+ },
+ "Avatar2v2Battle_setUseCharEquipDesign_CS": {
+  "files": [
+   "entities/avatarcomponent/avatar2v2battlecomp.lua"
+  ],
+  "params": [
+   "charID",
+   "planType",
+   "planID"
+  ],
+  "variants": {
+   "charID, planType, planID": 1
+  }
+ },
+ "AvatarChampionship_GetHonorRankList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "AvatarChampionship_GetHonorRank_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [
+   "index"
+  ],
+  "variants": {
+   "index": 1
+  }
+ },
+ "AvatarChampionship_GetRankId_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "AvatarChampionship_GetReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [
+   "id"
+  ],
+  "variants": {
+   "id": 1
+  }
+ },
+ "AvatarChampionship_GetRoomInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [
+   "groupIndex"
+  ],
+  "variants": {
+   "groupIndex": 1
+  }
+ },
+ "AvatarChampionship_Guess_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [
+   "guessId",
+   "investCount",
+   "guessParams"
+  ],
+  "variants": {
+   "guessId, investCount, guessParams": 1
+  }
+ },
+ "AvatarChampionship_QueryGuessResult_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "AvatarChat_GroupChat_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "groupId",
+   "contentType",
+   "msg"
+  ],
+  "variants": {
+   "groupId, contentType, msg": 1
+  }
+ },
+ "AvatarChat_PrivateChat_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "uid",
+   "contentType",
+   "msg"
+  ],
+  "variants": {
+   "uid, contentType, msg": 1
+  }
+ },
+ "AvatarChat_PublishRecruit_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "condition"
+  ],
+  "variants": {
+   "condition": 1
+  }
+ },
+ "AvatarChat_SetPrivateChatRecord_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "uid",
+   "showOrDelete"
+  ],
+  "variants": {
+   "uid, showOrDelete": 1
+  }
+ },
+ "AvatarChat_Update_EmojiAct_ShortcutBag_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "emoji_act_shortcut_bag_type",
+   "equip_data"
+  ],
+  "variants": {
+   "emoji_act_shortcut_bag_type, equip_data": 1
+  }
+ },
+ "AvatarChat_assignGroup_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "chatPrefix",
+   "serialNo"
+  ],
+  "variants": {
+   "chatPrefix, serialNo": 1
+  }
+ },
+ "AvatarChat_leaveGroup_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchatcomp.lua"
+  ],
+  "params": [
+   "currentGroupId"
+  ],
+  "variants": {
+   "currentGroupId": 1
+  }
+ },
+ "AvatarClimbTower_GetRankId_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarclimbtowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "AvatarFavorSpace_CanCharShow_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "AvatarFavorSpace_CancelLikeChar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "AvatarFavorSpace_SetLikeChar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "AvatarSearch_ChangePlayerName_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsearchcomp.lua"
+  ],
+  "params": [
+   "nameText"
+  ],
+  "variants": {
+   "nameText": 1
+  }
+ },
+ "AvatarSearch_ChangeRecommendState_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsearchcomp.lua"
+  ],
+  "params": [
+   "state"
+  ],
+  "variants": {
+   "state": 1
+  }
+ },
+ "AvatarSearch_ChangeSearchState_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsearchcomp.lua"
+  ],
+  "params": [
+   "state"
+  ],
+  "variants": {
+   "state": 1
+  }
+ },
+ "AvatarSearch_CheckPlayerName_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsearchcomp.lua"
+  ],
+  "params": [
+   "nameText"
+  ],
+  "variants": {
+   "nameText": 1
+  }
+ },
+ "AvatarSearch_CheckWord_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsearchcomp.lua"
+  ],
+  "params": [
+   "nameText"
+  ],
+  "variants": {
+   "nameText": 1
+  }
+ },
+ "AvatarSoul_BanItemBroadcast_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "itemId"
+  ],
+  "variants": {
+   "itemId": 1
+  }
+ },
+ "AvatarSoul_BanItemStageConfirmResult_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "itemId"
+  ],
+  "variants": {
+   "itemId": 1
+  }
+ },
+ "AvatarTeamBoss_GetReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteambosscomp.lua"
+  ],
+  "params": [
+   "numType"
+  ],
+  "variants": {
+   "numType": 1
+  }
+ },
+ "AvatarWeekChallenge_GetRankId_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Avatar_Retry_EnterSpace_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "enter"
+  ],
+  "variants": {
+   "enter": 1
+  }
+ },
+ "BattleTeach_Activate_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsystemguidecomp.lua"
+  ],
+  "params": [
+   "instructionID"
+  ],
+  "variants": {
+   "instructionID": 1
+  }
+ },
+ "BattleTeach_RedDotFinish_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsystemguidecomp.lua"
+  ],
+  "params": [
+   "instructionId"
+  ],
+  "variants": {
+   "instructionId": 1
+  }
+ },
+ "BattleTeach_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsystemguidecomp.lua"
+  ],
+  "params": [
+   "instructionId"
+  ],
+  "variants": {
+   "instructionId": 1
+  }
+ },
+ "BreakCharacter_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "stage"
+  ],
+  "variants": {
+   "charId, stage": 1
+  }
+ },
+ "ChangeReadyState_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "is_ready"
+  ],
+  "variants": {
+   "is_ready": 1
+  }
+ },
+ "ChangeTeamMatchInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatar2pdecryptcomp.lua",
+   "entities/avatarcomponent/avatarchampionshipcomp.lua",
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "info"
+  ],
+  "variants": {
+   "args": 1,
+   "info": 1,
+   "matchInfo": 1
+  }
+ },
+ "ChangeTeamPosConfirm_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "uid",
+   "pos",
+   "target_player",
+   "target_pos",
+   "agree"
+  ],
+  "variants": {
+   "uid, pos, target_player, target_pos, agree": 1
+  }
+ },
+ "ChangeTeamPos_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "target_pos"
+  ],
+  "variants": {
+   "target_pos": 1
+  }
+ },
+ "Char_DressUp_Equip_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "equip_uuid"
+  ],
+  "variants": {
+   "charId, equip_uuid": 1
+  }
+ },
+ "Char_Save_Equip_Scheme_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "schemeNo",
+   "equipInfos"
+  ],
+  "variants": {
+   "charId, schemeNo, equipInfos": 1
+  }
+ },
+ "Char_TakeOff_Equip_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "equip_uuid"
+  ],
+  "variants": {
+   "charId, equip_uuid": 1
+  }
+ },
+ "Charge_FirstChargeReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchargecomp.lua"
+  ],
+  "params": [
+   "day"
+  ],
+  "variants": {
+   "day": 1
+  }
+ },
+ "Check_TopicID_CanOpen_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarnpcchatcomp.lua"
+  ],
+  "params": [
+   "topicId"
+  ],
+  "variants": {
+   "topicId": 1
+  }
+ },
+ "Cmd_AmusementCoin_Buy_CS": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Avatar_EnterWatch_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "space.spaceId",
+   "space.watchEntityMb"
+  ],
+  "variants": {
+   "space.spaceId, space.watchEntityMb": 1
+  }
+ },
+ "Cmd_Avatar_Skin_Scheme_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "skinId",
+   "partToColorMap",
+   "choose_scheme"
+  ],
+  "variants": {
+   "charId, skinId, partToColorMap, choose_scheme": 1
+  }
+ },
+ "Cmd_Avatar_Skin_Scheme_Choose_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "skinId",
+   "choose_scheme"
+  ],
+  "variants": {
+   "charId, skinId, choose_scheme": 1
+  }
+ },
+ "Cmd_Avatar_StartGame_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstorylinecomp.lua"
+  ],
+  "params": [
+   "match_info"
+  ],
+  "variants": {
+   "match_info": 1
+  }
+ },
+ "Cmd_Avatar_Unlock_SkinColor_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "skinId",
+   "colorType"
+  ],
+  "variants": {
+   "charId, skinId, colorType": 1
+  }
+ },
+ "Cmd_Avatar_Unlock_SkinScheme_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "skinId"
+  ],
+  "variants": {
+   "charId, skinId": 1
+  }
+ },
+ "Cmd_Avatar_UseCharSkin_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "skinId"
+  ],
+  "variants": {
+   "charId, skinId": 1
+  }
+ },
+ "Cmd_BuyBpLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [
+   "level"
+  ],
+  "variants": {
+   "level": 1
+  }
+ },
+ "Cmd_Calendar_SignIn_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarnewyearsigncomp.lua"
+  ],
+  "params": [
+   "day"
+  ],
+  "variants": {
+   "day": 1
+  }
+ },
+ "Cmd_ChallengeReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [
+   "towerType",
+   "idx"
+  ],
+  "variants": {
+   "towerType, idx": 1
+  }
+ },
+ "Cmd_Dungeon_FinishInteract_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardungeoncomp.lua",
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 2
+  }
+ },
+ "Cmd_EnterBpSeason_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_FetchAchievement_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarachievecomp.lua"
+  ],
+  "params": [
+   "achieveId"
+  ],
+  "variants": {
+   "achieveId": 1
+  }
+ },
+ "Cmd_FetchActProgress_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivitycomp.lua"
+  ],
+  "params": [
+   "act_id",
+   "progress_id",
+   "choose"
+  ],
+  "variants": {
+   "act_id, progress_id, choose": 1
+  }
+ },
+ "Cmd_FetchActTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivitycomp.lua"
+  ],
+  "params": [
+   "act_id",
+   "task_id"
+  ],
+  "variants": {
+   "act_id, task_id": 1
+  }
+ },
+ "Cmd_FetchAllBpAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_FetchAllBpTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_FetchAllRedeemTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarredeemcomp.lua"
+  ],
+  "params": [
+   "activityId"
+  ],
+  "variants": {
+   "activityId": 1
+  }
+ },
+ "Cmd_FetchArenaTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "task_type",
+   "task_id"
+  ],
+  "variants": {
+   "task_type, task_id": 1
+  }
+ },
+ "Cmd_FetchBpAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [
+   "level",
+   "is_Normal"
+  ],
+  "variants": {
+   "level, is_Normal": 1
+  }
+ },
+ "Cmd_FetchBpTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [
+   "bp_task_type",
+   "bp_task_id"
+  ],
+  "variants": {
+   "bp_task_type, bp_task_id": 1
+  }
+ },
+ "Cmd_FetchFishingMinerTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfishingmineract.lua"
+  ],
+  "params": [
+   "act_task_id"
+  ],
+  "variants": {
+   "act_task_id": 1
+  }
+ },
+ "Cmd_FetchInfiniteTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "Cmd_FetchLevelupAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarlevelcomp.lua"
+  ],
+  "params": [
+   "level"
+  ],
+  "variants": {
+   "level": 1
+  }
+ },
+ "Cmd_FetchMultitowerTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarhundredtowercomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "Cmd_FetchRedeemTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarredeemcomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "taskType",
+   "taskId"
+  ],
+  "variants": {
+   "activityId, taskType, taskId": 1
+  }
+ },
+ "Cmd_FetchSeasonTask_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteambosscomp.lua"
+  ],
+  "params": [
+   "season_id",
+   "task_id"
+  ],
+  "variants": {
+   "season_id, task_id": 1
+  }
+ },
+ "Cmd_FetchTitelVitAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarlevelcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Fetch_All_GradeFund_Award_CS": {
+  "files": [
+   "entities/avatarcomponent/avatargradefundcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Fetch_Fulllevel_BpAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbattlepasscomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Fetch_GlobalBless_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivitywishcomp.lua"
+  ],
+  "params": [
+   "rewardId"
+  ],
+  "variants": {
+   "rewardId": 1
+  }
+ },
+ "Cmd_Fetch_GradeFund_Award_CS": {
+  "files": [
+   "entities/avatarcomponent/avatargradefundcomp.lua"
+  ],
+  "params": [
+   "index",
+   "is_Normal"
+  ],
+  "variants": {
+   "index, is_Normal": 1
+  }
+ },
+ "Cmd_Fetch_MilkTea_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmilkteacomp.lua"
+  ],
+  "params": [
+   "levelId",
+   "rewardIndex or 1"
+  ],
+  "variants": {
+   "levelId, rewardIndex or 1": 1
+  }
+ },
+ "Cmd_Fetch_PuzzleProgress_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpuzzleactivitycomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Fetch_Puzzle_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpuzzleactivitycomp.lua"
+  ],
+  "params": [
+   "day",
+   "levelId"
+  ],
+  "variants": {
+   "day, levelId": 1
+  }
+ },
+ "Cmd_Fetch_SpringFes_Minigame_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarspringfesactcomp.lua"
+  ],
+  "params": [
+   "type",
+   "level_id"
+  ],
+  "variants": {
+   "type, level_id": 1
+  }
+ },
+ "Cmd_Fetch_StreetTakePhoto_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivityphotographycomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "photoId"
+  ],
+  "variants": {
+   "activityId, photoId": 1
+  }
+ },
+ "Cmd_Fetch_TakePhoto_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartakephotoact.lua"
+  ],
+  "params": [
+   "day"
+  ],
+  "variants": {
+   "day": 1
+  }
+ },
+ "Cmd_Fetch_WeeklyAct_Award_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarweeklyactcomp.lua"
+  ],
+  "params": [
+   "week_idx"
+  ],
+  "variants": {
+   "week_idx": 1
+  }
+ },
+ "Cmd_Finish_2DStreet_StoryLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmap3dcomp.lua"
+  ],
+  "params": [
+   "taskId",
+   "levelId"
+  ],
+  "variants": {
+   "areaId, markerId": 1,
+   "taskId, levelId": 1
+  }
+ },
+ "Cmd_Finish_MilkTea_Level_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmilkteacomp.lua"
+  ],
+  "params": [
+   "levelId",
+   "score or 1"
+  ],
+  "variants": {
+   "levelId, score or 1": 1
+  }
+ },
+ "Cmd_Finish_PuzzleAct_Level_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpuzzleactivitycomp.lua"
+  ],
+  "params": [
+   "day",
+   "levelId"
+  ],
+  "variants": {
+   "day, levelId": 1
+  }
+ },
+ "Cmd_Finish_Share_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartakephotoact.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_FishingMiner_Level_LeaveInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfishingmineract.lua"
+  ],
+  "params": [
+   "leve_id",
+   "in_shop",
+   "infos",
+   "score",
+   "isEnd"
+  ],
+  "variants": {
+   "leve_id, in_shop, infos, score, isEnd": 1
+  }
+ },
+ "Cmd_FishingMiner_Level_Result_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfishingmineract.lua"
+  ],
+  "params": [
+   "levelId",
+   "score"
+  ],
+  "variants": {
+   "levelId, score": 1
+  }
+ },
+ "Cmd_FishingMiner_Update_FishLog_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfishingmineract.lua"
+  ],
+  "params": [
+   "log_id"
+  ],
+  "variants": {
+   "log_id": 1
+  }
+ },
+ "Cmd_GM_AddCard_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "card_id"
+  ],
+  "variants": {
+   "card_id": 1
+  }
+ },
+ "Cmd_GM_AddDailyAct_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "value"
+  ],
+  "variants": {
+   "value": 1
+  }
+ },
+ "Cmd_GM_AddXXXExp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "exp",
+   "bp_exp"
+  ],
+  "variants": {
+   "exp, bp_exp": 1
+  }
+ },
+ "Cmd_GM_TobeVIP_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_GlobalBless_Count_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivitywishcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_GlobalBless_MakeWish_CS": {
+  "files": [
+   "entities/avatarcomponent/avataractivitywishcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Infinite_FinishInteract_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardungeoncomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Infinite_GetDailyRankAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Infinite_GetWeekReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_MirageReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmiragecomp.lua"
+  ],
+  "params": [
+   "actId",
+   "dungeonId",
+   "levelId",
+   "index"
+  ],
+  "variants": {
+   "actId, dungeonId, levelId, index": 1
+  }
+ },
+ "Cmd_OfflineLevel_Pause_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardungeoncomp.lua"
+  ],
+  "params": [
+   "pauseStation"
+  ],
+  "variants": {
+   "pauseStation": 1
+  }
+ },
+ "Cmd_OfflineSpace_Finish_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardungeoncomp.lua"
+  ],
+  "params": [
+   "finishInfo"
+  ],
+  "variants": {
+   "finishInfo": 1
+  }
+ },
+ "Cmd_OpenCharValue_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarvaluecomp.lua"
+  ],
+  "params": [
+   "cid"
+  ],
+  "variants": {
+   "cid": 1
+  }
+ },
+ "Cmd_OpenFetchPlayerValue_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarvaluecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Cmd_Redemption_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarredeemcomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "rewardId",
+   "count"
+  ],
+  "variants": {
+   "activityId, rewardId, count": 1
+  }
+ },
+ "Cmd_SetCreateAccountStep_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcreaterolecomp.lua"
+  ],
+  "params": [
+   "step"
+  ],
+  "variants": {
+   "step": 1
+  }
+ },
+ "Cmd_SetResourceTowerCharacterCharList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [
+   "characterList"
+  ],
+  "variants": {
+   "characterList": 1
+  }
+ },
+ "Cmd_SetTrainCharacterCharList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartraincomp.lua"
+  ],
+  "params": [
+   "characterList"
+  ],
+  "variants": {
+   "characterList": 1
+  }
+ },
+ "Cmd_SpringFes_GuessRiddles_Level_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarspringfesactcomp.lua"
+  ],
+  "params": [
+   "level_id"
+  ],
+  "variants": {
+   "level_id": 1
+  }
+ },
+ "Cmd_SpringFes_Minigame_Level_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarspringfesactcomp.lua"
+  ],
+  "params": [
+   "type",
+   "level_id"
+  ],
+  "variants": {
+   "type, level_id": 1
+  }
+ },
+ "Cmd_StartMatch_1V1_CS": {
+  "files": [
+   "entities/matchcomponent/avatarmatch1v1.lua"
+  ],
+  "params": [
+   "{spaceLevel = levelName",
+   "type = type"
+  ],
+  "variants": {
+   "{spaceLevel = levelName, type = type": 1
+  }
+ },
+ "Cmd_SweepResourceTower_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpaintworldcomp.lua"
+  ],
+  "params": [
+   "mainType",
+   "subType",
+   "hardLevel",
+   "ratio"
+  ],
+  "variants": {
+   "mainType, subType, hardLevel, ratio": 1
+  }
+ },
+ "Cmd_TakePhoto_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartakephotoact.lua"
+  ],
+  "params": [
+   "photo_ids"
+  ],
+  "variants": {
+   "photo_ids": 1
+  }
+ },
+ "Cmd_TowerRetry_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarrogueclimbtowercomp.lua"
+  ],
+  "params": [
+   "isEnter"
+  ],
+  "variants": {
+   "isEnter": 1
+  }
+ },
+ "Cmd_Unlock_MilkTea_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmilkteacomp.lua"
+  ],
+  "params": [
+   "drinkIds"
+  ],
+  "variants": {
+   "drinkIds": 1
+  }
+ },
+ "Cmd_UpgradeLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarlevelcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "CreateRtcRoom_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "CreateTeam_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "matchInfo"
+  ],
+  "variants": {
+   "matchInfo": 2
+  }
+ },
+ "DcGmRpcDungeonChallengeUnlock": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "dungeonId",
+   "levelId"
+  ],
+  "variants": {
+   "dungeonId, levelId": 1
+  }
+ },
+ "Dismiss_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Endless_TestFinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "score",
+   "floor",
+   "itemVal",
+   "autoIdVal"
+  ],
+  "variants": {
+   "score, floor, itemVal, autoIdVal": 1
+  }
+ },
+ "Endless_TestNextDay_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "weekday"
+  ],
+  "variants": {
+   "weekday": 1
+  }
+ },
+ "Endless_TestStartGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "mode"
+  ],
+  "variants": {
+   "mode": 1
+  }
+ },
+ "EnterFinalRoom_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Equip_Strength_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "equip_uuid",
+   "sendItems"
+  ],
+  "variants": {
+   "equip_uuid, sendItems": 1
+  }
+ },
+ "ExitFinalRoom_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "ExitMatch_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "FavorSpace_AddFavorExp": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(char_id)",
+   "tonumber(exp)"
+  ],
+  "variants": {
+   "tonumber(char_id), tonumber(exp)": 1
+  }
+ },
+ "FavorSpace_AddPopularity": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(char_id)",
+   "tonumber(popularity)"
+  ],
+  "variants": {
+   "tonumber(char_id), tonumber(popularity)": 1
+  }
+ },
+ "FavorSpace_FavorSpaceTimerCalled": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(isStart)",
+   "tonumber(curIndex)",
+   "tonumber(nextIndex)"
+  ],
+  "variants": {
+   "tonumber(isStart), tonumber(curIndex), tonumber(nextIndex)": 1
+  }
+ },
+ "FavorSpace_ResetFavorAwardRecord": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(event_id)"
+  ],
+  "variants": {
+   "tonumber(event_id)": 1
+  }
+ },
+ "FavorSpace_ResetFavorExp": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(char_id)"
+  ],
+  "variants": {
+   "tonumber(char_id)": 1
+  }
+ },
+ "FavorSpace_ResetFavorExpLimit": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(limit)"
+  ],
+  "variants": {
+   "tonumber(limit)": 1
+  }
+ },
+ "FavorSpace_ResetFavorExpToLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(char_id)",
+   "tonumber(level)"
+  ],
+  "variants": {
+   "tonumber(char_id), tonumber(level)": 1
+  }
+ },
+ "FavorSpace_ResetPopularity": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(char_id)"
+  ],
+  "variants": {
+   "tonumber(char_id)": 1
+  }
+ },
+ "FetchApplicants_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfriendcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "FetchBreakAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "breakLevel"
+  ],
+  "variants": {
+   "charId, breakLevel": 1
+  }
+ },
+ "FetchRecommendFriends_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfriendcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "FollowActFinishFollow": {
+  "files": [
+   "entities/avatarcomponent/avatarcommunitycomp.lua"
+  ],
+  "params": [
+   "communityId"
+  ],
+  "variants": {
+   "communityId": 1
+  }
+ },
+ "FollowActGainReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcommunitycomp.lua"
+  ],
+  "params": [
+   "communityId"
+  ],
+  "variants": {
+   "communityId": 1
+  }
+ },
+ "ForbidSelf_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "FriendCountChanged_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfriendcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GMCommandToPlayer_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tostring(uid)",
+   "command"
+  ],
+  "variants": {
+   "tostring(uid), command": 1
+  }
+ },
+ "GMCommandToPlayer_CS2": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "command"
+  ],
+  "variants": {
+   "command": 1
+  }
+ },
+ "GMCommandToServer_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "command"
+  ],
+  "variants": {
+   "command": 1
+  }
+ },
+ "GM_AddGlboalBlessCount_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "count"
+  ],
+  "variants": {
+   "count": 1
+  }
+ },
+ "GM_CalcUpdateLottery_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "count"
+  ],
+  "variants": {
+   "count": 1
+  }
+ },
+ "GM_ClearAllTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GM_ResetLotteryInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainAllChallengeBossCycleTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarteamchallengebosscomp.lua"
+  ],
+  "params": [
+   "bossIndex"
+  ],
+  "variants": {
+   "bossIndex": 1
+  }
+ },
+ "GainAllChallengeBossOnceTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarteamchallengebosscomp.lua"
+  ],
+  "params": [
+   "bossId"
+  ],
+  "variants": {
+   "bossId": 1
+  }
+ },
+ "GainAllChallengeCycleTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcycleopencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainAllChallengeOnceTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcycleopencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainAllCycleInfiniteCycleTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarendlesstowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainAllCycleInfiniteOnceTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarendlesstowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainAllStoryActTaskReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatartroupeactcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GainArenaTaskActivePointReward": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "reward_id"
+  ],
+  "variants": {
+   "reward_id": 1
+  }
+ },
+ "GainChallengeBossCycleTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarteamchallengebosscomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainChallengeBossOnceTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarteamchallengebosscomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainChallengeBossTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarchallengebosscomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "GainChallengeTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcycleopencomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainCycleInfiniteTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarendlesstowercomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainDragonCharmActTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatardragoncharmactcomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainPartyGameActivePointReward": {
+  "files": [
+   "entities/avatarcomponent/avatarpartygame.lua"
+  ],
+  "params": [
+   "index"
+  ],
+  "variants": {
+   "index": 1
+  }
+ },
+ "GainPartyGameTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarpartygame.lua"
+  ],
+  "params": [
+   "id"
+  ],
+  "variants": {
+   "id": 1
+  }
+ },
+ "GainPupilSkillTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GainSevenDayTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarsevendayactcomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "GainStoryActTaskReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatartroupeactcomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "GetAllTeams_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GetContributionCycleAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "award_id"
+  ],
+  "variants": {
+   "award_id": 1
+  }
+ },
+ "GetContributionRanks_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GetFavorAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "event_id"
+  ],
+  "variants": {
+   "event_id": 1
+  }
+ },
+ "GetMatchPredictTime_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarmatch.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GetPopularityDailyRankData_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GetPopularityRankData_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GetProficiencyReward": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "GetTowerReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarrogueclimbtowercomp.lua"
+  ],
+  "params": [
+   "rewardId",
+   "num"
+  ],
+  "variants": {
+   "rewardId, num": 1
+  }
+ },
+ "GmAddAllItemsToBag": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmAddPopupGift": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "id"
+  ],
+  "variants": {
+   "id": 1
+  }
+ },
+ "GmBecomeReturningPlayer": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmCopyAvatarToSelf": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "username"
+  ],
+  "variants": {
+   "username": 1
+  }
+ },
+ "GmDecomposeAllFashionEquip": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmDecomposeAllSigil": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmFashionEquipDirectColorGradeAttr": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "equipId",
+   "entryId"
+  ],
+  "variants": {
+   "equipId, entryId": 1
+  }
+ },
+ "GmGetSuitFashionEquipment": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "suit_id"
+  ],
+  "variants": {
+   "suit_id": 1
+  }
+ },
+ "GmRpcAddAllStuffs": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmRpcAddCrontab": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "rule"
+  ],
+  "variants": {
+   "rule": 1
+  }
+ },
+ "GmRpcAddSomeFashion": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "count"
+  ],
+  "variants": {
+   "count": 1
+  }
+ },
+ "GmRpcCharAttrChange": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "modelId"
+  ],
+  "variants": {
+   "modelId": 1
+  }
+ },
+ "GmRpcCheckError": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/gachadebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmRpcEnterOnlineSpace": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "gameMode",
+   "spaceLevel"
+  ],
+  "variants": {
+   "gameMode, spaceLevel": 1
+  }
+ },
+ "GmRpcFetchCharReport": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmRpcFinishAchievement": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "achieveId"
+  ],
+  "variants": {
+   "achieveId": 1
+  }
+ },
+ "GmRpcFinishStreetExploration": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "exploration_id",
+   "cond_type",
+   "cond_id"
+  ],
+  "variants": {
+   "exploration_id, cond_type, cond_id": 1
+  }
+ },
+ "GmRpcOpenNpcChatTopic": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "topicId"
+  ],
+  "variants": {
+   "topicId": 1
+  }
+ },
+ "GmRpcQueryWatchSpaceList": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmRpcRandomPartyGameLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "randomNum"
+  ],
+  "variants": {
+   "randomNum": 1
+  }
+ },
+ "GmRpcResetCycleRankInfo": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmRpcResourceFinish": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "type",
+   "subType",
+   "hardLevel",
+   "finishNum",
+   "isMerge"
+  ],
+  "variants": {
+   "type, subType, hardLevel, finishNum, isMerge": 1
+  }
+ },
+ "GmRpcSendMailToGroup": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(mailId)"
+  ],
+  "variants": {
+   "tonumber(mailId)": 1
+  }
+ },
+ "GmRpcSendMailToPlayer": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(mailId)"
+  ],
+  "variants": {
+   "tonumber(mailId)": 1
+  }
+ },
+ "GmRpcSet1v1RankingRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "cur_rank",
+   "rank_star",
+   "rank_total_count",
+   "os.time()"
+  ],
+  "variants": {
+   "cur_rank, rank_star, rank_total_count, os.time()": 1
+  }
+ },
+ "GmRpcSetCharRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "char",
+   "score",
+   "win_rate",
+   "total_count",
+   "os.time()"
+  ],
+  "variants": {
+   "char, score, win_rate, total_count, os.time()": 2
+  }
+ },
+ "GmRpcSetCommonMvpRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "mvp_count",
+   "match_count",
+   "os.time()"
+  ],
+  "variants": {
+   "mvp_count, match_count, os.time()": 1
+  }
+ },
+ "GmRpcSetCommonWinRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "win_count",
+   "rank_total_count",
+   "os.time()"
+  ],
+  "variants": {
+   "win_count, rank_total_count, os.time()": 1
+  }
+ },
+ "GmRpcSetCycleChallengeRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "score"
+  ],
+  "variants": {
+   "score": 1
+  }
+ },
+ "GmRpcSetCycleInfiniteRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "score"
+  ],
+  "variants": {
+   "score": 1
+  }
+ },
+ "GmRpcSetCycleMultiBossRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "bossIndex",
+   "score"
+  ],
+  "variants": {
+   "bossIndex, score": 1
+  }
+ },
+ "GmRpcSetInfiniteRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "rank",
+   "grade",
+   "score",
+   "floor"
+  ],
+  "variants": {
+   "rank, grade, score, floor": 1
+  }
+ },
+ "GmRpcSetInfiniteScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "score",
+   "floor",
+   "os.time()"
+  ],
+  "variants": {
+   "score, floor, os.time()": 1
+  }
+ },
+ "GmRpcSetMvpRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "mvp_count",
+   "match_count",
+   "os.time()"
+  ],
+  "variants": {
+   "mvp_count, match_count, os.time()": 1
+  }
+ },
+ "GmRpcSetPartyGameScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "score"
+  ],
+  "variants": {
+   "score": 1
+  }
+ },
+ "GmRpcSetPlayerRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "value"
+  ],
+  "variants": {
+   "value": 1
+  }
+ },
+ "GmRpcSetRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "rank_id",
+   "scores"
+  ],
+  "variants": {
+   "rank_id, scores": 1
+  }
+ },
+ "GmRpcSetRankingRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "cur_rank",
+   "rank_star",
+   "rank_total_count",
+   "os.time()"
+  ],
+  "variants": {
+   "cur_rank, rank_star, rank_total_count, os.time()": 1
+  }
+ },
+ "GmRpcSetWinRankScore": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [
+   "win_count",
+   "rank_total_count",
+   "os.time()"
+  ],
+  "variants": {
+   "win_count, rank_total_count, os.time()": 1
+  }
+ },
+ "GmRpcSettleInfiniteScoreRank": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/rankdebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 2
+  }
+ },
+ "GmRpcStartMatch": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "systemType",
+   "custom_info"
+  ],
+  "variants": {
+   "systemType, custom_info": 1
+  }
+ },
+ "GmRpcStartOnlineBattle": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "roomId"
+  ],
+  "variants": {
+   "roomId": 1
+  }
+ },
+ "GmRpcTestActivityGacha": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/gachadebugcomp.lua"
+  ],
+  "params": [
+   "no",
+   "count"
+  ],
+  "variants": {
+   "no, count": 1
+  }
+ },
+ "GmRpcTestRandomRewards": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "tonumber(rid)",
+   "tonumber(count)"
+  ],
+  "variants": {
+   "tonumber(rid), tonumber(count)": 1
+  }
+ },
+ "GmRpcTestUpOnlyReward": {
+  "files": [
+   "entities/avatarcomponent/debugcomps/gachadebugcomp.lua"
+  ],
+  "params": [
+   "draw_count"
+  ],
+  "variants": {
+   "draw_count": 1
+  }
+ },
+ "GmRpc_GetEdenSpaceNum": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "GmSetMultiTowerLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "levelId",
+   "trace"
+  ],
+  "variants": {
+   "levelId, trace": 1
+  }
+ },
+ "GmVideoCommentQuery": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "chapterId"
+  ],
+  "variants": {
+   "chapterId": 1
+  }
+ },
+ "GmVideoCommentReplace": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "chapterId",
+   "index",
+   "uid"
+  ],
+  "variants": {
+   "chapterId, index, uid": 1
+  }
+ },
+ "Gm_QueryLevelActorState": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "dungeonId",
+   "levelId",
+   "uniqName"
+  ],
+  "variants": {
+   "dungeonId, levelId, uniqName": 1
+  }
+ },
+ "Gm_SetChallengeTowerLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "type",
+   "hardLevel",
+   "trace",
+   "star1",
+   "star2",
+   "star3"
+  ],
+  "variants": {
+   "type, hardLevel, trace, star1, star2, star3": 1
+  }
+ },
+ "Gm_SetResourceTowerLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "type",
+   "subType",
+   "hardLevel",
+   "trace"
+  ],
+  "variants": {
+   "type, subType, hardLevel, trace": 1
+  }
+ },
+ "Gm_SetTowerLevel": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "is_new_tower",
+   "floor_id"
+  ],
+  "variants": {
+   "is_new_tower, floor_id": 1
+  }
+ },
+ "InviteToMyTeam_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "{uid"
+  ],
+  "variants": {
+   "{uid": 1
+  }
+ },
+ "KickOutPlayer_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "kickId"
+  ],
+  "variants": {
+   "kickId": 1
+  }
+ },
+ "PLoginActGainReward": {
+  "files": [
+   "entities/avatarcomponent/avataractivitycomp.lua"
+  ],
+  "params": [
+   "reward_id"
+  ],
+  "variants": {
+   "reward_id": 1
+  }
+ },
+ "PutOnPupilSkill_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "system_type",
+   "pupil_skill_pos",
+   "pupil_skill_id",
+   "team_index"
+  ],
+  "variants": {
+   "system_type, pupil_skill_pos, pupil_skill_id, team_index": 1
+  }
+ },
+ "QueryExpiredItems_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "QueryMyTeamInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 2
+  }
+ },
+ "Quit_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RacePvP_GetNewRankReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [
+   "uids[1]"
+  ],
+  "variants": {
+   "uids[1]": 1
+  }
+ },
+ "RacePvP_GetNewRankReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RacePvP_SetChoosenIndex_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [
+   "index"
+  ],
+  "variants": {
+   "index": 1
+  }
+ },
+ "RacePvP_SetPropList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [
+   "index",
+   "name",
+   "prop_list"
+  ],
+  "variants": {
+   "index, name, prop_list": 1
+  }
+ },
+ "RacePvP_TestFinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "win",
+   "isEarlyOut",
+   "teammateEarlyout",
+   "isMVP",
+   "actScore",
+   "finishScore"
+  ],
+  "variants": {
+   "win, isEarlyOut, teammateEarlyout, isMVP, actScore, finishScore": 1
+  }
+ },
+ "RacePvP_TestStartGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "isRankingMatch"
+  ],
+  "variants": {
+   "isRankingMatch": 1
+  }
+ },
+ "RecordItemObtain_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbagcomp.lua"
+  ],
+  "params": [
+   "itemID"
+  ],
+  "variants": {
+   "itemID": 1
+  }
+ },
+ "ReplyInvitation_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "teamId",
+   "accept"
+  ],
+  "variants": {
+   "teamId, accept": 1
+  }
+ },
+ "ReplyJoinTeamRequest_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "requestUid",
+   "approve"
+  ],
+  "variants": {
+   "requestUid, approve": 1
+  }
+ },
+ "RequestAddDungeonMainPower_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "level"
+  ],
+  "variants": {
+   "level": 1
+  }
+ },
+ "RequestAddPrestigeExp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "exp"
+  ],
+  "variants": {
+   "exp": 1
+  }
+ },
+ "RequestCancelDispatchChar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "dip_id"
+  ],
+  "variants": {
+   "dip_id": 1
+  }
+ },
+ "RequestCompleteBpTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "bp_task_type",
+   "bp_task_id"
+  ],
+  "variants": {
+   "bp_task_type, bp_task_id": 1
+  }
+ },
+ "RequestCompleteTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "RequestCompleteUnitlStoryTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "story_taskId"
+  ],
+  "variants": {
+   "story_taskId": 1
+  }
+ },
+ "RequestCompleteUnitlTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "RequestDispatchChar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "char_id",
+   "dip_id"
+  ],
+  "variants": {
+   "char_id, dip_id": 1
+  }
+ },
+ "RequestDoneSomeTypeTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "type"
+  ],
+  "variants": {
+   "type": 1
+  }
+ },
+ "RequestDoneStoryTaskParamInt_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstorytaskcomp.lua"
+  ],
+  "params": [
+   "taskId",
+   "param_int"
+  ],
+  "variants": {
+   "taskId, param_int": 1,
+   "taskParams[1], taskParams[2]": 1
+  }
+ },
+ "RequestDoneStoryTaskParamStr_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstorytaskcomp.lua"
+  ],
+  "params": [
+   "taskId",
+   "param_str"
+  ],
+  "variants": {
+   "self._lastStoryTaskParamStr[1], self._lastStoryTaskParamStr[2]": 1,
+   "taskId, param_str": 1
+  }
+ },
+ "RequestDoneTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "RequestDoneTitleTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "title_tasks",
+   "titel_vit"
+  ],
+  "variants": {
+   "title_tasks, titel_vit": 1
+  }
+ },
+ "RequestEnterStreetSurface_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "worldId"
+  ],
+  "variants": {
+   "worldId": 1
+  }
+ },
+ "RequestFetchTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "RequestFinishDispatch_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "dip_id"
+  ],
+  "variants": {
+   "dip_id": 1
+  }
+ },
+ "RequestGetPrestigeAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "streetId",
+   "level"
+  ],
+  "variants": {
+   "streetId, level": 1
+  }
+ },
+ "RequestGetPrestigeTaskAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "streetId",
+   "prestigeTaskId"
+  ],
+  "variants": {
+   "streetId, prestigeTaskId": 1
+  }
+ },
+ "RequestGetStreetLevelAchieveAward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "level_id",
+   "achieve_id"
+  ],
+  "variants": {
+   "level_id, achieve_id": 1
+  }
+ },
+ "RequestJoinTeam_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "teamId"
+  ],
+  "variants": {
+   "teamId": 1
+  }
+ },
+ "RequestLeaveStreet_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "id"
+  ],
+  "variants": {
+   "id": 1
+  }
+ },
+ "RequestOneKeyGraduate": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RequestOneKeyRolePower": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RequestRefreshTitleDailyTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartaskcomp.lua"
+  ],
+  "params": [
+   "type"
+  ],
+  "variants": {
+   "type": 1
+  }
+ },
+ "RequestStreetActor_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "actor_id"
+  ],
+  "variants": {
+   "actor_id": 1
+  }
+ },
+ "RequestStreetTreasure_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "treasure_id"
+  ],
+  "variants": {
+   "treasure_id": 1
+  }
+ },
+ "RequestSwitchStreet_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "streetId",
+   "streetParams or self.street_param"
+  ],
+  "variants": {
+   "streetId, streetParams or self.street_param": 1
+  }
+ },
+ "RequestTriggerTaskEvent_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "event",
+   "times"
+  ],
+  "variants": {
+   "event, times": 1
+  }
+ },
+ "RequestUpgradeDungeonMainPower_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RetSetHasScore_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RisingStarCharacter_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "stage"
+  ],
+  "variants": {
+   "charId, stage": 1
+  }
+ },
+ "RollbackSpaceTask_CS": {
+  "files": [
+   "entities/spaceentities/soulcomponent/soulspacetask.lua"
+  ],
+  "params": [
+   "cur_taskid",
+   "back_to_taskid",
+   "index"
+  ],
+  "variants": {
+   "cur_taskid, back_to_taskid, index": 1,
+   "cur_taskid, back_to_taskid, reqId": 1
+  }
+ },
+ "RpcAddVideoComment": {
+  "files": [
+   "entities/avatarcomponent/avatardungeoncomp.lua"
+  ],
+  "params": [
+   "chapterId",
+   "comment",
+   "starNum"
+  ],
+  "variants": {
+   "chapterId, comment, starNum": 1
+  }
+ },
+ "RpcBattleTeach_RedDotFinish_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsystemguidecomp.lua"
+  ],
+  "params": [
+   "instructionId"
+  ],
+  "variants": {
+   "instructionId": 1
+  }
+ },
+ "RpcBossActEquipBuff_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbossactpropcomp.lua"
+  ],
+  "params": [
+   "buffs"
+  ],
+  "variants": {
+   "buffs": 1
+  }
+ },
+ "RpcBossActScoreReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbossactpropcomp.lua"
+  ],
+  "params": [
+   "rewardId"
+  ],
+  "variants": {
+   "rewardId": 1
+  }
+ },
+ "RpcBossActSetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbossactpropcomp.lua"
+  ],
+  "params": [
+   "charList"
+  ],
+  "variants": {
+   "charList": 1
+  }
+ },
+ "RpcBuyShop": {
+  "files": [
+   "entities/avatarcomponent/avatarshopcomp.lua"
+  ],
+  "params": [
+   "no",
+   "num",
+   "type",
+   "true"
+  ],
+  "variants": {
+   "no, num, type, false": 1,
+   "no, num, type, true": 1
+  }
+ },
+ "RpcChallengeBossSetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamchallengebosscomp.lua"
+  ],
+  "params": [
+   "bossIndex",
+   "characterList"
+  ],
+  "variants": {
+   "bossIndex, characterList": 1
+  }
+ },
+ "RpcChangeNickName": {
+  "files": [
+   "entities/avatarcomponent/namecomp.lua"
+  ],
+  "params": [
+   "name"
+  ],
+  "variants": {
+   "name": 1
+  }
+ },
+ "RpcCharDressUpFashionEquip": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "equipId"
+  ],
+  "variants": {
+   "charId, equipId": 1
+  }
+ },
+ "RpcCharTakeOffAllFashionEquip": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "RpcCharTakeOffFashionEquip": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "equipId"
+  ],
+  "variants": {
+   "charId, equipId": 1
+  }
+ },
+ "RpcChargeRebateReward": {
+  "files": [
+   "entities/avatarcomponent/avatarchargecomp.lua"
+  ],
+  "params": [
+   "chargeType"
+  ],
+  "variants": {
+   "chargeType": 1
+  }
+ },
+ "RpcCheckAndRefresh1v1": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcCheckAndRefresh2v2": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcCheckNickName": {
+  "files": [
+   "entities/avatarcomponent/namecomp.lua"
+  ],
+  "params": [
+   "name"
+  ],
+  "variants": {
+   "name": 1
+  }
+ },
+ "RpcChickenParkourLeaveHalfway": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "t"
+  ],
+  "variants": {
+   "t": 1
+  }
+ },
+ "RpcChickenParkourSettlement": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "t"
+  ],
+  "variants": {
+   "t": 1
+  }
+ },
+ "RpcCommitNameGender": {
+  "files": [
+   "entities/avatarcomponent/namecomp.lua"
+  ],
+  "params": [
+   "name",
+   "gender"
+  ],
+  "variants": {
+   "name, gender": 1
+  }
+ },
+ "RpcCountdownGiftActBuy": {
+  "files": [
+   "entities/avatarcomponent/avatarcountdowngiftactcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcCycleChargeActReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcyclechargeactcomp.lua"
+  ],
+  "params": [
+   "act_id",
+   "progress"
+  ],
+  "variants": {
+   "act_id, progress": 1
+  }
+ },
+ "RpcDragonCharmActSetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardragoncharmactcomp.lua"
+  ],
+  "params": [
+   "dragonId",
+   "characterList"
+  ],
+  "variants": {
+   "dragonId, characterList": 1
+  }
+ },
+ "RpcDrawAccuChargeGacha": {
+  "files": [
+   "entities/avatarcomponent/avataraccuchargegachacomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "draw_count"
+  ],
+  "variants": {
+   "activityId, draw_count": 1
+  }
+ },
+ "RpcDrawGacha": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "id",
+   "drawType"
+  ],
+  "variants": {
+   "id, drawType": 1
+  }
+ },
+ "RpcDrawNonReplacementGacha": {
+  "files": [
+   "entities/avatarcomponent/avatarnonreplacementgacha.lua"
+  ],
+  "params": [
+   "act_id",
+   "drawType"
+  ],
+  "variants": {
+   "act_id, drawType": 1
+  }
+ },
+ "RpcDrawPupilGacha": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "pool_id",
+   "draw_count"
+  ],
+  "variants": {
+   "pool_id, draw_count": 1
+  }
+ },
+ "RpcEnterChickenParkour": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "levelId"
+  ],
+  "variants": {
+   "levelId": 1
+  }
+ },
+ "RpcEnterMusicGame": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "levelId"
+  ],
+  "variants": {
+   "levelId": 1
+  }
+ },
+ "RpcEnterStreet": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "id",
+   "streetParams or self.street_param"
+  ],
+  "variants": {
+   "id, streetParams or self.street_param": 1
+  }
+ },
+ "RpcEquipBatchDecompose": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "equip_uuids"
+  ],
+  "variants": {
+   "equip_uuids": 1
+  }
+ },
+ "RpcEquipCompose": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "itemID",
+   "materialUID"
+  ],
+  "variants": {
+   "itemID, materialUID": 1
+  }
+ },
+ "RpcEquipLock": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "equip_uuid",
+   "lock"
+  ],
+  "variants": {
+   "equip_uuid, lock": 1
+  }
+ },
+ "RpcEquipShiftStrength": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua"
+  ],
+  "params": [
+   "be_shift_equip_uuid",
+   "shift_equip_uuid"
+  ],
+  "variants": {
+   "be_shift_equip_uuid, shift_equip_uuid": 1
+  }
+ },
+ "RpcFashionEquipBatchDecompose": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "equipIds"
+  ],
+  "variants": {
+   "equipIds": 1
+  }
+ },
+ "RpcFashionEquipDiscard": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "fashion_equip_uuid",
+   "discard"
+  ],
+  "variants": {
+   "fashion_equip_uuid, discard": 1
+  }
+ },
+ "RpcFashionEquipDressUpSaveScheme": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "char_id",
+   "plan_id"
+  ],
+  "variants": {
+   "char_id, plan_id": 1
+  }
+ },
+ "RpcFashionEquipLock": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "fashion_equip_uuid",
+   "lock"
+  ],
+  "variants": {
+   "fashion_equip_uuid, lock": 1
+  }
+ },
+ "RpcFashionEquipRaiseQuality": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "fashion_equip_uuid"
+  ],
+  "variants": {
+   "fashion_equip_uuid": 1
+  }
+ },
+ "RpcFashionEquipRecast": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "fashion_equip_uuid"
+  ],
+  "variants": {
+   "fashion_equip_uuid": 1
+  }
+ },
+ "RpcFashionEquipRecastConfirm": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "fashion_equip_uuid",
+   "confirm"
+  ],
+  "variants": {
+   "fashion_equip_uuid, confirm": 1
+  }
+ },
+ "RpcFashionEquipRefine": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "gridID"
+  ],
+  "variants": {
+   "gridID": 1
+  }
+ },
+ "RpcFashionEquipRefineConfirm": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "gridID",
+   "confirm"
+  ],
+  "variants": {
+   "gridID, confirm": 1
+  }
+ },
+ "RpcFashionEquipSaveScheme": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "char_id",
+   "plan_id"
+  ],
+  "variants": {
+   "char_id, plan_id": 1
+  }
+ },
+ "RpcFashionEquipStrength": {
+  "files": [
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "gridId",
+   "upgradeItemList",
+   "upgradeEquipList"
+  ],
+  "variants": {
+   "gridId, upgradeItemList, upgradeEquipList": 1
+  }
+ },
+ "RpcFetchAmusementParkTicket": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGainAccuChargeGachaToken": {
+  "files": [
+   "entities/avatarcomponent/avataraccuchargegachacomp.lua"
+  ],
+  "params": [
+   "activityId"
+  ],
+  "variants": {
+   "activityId": 1
+  }
+ },
+ "RpcGainAccumulatedRewards": {
+  "files": [
+   "entities/avatarcomponent/avatarnonreplacementgacha.lua"
+  ],
+  "params": [
+   "act_id",
+   "idx"
+  ],
+  "variants": {
+   "act_id, idx": 1
+  }
+ },
+ "RpcGainCharStarActReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcharstaractcomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "index"
+  ],
+  "variants": {
+   "activityId, index": 1
+  }
+ },
+ "RpcGainDragonCharmActAllBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatardragoncharmactcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGainPhysicalPowerBpActAllBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatarpowerbpcomp.lua"
+  ],
+  "params": [
+   "actId"
+  ],
+  "variants": {
+   "actId": 1
+  }
+ },
+ "RpcGainPhysicalPowerBpActFreeBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatarpowerbpcomp.lua"
+  ],
+  "params": [
+   "act_id",
+   "level"
+  ],
+  "variants": {
+   "act_id, level": 1
+  }
+ },
+ "RpcGainPhysicalPowerBpActPayBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatarpowerbpcomp.lua"
+  ],
+  "params": [
+   "act_id",
+   "level"
+  ],
+  "variants": {
+   "act_id, level": 1
+  }
+ },
+ "RpcGainReturningPlayerActAllBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGainReturningPlayerActBpTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [
+   "task_id"
+  ],
+  "variants": {
+   "task_id": 1
+  }
+ },
+ "RpcGainReturningPlayerActFreeBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [
+   "level"
+  ],
+  "variants": {
+   "level": 1
+  }
+ },
+ "RpcGainReturningPlayerActPayBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [
+   "level"
+  ],
+  "variants": {
+   "level": 1
+  }
+ },
+ "RpcGainRogueAllBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGainRogueIllustrationTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "RpcGainRogueTaskReward": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [
+   "taskId"
+  ],
+  "variants": {
+   "taskId": 1
+  }
+ },
+ "RpcGainSignInReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [
+   "day"
+  ],
+  "variants": {
+   "day": 1
+  }
+ },
+ "RpcGainTriggerReward": {
+  "files": [
+   "entities/avatarcomponent/avatarreturningplayercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGainWeeklyPlayAllBpLevelReward": {
+  "files": [
+   "entities/avatarcomponent/avatarcycleopencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGetGachaNormalReward": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "no",
+   "char"
+  ],
+  "variants": {
+   "no, char": 1
+  }
+ },
+ "RpcGetGachaUpOnlyReward": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "no"
+  ],
+  "variants": {
+   "no": 1
+  }
+ },
+ "RpcGetMatchDuration": {
+  "files": [
+   "entities/avatarcomponent/avatarmatch.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGetMultiTowerChallengeLevelCS": {
+  "files": [
+   "entities/avatarcomponent/avatarhundredtowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGetSunActLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsunactcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcGiftCodeRedeem": {
+  "files": [
+   "entities/avatarcomponent/avatarbagcomp.lua"
+  ],
+  "params": [
+   "code"
+  ],
+  "variants": {
+   "code": 1
+  }
+ },
+ "RpcMarkSevenDay": {
+  "files": [
+   "entities/avatarcomponent/sevensignincomp.lua"
+  ],
+  "params": [
+   "hno",
+   "day"
+  ],
+  "variants": {
+   "hno, day": 1
+  }
+ },
+ "RpcMaterialCompose": {
+  "files": [
+   "entities/avatarcomponent/avatarequipcomp.lua",
+   "entities/avatarcomponent/avatarfashionequipcomp.lua"
+  ],
+  "params": [
+   "itemID",
+   "count"
+  ],
+  "variants": {
+   "itemID, count": 2
+  }
+ },
+ "RpcMultiTowerCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarhundredtowercomp.lua"
+  ],
+  "params": [
+   "characterList"
+  ],
+  "variants": {
+   "characterList": 1
+  }
+ },
+ "RpcMultiTowerQuickProfit_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarhundredtowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcMultiTowerReceiveHangReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarhundredtowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcMusicGameLeaveHalfway": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcMusicGameSettlement": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "resultInfo"
+  ],
+  "variants": {
+   "resultInfo": 1
+  }
+ },
+ "RpcObtainAccuGachaReward": {
+  "files": [
+   "entities/avatarcomponent/activity/avatargachaactcomp.lua"
+  ],
+  "params": [
+   "hno"
+  ],
+  "variants": {
+   "hno": 1
+  }
+ },
+ "RpcObtainDonateReward": {
+  "files": [
+   "entities/avatarcomponent/avatardonate.lua"
+  ],
+  "params": [
+   "rid"
+  ],
+  "variants": {
+   "rid": 1
+  }
+ },
+ "RpcPartyGameCharacterId_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpartygame.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "RpcPartyGameShowWin_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarpartygame.lua"
+  ],
+  "params": [
+   "isShow"
+  ],
+  "variants": {
+   "isShow": 1
+  }
+ },
+ "RpcPlayLottery": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcPlayLotteryGetReward": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcPlayTurntable": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [
+   "count"
+  ],
+  "variants": {
+   "count": 1
+  }
+ },
+ "RpcPlayTurntableGetReward": {
+  "files": [
+   "entities/avatarcomponent/avataredencomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcQueryExpiredFashions": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcRogue_CharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [
+   "characterList"
+  ],
+  "variants": {
+   "characterList": 1
+  }
+ },
+ "RpcRogue_TicketReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [
+   "number"
+  ],
+  "variants": {
+   "number": 1
+  }
+ },
+ "RpcRogue_UnlockSkill_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [
+   "skillId"
+  ],
+  "variants": {
+   "skillId": 1
+  }
+ },
+ "RpcRogue_WeekReward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarroguecomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcSetBanPick": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "char"
+  ],
+  "variants": {
+   "char": 1
+  }
+ },
+ "RpcSetGachaWish": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "no",
+   "wish_char"
+  ],
+  "variants": {
+   "no, wish_char": 1
+  }
+ },
+ "RpcSetWishChar": {
+  "files": [
+   "entities/avatarcomponent/avatargachacomp.lua"
+  ],
+  "params": [
+   "no",
+   "wish_char"
+  ],
+  "variants": {
+   "no, wish_char": 1
+  }
+ },
+ "RpcSevenDayActSetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsevendayactcomp.lua"
+  ],
+  "params": [
+   "levelId",
+   "difficulty",
+   "characterList"
+  ],
+  "variants": {
+   "levelId, difficulty, characterList": 1
+  }
+ },
+ "RpcStoryActJumpPre_CS": {
+  "files": [
+   "entities/avatarcomponent/activity/avatartroupeactcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "RpcStoryActSetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/activity/avatartroupeactcomp.lua"
+  ],
+  "params": [
+   "charList"
+  ],
+  "variants": {
+   "charList": 1
+  }
+ },
+ "RpcSunAct_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsunactcomp.lua"
+  ],
+  "params": [
+   "activityId",
+   "isDailyChallenge"
+  ],
+  "variants": {
+   "activityId, isDailyChallenge": 1
+  }
+ },
+ "RpcTrialChar_Reward_CS": {
+  "files": [
+   "entities/avatarcomponent/avatartrialcharcomp.lua"
+  ],
+  "params": [
+   "actID",
+   "charID"
+  ],
+  "variants": {
+   "actID, charID": 1
+  }
+ },
+ "RpcUsePetSkin": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "skinId"
+  ],
+  "variants": {
+   "skinId": 1
+  }
+ },
+ "Rpc_CycleInfinite_CharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarendlesstowercomp.lua"
+  ],
+  "params": [
+   "characterList"
+  ],
+  "variants": {
+   "characterList": 1
+  }
+ },
+ "Rpc_CycleInfinite_GiveUp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarendlesstowercomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "Rpc_SpaceLike_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteambosscomp.lua",
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "uid"
+  ],
+  "variants": {
+   "uid": 2
+  }
+ },
+ "SeasonReset": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "SetBackground_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "background_id"
+  ],
+  "variants": {
+   "background_id": 1
+  }
+ },
+ "SetCanScore_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "SetCancelScore_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "SetChampionshipCharList": {
+  "files": [
+   "entities/avatarcomponent/avatarchampionshipcomp.lua"
+  ],
+  "params": [
+   "type_id",
+   "char_list"
+  ],
+  "variants": {
+   "type_id, char_list": 1
+  }
+ },
+ "SetCharShown_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "shown_list"
+  ],
+  "variants": {
+   "shown_list": 1
+  }
+ },
+ "SetCharacter2v2CharList": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "index",
+   "char_list"
+  ],
+  "variants": {
+   "index, char_list": 1
+  }
+ },
+ "SetCharacter2v2CharListChoosenIndex": {
+  "files": [
+   "entities/avatarcomponent/avatarpvp_doubleteamcomp.lua"
+  ],
+  "params": [
+   "index"
+  ],
+  "variants": {
+   "index": 1
+  }
+ },
+ "SetCharacterListName_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarformationcomp.lua"
+  ],
+  "params": [
+   "index",
+   "name"
+  ],
+  "variants": {
+   "index, name": 1
+  }
+ },
+ "SetCharacterList_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarformationcomp.lua"
+  ],
+  "params": [
+   "idx",
+   "characterList"
+  ],
+  "variants": {
+   "idx, characterList": 1
+  }
+ },
+ "SetChatBubble_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "bubble_id"
+  ],
+  "variants": {
+   "bubble_id": 1
+  }
+ },
+ "SetChoosenChar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarformationcomp.lua"
+  ],
+  "params": [
+   "char"
+  ],
+  "variants": {
+   "char": 1
+  }
+ },
+ "SetChoosenIndex_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarformationcomp.lua"
+  ],
+  "params": [
+   "index"
+  ],
+  "variants": {
+   "index": 1
+  }
+ },
+ "SetFourRacingCharacter": {
+  "files": [
+   "entities/avatarcomponent/avatarpuzzlecomp.lua"
+  ],
+  "params": [
+   "roleId"
+  ],
+  "variants": {
+   "roleId": 1
+  }
+ },
+ "SetHasScore_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [],
+  "variants": {
+   "": 1
+  }
+ },
+ "SetHonorWallData_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarfavorspacecomp.lua"
+  ],
+  "params": [
+   "charID",
+   "objectsInfo",
+   "bgInfo"
+  ],
+  "variants": {
+   "charID, objectsInfo, bgInfo": 1
+  }
+ },
+ "SetIsAccountCreateTimeHidden_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "is_hidden"
+  ],
+  "variants": {
+   "is_hidden": 1
+  }
+ },
+ "SetIsCharListShown_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "is_shown"
+  ],
+  "variants": {
+   "is_shown": 1
+  }
+ },
+ "SetIsHonorWallShown_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "is_shown"
+  ],
+  "variants": {
+   "is_shown": 1
+  }
+ },
+ "SetPlayerCardFrame_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "cardFrameId"
+  ],
+  "variants": {
+   "cardFrameId": 1
+  }
+ },
+ "SetPlayerCard_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "cardId"
+  ],
+  "variants": {
+   "cardId": 1
+  }
+ },
+ "SetPlayerTitle_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "titleId",
+   "titleIndex or 1"
+  ],
+  "variants": {
+   "titleId, titleIndex or 1": 1
+  }
+ },
+ "SetPortraitFrame_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "portrait_frame_id"
+  ],
+  "variants": {
+   "portrait_frame_id": 1
+  }
+ },
+ "SetPortrait_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "portrait_id"
+  ],
+  "variants": {
+   "portrait_id": 1
+  }
+ },
+ "SetPuzzleCharacter": {
+  "files": [
+   "entities/avatarcomponent/avatarpuzzlecomp.lua"
+  ],
+  "params": [
+   "roleId"
+  ],
+  "variants": {
+   "roleId": 1
+  }
+ },
+ "SetShownHonorWallCharId_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "charId"
+  ],
+  "variants": {
+   "charId": 1
+  }
+ },
+ "SetSignature_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "signature"
+  ],
+  "variants": {
+   "signature": 1
+  }
+ },
+ "Sigil_BatchDecompose_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "sigil_uuids"
+  ],
+  "variants": {
+   "sigil_uuids": 1
+  }
+ },
+ "Sigil_Break_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "sigil_uuid"
+  ],
+  "variants": {
+   "sigil_uuid": 1
+  }
+ },
+ "Sigil_Char_DressUp_Stamp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "char_id",
+   "sigil_uuid"
+  ],
+  "variants": {
+   "char_id, sigil_uuid": 1
+  }
+ },
+ "Sigil_Char_TakeOff_Stamp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "char_id",
+   "sigil_uuid"
+  ],
+  "variants": {
+   "char_id, sigil_uuid": 1
+  }
+ },
+ "Sigil_LockOper_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "sigil_uuid",
+   "lock"
+  ],
+  "variants": {
+   "sigil_uuid, lock": 1
+  }
+ },
+ "Sigil_RisingRefineLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "sigil_uuid"
+  ],
+  "variants": {
+   "sigil_uuid": 1
+  }
+ },
+ "Sigil_RisingStrengthLevel_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsigilcomp.lua"
+  ],
+  "params": [
+   "sigil_uuid",
+   "upgradeItemList",
+   "upgradeSigilList"
+  ],
+  "variants": {
+   "sigil_uuid, upgradeItemList, upgradeSigilList": 1
+  }
+ },
+ "SingleStartMatch_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua",
+   "entities/avatarcomponent/avatarmahjongcomp.lua",
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "match_info"
+  ],
+  "variants": {
+   "data": 3,
+   "match_info": 4
+  }
+ },
+ "Stamp_Batch_Decompose_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "stampIds"
+  ],
+  "variants": {
+   "stampIds": 1
+  }
+ },
+ "Stamp_Char_DressUp_Stamp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "stampId"
+  ],
+  "variants": {
+   "charId, stampId": 1
+  }
+ },
+ "Stamp_Char_TakeOff_Stamp_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "stampId"
+  ],
+  "variants": {
+   "charId, stampId": 1
+  }
+ },
+ "Stamp_Decompose_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "stampId"
+  ],
+  "variants": {
+   "stampId": 1
+  }
+ },
+ "Stamp_RisingStar_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "stampId",
+   "costStampId"
+  ],
+  "variants": {
+   "stampId, costStampId": 1
+  }
+ },
+ "Stamp_Strength_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstampcomp.lua"
+  ],
+  "params": [
+   "stampId"
+  ],
+  "variants": {
+   "stampId": 1
+  }
+ },
+ "StartMatch_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "match_type"
+  ],
+  "variants": {
+   "match_type": 1
+  }
+ },
+ "Storyline_FinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatarclimbtowercomp.lua",
+   "entities/avatarcomponent/avatarstorylinecomp.lua"
+  ],
+  "params": [
+   "passed"
+  ],
+  "variants": {
+   "passed": 1,
+   "storyID, passed, useTime": 1
+  }
+ },
+ "Storyline_GetCollectReward": {
+  "files": [
+   "entities/avatarcomponent/avatarstorylinecomp.lua"
+  ],
+  "params": [
+   "storyId",
+   "index"
+  ],
+  "variants": {
+   "storyId, index": 1
+  }
+ },
+ "Storyline_StartGame": {
+  "files": [
+   "entities/avatarcomponent/avatarclimbtowercomp.lua",
+   "entities/avatarcomponent/avatarstorylinecomp.lua"
+  ],
+  "params": [
+   "floor"
+  ],
+  "variants": {
+   "floor": 1,
+   "storyId": 1
+  }
+ },
+ "Storyline_TestFinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "storyID",
+   "passed",
+   "{"
+  ],
+  "variants": {
+   "storyID, passed, {": 1
+  }
+ },
+ "Street_Actor_InteractID_Update_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetactorcomp.lua"
+  ],
+  "params": [
+   "actor_id",
+   "interact_group",
+   "interact_id",
+   "v",
+   "interact_id"
+  ],
+  "variants": {
+   "actor_id, interact_group, interact_id, 0, 0": 1,
+   "actor_id, interact_group, interact_id, v, interact_id": 1
+  }
+ },
+ "Street_CD_Update_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "self.street_id",
+   "street_cd_id"
+  ],
+  "variants": {
+   "self.street_id, street_cd_id": 1
+  }
+ },
+ "Street_Mainline_Levelup_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "area_id"
+  ],
+  "variants": {
+   "area_id": 1
+  }
+ },
+ "Street_Redpoint_Update_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "key",
+   "value"
+  ],
+  "variants": {
+   "key, value": 1
+  }
+ },
+ "SubmitItem_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbagcomp.lua"
+  ],
+  "params": [
+   "submit_id",
+   "itemDict"
+  ],
+  "variants": {
+   "submit_id, itemDict": 1
+  }
+ },
+ "SwapPassivityPupilSkill_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "system_type",
+   "team_index"
+  ],
+  "variants": {
+   "system_type, team_index": 1
+  }
+ },
+ "SwitchMatchInfo_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcontestcomp.lua"
+  ],
+  "params": [
+   "match_info"
+  ],
+  "variants": {
+   "match_info": 1
+  }
+ },
+ "System_Guide_Update_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarsystemguidecomp.lua"
+  ],
+  "params": [
+   "guideId",
+   "true"
+  ],
+  "variants": {
+   "guideId, true": 1
+  }
+ },
+ "TeamBoss_TestFinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "passed"
+  ],
+  "variants": {
+   "passed": 1
+  }
+ },
+ "TeamBoss_TestStartGame": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "bossTicketId"
+  ],
+  "variants": {
+   "bossTicketId": 1
+  }
+ },
+ "TestFinishGame": {
+  "files": [
+   "entities/avatarcomponent/avatarclimbtowercomp.lua"
+  ],
+  "params": [
+   "passed",
+   "cost_time",
+   "finished_date",
+   "isUseHighPay"
+  ],
+  "variants": {
+   "passed, cost_time, finished_date, isUseHighPay": 1
+  }
+ },
+ "TestStartGame": {
+  "files": [
+   "entities/avatarcomponent/avatarclimbtowercomp.lua"
+  ],
+  "params": [
+   "is_new_tower",
+   "floor"
+  ],
+  "variants": {
+   "is_new_tower, floor": 1,
+   "is_new_tower, target_floor": 1
+  }
+ },
+ "Test_DeleteItem_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardebugcomp.lua"
+  ],
+  "params": [
+   "itemList"
+  ],
+  "variants": {
+   "itemList": 1
+  }
+ },
+ "TransferLeader_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteamcomp.lua"
+  ],
+  "params": [
+   "transferId"
+  ],
+  "variants": {
+   "transferId": 1
+  }
+ },
+ "UnlockPartyGameChar": {
+  "files": [
+   "entities/avatarcomponent/avatarpartygame.lua"
+  ],
+  "params": [
+   "characterId"
+  ],
+  "variants": {
+   "characterId": 1
+  }
+ },
+ "Update_NpcChat_Info_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarnpcchatcomp.lua"
+  ],
+  "params": [
+   "chat_type",
+   "chat_id",
+   "topic_id",
+   "info_id",
+   "info_val",
+   "is_over"
+  ],
+  "variants": {
+   "chat_type, chat_id, topic_id, info_id, info_val, is_over": 1
+  }
+ },
+ "UpgradeCharacter_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcharactercomp.lua"
+  ],
+  "params": [
+   "charId",
+   "sendItems"
+  ],
+  "variants": {
+   "charId, sendItems": 1
+  }
+ },
+ "UpgradeDragonCharm_CS": {
+  "files": [
+   "entities/avatarcomponent/avatardragoncharmcomp.lua"
+  ],
+  "params": [
+   "charId",
+   "pos"
+  ],
+  "variants": {
+   "charId, pos": 1
+  }
+ },
+ "UpgradePlayerStage_CS": {
+  "files": [
+   "entities/avatarcomponent/avataruserdatacomp.lua"
+  ],
+  "params": [
+   "stage_id"
+  ],
+  "variants": {
+   "stage_id": 1
+  }
+ },
+ "UpgradePupilSkill_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarteampupilskillcomp.lua"
+  ],
+  "params": [
+   "pupil_skill_id"
+  ],
+  "variants": {
+   "pupil_skill_id": 1
+  }
+ },
+ "Upgrade_Card_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarcardcomp.lua"
+  ],
+  "params": [
+   "cardId"
+  ],
+  "variants": {
+   "cardId": 1
+  }
+ },
+ "UseItem_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarbagcomp.lua"
+  ],
+  "params": [
+   "itemID",
+   "itemCount",
+   "ext"
+  ],
+  "variants": {
+   "itemID, itemCount, ext": 1
+  }
+ },
+ "finishStreetStoryline_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstreetcomp.lua"
+  ],
+  "params": [
+   "eventId"
+  ],
+  "variants": {
+   "eventId": 1
+  }
+ },
+ "updateStreetTraceTask_CS": {
+  "files": [
+   "entities/avatarcomponent/avatarstorytaskcomp.lua"
+  ],
+  "params": [
+   "trackingTaskID"
+  ],
+  "variants": {
+   "trackingTaskID": 1
+  }
+ }
+}

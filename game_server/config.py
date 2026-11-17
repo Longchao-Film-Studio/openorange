@@ -23,13 +23,43 @@ import os
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(_HERE)
 
-WORK_DIR = os.path.join(ROOT_DIR, "work")
-# 抓包目录：默认 work/captures，可用 OO_CAPTURE_DIR 覆盖。
-# ★ 测试必须覆盖它，否则每跑一次测试就往真实 work/captures 里写 conn_*.bin。
-CAPTURE_DIR = os.environ.get("OO_CAPTURE_DIR") or os.path.join(WORK_DIR, "captures")
+# ---------------------------------------------------------------- 仓库内目录
+#
+# ★ 2026-11-17 拆分：原来所有东西都塞在 work/ 一个目录里，四种生命周期完全
+#   相反的东西混在一起（玩家存档要备份 / 日志随便删 / 构建期索引要进库 /
+#   逆向中间产物可重建），结果就是「不敢动、也不知道能不能删」。
+#   现在按「删了会怎样」分三类：
+#
+#     var/                运行时写，随便删（下一次运行会重建）
+#       saves/            玩家存档  ← 唯一丢了就没了的东西
+#       logs/             运行日志 + 诊断台账
+#       captures/         抓包原始字节
+#       admin_token.txt   管理接口口令（两个进程共用）
+#
+#     data/generated/     启动时要读的索引（进库；换版本时用 tools 重新生成）
+#       rpc_list.tsv      RPC 名 → 索引（tools/gen_rpc_list.py）
+#       rpc_hashes.tsv    名字哈希（tools/hash_rpc_names.py）
+#       contract_*.json   契约导出（tools/extract_contract.py）
+#
+#     build/reverse/      一次性逆向产物，可重建、不进库、体积大
+#       patch_dabs/ manifests/ rpc_candidates.txt verify_hashes.tsv
+#
+# 全部可用环境变量覆盖（测试必须覆盖，否则会写到真实目录）。
+VAR_DIR = os.environ.get("OO_VAR_DIR") or os.path.join(ROOT_DIR, "var")
+GENERATED_DIR = (os.environ.get("OO_GENERATED_DIR")
+                 or os.path.join(ROOT_DIR, "data", "generated"))
+REVERSE_DIR = (os.environ.get("OO_REVERSE_DIR")
+               or os.path.join(ROOT_DIR, "build", "reverse"))
+
+#: 旧名字，保留给还没改完的调用方。**新代码不要用**。
+WORK_DIR = VAR_DIR
+
+# 抓包目录：默认 var/captures，可用 OO_CAPTURE_DIR 覆盖。
+# ★ 测试必须覆盖它，否则每跑一次测试就往真实 var/captures 里写 conn_*.bin。
+CAPTURE_DIR = os.environ.get("OO_CAPTURE_DIR") or os.path.join(VAR_DIR, "captures")
 
 # 玩家存档目录。设 OO_STATE_DIR 可换（测试必须换，否则覆盖真实存档）。
-STATE_DIR = os.environ.get("OO_STATE_DIR") or os.path.join(WORK_DIR, "player_state")
+STATE_DIR = os.environ.get("OO_STATE_DIR") or os.path.join(VAR_DIR, "saves")
 
 # 客户端声明的属性默认值（由 tools/build_avatar_init.py 生成）
 AVATAR_INIT_PATH = os.path.join(_HERE, "avatar_init.json")
@@ -164,10 +194,10 @@ def configure_scaffold(unlock_all=False, level=None, all_tasks_done=None):
 #   用来排优先级 —— 它比静态扫描的缺口表更接近「客户端实际发了什么」。
 UNKNOWN_FAKE_OK = os.environ.get("OO_UNKNOWN_OK") in ("1", "true", "yes", "on")
 UNKNOWN_LOG_PATH = (os.environ.get("OO_UNKNOWN_LOG")
-                    or os.path.join(WORK_DIR, "logs", "unknown_requests.tsv"))
+                    or os.path.join(VAR_DIR, "logs", "unknown_requests.tsv"))
 
 # 统一日志目录（log_tee 用；与 unknown_requests.tsv 同目录）
-LOG_DIR = os.environ.get("OO_LOG_DIR") or os.path.join(WORK_DIR, "logs")
+LOG_DIR = os.environ.get("OO_LOG_DIR") or os.path.join(VAR_DIR, "logs")
 
 
 def configure_unknown_fake_ok(on=True):

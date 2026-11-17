@@ -41,7 +41,7 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: 客户端 decompile 出来的 Lua 根目录（与 tests/lua_harness.py 同一个环境变量）
 LUA_ROOT = os.environ.get("OO_LUA_ROOT") or r"F:\haowancheng\archive\game_data\LuaAll_Decompiled2"
-OUT_DIR = os.path.join(ROOT, "work")
+OUT_DIR = os.path.join(ROOT, "data", "generated")
 
 #: C2S：self:serverRpc("X", {a, b}, ...)
 #:  ★ 只认组件里的**定义**（self:serverRpc），面板调用点是转发，参数名不同。

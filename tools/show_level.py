@@ -15,7 +15,7 @@ sys.path.insert(0, ROOT)
 from game_server import level  # noqa: E402
 
 uid = sys.argv[1] if len(sys.argv) > 1 else "bagcheck"
-path = os.path.join(ROOT, "work", "player_state", f"{uid}.json")
+path = os.path.join(ROOT, "var", "saves", f"{uid}.json")
 try:
     st = json.load(open(path, encoding="utf-8"))
 except OSError:

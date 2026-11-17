@@ -134,7 +134,7 @@ def step_rpc_index():
     """rpc_list.tsv（客户端侧生成）与代码 RPC_INDEX 交叉核对。"""
     from game_server import rpc_index
 
-    tsv = os.path.join(ROOT, "work", "rpc_list.tsv")
+    tsv = os.path.join(ROOT, "data", "generated", "rpc_list.tsv")
     if not os.path.exists(tsv):
         return FAIL, "缺少 work/rpc_list.tsv（先跑 python tools/gen_rpc_list.py）"
     rows = {}

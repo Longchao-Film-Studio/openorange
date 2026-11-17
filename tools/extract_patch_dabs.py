@@ -102,7 +102,7 @@ def main():
             print("--dry-run：只检查，未解压。")
             return 0
 
-        out_dir = args.out or os.path.join(HERE, "work", "patch_dabs")
+        out_dir = args.out or os.path.join(HERE, "build", "reverse", "patch_dabs")
         os.makedirs(out_dir, exist_ok=True)
         print()
         print(f"解压到 {out_dir}")

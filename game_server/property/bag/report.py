@@ -34,7 +34,7 @@ def _path() -> str:
     if _PATH is None:
         from ... import config as _cfg
 
-        d = getattr(_cfg, "LOG_DIR", "work/logs")
+        d = getattr(_cfg, "LOG_DIR", "var/logs")
         os.makedirs(d, exist_ok=True)
         _PATH = os.path.join(d, "unknown_item_effects.tsv")
     return _PATH

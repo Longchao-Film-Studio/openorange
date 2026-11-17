@@ -364,7 +364,7 @@ def note_advance(st: Any, task_id: int, *, source: str = "") -> bool:  # noqa: A
 
 def _tsv_path() -> str:
     from .. import config
-    return os.path.join(getattr(config, "LOG_DIR", "work/logs"), "story_gate.tsv")
+    return os.path.join(getattr(config, "LOG_DIR", "var/logs"), "story_gate.tsv")
 
 
 _SEEN: set[int] = set()

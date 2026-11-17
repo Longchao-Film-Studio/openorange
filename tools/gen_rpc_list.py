@@ -33,9 +33,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 LUA_SRC = os.environ.get("OO_LUA_SRC") or r"F:\haowancheng\archive\game_data\LuaFull\src"
 CONFIG_LUA = os.path.join(LUA_SRC, "generated", "config.lua")
-RPC_HASHES = os.path.join(_ROOT, "work", "rpc_hashes.tsv")
+RPC_HASHES = os.path.join(_ROOT, "data", "generated", "rpc_hashes.tsv")
 OUT_MD = os.path.join(_ROOT, "docs", "RPC总表.md")
-OUT_TSV = os.path.join(_ROOT, "work", "rpc_list.tsv")
+OUT_TSV = os.path.join(_ROOT, "data", "generated", "rpc_list.tsv")
 
 
 def parse_server_only_msg():

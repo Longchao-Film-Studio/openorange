@@ -70,7 +70,7 @@ def main():
     args = ap.parse_args()
 
     if args.reset:
-        _save = os.path.join(_ROOT, "work", "player_state", args.uid + ".json")
+        _save = os.path.join(_ROOT, "var", "saves", args.uid + ".json")
         if os.path.exists(_save):
             os.replace(_save, _save + ".bak")
             print(f"已有存档已备份到 {_save}.bak")

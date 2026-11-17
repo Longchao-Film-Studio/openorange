@@ -36,7 +36,7 @@ from game_server.property import validate as _validate  # noqa: E402
 
 def _save_dir():
     from game_server import config
-    return getattr(config, "PLAYER_STATE_DIR", os.path.join(ROOT, "work", "player_state"))
+    return getattr(config, "PLAYER_STATE_DIR", os.path.join(ROOT, "var", "saves"))
 
 
 def _fix_node(props, value, type_name, path, fixed):

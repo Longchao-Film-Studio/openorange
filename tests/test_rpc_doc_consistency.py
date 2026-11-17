@@ -33,7 +33,7 @@ from game_server import dispatch, rpc_catalog, rpc_index  # noqa: E402
 
 DOC_GAP = os.path.join(ROOT, "docs", "RPC缺口分析.md")
 DOC_LIST = os.path.join(ROOT, "docs", "RPC总表.md")
-TSV = os.path.join(ROOT, "work", "rpc_list.tsv")
+TSV = os.path.join(ROOT, "data", "generated", "rpc_list.tsv")
 
 _ok = 0
 _bad = []

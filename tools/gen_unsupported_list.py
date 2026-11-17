@@ -9,7 +9,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-os.environ.setdefault("OO_STATE_DIR", os.path.join(ROOT, "work", "_gen_unsupported"))
+os.environ.setdefault("OO_STATE_DIR", os.path.join(ROOT, "var", "_gen_unsupported"))
 
 from game_server.property import bag  # noqa: E402,F401  (import 包 -> 注册 handler)
 from game_server.property.bag import classify, effects  # noqa: E402

@@ -28,7 +28,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.environ.setdefault("OO_STATE_DIR",
-                    os.path.join(ROOT, "work", "player_state"))
+                    os.path.join(ROOT, "var", "saves"))
 
 from game_server import gamedata  # noqa: E402
 from game_server import player_state as pstate  # noqa: E402

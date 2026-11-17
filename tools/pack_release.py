@@ -11,7 +11,7 @@
 | 排除 | 原因 |
 |---|---|
 | launcher/target/       | Rust 编译缓存，981 MB |
-| work/                  | 存档 / 日志 / 抓包，运行期产物 |
+| var/                   | 存档 / 日志 / 抓包，运行期产物 |
 | shared/data.db*        | 账号库，含密码哈希与会话 token |
 | .git/ .mypy_cache/ .ruff_cache/ __pycache__/ Python/_cache/ | 缓存 |
 | launcher/dist/*.bak_*  | 旧 DLL 备份 |
@@ -45,7 +45,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: 目录前缀（相对仓库根）：命中即整段跳过
 EXCLUDE_DIRS = (
     "launcher/target",
-    "work",
+    "var",
+    "build",
     ".git",
     ".mypy_cache",
     ".ruff_cache",
@@ -208,7 +209,7 @@ def build_readme(picked: list[tuple[str, int]]) -> str:
         "",
         "没打的（拿不到是正常的）：",
         "    launcher/target/      Rust 编译缓存 981 MB",
-        "    work/                 玩家存档 / 运行日志 / 抓包",
+        "    var/                  玩家存档 / 运行日志 / 抓包",
         "    shared/data.db*       账号库",
         "    Python/               本机专属解释器安装（含绝对路径，换机器就是坏的）",
         "    *.log  *.bak_*       运行日志与旧备份",
